@@ -1,12 +1,12 @@
 # Decisões em aberto — Fase 0
 
-**Data:** 2026-07-20  
-**Regra:** nenhuma decisão abaixo autoriza inventar regras fiscais nem alterar `ASM-REG-001`.  
+**Data:** 2026-07-20
+**Regra:** nenhuma decisão abaixo autoriza inventar regras fiscais nem alterar `ASM-REG-001`.
 **Plano associado:** [phase-0-execution-plan.md](phase-0-execution-plan.md)
 
 ## Como usar este documento
 
-Para cada decisão: opções, vantagens, riscos, recomendação ou decisão, responsável e prazo máximo.  
+Para cada decisão: opções, vantagens, riscos, recomendação ou decisão, responsável e prazo máximo.
 Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 
 ---
@@ -135,7 +135,7 @@ Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.
 1. **Recomendada:** Go no backend; PostgreSQL na cloud; SQLite em WAL no Edge (um processo fiscal escritor; POS só via API local); pacote fiscal e testes comuns; abstração de persistência limitada (sem ORM genérico excessivo). PostgreSQL local no Edge só com benchmark/requisito oficial que prove SQLite insuficiente.
 2. **Alternativa:** Java 21 (Spring Boot) + PostgreSQL cloud + SQLite WAL no Edge com as mesmas restrições de escrita única.
 
-**Recomendação:** opção 1. Sem portal na primeira implementação. Não implementar nesta fase.
+**Recomendação:** opção 1. Sem portal na primeira implementação. Estado permanece **recomendada** até aprovação explícita do responsável; deve passar a **decidida** antes do scaffold da Fase 1. Não implementar nesta fase.
 
 ---
 
@@ -236,7 +236,7 @@ Relaciona: `AO-TAX-001`.
 | 2 | Alinha a aceitação autoridade | Impacto em UX/POS e contingência |
 | 3 | Flexível | Complexidade; exige fonte oficial |
 
-**Recomendação:** não escolher 1–3 sem fonte oficial. Até decisão: no vertical slice usar terminologia neutra (`sealed_locally` / `prepared_for_submission`, etc.) **sem alterar o OpenAPI agora**.
+**Recomendação:** não escolher 1–3 sem fonte oficial. Até decisão: usar apenas o estado técnico neutro `sealed_locally` (não é afirmação de emissão fiscal). A **tarefa zero da Fase 1** é a revisão mínima do OpenAPI que introduz `sealed_locally` e aplica DEC-API-001/003 **antes** de implementar o endpoint; o YAML **não** é alterado nesta correção documental da Fase 0.
 
 **Evidência para fechar:** diploma/orientação AGT + snapshot FE + ata de compliance.
 
@@ -255,11 +255,12 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 
 **Opções:**
 
-1. Cloud: KMS/HSM; Edge: keystore OS com cifra em repouso; slice: chaves de teste isoladas atrás de adaptador.
+1. Cloud: KMS/HSM; Edge: keystore OS com cifra em repouso; slice: par RSA **efémero** gerado nos testes/arranque do simulador, atrás de adaptador.
 2. HSM dedicado também no Edge (quando volume justificar).
 3. Chaves em ficheiro no repositório / imagem — **rejeitada**.
+4. Cofre de CI para chaves falsas do vertical slice — **rejeitada** (custo sem benefício).
 
-**Recomendação:** opção 1 para MVP. Segredos nunca no Git. No slice: JWS RS256 real com chaves de teste, interface/adaptador, marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
+**Recomendação:** opção 1 para MVP. Segredos nunca no Git. No slice: JWS RS256 real; chave privada efémera **nunca** persistida nem commitada; fixtures públicas só com chave pública ou vetores estáticos não secretos, se necessário; marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
 
 ---
 
@@ -296,7 +297,7 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 **Contradição:** CTX-004 — fechada.
 
-**Decisão:** o OpenAPI `0.1.0-draft` atual **cumpre** o gate documental da Fase 0, **condicionado** à existência de lista de correções antes da implementação (inclui DEC-API-001/003, termos neutros até DEC-API-004, e demais CTX abertos). Não exigir OpenAPI «quase v1» nesta fase; não editar o YAML agora.
+**Decisão:** o OpenAPI `0.1.0-draft` atual **cumpre** o gate documental da Fase 0, **condicionado** à lista de correções. A **primeira tarefa técnica da Fase 1** é a revisão mínima do OpenAPI (DEC-API-001, DEC-API-003, estado técnico `sealed_locally`) **antes** de implementar o endpoint. Não exigir OpenAPI «quase v1» na Fase 0; não editar o YAML nesta correção documental.
 
 ---
 

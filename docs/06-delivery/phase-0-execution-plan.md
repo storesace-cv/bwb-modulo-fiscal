@@ -1,9 +1,9 @@
 # Plano de execução — Fase 0 (Descoberta)
 
-**Estado:** rascunho executável  
-**Data:** 2026-07-20  
-**Premissa ativa:** `ASM-REG-001` (não alterada nesta fase)  
-**Âmbito:** planeamento, compliance e fundações documentais — **sem código de produção**  
+**Estado:** rascunho executável
+**Data:** 2026-07-20
+**Premissa ativa:** `ASM-REG-001` (não alterada nesta fase)
+**Âmbito:** planeamento, compliance e fundações documentais — **sem código de produção**
 **Esforço interno alvo:** 2–4 semanas (espera AGT em paralelo, sem ocupar engenharia)
 
 ## Objetivo
@@ -101,8 +101,8 @@ flowchart TD
 | Credenciais / registo AGT | Homologação real, Modelo 8, XSD oficial | Simulador AGT; engenharia não espera idle |
 | PDF oficial 74/19 + rectificação | Assinatura legal normativa, menções | Requisitos em «rascunho»; não usar proposta em `local/` como norma |
 | Confirmação `ASM-REG-001` | Modelo comercial de certificação | Manter premissa; pedido documentado |
-| DEC-API-004 | Semântica de estados «emitido» vs «aceite» | Terminologia neutra no slice (`sealed_locally` / `prepared_for_submission`) |
-| DEC-STACK-001 | Scaffold Fase 1 | Usar recomendação do documento de stack |
+| DEC-API-004 | Semântica jurídica final de emissão/aceitação | Estado técnico `sealed_locally` no slice (não afirma emissão fiscal) |
+| DEC-STACK-001 | Scaffold da Fase 1 | Manter recomendação até aprovação explícita; decidir antes do scaffold |
 | Tipos documentais MVP | Âmbito do slice | Fatura simples |
 
 ## Responsáveis sugeridos (RACI resumido)
@@ -133,10 +133,11 @@ flowchart TD
 1. Requisitos críticos têm fonte, interpretação ou «pendente fonte oficial».
 2. Lacunas regulatórias inventariadas; espera AGT não bloqueia o gate interno se waivers existirem.
 3. `ASM-REG-001` intacta; pedido de validação documentado.
-4. DEC-STACK-001, DEC-DEL-001, DEC-API-001 e DEC-API-003 fechadas conforme [open-decisions.md](open-decisions.md).
-5. DEC-API-004 aberta ou bloqueada-por-lacuna, com terminologia neutra acordada para o slice.
-6. Vertical slice especificado (aceitação + falhas; at-least-once + idempotência).
-7. Nenhum segredo ou dado fiscal real no repositório.
+4. DEC-DEL-001, DEC-API-001 e DEC-API-003 fechadas conforme [open-decisions.md](open-decisions.md).
+5. DEC-STACK-001 permanece **recomendada** até aprovação explícita do responsável; deve estar **decidida** antes do scaffold da Fase 1 (não é requisito de fecho documental da Fase 0).
+6. DEC-API-004 aberta ou bloqueada-por-lacuna; estado técnico neutro acordado: `sealed_locally`.
+7. Vertical slice especificado (aceitação + falhas; at-least-once + idempotência); tarefa zero da Fase 1 = revisão mínima OpenAPI.
+8. Nenhum segredo ou dado fiscal real no repositório.
 
 ## Gates
 
@@ -154,7 +155,7 @@ flowchart TD
 | Gate | Critério | Se falhar |
 |---|---|---|
 | G0-T1 | ADR-0001/0002/0003 confirmados | Novo ADR antes da Fase 1 |
-| G0-T2 | DEC-STACK-001 decidida | Não iniciar scaffold |
+| G0-T2 | DEC-STACK-001 aprovada/decidida **antes do scaffold** da Fase 1 (pode continuar «recomendada» no fecho documental da Fase 0) | Não iniciar scaffold |
 | G0-T3 | Vertical slice aceite | Replanejar Fase 1 |
 | G0-T4 | DEC-DEL-001 decidida + lista de correções OpenAPI | Não fingir contrato «final» |
 | G0-T5 | Política de numeração do slice alinhada a exclusão por série (sem «zero buracos» genérico) | Rever [first-vertical-slice.md](first-vertical-slice.md) |
@@ -180,11 +181,12 @@ flowchart TD
 | CTX-003 | `quantity` reutiliza schema `Money` | OpenAPI | Validação incorreta | API Owner | **Resolvido em decisão** (DEC-API-003); alteração YAML adiada |
 | CTX-004 | Roadmap pede «contrato rascunhado»; já existe `0.1.0-draft` | [implementation-roadmap.md](implementation-roadmap.md), OpenAPI | Critério de gate | PO | **Resolvido** (DEC-DEL-001) |
 | CTX-005 | «74/19 confirmado» sem PDF oficial; `local/` tem proposta 2018 | [sources.md](../01-compliance/sources.md), `local/` | Risco normativo | Compliance | Aberto (DEC-REG-002) |
-| CTX-006 | OpenAPI/diretrizes usam `fiscally_issued` antes da aceitação AGT; semântica jurídica não fechada | OpenAPI, máquina de estados, slice | Risco de interpretação errada | Compliance + API Owner | Aberto (DEC-API-004); slice usa termos neutros |
+| CTX-006 | OpenAPI/diretrizes usam `fiscally_issued` antes da aceitação AGT; semântica jurídica não fechada | OpenAPI, máquina de estados, slice | Risco de interpretação errada | Compliance + API Owner | Aberto (DEC-API-004); slice usa `sealed_locally` (técnico); revisão mínima OpenAPI = tarefa zero da Fase 1 |
 
 ## Relação com fases seguintes
 
-- **Fase 1** implementa o [first-vertical-slice.md](first-vertical-slice.md) (API mínima, CLI/coleção, simulador; sem portal/webhooks).
+- **Fase 1 — tarefa zero:** revisão mínima do OpenAPI (DEC-API-001, DEC-API-003, estado técnico `sealed_locally`) **antes** de implementar o endpoint.
+- **Fase 1** implementa em seguida o [first-vertical-slice.md](first-vertical-slice.md) (API mínima, CLI/coleção, simulador; sem portal/webhooks), após DEC-STACK-001 decidida.
 - **Fase 2+** declara conformidade de produção só após fecho das lacunas em [regulatory-gaps.md](../01-compliance/regulatory-gaps.md).
 
 ## Referências

@@ -2,6 +2,7 @@
 
 ## 0.1.2-draft — 2026-07-20
 
+- Harmonização final do plano Fase 0: DEC-STACK-001 recomendada, `sealed_locally` único, OpenAPI tarefa zero, RSA efémero.
 - Correção do plano técnico da Fase 0: at-least-once (sem exactly-once), JWS RS256 real com chaves de teste, estados neutros até DEC-API-004.
 - Edge MVP com SQLite WAL (escritor único); PostgreSQL apenas na cloud.
 - DEC-API-001, DEC-API-003 e DEC-DEL-001 decididas; DEC-API-004 aberta; prioridades de decisão reordenadas.
