@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: BWB Fiscal API
+  version: 0.1.0-draft
+  description: Contrato inicial, não pronto para produção.
+servers:
+  - url: https://sandbox.api.example.ao/v1
+    description: Sandbox
+  - url: http://127.0.0.1:8080/v1
+    description: Fiscal Edge local
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Serviço disponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /documents:
+    post:
+      operationId: createDocument
+      summary: Submete uma intenção de documento para processamento fiscal
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentIntent"
+      responses:
+        "202":
+          description: Pedido aceite para processamento
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDocumentResponse"
+        "409":
+          description: Conflito de idempotência ou identificador
+        "422":
+          description: Falha de validação
+  /documents/{documentId}:
+    get:
+      operationId: getDocument
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Estado atual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDocumentResponse"
+        "404": { description: Não encontrado }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID persistido pelo integrador antes da primeira tentativa.
+      schema: { type: string, format: uuid }
+  schemas:
+    Health:
+      type: object
+      required: [status, version]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        version: { type: string }
+        fiscalPackage: { type: string }
+    Money:
+      type: string
+      pattern: "^-?[0-9]+(\\.[0-9]{1,4})?$"
+      examples: ["1250.00"]
+    DocumentIntent:
+      type: object
+      additionalProperties: false
+      required: [external_id, document_type, currency, issued_at, seller, lines]
+      properties:
+        external_id: { type: string, maxLength: 100 }
+        document_type: { type: string, enum: [invoice, credit_note] }
+        currency: { type: string, enum: [AOA] }
+        issued_at: { type: string, format: date-time }
+        requested_series: { type: string, description: Referência de série; o POS não atribui o número fiscal. }
+        seller: { $ref: "#/components/schemas/Party" }
+        customer: { $ref: "#/components/schemas/Party" }
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/DocumentLine" }
+    Party:
+      type: object
+      additionalProperties: false
+      properties:
+        tax_id: { type: string }
+        name: { type: string }
+    DocumentLine:
+      type: object
+      additionalProperties: false
+      required: [line_id, description, quantity, unit_price, tax_code]
+      properties:
+        line_id: { type: string }
+        description: { type: string }
+        quantity: { $ref: "#/components/schemas/Money" }
+        unit_price: { $ref: "#/components/schemas/Money" }
+        tax_code: { type: string }
+    FiscalDocumentResponse:
+      type: object
+      required: [id, external_id, status]
+      properties:
+        id: { type: string }
+        external_id: { type: string }
+        status:
+          type: string
+          enum: [received, validated, fiscally_issued, contingency_pending, queued_for_authority, authority_processing, authority_accepted, authority_rejected, rejected]
+        fiscal_number: { type: string }
+        authority_request_id: { type: string }
+        created_at: { type: string, format: date-time }

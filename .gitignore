@@ -1,0 +1,18 @@
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+node_modules/
+dist/
+build/
+coverage/
+.idea/
+.vscode/
+.DS_Store
+
+# Materiais locais de consulta para Cursor; nunca sincronizar com GitHub.
+local/

@@ -1,0 +1,16 @@
+---
+description: Regras críticas para qualquer alteração fiscal
+alwaysApply: true
+---
+
+- Leia `AGENTS.md` antes de implementar.
+- Associe alterações fiscais a requisitos `AO-*` e testes.
+- Nunca use ponto flutuante para dinheiro.
+- Nunca edite ou apague documentos fiscais emitidos.
+- O módulo, não o POS, atribui o número fiscal.
+- Toda criação exige idempotência persistente.
+- Não exponha segredos ou dados fiscais completos em logs.
+- Preserve compatibilidade da API ou crie versão formal.
+- Mantenha regras de país isoladas no respetivo pacote.
+- Se a regra legal estiver ambígua, pare e peça decisão de compliance.
+- Trate `local/` como área de consulta não versionada: nunca faça commit dessa pasta e copie primeiro para uma pasta sincronizada qualquer ficheiro autorizado que o projeto precise de utilizar.
