@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1-draft — 2026-07-20
+
+- Plano executável da Fase 0 em `docs/06-delivery/phase-0-execution-plan.md`.
+- Decisões técnicas e regulatórias em aberto em `docs/06-delivery/open-decisions.md`.
+- Inventário de lacunas regulatórias em `docs/01-compliance/regulatory-gaps.md`.
+- Proposta de stack (duas alternativas, sem implementação) em `docs/06-delivery/technical-stack-proposal.md`.
+- Especificação do primeiro vertical slice (demo ponta a ponta) em `docs/06-delivery/first-vertical-slice.md`.
+- Premissa `ASM-REG-001` mantida; OpenAPI e código de produção não alterados.
+- Contradições documentais inventariadas (estados API, Money/quantity, proposta vs Decreto 74/19).
+
 ## 0.1.0-draft — 2026-07-20
 
 - Documentação inicial do produto Angola-first.
