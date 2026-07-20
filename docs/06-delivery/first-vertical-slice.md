@@ -3,164 +3,214 @@
 **Data:** 2026-07-20  
 **Estado:** especificação para implementação na **Fase 1** (não implementar na Fase 0)  
 **Premissa:** `ASM-REG-001` — o módulo é a única autoridade de emissão/numeração  
-**Requisitos âncora:** `AO-ID-001`, `AO-DOC-001`, `AO-DOC-002`, `AO-SEQ-001`, `AO-SEQ-002`, `AO-IDEM-001`, `AO-AGT-002`, `AO-AUD-001`
+**Requisitos âncora:** `AO-ID-001`, `AO-DOC-001`, `AO-DOC-002`, `AO-SEQ-001`, `AO-SEQ-002`, `AO-IDEM-001`, `AO-CRYPTO-001` (arquitetura), `AO-AGT-002`, `AO-AUD-001`
 
 Documentos relacionados:
 
 - [phase-0-execution-plan.md](phase-0-execution-plan.md)
+- [open-decisions.md](open-decisions.md) (DEC-API-004, DEC-STACK-001)
+- [technical-stack-proposal.md](technical-stack-proposal.md)
 - [document-state-machine.md](../04-domain/document-state-machine.md)
 - [api-guidelines.md](../03-api/api-guidelines.md)
 - [testing-strategy.md](testing-strategy.md)
-- [openapi.yaml](../../specs/openapi/openapi.yaml) (esqueleto; mudanças só com justificação)
+- [openapi.yaml](../../specs/openapi/openapi.yaml) (esqueleto; **não alterar** até revisão contratual autorizada)
 
 ## Objetivo da demonstração
 
-Provar, de ponta a ponta e de forma **repetível**, que um POS fictício consegue:
+Provar, de ponta a ponta e de forma **repetível**, com POS demo **CLI ou coleção de requests** (sem UI):
 
 1. submeter uma intenção de fatura;
-2. obter validação;
-3. garantir idempotência;
-4. receber série/número atribuídos **apenas** pelo módulo;
-5. persistir no livro fiscal imutável;
-6. enfileirar transmissão via outbox;
-7. observar estados distintos de receção vs aceitação pela autoridade;
-8. fazê-lo contra um **simulador AGT**, não contra a integração oficial.
+2. validação estrutural mínima;
+3. idempotência;
+4. atribuição transacional de série/número **apenas** pelo módulo;
+5. selagem local + JWS RS256 com chaves de teste (adaptador; não certificado);
+6. persistência append-only no livro;
+7. outbox co-transacional;
+8. transmissão **at-least-once** ao **simulador AGT** com deduplicação e reconciliação;
+9. consulta de estado.
 
 ## Âmbito incluído
 
 ```text
-POS fictício → API fiscal (/v1/documents)
-            → validação de schema/regras mínimas
-            → Idempotency-Key + external_id
-            → série + número (módulo)
-            → livro fiscal (append-only)
-            → outbox durável
-            → simulador AGT (requestID + estados)
-            → GET /documents/{id} e (opcional) webhook assinado de sandbox
+POS demo (CLI / coleção HTTP)
+  → API mínima (/v1) + autenticação sandbox simples
+  → validação estrutural mínima
+  → Idempotency-Key + external_id
+  → série/número (transação por série)
+  → JWS RS256 (chaves de teste, adaptador)
+  → livro fiscal append-only
+  → outbox (payload com controlo de acesso; pode ser cifrado)
+  → simulador AGT (at-least-once, id estável, persistência tentativa/resposta)
+  → GET estado
 ```
 
 ## Âmbito excluído
 
-- Integração oficial AGT / credenciais reais de homologação.
-- Assinatura legal de produção conforme 74/19 (pode existir **stub criptográfico** claramente marcado como não certificado).
-- SAF-T (AO) completo (`AO-SAF-*`).
-- Portal operacional completo.
-- Contingência Edge completa (`AO-OFF-*`) — apenas ganchos de estado `contingency_pending` se trivial; senão, adiar com nota.
-- Nota de crédito, anulações, múltiplos impostos complexos.
+- Webhooks (slice posterior).
+- Portal / qualquer frontend.
+- Aplicação visual POS.
+- Contingência Edge completa (`AO-OFF-*`).
+- SAF-T (AO).
+- Integração oficial AGT / credenciais reais.
+- Regras legais do Decreto 74/19 ainda não confirmadas em fonte oficial.
+- Stub criptográfico descartável.
 - Microserviços.
 - Cabo Verde.
+- Nota de crédito, anulações, impostos complexos (salvo o mínimo estrutural).
 
 ## Atores e componentes
 
 | Componente | Papel |
 |---|---|
-| POS fictício | Cliente HTTP; nunca atribui número fiscal; persiste `Idempotency-Key` antes do POST |
-| API fiscal | Contrato `/v1`; autenticação de máquina de sandbox |
-| Núcleo | Validação, numeração, persistência, transição de estados |
-| Livro fiscal | Registo imutável do documento emitido |
-| Outbox | Mensagem durável criada na mesma transação da emissão |
-| Simulador AGT | Aceita submissão, devolve `requestID`, simula accepted/rejected/lento/indisponível |
-| Observabilidade | Correlação `request_id` / document id / attempt id sem payload fiscal completo |
+| POS demo | CLI ou coleção HTTP; nunca atribui número; persiste `Idempotency-Key` antes do POST |
+| API fiscal | Contrato mínimo `/v1`; autenticação de máquina de sandbox simples |
+| Núcleo | Validação estrutural, numeração, persistência, estados técnicos neutros |
+| Adaptador cripto | JWS RS256 real; chaves **exclusivamente de teste**; marcado não certificado |
+| Livro fiscal | Append-only do documento selado localmente |
+| Outbox | Tentativa + payload necessário (cifrado/ACL); **não** é log operacional |
+| Simulador AGT | Aceita submissão, `requestID`/id estável, accepted/rejected/lento/indisponível/desconhecido |
+| Logs | Apenas metadados e IDs de correlação |
 
-## Fluxo feliz (aceitação)
+## Terminologia de estados (até DEC-API-004)
+
+**Não assumir** que «fiscalmente emitido» ocorre antes da aceitação AGT. Até decisão oficial, o slice usa termos **neutros** na implementação e na documentação de testes:
+
+| Termo neutro (slice) | Significado técnico |
+|---|---|
+| `received` | Pedido aceite para processamento |
+| `validated` | Validação estrutural OK |
+| `sealed_locally` / `prepared_for_submission` | Número atribuído, persistido, JWS de teste aplicado, pronto para outbox |
+| `queued_for_authority` | Na outbox |
+| `authority_processing` | Simulador recebeu / em curso |
+| `authority_accepted` / `authority_rejected` | Resultado do simulador |
+| `authority_outcome_unknown` | Resultado incerto → reconciliação |
+
+O OpenAPI atual pode ainda listar `fiscally_issued`; **não alterar o YAML agora**. Mapear internamente para termos neutros e documentar o mapeamento até DEC-API-004.
+
+## Fluxo feliz (aceitação no simulador)
 
 ```mermaid
 sequenceDiagram
-  participant POS as POS fictício
+  participant POS as POS CLI/coleção
   participant API as API fiscal
   participant Core as Núcleo
-  participant Ledger as Livro fiscal
+  participant Crypto as Adaptador JWS
+  participant Ledger as Livro
   participant Outbox as Outbox
   participant Sim as Simulador AGT
 
-  POS->>POS: Gerar Idempotency-Key + external_id
+  POS->>POS: Idempotency-Key + external_id
   POS->>API: POST /documents
-  API->>Core: Validar intenção
-  Core->>Core: Atribuir série/número
-  Core->>Ledger: Persistir documento emitido
-  Core->>Outbox: Inserir submissão (mesma TX)
-  API-->>POS: 202 + id + status fiscally_issued/queued...
-  Outbox->>Sim: Transmitir
-  Sim-->>Outbox: requestID + processing
+  API->>Core: Validar estrutura
+  Core->>Core: Lock/TX por série → número
+  Core->>Crypto: JWS RS256 (chaves teste)
+  Core->>Ledger: Append sealed_locally
+  Core->>Outbox: Inserir tentativa (mesma TX)
+  API-->>POS: 202 + id + estado neutro
+  Outbox->>Sim: Transmitir (at-least-once)
+  Sim-->>Outbox: id estável + processing
   Outbox->>Core: authority_processing
   Sim-->>Outbox: accepted
   Core->>Ledger: Evento authority_accepted
-  POS->>API: GET /documents/{id}
-  API-->>POS: status authority_accepted
+  POS->>API: GET estado
+  API-->>POS: authority_accepted
 ```
 
-Estados esperados alinhados à máquina de estados e ao OpenAPI atual (exceto contradições documentadas em [phase-0-execution-plan.md](phase-0-execution-plan.md)):
+## Numeração (AO-SEQ-001 / AO-SEQ-002)
 
-`received → validated → fiscally_issued → queued_for_authority → authority_processing → authority_accepted`
+Exigir no slice:
+
+- exclusão mútua / transação por série;
+- números **nunca duplicados**;
+- números emitidos/selados **nunca reutilizados**;
+- rastreabilidade de números reservados, falhados ou rejeitados pela autoridade;
+- **não** prometer «zero buracos» genericamente — política final depende da regra oficial (DEC-REG-002).
+
+Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem análise de rollback, cache e falhas.
+
+## Criptografia
+
+- Implementação **real** de JWS RS256.
+- Chaves **só de teste**, fora do Git (ou fixtures claramente fake em cofre de CI).
+- Isolamento atrás de interface/adaptador substituível.
+- Marcação explícita: **não certificado** / não conformidade 74/19.
+- Objetivo: validar arquitetura criptográfica **sem** dívida de stub e **sem** inventar regras do decreto em falta.
+
+## Outbox vs logs
+
+| Artefacto | Conteúdo |
+|---|---|
+| Outbox | Payload necessário à submissão/resposta; pode estar **cifrado**; ACL; retenção definida |
+| Logs operacionais | Metadados, estados, IDs de correlação — **sem** payload fiscal completo |
 
 ## Critérios de aceitação
 
 ### Funcionais
 
-1. O POS demo emite uma fatura simples em AOA com pelo menos uma linha e obtém `fiscal_number` não enviado no pedido.
-2. O campo `requested_series` (se presente) é apenas referência; o número final é do módulo (`AO-SEQ-002`).
-3. O documento persistido não é editável via API (`AO-DOC-002`).
-4. `GET` devolve o mesmo resultado estável após emissão.
-5. Existe pelo menos um evento de auditoria por transição relevante (`AO-AUD-001`).
-6. A outbox contém a tentativa com payload de submissão e resposta do simulador preservados (metadados; sem log operacional completo em claro se sensível).
-7. O status distingue emissão fiscal local de aceitação do simulador (`AO-AGT-002`).
+1. CLI/coleção cria fatura simples AOA e obtém número **não** enviado no pedido (`AO-SEQ-002`).
+2. `requested_series` é referência; número final só do módulo.
+3. Documento selado não é editável via API (`AO-DOC-002`).
+4. Reenvio com mesma `Idempotency-Key` não cria segundo documento (`AO-IDEM-001`).
+5. JWS RS256 verificável com chave pública de teste; adaptador isolado.
+6. Outbox co-transacional com o livro; payload preservado com controlo de acesso.
+7. Estados distinguem selagem local, submissão, processamento e aceite/rejeição do simulador (`AO-AGT-002`), com termos neutros até DEC-API-004.
+8. Eventos de auditoria por transição relevante (`AO-AUD-001`).
 
-### Não funcionais / qualidade
+### Qualidade
 
-8. Suite automatizada reproduz o fluxo em CI.
-9. Relatório de teste referencia IDs `AO-*` acima.
-10. Nenhuma credencial real AGT, chave privada ou NIF real de produção nos artefactos.
-11. OpenAPI do slice permanece compatível com o esqueleto ou documenta breaking change justificada (Fase 1).
+9. Suite CI cobre fluxo feliz e VS-T01…VS-T12.
+10. Relatório referencia `AO-*`.
+11. Sem credenciais reais AGT, chaves de produção ou NIF reais.
+12. OpenAPI não é alterado neste slice até revisão contratual; lista de gaps documentada (DEC-DEL-001).
 
-## Cenários obrigatórios de falha e concorrência
+## Cenários obrigatórios
 
 | ID | Cenário | Comportamento esperado |
 |---|---|---|
-| VS-T01 | Timeout de rede após o servidor processar | Cliente reenvia **a mesma** `Idempotency-Key`; não há segunda emissão (`AO-IDEM-001`) |
-| VS-T02 | Timeout antes de qualquer processamento | Reenvio com a mesma chave cria no máximo um documento |
-| VS-T03 | Duplicação com mesma chave e mesmo body | Resposta idempotente equivalente (mesmo `id` / `fiscal_number`) |
-| VS-T04 | Mesma chave com body diferente | `409` conflito explícito |
-| VS-T05 | Mesmo `external_id` com chave diferente | Conflito ou política documentada; sem dois números fiscais para a mesma intenção |
-| VS-T06 | Duas chamadas concorrentes mesma série | Numeração única e sequencial; sem buracos causados por race mal tratada (`AO-SEQ-001`) |
-| VS-T07 | Falha após commit do livro e antes do outbox | **Não deve ocorrer** se outbox for co-transacional; teste prova a invariante |
-| VS-T08 | Simulador indisponível | Documento permanece emitido; outbox retenta com backoff; estado não «aceite» |
+| VS-T01 | Timeout após processar no servidor | Reenvio com a **mesma** chave; sem segunda selagem |
+| VS-T02 | Timeout antes de processar | Reenvio com a mesma chave cria no máximo um documento |
+| VS-T03 | Mesma chave + mesmo body | Resposta idempotente (mesmo `id` / número) |
+| VS-T04 | Mesma chave + body diferente | `409` conflito |
+| VS-T05 | Mesmo `external_id` + chave diferente | Conflito ou política documentada; sem dois números |
+| VS-T06 | Concorrência na mesma série | Sem duplicados; exclusão por série; buracos só se a política oficial/rastro o permitir |
+| VS-T07 | Falha livro vs outbox | Impossível se co-transacional; teste prova a invariante |
+| VS-T08 | Simulador indisponível | Documento selado localmente; outbox retenta (at-least-once); não «aceite» |
 | VS-T09 | Simulador lento | `authority_processing`; POS não reemite |
-| VS-T10 | Simulador rejeita | `authority_rejected`; número **não** é reutilizado automaticamente |
-| VS-T11 | Callback/duplicado do simulador | Processamento idempotente da resposta |
-| VS-T12 | Reinício do processo worker no meio da tentativa | Exactly-once efetivo na autoridade simulada **ou** deduplicação por `requestID` |
+| VS-T10 | Simulador rejeita | `authority_rejected`; número **não** reutilizado |
+| VS-T11 | Resposta/callback duplicado do simulador | Idempotência / deduplicação por id estável |
+| VS-T12 | Worker reinicia a meio / resultado desconhecido | Entrega **at-least-once**; deduplicação por id estável de submissão; persistência tentativa/resposta; **reconciliação**; **sem** exactly-once |
 
 ## Distinção: simulador AGT vs integração oficial
 
-| Aspeto | Simulador AGT (este slice) | Integração oficial AGT |
+| Aspeto | Simulador (este slice) | Integração oficial |
 |---|---|---|
-| Objetivo | Desbloquear desenvolvimento e demos | Homologação e produção |
-| Rede | Local/CI | Endpoints HML/PRD oficiais |
-| Credenciais | Fictícias / internas | Emitidas pela AGT (cofre) |
-| Contrato | Subconjunto estável inspirado na doc pública, versionado internamente | Especificação oficial snapshotada |
-| Evidência de conformidade | **Não** constitui prova perante AGT | Testes oficiais + dossier |
-| Marcação | Prefixo/config `authority=simulator` | `authority=agt-hml` / `agt-prd` |
-| Gate | Suficiente para gate da Fase 1 de demonstração | Necessário para readiness de certificação (Fase 2/3) |
+| Objetivo | Demo e CI | Homologação/produção |
+| Credenciais | Fictícias | Cofre AGT |
+| Evidência AGT | Não serve como prova | Testes oficiais + dossier |
+| Config | `authority=simulator` | `agt-hml` / `agt-prd` |
 
-**Regra:** qualquer ecrã, log ou README do demo deve declarar explicitamente «simulador — não é a AGT».
+Declarar sempre: «simulador — não é a AGT».
 
 ## Dados de teste
 
-- Usar NIFs e nomes **fictícios** de sandbox.
-- Vetores em repositório: JSON anonimizados.
-- Proibir cópia de credenciais ou documentos reais de `local/` para fixtures.
+- NIFs/nomes fictícios.
+- Chaves RSA de teste apenas.
+- Não copiar segredos de `local/`.
 
-## Definição de pronto do slice (Fase 1)
+## Definição de pronto (Fase 1)
 
-- [ ] Fluxo feliz automatizado verde em CI.
-- [ ] Cenários VS-T01…VS-T12 implementados ou explicitamente adiados com waiver datado.
-- [ ] POS fictício documentado (passos < 15 minutos).
-- [ ] Evidência de que o POS não escolhe o número.
-- [ ] Separação simulador vs AGT visível na configuração.
-- [ ] Sem alteração silenciosa de regras fiscais; requisitos ligados a testes.
+- [ ] Fluxo feliz verde em CI.
+- [ ] VS-T01…VS-T12 cobertos.
+- [ ] POS demo = CLI ou coleção (< 15 min).
+- [ ] Sem portal, webhooks ou frontend.
+- [ ] JWS RS256 real via adaptador; não certificado.
+- [ ] At-least-once + deduplicação + reconciliação documentados.
+- [ ] Separação simulador vs AGT na config.
 
 ## Dependências da Fase 0
 
-- DEC-STACK-001 decidida.
-- DEC-REG-003 (tipos documentais) pelo menos para fatura simples.
-- Lista de mudanças OpenAPI justificada (CTX-001…CTX-003).
-- Simulador especificado ao nível de comportamento (este documento), implementação na Fase 1.
+- DEC-STACK-001 (recomendação Go/PG/SQLite).
+- DEC-REG-003 (pelo menos fatura simples).
+- DEC-API-004 em curso (termos neutros até fecho).
+- DEC-DEL-001 cumprida (lista de correções OpenAPI).
+- DEC-API-001 e DEC-API-003 decididas (YAML na 1.ª revisão).

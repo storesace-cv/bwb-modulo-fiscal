@@ -6,7 +6,7 @@
 
 ## Como usar este documento
 
-Para cada decisão: opções, vantagens, riscos, recomendação, responsável e prazo máximo.  
+Para cada decisão: opções, vantagens, riscos, recomendação ou decisão, responsável e prazo máximo.  
 Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 
 ---
@@ -17,7 +17,7 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 |---|---|
 | Estado | aberta |
 | Tipo | Regulatória / produto |
-| Prazo máximo | Fim da semana 3 da Fase 0 |
+| Prazo máximo | Durante as 2–4 semanas internas (pedido enviado; resposta pode atrasar) |
 | Responsável | Compliance + Jurídico (decisão final: Direção) |
 
 **Contexto:** `ASM-REG-001` é premissa de produto (README, ADR-0001): certificação do módulo externo dispensa validação individual de cada POS. Não é conclusão jurídica.
@@ -46,7 +46,7 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 |---|---|
 | Estado | bloqueada-por-lacuna |
 | Tipo | Regulatória |
-| Prazo máximo | Fim da semana 4 (ou waiver documentado) |
+| Prazo máximo | Paralelo externo; waiver se indisponível no gate interno |
 | Responsável | Compliance |
 
 **Opções:**
@@ -73,7 +73,7 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 |---|---|
 | Estado | aberta |
 | Tipo | Regulatória + produto |
-| Prazo máximo | Fim da semana 5 |
+| Prazo máximo | Dentro das 2–4 semanas internas |
 | Responsável | Product Owner + Compliance |
 
 **Opções:**
@@ -100,7 +100,7 @@ Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 |---|---|
 | Estado | bloqueada-por-lacuna |
 | Tipo | Regulatória |
-| Prazo máximo | Antes do gate Fase 0 (waiver se fonte em falta) |
+| Prazo máximo | Fora do primeiro vertical slice; waiver até fonte oficial |
 | Responsável | Compliance |
 
 **Opções:**
@@ -115,7 +115,7 @@ Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 | 2 | Permite desenho e testes | Não declarar conformidade de `AO-OFF-*` |
 | 3 | Rápido | **Rejeitada** — viola regras do projeto |
 
-**Recomendação:** opção 2 para arquitetura; opção 1 para fecho de requisitos `AO-OFF-001` / `AO-OFF-002`.
+**Recomendação:** opção 2 para arquitetura futura; opção 1 para fecho de `AO-OFF-001` / `AO-OFF-002`. Contingência Edge completa **excluída** do primeiro vertical slice.
 
 ---
 
@@ -125,17 +125,17 @@ Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 |---|---|
 | Estado | recomendada |
 | Tipo | Técnica |
-| Prazo máximo | Fim da semana 4 |
+| Prazo máximo | Dentro das 2–4 semanas internas |
 | Responsável | Arquitetura (aprovação: Tech Lead + PO) |
 
 Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.md).
 
 **Opções:**
 
-1. **Alternativa A (recomendada):** Go + PostgreSQL + monólito modular + portal TypeScript/React + Edge binário/`systemd`.
-2. **Alternativa B:** Java 21 (Spring Boot) + PostgreSQL + mesmo portal e modelo Edge (JAR/`systemd`).
+1. **Recomendada:** Go no backend; PostgreSQL na cloud; SQLite em WAL no Edge (um processo fiscal escritor; POS só via API local); pacote fiscal e testes comuns; abstração de persistência limitada (sem ORM genérico excessivo). PostgreSQL local no Edge só com benchmark/requisito oficial que prove SQLite insuficiente.
+2. **Alternativa:** Java 21 (Spring Boot) + PostgreSQL cloud + SQLite WAL no Edge com as mesmas restrições de escrita única.
 
-**Recomendação:** Alternativa A, pelos motivos no documento de stack. Não implementar nesta fase.
+**Recomendação:** opção 1. Sem portal na primeira implementação. Não implementar nesta fase.
 
 ---
 
@@ -143,26 +143,22 @@ Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.
 
 | Campo | Valor |
 |---|---|
-| Estado | aberta |
+| Estado | **decidida** |
 | Tipo | Técnica / contrato |
-| Prazo máximo | Antes de alterar OpenAPI na Fase 1 |
+| Prazo máximo | — |
 | Responsável | API Owner + Domínio |
+| Decisão | 2026-07-20 |
 
-**Contradição:** CTX-002.
+**Contradição:** CTX-002 — fechada ao nível de decisão; texto do domínio/OpenAPI formal na primeira revisão contratual autorizada.
 
-**Opções:**
+**Decisão:**
 
-1. Manter string decimal (padrão atual do OpenAPI `Money`).
-2. Usar JSON number com restrições e testes rigorosos.
-3. Usar inteiros na menor unidade na API (ex.: cêntimos) e formatar na apresentação.
+1. Valores monetários no JSON como **strings decimais**.
+2. Formato canónico, escala e limites **explícitos** no OpenAPI (na primeira revisão autorizada).
+3. Representação interna com **decimal exato**.
+4. **Proibição** de `float` / `double` para dinheiro.
 
-| Opção | Vantagens | Riscos |
-|---|---|---|
-| 1 | Evita float; legível | Parsing inconsistente entre linguagens |
-| 2 | Ergonómico em alguns clientes | Risco de float em JS se mal usado |
-| 3 | Precisão óbvia | DX pior para integradores |
-
-**Recomendação:** opção 1, alinhada ao esqueleto atual e a `AO-TAX-001`. Internamente: decimal exato (nunca `float`/`double`).
+Relaciona: `AO-TAX-001`.
 
 ---
 
@@ -172,7 +168,7 @@ Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.
 |---|---|
 | Estado | aberta |
 | Tipo | Técnica / domínio |
-| Prazo máximo | Semana 6 (plano); aplicação no OpenAPI na Fase 1 |
+| Prazo máximo | Após DEC-API-004 e fontes de anulação; aplicação no OpenAPI na 1.ª revisão |
 | Responsável | API Owner |
 
 **Contradição:** CTX-001.
@@ -181,17 +177,15 @@ Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.
 
 1. Remover `cancelled` das diretrizes até existir comando legal de anulação modelado.
 2. Adicionar `cancelled` ao OpenAPI e à máquina de estados com regras explícitas.
-3. Introduzir estado distinto (ex.: `voided` / anulação via documento retificativo apenas).
+3. Introduzir estado distinto (ex.: anulação apenas via documento retificativo).
 
 | Opção | Vantagens | Riscos |
 |---|---|---|
-| 1 | Evita inventar semântica | Diretrizes ficam temporariamente reduzidas |
-| 2 | Completude do contrato | Pode conflitar com `AO-DOC-002` se mal definido |
-| 3 | Mais preciso juridicamente | Mais trabalho de modelação |
+| 1 | Evita inventar semântica | Diretrizes temporariamente reduzidas |
+| 2 | Completude do contrato | Pode conflitar com `AO-DOC-002` |
+| 3 | Mais preciso juridicamente | Mais modelação |
 
-**Recomendação:** opção 1 até validar anulações/retificações nas fontes oficiais (`AO-DOC-002`); depois decidir 2 ou 3 com compliance.
-
-**Nota:** não alterar `openapi.yaml` nesta entrega.
+**Recomendação:** opção 1 até validar anulações/retificações nas fontes oficiais. Não alterar `openapi.yaml` agora.
 
 ---
 
@@ -199,19 +193,52 @@ Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.
 
 | Campo | Valor |
 |---|---|
-| Estado | aberta |
+| Estado | **decidida** |
 | Tipo | Técnica |
-| Prazo máximo | Com a primeira alteração justificada do OpenAPI (Fase 1) |
+| Prazo máximo | Alteração do YAML na primeira revisão contratual autorizada |
 | Responsável | API Owner |
+| Decisão | 2026-07-20 |
 
-**Contradição:** CTX-003.
+**Contradição:** CTX-003 — fechada ao nível de decisão; YAML ainda não alterado.
 
-**Opções:**
+**Decisão:** criar schema `DecimalQuantity` separado de `Money`. Adiar a edição de `openapi.yaml` até à primeira revisão contratual autorizada.
 
-1. Criar schema `DecimalQuantity` separado de `Money`.
-2. Manter reutilização de `Money` por pragmatismo.
+---
 
-**Recomendação:** opção 1.
+## DEC-API-004 — Momento jurídico da emissão vs aceitação AGT
+
+| Campo | Valor |
+|---|---|
+| Estado | aberta (pode ficar `bloqueada-por-lacuna`) |
+| Tipo | Regulatória + contrato |
+| Prazo máximo | Antes de declarar semântica final no OpenAPI v1; slice usa termos neutros até lá |
+| Responsável | Compliance + API Owner |
+
+**Contradição:** CTX-006.
+
+**Contexto:** não assumir que `fiscally_issued` ocorre antes da aceitação da AGT. A semântica depende da legislação e do comportamento oficial da faturação eletrónica.
+
+**Pontos a decidir:**
+
+1. Quando o documento passa a considerar-se **fiscalmente emitido**.
+2. Diferença entre: selado/persistido localmente; submetido; recebido pela AGT; aceite pela AGT.
+3. Comportamento em **contingência** (quando autorizado).
+
+**Opções (rascunho, não normativas):**
+
+1. Emissão fiscal = selagem local + número + assinatura, independentemente da aceitação AGT.
+2. Emissão fiscal só após aceitação AGT; até lá o documento é preparado/selado localmente.
+3. Modelo híbrido conforme regras oficiais de contingência e FE.
+
+| Opção | Vantagens | Riscos |
+|---|---|---|
+| 1 | Alinha a operação offline potencial | Pode divergir da FE oficial |
+| 2 | Alinha a aceitação autoridade | Impacto em UX/POS e contingência |
+| 3 | Flexível | Complexidade; exige fonte oficial |
+
+**Recomendação:** não escolher 1–3 sem fonte oficial. Até decisão: no vertical slice usar terminologia neutra (`sealed_locally` / `prepared_for_submission`, etc.) **sem alterar o OpenAPI agora**.
+
+**Evidência para fechar:** diploma/orientação AGT + snapshot FE + ata de compliance.
 
 ---
 
@@ -228,11 +255,11 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 
 **Opções:**
 
-1. Cloud: KMS/HSM; Edge: keystore OS com cifra em repouso.
+1. Cloud: KMS/HSM; Edge: keystore OS com cifra em repouso; slice: chaves de teste isoladas atrás de adaptador.
 2. HSM dedicado também no Edge (quando volume justificar).
 3. Chaves em ficheiro no repositório / imagem — **rejeitada**.
 
-**Recomendação:** opção 1 para MVP; opção 2 como evolução. Segredos nunca no Git.
+**Recomendação:** opção 1 para MVP. Segredos nunca no Git. No slice: JWS RS256 real com chaves de teste, interface/adaptador, marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
 
 ---
 
@@ -242,18 +269,18 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 |---|---|
 | Estado | aberta |
 | Tipo | Operacional / fiscal |
-| Prazo máximo | Antes da distribuição Edge (Fase 1 gate) |
+| Prazo máximo | Antes da distribuição Edge (após o primeiro slice) |
 | Responsável | Arquitetura + Operações |
 
-Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md), ameaça «dois Edge na mesma série».
+Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 **Opções:**
 
-1. Uma instalação Edge = proprietária exclusiva das séries atribuídas.
+1. Uma instalação Edge = um processo fiscal proprietário da escrita; séries atribuídas em exclusividade.
 2. Protocolo formal de partição/lease de séries via cloud.
-3. Permitir emissão multi-Edge na mesma série sem coordenação — **rejeitada**.
+3. Multi-Edge na mesma série sem coordenação — **rejeitada**.
 
-**Recomendação:** opção 1 no MVP; desenhar ganchos para opção 2.
+**Recomendação:** opção 1 no MVP Edge; POS múltiplos apenas via API local. Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technical-stack-proposal.md)).
 
 ---
 
@@ -261,35 +288,35 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md), amea
 
 | Campo | Valor |
 |---|---|
-| Estado | aberta |
+| Estado | **decidida** |
 | Tipo | Entrega |
-| Prazo máximo | Semana 1 |
+| Prazo máximo | — |
 | Responsável | Product Owner |
+| Decisão | 2026-07-20 |
 
-**Contradição:** CTX-004.
+**Contradição:** CTX-004 — fechada.
 
-**Opções:**
-
-1. Aceitar o esqueleto `0.1.0-draft` atual como cumprimento do gate, desde que a lista de mudanças Fase 1 exista.
-2. Exigir OpenAPI «quase v1» ainda na Fase 0 (alterações nesta fase).
-
-**Recomendação:** opção 1 — evita alterar o contrato sem decisões DEC-API-* fechadas.
+**Decisão:** o OpenAPI `0.1.0-draft` atual **cumpre** o gate documental da Fase 0, **condicionado** à existência de lista de correções antes da implementação (inclui DEC-API-001/003, termos neutros até DEC-API-004, e demais CTX abertos). Não exigir OpenAPI «quase v1» nesta fase; não editar o YAML agora.
 
 ---
 
 ## Prioridade de decisão (as cinco primeiras)
 
-1. **DEC-DEL-001** — clarifica o que a Fase 0 deve fechar no contrato.
-2. **DEC-REG-002** — desbloqueia a matriz legal normativa.
-3. **DEC-STACK-001** — desbloqueia a Fase 1 técnica.
-4. **DEC-REG-001** — reduz risco de produto/certificação.
-5. **DEC-REG-003** — fixa o âmbito do vertical slice.
+1. **DEC-REG-002** — Decreto 74/19 e rectificação oficiais.
+2. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
+3. **DEC-REG-003** — tipos documentais do MVP.
+4. **DEC-API-004** — momento jurídico da emissão/aceitação.
+5. **DEC-STACK-001** — stack e armazenamento cloud/Edge.
+
+**Já decididas (fora da lista prioritária):** DEC-DEL-001, DEC-API-001, DEC-API-003.
 
 ---
 
 ## Decisões explicitamente fora de âmbito agora
 
 - Implementação de Cabo Verde / SAF-T (CV).
-- Escolha de fornecedor cloud específico (pode seguir a stack, sem lock-in documentado nesta fase).
+- Escolha de fornecedor cloud específico.
 - Microserviços (rejeitado por ADR-0002 até necessidade comprovada).
 - Alteração de `ASM-REG-001`.
+- Portal frontend e webhooks no primeiro vertical slice.
+- Promessas de exactly-once na comunicação com a autoridade.

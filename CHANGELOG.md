@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2-draft — 2026-07-20
+
+- Correção do plano técnico da Fase 0: at-least-once (sem exactly-once), JWS RS256 real com chaves de teste, estados neutros até DEC-API-004.
+- Edge MVP com SQLite WAL (escritor único); PostgreSQL apenas na cloud.
+- DEC-API-001, DEC-API-003 e DEC-DEL-001 decididas; DEC-API-004 aberta; prioridades de decisão reordenadas.
+- Fase 0 interna reduzida a 2–4 semanas; vertical slice sem portal, webhooks nem frontend POS.
+- Outbox distinta de logs operacionais; numeração sem promessa genérica de «zero buracos».
+
 ## 0.1.1-draft — 2026-07-20
 
 - Plano executável da Fase 0 em `docs/06-delivery/phase-0-execution-plan.md`.

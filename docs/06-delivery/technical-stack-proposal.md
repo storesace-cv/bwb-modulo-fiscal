@@ -2,7 +2,7 @@
 
 **Data:** 2026-07-20  
 **Estado:** proposta (não implementada)  
-**Restrições:** monólito modular ([ADR-0002](../02-architecture/adrs/ADR-0002-modular-monolith.md)); sem microserviços; pacotes por país ([ADR-0003](../02-architecture/adrs/ADR-0003-country-packages.md)); paridade cloud/Edge; precisão decimal; sem segredos no repositório.
+**Restrições:** monólito modular ([ADR-0002](../02-architecture/adrs/ADR-0002-modular-monolith.md)); sem microserviços; pacotes por país ([ADR-0003](../02-architecture/adrs/ADR-0003-country-packages.md)); paridade de **pacote fiscal** cloud/Edge; precisão decimal; sem segredos no repositório.
 
 Decisão associada: **DEC-STACK-001** em [open-decisions.md](open-decisions.md).
 
@@ -11,117 +11,128 @@ Decisão associada: **DEC-STACK-001** em [open-decisions.md](open-decisions.md).
 | Critério | Porque importa |
 |---|---|
 | Transações fortes | Idempotência, série/número e livro fiscal na mesma unidade de trabalho (`AO-IDEM-001`, `AO-SEQ-001`) |
-| Precisão decimal | `AO-TAX-001`; proibição de `float`/`double` para dinheiro |
-| Assinatura RSA / JWS | `AO-CRYPTO-001`, conector AGT (RS256 observado na doc pública) |
-| XML / XSD | SAF-T (AO) (`AO-SAF-001`) |
-| Operação offline Edge | Contingência e persistência local (`AO-OFF-*`) |
-| Facilidade de auditoria | Trilho append-only, evidências reproduzíveis (`AO-AUD-001`) |
-| Distribuição Linux | Binário ou pacote com atualização assinada (`AO-UPD-001`) |
-| Observabilidade segura | Métricas/estados sem payload fiscal completo |
+| Precisão decimal | `AO-TAX-001`; proibição de `float`/`double` para dinheiro (DEC-API-001) |
+| Assinatura RSA / JWS | `AO-CRYPTO-001`, conector AGT (RS256); implementação real atrás de adaptador |
+| XML / XSD | SAF-T (AO) futuro (`AO-SAF-001`) — fora do primeiro slice |
+| Operação offline Edge | Persistência local com baixo custo operacional (`AO-OFF-*` quando autorizado) |
+| Facilidade de auditoria | Trilho append-only (`AO-AUD-001`) |
+| Custo operacional Edge | Instalação, backup, suporte e footprint |
+| Observabilidade segura | Metadados e correlação nos logs; payloads fiscais fora dos logs |
 
-## Alternativa A — Go + PostgreSQL (recomendada)
-
-### Visão
-
-Monólito modular em **Go**, API HTTP alinhada ao OpenAPI, **PostgreSQL** como sistema de registo, outbox transacional na mesma base, workers no mesmo deploy (processos/goroutines ou binários auxiliares partilhando o núcleo), portal web em **TypeScript + React**, Edge como **binário único** gerido por `systemd`.
-
-| Área | Escolha proposta | Notas |
-|---|---|---|
-| Backend | Go (versão LTS/estável da equipa) | Bom para binário Edge; tipagem e deploy simples |
-| Decimal | `shopspring/decimal` ou equivalente auditado; ou inteiros na menor unidade no domínio interno | Nunca `float64` para dinheiro |
-| Base de dados | PostgreSQL 16+ | `NUMERIC`, constraints únicos, `SERIAL`/sequências controladas pela aplicação para séries fiscais |
-| Filas | Outbox na PostgreSQL + worker poller; opcional NATS/Redis só para webhooks não fiscais | Evita dual-write; privilégia consistência fiscal |
-| Portal | TypeScript + React (Vite ou framework leve) | Consome a mesma API; sem regras fiscais no browser |
-| Edge Linux | Mesmo binário/núcleo; store PostgreSQL embutido **ou** SQLite só se a paridade transacional for demonstrada — **preferir PostgreSQL embutido/local** no MVP Edge se a operação o permitir; caso contrário, decisão explícita DEC futura | Paridade de pacote fiscal |
-| Criptografia | Bibliotecas RSA/SHA-256 maduras; JWS (ex.: biblioteca JOSE auditada) | Chaves via KMS/keystore — não no código |
-| XML/XSD | Geração determinística + validação XSD (libxml ou equivalente) | Só com XSD oficial quando disponível |
-| Observabilidade | OpenTelemetry + logs estruturados + Prometheus | Campos redigidos |
-| Testes | `go test`, contract tests OpenAPI, property tests de dinheiro/séries, contentores Testcontainers | Vetores `AO-*` |
-| Deployment cloud | Contentores + IaC; migrações versionadas | Ambientes em [deployment.md](../07-operations/deployment.md) |
-| Deployment Edge | Pacote `.deb`/binário + `systemd` + atualizador assinado | [edge-architecture.md](../02-architecture/edge-architecture.md) |
-
-### Vantagens
-
-- Distribuição Edge enxuta e auditoria de binário mais simples.
-- Excelente controlo de concorrência e timeouts para idempotência.
-- Um único repositório de núcleo fiscal facilita paridade cloud/Edge.
-- Ecossistema adequado a serviços long-running e workers.
-
-### Riscos
-
-- Ecossistema XML/XSD menos «enterprise default» que Java — mitigar com libs maduras e testes de schema.
-- Disciplina de módulos em Go exige convenções claras (packages internos, sem acesso cruzado a tables).
-- Contratação: mercado Go vs Java pode variar conforme a equipa.
-
-## Alternativa B — Java 21 + Spring Boot + PostgreSQL
+## Alternativa A — Go + PostgreSQL (cloud) + SQLite WAL (Edge) — recomendada
 
 ### Visão
 
-Monólito modular em **Java 21** com **Spring Boot**, mesma PostgreSQL e mesmo modelo de outbox, portal idêntico em TypeScript/React, Edge como JAR ou imagem contentorizada sob `systemd`.
+Monólito modular em **Go**. Na **cloud**: API HTTP + **PostgreSQL** + outbox na mesma base. No **Edge**: o mesmo núcleo/pacote fiscal com **SQLite em modo WAL**, **um único processo** fiscal proprietário da escrita; vários POS apenas via API local. Sem portal na primeira implementação. Abstração de persistência **limitada** (repositórios/SQL explícito), sem ORM genérico excessivo.
 
 | Área | Escolha proposta | Notas |
 |---|---|---|
-| Backend | Java 21 + Spring Boot | Ecossistema fiscal/enterprise maduro |
-| Decimal | `BigDecimal` com política de escala explícita | Proibir `double`/`float` |
-| Base de dados | PostgreSQL 16+ + Flyway/Liquibase | Transações JPA/JDBC com isolation adequada |
-| Filas | Outbox JDBC + `@Scheduled`/worker; opcional broker só periférico | Igual ênfase em consistência |
-| Portal | TypeScript + React | Igual à A |
-| Edge Linux | JRE/`jlink` + `systemd` ou contentor | Imagem maior que Go |
-| Criptografia | JCA/Bouncy Castle + JOSE | HSM/KMS via providers |
-| XML/XSD | JAXB/`javax.xml` / bibliotecas de validação XSD maduras | Ponto forte vs Go |
-| Observabilidade | Micrometer + OTel | Idem redacção |
-| Testes | JUnit, Testcontainers, ArchUnit para limites de módulos | Conformidade `AO-*` |
-| Deployment | Contentores + IaC | Similar à A |
+| Backend | Go | Binário Edge leve; deploy simples |
+| Decimal | Decimal auditado ou inteiros na menor unidade no domínio | Nunca `float64` para dinheiro |
+| Cloud DB | PostgreSQL 16+ | `NUMERIC`, constraints; **numeração fiscal controlada pela aplicação** (não depender de `SERIAL`/sequences PG sem analisar rollback, cache e falhas) |
+| Edge DB | SQLite WAL | Escritor único; suficiente para MVP salvo prova em contrário |
+| Filas | Outbox co-transacional + worker; entrega **at-least-once** | Idempotência + deduplicação por id estável de submissão; sem exactly-once |
+| Portal | **Fora da 1.ª implementação** | Slice posterior |
+| Edge Linux | Binário + `systemd`; POS → API local | Sem PostgreSQL local no MVP |
+| Criptografia | JWS RS256 real; chaves de teste atrás de interface/adaptador | Não certificado; sem stub descartável; sem regras 74/19 inventadas |
+| XML/XSD | Mais tarde, com XSD oficial | Fora do primeiro slice |
+| Observabilidade | OpenTelemetry + logs estruturados | Só metadados/IDs; outbox ≠ log |
+| Testes | `go test`, contract tests, vetores `AO-*` comuns cloud/Edge | Conformidade partilhada |
+| Deployment cloud | Contentores + IaC + migrações | [deployment.md](../07-operations/deployment.md) |
+| Deployment Edge | Pacote/binário + atualizador assinado | [edge-architecture.md](../02-architecture/edge-architecture.md) |
 
 ### Vantagens
 
-- XML/XSD, tipagem e tooling de auditoria muito maduros.
-- Ampla disponibilidade de programadores e padrões de monólito modular.
-- Integração KMS/HSM frequentemente bem documentada.
+- Custo operacional Edge baixo (sem Postgres por instalação).
+- Mesmo pacote fiscal e testes de conformidade na cloud e no Edge.
+- Controlo explícito de concorrência de escrita no Edge.
+- Adequado a at-least-once + reconciliação.
 
 ### Riscos
 
-- Footprint Edge e tempos de arranque superiores.
-- Complexidade de framework se os limites de módulo não forem policed (ArchUnit obrigatório).
-- Mais superfície de configuração para o mesmo resultado fiscal.
+- SQLite pode revelar limites sob carga/requisito oficial — mitigar com benchmarks antes de adotar Postgres local.
+- Abstração dual-store exige disciplina (interfaces estreitas).
+- XML/XSD mais trabalhoso em Go quando chegar SAF-T.
+
+### Quando considerar PostgreSQL no Edge
+
+Apenas se benchmarks ou requisitos oficiais demonstrarem que SQLite é insuficiente. Não é o default do MVP.
+
+## Alternativa B — Java 21 + Spring Boot + PostgreSQL (cloud) + SQLite WAL (Edge)
+
+### Visão
+
+Mesmo modelo de armazenamento e outbox que A; backend Java 21 / Spring Boot; Edge com JRE/`jlink` ou contentor e SQLite WAL com escritor único.
+
+| Área | Escolha proposta | Notas |
+|---|---|---|
+| Backend | Java 21 + Spring Boot | Ecossistema enterprise |
+| Decimal | `BigDecimal` com escala explícita | Proibir `double`/`float` |
+| Cloud DB | PostgreSQL 16+ | Igual rigor na numeração fiscal |
+| Edge DB | SQLite WAL | Igual à A |
+| Filas | Outbox JDBC + worker at-least-once | Mesmas regras de deduplicação |
+| Portal | Fora da 1.ª implementação | Igual à A |
+| Criptografia | JCA + JOSE; adaptador; chaves de teste | Sem stub |
+| Testes | JUnit, Testcontainers, ArchUnit | Pacote fiscal comum |
+| Deployment Edge | Mais pesado que Go | Patch JRE |
+
+### Vantagens
+
+- XML/XSD e tipagem maduros quando SAF-T chegar.
+- Mercado de programadores Java amplo.
+
+### Riscos
+
+- Footprint Edge e complexidade de framework superiores.
+- Custo operacional Edge ainda maior se alguém cair na tentação de Postgres local.
 
 ## Comparação direta
 
 | Dimensão | Alternativa A (Go) | Alternativa B (Java) |
 |---|---|---|
-| Transações fortes | PostgreSQL + outbox | PostgreSQL + outbox |
-| Decimal | Libs dedicadas / inteiros | `BigDecimal` (nativo e familiar) |
-| RSA / JWS | Maduro, escolha de lib crítica | Maduro, JCA |
-| XML / XSD | Adequado com esforço | Mais forte por defeito |
-| Offline Edge | Binário leve, excelente | Viável, mais pesado |
-| Auditoria | Clara com packages + SQL | Clara com módulos + ArchUnit |
-| Tempo até vertical slice | Potencialmente mais curto se a equipa conhece Go | Potencialmente mais curto se a equipa conhece Java |
-| Risco operacional Edge | Menor footprint | Maior footprint / patch JRE |
+| Cloud DB | PostgreSQL | PostgreSQL |
+| Edge DB (MVP) | SQLite WAL | SQLite WAL |
+| Decimal / JWS | Adequado | Adequado |
+| Custo Edge | Mais baixo | Mais alto |
+| Tempo até slice | Favorece equipa Go | Favorece equipa Java |
+| ORM | Evitar ORM pesado | Preferir JDBC/repositórios claros |
+
+## Numeração fiscal (ambos)
+
+Não prometer «zero buracos» genericamente. Exigir:
+
+- exclusão mútua / transação por série;
+- números nunca duplicados;
+- números emitidos nunca reutilizados;
+- rastreabilidade de números reservados, falhados ou rejeitados;
+- política de buracos/sequência contínua **dependente da regra oficial** (DEC-REG-002 / 74/19).
+
+Não usar sequences PostgreSQL comuns como garantia fiscal sem análise de rollback, cache e falhas.
+
+## Comunicação com a autoridade (ambos)
+
+- Entrega **at-least-once**.
+- Idempotência de submissão.
+- Deduplicação por identificador estável.
+- Persistência da tentativa e da resposta (outbox com controlo de acesso; payload pode ir cifrado — **não** é log operacional).
+- Reconciliação quando o resultado for desconhecido.
 
 ## Recomendação
 
-**Adotar a Alternativa A (Go + PostgreSQL)**, desde que a equipa aceite o investimento em validação XML/XSD e convenções de monólito modular.
+**Adotar a Alternativa A**, com PostgreSQL só na cloud e SQLite WAL no Edge.
 
-Escolher a **Alternativa B** se:
+Escolher B se a equipa núcleo for predominantemente Java.
 
-- a equipa núcleo for predominantemente Java; ou
-- a validação XSD/SAF-T for o caminho crítico imediato pós-obtenção do schema oficial.
-
-Em ambos os casos:
-
-- PostgreSQL é a base de dados recomendada;
-- outbox transacional > fila externa para o caminho fiscal;
-- portal separado sem lógica de numeração/assinatura;
-- sem microserviços na Fase 0/1;
-- decisão formal via DEC-STACK-001 **antes** do scaffold.
+Em ambos os casos: sem microserviços; sem portal no primeiro slice; DEC-STACK-001 antes do scaffold.
 
 ## Explicitamente fora desta proposta
 
-- Escolha de cloud vendor (AWS/Azure/GCP) — pode ser ADR posterior.
-- Bus de eventos empresarial.
+- PostgreSQL local por instalação Edge como default.
+- Bus de eventos empresarial para o caminho fiscal.
 - Bases NoSQL para o livro fiscal.
-- Linguagens que empurram número IEEE-754 como tipo monetário por defeito na API interna.
+- Exactly-once ponta a ponta com a AGT.
+- Portal frontend na Fase 1 inicial.
 
 ## Próximo passo
 
-Registar a decisão em [open-decisions.md](open-decisions.md) (DEC-STACK-001) e só então iniciar o monorepo na Fase 1.
+Fechar DEC-STACK-001 em [open-decisions.md](open-decisions.md) e só então iniciar o monorepo na Fase 1.
