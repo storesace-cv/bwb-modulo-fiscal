@@ -120,33 +120,27 @@ func runTokenSinkSuite(t *testing.T, store *persistence.CredentialStore, sqlDB *
 		assertNoSecretInAudit(t, ctx, sqlDB, postgres, scope, delivered)
 		dropAuditInsertReject(t, ctx, sqlDB, postgres)
 	})
+}
 
-	t.Run("commit_after_deliver_fails_token_not_usable", func(t *testing.T) {
-		scope := "sink-commit-fail"
-		mustCreateScope(t, ctx, store, scope)
-		store.SetCommitHook(func() error { return errors.New("forced commit failure") })
-		defer store.SetCommitHook(nil)
-
-		var delivered string
-		_, err := store.Issue(ctx, persistence.IssueParams{
-			ScopeID: scope, CreatedBy: "admin",
-			Deliver: func(token string) error {
-				delivered = token
-				return nil
-			},
-		})
-		if err == nil {
-			t.Fatal("expected commit failure")
+func TestCredentialStorePublicAPIHasNoCommitSubstitution(t *testing.T) {
+	typ := reflect.TypeOf(persistence.CredentialStore{})
+	for i := 0; i < typ.NumField(); i++ {
+		name := strings.ToLower(typ.Field(i).Name)
+		if strings.Contains(name, "commit") {
+			t.Fatalf("CredentialStore exposes commit-related field %s", typ.Field(i).Name)
 		}
-		if delivered == "" {
-			t.Fatal("expected deliver before commit failure")
+	}
+	ptr := reflect.TypeOf((*persistence.CredentialStore)(nil))
+	for i := 0; i < ptr.NumMethod(); i++ {
+		name := ptr.Method(i).Name
+		lower := strings.ToLower(name)
+		if strings.Contains(lower, "commithook") ||
+			strings.Contains(lower, "setcommit") ||
+			strings.Contains(lower, "replacecommit") ||
+			(strings.Contains(lower, "commit") && strings.Contains(lower, "hook")) {
+			t.Fatalf("CredentialStore exports commit substitution method %s", name)
 		}
-		assertScopeUnaffected(t, ctx, sqlDB, postgres, scope, 0, 0)
-		_, err = store.VerifyCredentialTokenHash(ctx, persistence.HashCredentialToken(delivered))
-		if !errors.Is(err, persistence.ErrCredentialNotFound) {
-			t.Fatalf("token must not be usable after commit failure: %v", err)
-		}
-	})
+	}
 }
 
 func TestCredentialStoreAuthEnvironmentMismatchSQLite(t *testing.T) {
