@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5-draft — 2026-07-21
+
+- Adicionados princípios obrigatórios de engenharia sénior (`ENGINEERING_PRINCIPLES.md`), ligação em `AGENTS.md`/`README.md` e regra Cursor `senior-engineering.mdc`.
+
 ## 0.1.4-draft — 2026-07-21
 
 - Arquitetura do backoffice formalizada; DEC-REG-KEY-CUSTODY e DEC-SEC-EDGE-KEYS abertas (bloqueantes); GAP-013 (custódia externa da chave do contribuinte).

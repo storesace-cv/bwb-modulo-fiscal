@@ -26,6 +26,8 @@ Esta é uma premissa de produto (`ASM-REG-001`), não uma conclusão jurídica. 
 
 O ficheiro [AGENTS.md](AGENTS.md) é a fonte principal de instruções para Cursor/Codex. Antes de alterar código fiscal, consultar também o catálogo de requisitos e os ADRs.
 
+Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES.md](ENGINEERING_PRINCIPLES.md), que define a postura sénior, ceticismo, segurança e padrão de qualidade obrigatório.
+
 ## Estado
 
 - Etapa: documentação inicial e preparação da Fase 0.
