@@ -94,9 +94,13 @@ bash scripts/deploy/check-antipatterns.sh
 | Severidade | Fase | Descrição | Impacto | Resolução | Estado | Risco residual |
 |---|---|---|---|---|---|---|
 | Médio | D1 review | Updater live ausente apesar de D1 o prometer (`update-staging.sh` stub D2-only) | Deploy real impossível / dry-run apenas | Implementado caminho live + mocks PATH | Corrigido | Execução real só em D2 |
-| Médio | D1 review | `migrate-remote` usava `fiscal-migrate` de `current` em vez da nova release | Schema/binário desalinhados no `up` | Runner + `RELEASE_DIR` da nova release | Corrigido | — |
-| Alto | D1 review | `source migrate.env` podia interpretar conteúdo como shell | RCE/config injection via DSN/token | `remote-migrate-run.sh` lê só 2 chaves; sem `source`/`eval` | Corrigido | — |
-| Médio | D1 review | Artefacto podia ser produzido de working tree diferente do `COMMIT` | Release mentia sobre o commit | Build recusa dirty tree; `SHA256SUMS` inclui `COMMIT` | Corrigido | — |
-| Baixo | D1 review | `git diff --check` com trailing whitespace apesar do relatório OK | Qualidade/CI falsa | Removido; `git diff --check` no CI | Corrigido | — |
+| Médio | D1 review | `migrate-remote` usava `fiscal-migrate` de `current` em vez da nova release | Schema/binário desalinhados no `up` | Runner + `RELEASE_DIR` da nova release via sudo | Corrigido | — |
+| Alto | D1 review | `source migrate.env` podia interpretar conteúdo como shell | RCE/config injection via DSN/token | Leitura segura + validação exacta; sem `source`/`eval` | Corrigido | — |
+| Médio | D1 review | Artefacto podia ser produzido de working tree diferente do `COMMIT` | Release mentia sobre o commit | Build recusa dirty tree; manifesto completo | Corrigido | — |
+| Baixo | D1 review | `git diff --check` com trailing whitespace apesar do relatório OK | Qualidade/CI falsa | Removido; CI usa `base...HEAD` | Corrigido | — |
+| Alto | D1 review | `sudo`/`systemctl` exigidos no Mac do operador | Deploy impossível fora do servidor | Operações privilegiadas só via SSH remoto | Corrigido | — |
+| Alto | D1 review | Healthcheck no host do operador; `promote=ok` prematuro | Falso positivo de deploy | Health em `127.0.0.1` remoto; promote só após health | Corrigido | — |
+| Médio | D1 review | Upload `/tmp` previsível; sem backup/restore de envs | Race/leak; rollback incompleto | `mktemp -d` 0700; backups root 0600 + restore | Corrigido | — |
+| Médio | D1 review | Manifesto incompleto; schema não validado após `up` | Helpers/schema desalinhados | `EXPECTED_SCHEMA_VERSION` + checksum de helpers | Corrigido | — |
 
 Report deploy incidents with severity, phase, description, impact, resolution, state, residual risk — **without** secret values.
