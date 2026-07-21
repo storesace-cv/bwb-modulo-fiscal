@@ -1,5 +1,16 @@
 # Instruções permanentes para agentes de desenvolvimento
 
+## Leitura obrigatória antes de qualquer ação
+
+Antes de analisar, planear, executar comandos, editar ficheiros ou propor código, ler integralmente:
+
+1. este `AGENTS.md`;
+2. `ENGINEERING_PRINCIPLES.md`;
+3. as regras aplicáveis em `.cursor/rules/`;
+4. os requisitos e ADRs relacionados com a tarefa.
+
+Não iniciar trabalho enquanto esta leitura não estiver concluída.
+
 ## Missão
 
 Construir um módulo fiscal externo, certificável pela AGT, que seja a autoridade fiscal de emissão para vários POS, disponível como serviço cloud e como serviço local Linux.
