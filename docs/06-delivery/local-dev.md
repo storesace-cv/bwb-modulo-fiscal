@@ -75,24 +75,26 @@ A API **não** executa migrations no arranque — usar `fiscal-migrate` antes.
 
 | Variável | Obrigatório | Descrição |
 | --- | --- | --- |
-| `FISCAL_ENV` | sim | Deve ser `development` para `dev_static` |
-| `FISCAL_AUTH_MODE` | sim | Apenas `dev_static` neste incremento (fail-closed se ausente) |
-| `FISCAL_AUTH_DEV_TOKEN` | sim | Bearer do módulo; mínimo 32 bytes; nunca em logs |
-| `FISCAL_AUTH_DEV_SCOPE_ID` | sim | `scope_id` injetado na identidade (não vem do body) |
-| `FISCAL_SCOPE_TIMEZONE` | sim | IANA do scope; neste incremento apenas `Africa/Luanda` (DEC-TIME-001) |
-| `FISCAL_AUTH_DEV_FORBIDDEN_TOKEN` | não | Token válido que devolve 403 (testes) |
-| `FISCAL_SERIES_MODE` | sim | Apenas `static` neste incremento |
-| `FISCAL_SERIES_EFFECTIVE_CODE` | sim | `SeriesCode` efetiva autorizada (POS não controla) |
+| `FISCAL_ENV` | sim | `development` ou `homologation` |
+| `FISCAL_AUTH_MODE` | sim | `dev_static` (só `development`) ou `credential_store` (obrigatório em `homologation`) |
+| `FISCAL_AUTH_DEV_TOKEN` | se `dev_static` | Bearer do módulo; mínimo 32 bytes; nunca em logs; **proibido** com `credential_store` |
+| `FISCAL_AUTH_DEV_SCOPE_ID` | se `dev_static` | `scope_id` da identidade de desenvolvimento |
+| `FISCAL_AUTH_DEV_TAXPAYER_NIF` | se `dev_static` | NIF sintético do ScopeBinding de desenvolvimento |
+| `FISCAL_SCOPE_TIMEZONE` | se `dev_static` | IANA; neste incremento apenas `Africa/Luanda` |
+| `FISCAL_AUTH_DEV_FORBIDDEN_TOKEN` | não | Token válido que devolve 403 (testes `dev_static`) |
+| `FISCAL_SERIES_MODE` | se `dev_static` | Apenas `static` |
+| `FISCAL_SERIES_EFFECTIVE_CODE` | se `dev_static` | Série efectiva (em `credential_store` vem do scope) |
 | `FISCAL_DATABASE_DRIVER` | sim | `postgres` ou `sqlite` |
 | `FISCAL_DATABASE_URL` | sim | DSN Postgres ou path SQLite |
 
-Exemplo local (token fictício ≥32 bytes):
+Exemplo local `dev_static` (token fictício ≥32 bytes):
 
 ```bash
 export FISCAL_ENV=development
 export FISCAL_AUTH_MODE=dev_static
 export FISCAL_AUTH_DEV_TOKEN='0123456789abcdef0123456789abcdef'
 export FISCAL_AUTH_DEV_SCOPE_ID=scope-dev
+export FISCAL_AUTH_DEV_TAXPAYER_NIF=5000000000
 export FISCAL_SCOPE_TIMEZONE=Africa/Luanda
 export FISCAL_SERIES_MODE=static
 export FISCAL_SERIES_EFFECTIVE_CODE=A
@@ -102,11 +104,13 @@ go run ./cmd/fiscal-migrate up
 go run ./cmd/fiscal-api
 ```
 
+Admin de credenciais (`credential_store`): `go run ./cmd/fiscal-admin …` com as mesmas variáveis de BD. Token só em TTY ou `--output-file` (`O_EXCL`, `0600`).
+
 Contrato: [api-guidelines.md](../03-api/api-guidelines.md). Sem ficheiros `.env` versionados.
 
 Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
 
-Contrato público `0.1.3-draft` + implementação HTTP `POST /v1/documents` (PR C2) + DEC-TIME-001 (`canonical_v2`, migration `0002`).
+Contrato público `0.1.4-draft` + `credential_store` / `FISCAL_SCOPE_MISMATCH` (PR S2) + DEC-TIME-001 (`canonical_v2`, migration `0002`/`0003`).
 
 Staging deploy (artefactos D1): [staging-runbook.md](../07-operations/staging-runbook.md).
 

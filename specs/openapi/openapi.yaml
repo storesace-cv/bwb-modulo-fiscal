@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal API
-  version: 0.1.3-draft
+  version: 0.1.4-draft
   description: >
     Contrato público draft para POS/software houses. createDocument cria e sela
     localmente de forma atómica (201). issued_at deve incluir offset compatível
@@ -107,7 +107,9 @@ paths:
                     code: FISCAL_UNAUTHORIZED
                     request_id: "req_01EXAMPLE000000000000000"
         "403":
-          description: Identidade autenticada sem autorização para o recurso
+          description: >
+            Identidade autenticada sem autorização para o recurso, ou seller.tax_id
+            válido mas incompatível com o NIF do scope autenticado (FISCAL_SCOPE_MISMATCH).
           content:
             application/json:
               schema:
@@ -119,6 +121,14 @@ paths:
                     title: Não autorizado
                     status: 403
                     code: FISCAL_FORBIDDEN
+                    request_id: "req_01EXAMPLE000000000000000"
+                scopeMismatch:
+                  summary: NIF do seller incompatível com o scope autenticado
+                  value:
+                    type: "urn:bwb:fiscal:error:scope-mismatch"
+                    title: Âmbito fiscal inválido
+                    status: 403
+                    code: FISCAL_SCOPE_MISMATCH
                     request_id: "req_01EXAMPLE000000000000000"
         "409":
           description: >

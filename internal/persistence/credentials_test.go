@@ -20,6 +20,41 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
 )
 
+func deliverCapture(dst *string) persistence.TokenSink {
+	return func(token string) error {
+		*dst = token
+		return nil
+	}
+}
+
+func mustIssue(t *testing.T, ctx context.Context, store *persistence.CredentialStore, p persistence.IssueParams) (*persistence.CredentialRecord, string) {
+	t.Helper()
+	var token string
+	p.Deliver = deliverCapture(&token)
+	rec, err := store.Issue(ctx, p)
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	if token == "" {
+		t.Fatal("missing delivered token")
+	}
+	return rec, token
+}
+
+func mustRotate(t *testing.T, ctx context.Context, store *persistence.CredentialStore, p persistence.RotateParams) (*persistence.RotateOutcome, string) {
+	t.Helper()
+	var token string
+	p.Deliver = deliverCapture(&token)
+	out, err := store.Rotate(ctx, p)
+	if err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+	if token == "" {
+		t.Fatal("missing delivered token")
+	}
+	return out, token
+}
+
 func TestCredentialsSQLiteSuite(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "creds.db")
@@ -75,32 +110,27 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 		scopeID := "cred-scope-" + uid + "-irr"
 		mustCreateScope(t, ctx, store, scopeID)
 
-		issued, err := store.Issue(ctx, persistence.IssueParams{
+		issuedRec, issuedTok := mustIssue(t, ctx, store, persistence.IssueParams{
 			ScopeID: scopeID, CreatedBy: "admin@test", RequestID: "req-issue-1",
 		})
-		if err != nil {
-			t.Fatalf("issue: %v", err)
-		}
-		assertTokenShape(t, issued.Token)
-		assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "active")
+		assertTokenShape(t, issuedTok)
+		assertStatus(t, ctx, sqlDB, postgres, scopeID, issuedRec.CredentialID, "active")
 		assertAuditCount(t, ctx, sqlDB, postgres, scopeID, "credential.issue", 1)
-		assertNoSecretInAudit(t, ctx, sqlDB, postgres, scopeID, issued.Token)
+		assertNoSecretInAudit(t, ctx, sqlDB, postgres, scopeID, issuedTok)
 
-		rotated, err := store.Rotate(ctx, persistence.RotateParams{
+		rotated, rotatedTok := mustRotate(t, ctx, store, persistence.RotateParams{
 			ScopeID: scopeID, CreatedBy: "admin@test",
 			GraceUntil: time.Now().UTC().Add(time.Hour),
 			RequestID:  "req-rotate-1",
 		})
-		if err != nil {
-			t.Fatalf("rotate: %v", err)
+		_ = rotatedTok
+		if rotated.PreviousID != issuedRec.CredentialID {
+			t.Fatalf("previous=%s want %s", rotated.PreviousID, issuedRec.CredentialID)
 		}
-		if rotated.PreviousID != issued.Credential.CredentialID {
-			t.Fatalf("previous=%s want %s", rotated.PreviousID, issued.Credential.CredentialID)
-		}
-		if rotated.Credential.RotatedFrom == nil || *rotated.Credential.RotatedFrom != issued.Credential.CredentialID {
+		if rotated.Credential.RotatedFrom == nil || *rotated.Credential.RotatedFrom != issuedRec.CredentialID {
 			t.Fatalf("rotated_from=%v", rotated.Credential.RotatedFrom)
 		}
-		assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "grace")
+		assertStatus(t, ctx, sqlDB, postgres, scopeID, issuedRec.CredentialID, "grace")
 		assertStatus(t, ctx, sqlDB, postgres, scopeID, rotated.Credential.CredentialID, "active")
 		assertAuditCount(t, ctx, sqlDB, postgres, scopeID, "credential.rotate", 1)
 
@@ -121,16 +151,14 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 	t.Run("one_active_and_one_grace_per_scope", func(t *testing.T) {
 		scopeID := "cred-scope-" + uid + "-limits"
 		mustCreateScope(t, ctx, store, scopeID)
-		a, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue: %v", err)
-		}
-		_, err = store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+		a, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+		_, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin", Deliver: func(string) error { return nil }})
 		if !errors.Is(err, persistence.ErrCredentialConflict) {
 			t.Fatalf("second active: %v", err)
 		}
 		_, err = store.Rotate(ctx, persistence.RotateParams{
 			ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
+			Deliver: func(string) error { return nil },
 		})
 		if err != nil {
 			t.Fatalf("rotate: %v", err)
@@ -155,22 +183,16 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 		s2 := "cred-scope-" + uid + "-r2"
 		mustCreateScope(t, ctx, store, s1)
 		mustCreateScope(t, ctx, store, s2)
-		i1, err := store.Issue(ctx, persistence.IssueParams{ScopeID: s1, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue s1: %v", err)
-		}
-		i2, err := store.Issue(ctx, persistence.IssueParams{ScopeID: s2, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue s2: %v", err)
-		}
+		i1, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: s1, CreatedBy: "admin"})
+		i2, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: s2, CreatedBy: "admin"})
 		// Cross-scope rotated_from via SQL must fail composite FK.
 		hash := make([]byte, 32)
 		hash[1] = 0xcd
-		err = execSQL(ctx, sqlDB, postgres, `
+		err := execSQL(ctx, sqlDB, postgres, `
 			INSERT INTO `+tblCred(postgres, "api_credentials")+` (
 				credential_id, scope_id, token_hash, status, rotated_from, created_at, created_by
 			) VALUES (?, ?, ?, 'active', ?, ?, 'sql')`,
-			"cross-"+uid, s2, hash, i1.Credential.CredentialID, timeArg(postgres, time.Now().UTC()),
+			"cross-"+uid, s2, hash, i1.CredentialID, timeArg(postgres, time.Now().UTC()),
 		)
 		if err == nil {
 			t.Fatal("expected cross-scope rotated_from to fail FK")
@@ -198,10 +220,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 	t.Run("grace_until_must_be_future", func(t *testing.T) {
 		scopeID := "cred-scope-" + uid + "-grace"
 		mustCreateScope(t, ctx, store, scopeID)
-		issued, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue: %v", err)
-		}
+		issuedRec, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 		fixed := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
 		store.SetClock(func() time.Time { return fixed })
 		t.Cleanup(func() { store.SetClock(nil) })
@@ -219,6 +238,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			)
 			_, err := store.Rotate(ctx, persistence.RotateParams{
 				ScopeID: scopeID, CreatedBy: "admin", GraceUntil: grace,
+				Deliver: func(string) error { return nil },
 			})
 			var ve *persistence.ValidationError
 			if !errors.As(err, &ve) {
@@ -240,7 +260,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 				t.Fatalf("mutation on validation failure creds %d→%d audit %d→%d",
 					credsBefore, credsAfter, auditBefore, auditAfter)
 			}
-			assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "active")
+			assertStatus(t, ctx, sqlDB, postgres, scopeID, issuedRec.CredentialID, "active")
 		}
 
 		t.Run("past", func(t *testing.T) {
@@ -250,13 +270,10 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			assertRotateGraceRejected(t, fixed, "not_future")
 		})
 		t.Run("future_ok", func(t *testing.T) {
-			rotated, err := store.Rotate(ctx, persistence.RotateParams{
+			rotated, _ := mustRotate(t, ctx, store, persistence.RotateParams{
 				ScopeID: scopeID, CreatedBy: "admin", GraceUntil: fixed.Add(time.Hour),
 			})
-			if err != nil {
-				t.Fatalf("rotate future: %v", err)
-			}
-			assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "grace")
+			assertStatus(t, ctx, sqlDB, postgres, scopeID, issuedRec.CredentialID, "grace")
 			assertStatus(t, ctx, sqlDB, postgres, scopeID, rotated.Credential.CredentialID, "active")
 		})
 	})
@@ -266,7 +283,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 		scopeID := "cred-scope-" + uid + "-rollback"
 		mustCreateScope(t, ctx, store, scopeID)
 
-		_, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+		_, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin", Deliver: func(string) error { return nil }})
 		if err == nil {
 			t.Fatal("expected issue audit failure")
 		}
@@ -278,6 +295,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 
 		_, err = store.Rotate(ctx, persistence.RotateParams{
 			ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
+			Deliver: func(string) error { return nil },
 		})
 		if err == nil {
 			t.Fatal("expected rotate audit failure")
@@ -338,17 +356,13 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 	t.Run("audit_events_immutable", func(t *testing.T) {
 		scopeID := "cred-scope-" + uid + "-imm"
 		mustCreateScope(t, ctx, store, scopeID)
-		issued, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue: %v", err)
-		}
-		_ = issued
+		_, _ = mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 		var eventID string
 		mustScan(t, ctx, sqlDB, postgres,
 			`SELECT event_id FROM `+tblCred(postgres, "audit_events")+` WHERE scope_id = ? LIMIT 1`,
 			[]any{scopeID}, &eventID,
 		)
-		err = execSQL(ctx, sqlDB, postgres,
+		err := execSQL(ctx, sqlDB, postgres,
 			`UPDATE `+tblCred(postgres, "audit_events")+` SET result = 'tampered' WHERE event_id = ?`, eventID)
 		if err == nil {
 			t.Fatal("expected audit update to fail")
@@ -365,15 +379,11 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			// SQLite MaxOpenConns=1 serializes writers; still verify sequential rotates.
 			scopeID := "cred-scope-" + uid + "-sqconc"
 			mustCreateScope(t, ctx, store, scopeID)
-			if _, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"}); err != nil {
-				t.Fatalf("issue: %v", err)
-			}
+			mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 			for i := 0; i < 5; i++ {
-				if _, err := store.Rotate(ctx, persistence.RotateParams{
+				mustRotate(t, ctx, store, persistence.RotateParams{
 					ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
-				}); err != nil {
-					t.Fatalf("rotate %d: %v", i, err)
-				}
+				})
 			}
 			var active, grace int
 			mustScan(t, ctx, sqlDB, postgres,
@@ -392,9 +402,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 
 		scopeID := "cred-scope-" + uid + "-pgconc"
 		mustCreateScope(t, ctx, store, scopeID)
-		if _, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"}); err != nil {
-			t.Fatalf("issue: %v", err)
-		}
+		mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 		var okCount atomic.Int64
 		var wg sync.WaitGroup
 		for i := 0; i < 8; i++ {
@@ -403,6 +411,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 				defer wg.Done()
 				_, err := store.Rotate(ctx, persistence.RotateParams{
 					ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
+					Deliver: func(string) error { return nil },
 				})
 				if err == nil {
 					okCount.Add(1)
@@ -430,30 +439,26 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 	t.Run("token_persists_sha256_only", func(t *testing.T) {
 		scopeID := "cred-scope-" + uid + "-hash"
 		mustCreateScope(t, ctx, store, scopeID)
-		issued, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		if err != nil {
-			t.Fatalf("issue: %v", err)
-		}
-		want := persistence.HashCredentialToken(issued.Token)
+		issuedRec, issuedTok := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+		want := persistence.HashCredentialToken(issuedTok)
 		var got []byte
 		mustScan(t, ctx, sqlDB, postgres,
 			`SELECT token_hash FROM `+tblCred(postgres, "api_credentials")+` WHERE credential_id = ?`,
-			[]any{issued.Credential.CredentialID}, &got,
+			[]any{issuedRec.CredentialID}, &got,
 		)
 		if len(got) != sha256.Size || string(got) != string(want) {
 			t.Fatalf("token_hash mismatch len=%d", len(got))
 		}
-		// Ensure plaintext token is not stored in any text column of the row.
 		var blob string
 		row := sqlDB.QueryRowContext(ctx, rebind(postgres, `
 			SELECT credential_id || COALESCE(status,'') || COALESCE(created_by,'')
 			FROM `+tblCred(postgres, "api_credentials")+` WHERE credential_id = ?`),
-			issued.Credential.CredentialID,
+			issuedRec.CredentialID,
 		)
 		if err := row.Scan(&blob); err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(blob, issued.Token) || strings.Contains(blob, persistence.CredentialTokenPrefix) {
+		if strings.Contains(blob, issuedTok) || strings.Contains(blob, persistence.CredentialTokenPrefix) {
 			t.Fatal("token material leaked into credential text columns")
 		}
 	})

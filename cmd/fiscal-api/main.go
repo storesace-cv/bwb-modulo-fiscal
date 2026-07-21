@@ -12,14 +12,12 @@ import (
 	"syscall"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/config"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/httpserver"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/series"
 )
 
 func main() {
@@ -50,36 +48,18 @@ func run() int {
 	}
 	defer sqlDB.Close()
 
-	authenticator, err := auth.NewDevStatic(auth.DevStaticConfig{
-		Token:          docsCfg.AuthDevToken,
-		ScopeID:        docsCfg.AuthDevScopeID,
-		ForbiddenToken: docsCfg.AuthDevForbiddenToken,
-	})
+	authenticator, auditor, err := buildAuthenticator(docsCfg, sqlDB, dialect)
 	if err != nil {
 		logger.Error("auth_config_invalid", "error", err.Error())
-		return 1
-	}
-	resolver, err := series.NewStatic(series.StaticConfig{EffectiveCode: docsCfg.SeriesEffectiveCode})
-	if err != nil {
-		logger.Error("series_config_invalid", "error", err.Error())
-		return 1
-	}
-	tzResolver, err := fiscaltz.NewStatic(fiscaltz.StaticConfig{
-		ScopeID:  docsCfg.AuthDevScopeID,
-		Timezone: docsCfg.ScopeTimezone,
-	})
-	if err != nil {
-		logger.Error("fiscal_timezone_config_invalid", "error", err.Error())
 		return 1
 	}
 
 	store := persistence.NewStore(sqlDB, dialect)
 	docs := &httpapi.DocumentsHandler{
-		Store:    store,
-		Auth:     authenticator,
-		Series:   resolver,
-		FiscalTZ: tzResolver,
-		Log:      logger,
+		Store:       store,
+		Auth:        authenticator,
+		Log:         logger,
+		AuthAuditor: auditor,
 	}
 
 	mux := http.NewServeMux()
@@ -120,6 +100,31 @@ func run() int {
 			return 1
 		}
 		return 0
+	}
+}
+
+func buildAuthenticator(docsCfg config.DocumentsRuntime, sqlDB *sql.DB, dialect persistence.Dialect) (auth.Authenticator, httpapi.AuthAuditor, error) {
+	switch docsCfg.AuthMode {
+	case config.AuthModeDevStatic():
+		a, err := auth.NewDevStatic(auth.DevStaticConfig{
+			Token:               docsCfg.AuthDevToken,
+			ScopeID:             docsCfg.AuthDevScopeID,
+			ForbiddenToken:      docsCfg.AuthDevForbiddenToken,
+			TaxpayerNIF:         docsCfg.AuthDevTaxpayerNIF,
+			IANATimezone:        docsCfg.ScopeTimezone,
+			SeriesEffectiveCode: docsCfg.SeriesEffectiveCode,
+			Environment:         docsCfg.Env,
+		})
+		return a, nil, err
+	case config.AuthModeCredentialStore():
+		creds := persistence.NewCredentialStore(sqlDB, dialect)
+		a, err := auth.NewCredentialStoreAuthenticator(creds, docsCfg.Env)
+		if err != nil {
+			return nil, nil, err
+		}
+		return a, creds, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported auth mode %q", docsCfg.AuthMode)
 	}
 }
 

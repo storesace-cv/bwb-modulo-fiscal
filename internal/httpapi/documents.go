@@ -19,11 +19,9 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/series"
 )
 
 const (
@@ -39,11 +37,16 @@ var correlationIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
 
 // DocumentsHandler serves POST /v1/documents.
 type DocumentsHandler struct {
-	Store    *persistence.Store
-	Auth     auth.Authenticator
-	Series   series.Resolver
-	FiscalTZ fiscaltz.Resolver
-	Log      *slog.Logger
+	Store *persistence.Store
+	Auth  auth.Authenticator
+	Log   *slog.Logger
+	// AuthAuditor records scope_mismatch best-effort (optional).
+	AuthAuditor AuthAuditor
+}
+
+// AuthAuditor is optional best-effort auth audit from the HTTP layer.
+type AuthAuditor interface {
+	RecordAuthAudit(ctx context.Context, ev persistence.AuthAuditEvent) error
 }
 
 // CreateDocumentResponse matches OpenAPI CreateDocumentResponse.
@@ -119,7 +122,7 @@ func requestIDFrom(ctx context.Context) string {
 	if v, ok := ctx.Value(requestIDKey).(string); ok && v != "" {
 		return v
 	}
-	return newRequestID()
+	return ""
 }
 
 func newRequestID() string {
@@ -135,10 +138,18 @@ func (h *DocumentsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reqID := requestIDFrom(r.Context())
+	ctx := auth.ContextWithRequestID(r.Context(), reqID)
 
-	principal, err := h.Auth.Authenticate(r.Context(), r)
+	binding, err := h.Auth.Authenticate(ctx, r)
 	if errors.Is(err, auth.ErrForbidden) {
 		h.writeProblem(w, r, http.StatusForbidden, "urn:bwb:fiscal:error:forbidden", "Não autorizado", "FISCAL_FORBIDDEN", nil)
+		return
+	}
+	if errors.Is(err, auth.ErrInternal) {
+		if h.Log != nil {
+			h.Log.Error("auth_internal", "request_id", reqID, "error", "internal")
+		}
+		h.writeProblem(w, r, http.StatusInternalServerError, "urn:bwb:fiscal:error:internal", "Erro interno", "FISCAL_INTERNAL_ERROR", nil)
 		return
 	}
 	if err != nil {
@@ -176,43 +187,42 @@ func (h *DocumentsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seriesCode, err := h.Series.Resolve(principal.ScopeID, body.RequestedSeries)
-	if err != nil {
-		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED",
-			[]fieldError{{Field: "requested_series", Code: "UNRESOLVED", Message: "referência de série não autorizada"}})
-		return
-	}
-
-	if h.FiscalTZ == nil {
-		h.writeProblem(w, r, http.StatusInternalServerError, "urn:bwb:fiscal:error:internal", "Erro interno", "FISCAL_INTERNAL_ERROR", nil)
-		return
-	}
-	ianaTZ, err := h.FiscalTZ.Resolve(principal.ScopeID)
-	if err != nil {
-		h.writeProblem(w, r, http.StatusForbidden, "urn:bwb:fiscal:error:forbidden", "Não autorizado", "FISCAL_FORBIDDEN", nil)
-		return
-	}
 	if strings.TrimSpace(body.IssuedAt) == "" {
 		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED",
 			[]fieldError{{Field: "issued_at", Code: "REQUIRED", Message: "obrigatório"}})
 		return
 	}
-	normIssued, err := fiscaltime.NormalizeIssued(body.IssuedAt, ianaTZ)
+	normIssued, err := fiscaltime.NormalizeIssued(body.IssuedAt, binding.IANATimezone)
 	if err != nil {
 		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED",
 			[]fieldError{{Field: "issued_at", Code: "INVALID_ISSUED_AT", Message: "offset ausente ou incompatível com a timezone fiscal do scope"}})
 		return
 	}
 
-	intent, ferrs := mapIntent(principal.ScopeID, body, normIssued)
+	intent, ferrs := mapIntent(binding.ScopeID, body, normIssued)
 	if len(ferrs) > 0 {
 		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED", ferrs)
 		return
 	}
 
-	res, err := h.Store.SealInTx(r.Context(), persistence.SealRequest{
+	if strings.TrimSpace(body.Seller.TaxID) != binding.TaxpayerNIF {
+		if h.AuthAuditor != nil {
+			_ = h.AuthAuditor.RecordAuthAudit(ctx, persistence.AuthAuditEvent{
+				Action:       persistence.AuditActionAuthScopeMismatch,
+				Result:       "failure",
+				ReasonCode:   "nif_mismatch",
+				RequestID:    reqID,
+				CredentialID: binding.CredentialID,
+				ScopeID:      binding.ScopeID,
+			})
+		}
+		h.writeProblem(w, r, http.StatusForbidden, "urn:bwb:fiscal:error:scope-mismatch", "Âmbito fiscal inválido", "FISCAL_SCOPE_MISMATCH", nil)
+		return
+	}
+
+	res, err := h.Store.SealInTx(ctx, persistence.SealRequest{
 		IdempotencyKey: idemKey,
-		SeriesCode:     seriesCode,
+		SeriesCode:     binding.SeriesEffectiveCode,
 		Intent:         intent,
 	})
 	if errors.Is(err, persistence.ErrIdempotencyConflict) {
