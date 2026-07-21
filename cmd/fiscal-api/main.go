@@ -33,11 +33,12 @@ func run() int {
 	mux.Handle("/v1/health", health.NewHandler(cfg.Version, cfg.FiscalPackage))
 
 	srv := httpserver.New(httpserver.Config{
-		Addr:            cfg.HTTPAddr,
-		ReadTimeout:     cfg.ReadTimeout,
-		WriteTimeout:    cfg.WriteTimeout,
-		IdleTimeout:     cfg.IdleTimeout,
-		ShutdownTimeout: cfg.ShutdownTimeout,
+		Addr:              cfg.HTTPAddr,
+		ReadTimeout:       cfg.ReadTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		ShutdownTimeout:   cfg.ShutdownTimeout,
 	}, mux, logger)
 
 	errCh := make(chan error, 1)

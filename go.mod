@@ -1,3 +1,3 @@
 module github.com/storesace-cv/bwb-modulo-fiscal
 
-go 1.24.0
+go 1.25.0

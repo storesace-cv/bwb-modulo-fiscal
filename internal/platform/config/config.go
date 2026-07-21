@@ -10,47 +10,68 @@ import (
 )
 
 const (
-	defaultHTTPAddr        = ":8080"
-	defaultReadTimeout     = 5 * time.Second
-	defaultWriteTimeout    = 10 * time.Second
-	defaultIdleTimeout     = 60 * time.Second
-	defaultShutdownTimeout = 10 * time.Second
-	defaultVersion         = "0.0.0-dev"
-	defaultFiscalPackage   = "AO-UNDECLARED"
-	envHTTPAddr            = "FISCAL_HTTP_ADDR"
-	envVersion             = "FISCAL_APP_VERSION"
-	envFiscalPackage       = "FISCAL_PACKAGE"
-	envReadTimeout         = "FISCAL_HTTP_READ_TIMEOUT"
-	envWriteTimeout        = "FISCAL_HTTP_WRITE_TIMEOUT"
-	envIdleTimeout         = "FISCAL_HTTP_IDLE_TIMEOUT"
-	envShutdownTimeout     = "FISCAL_HTTP_SHUTDOWN_TIMEOUT"
+	defaultHTTPAddr          = ":8080"
+	defaultReadTimeout       = 5 * time.Second
+	defaultReadHeaderTimeout = 5 * time.Second
+	defaultWriteTimeout      = 10 * time.Second
+	defaultIdleTimeout       = 60 * time.Second
+	defaultShutdownTimeout   = 10 * time.Second
+	defaultVersion           = "0.0.0-dev"
+	defaultFiscalPackage     = "AO-UNDECLARED"
+	envHTTPAddr              = "FISCAL_HTTP_ADDR"
+	envVersion               = "FISCAL_APP_VERSION"
+	envFiscalPackage         = "FISCAL_PACKAGE"
+	envReadTimeout           = "FISCAL_HTTP_READ_TIMEOUT"
+	envReadHeaderTimeout     = "FISCAL_HTTP_READ_HEADER_TIMEOUT"
+	envWriteTimeout          = "FISCAL_HTTP_WRITE_TIMEOUT"
+	envIdleTimeout           = "FISCAL_HTTP_IDLE_TIMEOUT"
+	envShutdownTimeout       = "FISCAL_HTTP_SHUTDOWN_TIMEOUT"
 )
+
+// EnvKeys lista as variáveis de ambiente usadas por Load (útil em testes herméticos).
+func EnvKeys() []string {
+	return []string{
+		envHTTPAddr,
+		envVersion,
+		envFiscalPackage,
+		envReadTimeout,
+		envReadHeaderTimeout,
+		envWriteTimeout,
+		envIdleTimeout,
+		envShutdownTimeout,
+	}
+}
 
 // Config contém parâmetros de arranque do serviço fiscal-api.
 type Config struct {
-	HTTPAddr        string
-	Version         string
-	FiscalPackage   string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	IdleTimeout     time.Duration
-	ShutdownTimeout time.Duration
+	HTTPAddr          string
+	Version           string
+	FiscalPackage     string
+	ReadTimeout       time.Duration
+	ReadHeaderTimeout time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
+	ShutdownTimeout   time.Duration
 }
 
 // Load lê variáveis de ambiente, aplica defaults e valida o resultado.
 func Load() (Config, error) {
 	cfg := Config{
-		HTTPAddr:        getenv(envHTTPAddr, defaultHTTPAddr),
-		Version:         getenv(envVersion, defaultVersion),
-		FiscalPackage:   getenv(envFiscalPackage, defaultFiscalPackage),
-		ReadTimeout:     defaultReadTimeout,
-		WriteTimeout:    defaultWriteTimeout,
-		IdleTimeout:     defaultIdleTimeout,
-		ShutdownTimeout: defaultShutdownTimeout,
+		HTTPAddr:          getenv(envHTTPAddr, defaultHTTPAddr),
+		Version:           getenv(envVersion, defaultVersion),
+		FiscalPackage:     getenv(envFiscalPackage, defaultFiscalPackage),
+		ReadTimeout:       defaultReadTimeout,
+		ReadHeaderTimeout: defaultReadHeaderTimeout,
+		WriteTimeout:      defaultWriteTimeout,
+		IdleTimeout:       defaultIdleTimeout,
+		ShutdownTimeout:   defaultShutdownTimeout,
 	}
 
 	var err error
 	if cfg.ReadTimeout, err = durationFromEnv(envReadTimeout, defaultReadTimeout); err != nil {
+		return Config{}, err
+	}
+	if cfg.ReadHeaderTimeout, err = durationFromEnv(envReadHeaderTimeout, defaultReadHeaderTimeout); err != nil {
 		return Config{}, err
 	}
 	if cfg.WriteTimeout, err = durationFromEnv(envWriteTimeout, defaultWriteTimeout); err != nil {
@@ -82,6 +103,9 @@ func (c Config) Validate() error {
 	}
 	if c.ReadTimeout <= 0 {
 		return fmt.Errorf("%s must be > 0", envReadTimeout)
+	}
+	if c.ReadHeaderTimeout <= 0 {
+		return fmt.Errorf("%s must be > 0", envReadHeaderTimeout)
 	}
 	if c.WriteTimeout <= 0 {
 		return fmt.Errorf("%s must be > 0", envWriteTimeout)

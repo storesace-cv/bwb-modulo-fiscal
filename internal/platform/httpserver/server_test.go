@@ -19,24 +19,25 @@ func TestHTTPHealthIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
+	t.Cleanup(func() { _ = ln.Close() })
 	addr := ln.Addr().String()
-	_ = ln.Close()
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/health", health.NewHandler("int-1.0.0", "AO-INT"))
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httpserver.New(httpserver.Config{
-		Addr:            addr,
-		ReadTimeout:     2 * time.Second,
-		WriteTimeout:    2 * time.Second,
-		IdleTimeout:     2 * time.Second,
-		ShutdownTimeout: 2 * time.Second,
+		Addr:              addr,
+		ReadTimeout:       2 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      2 * time.Second,
+		IdleTimeout:       2 * time.Second,
+		ShutdownTimeout:   2 * time.Second,
 	}, mux, logger)
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.ListenAndServe()
+		errCh <- srv.Serve(ln)
 	}()
 
 	waitReady(t, "http://"+addr+"/v1/health")
@@ -82,10 +83,10 @@ func TestHTTPHealthIntegration(t *testing.T) {
 		select {
 		case err := <-errCh:
 			if err != nil {
-				t.Fatalf("ListenAndServe after shutdown: %v", err)
+				t.Fatalf("Serve after shutdown: %v", err)
 			}
 		case <-time.After(3 * time.Second):
-			t.Fatal("timeout waiting for ListenAndServe to return")
+			t.Fatal("timeout waiting for Serve to return")
 		}
 
 		_, err := http.Get("http://" + addr + "/v1/health")
@@ -93,6 +94,12 @@ func TestHTTPHealthIntegration(t *testing.T) {
 			t.Fatal("expected connection error after shutdown")
 		}
 	})
+}
+
+func TestNewSetsMaxHeaderBytes(t *testing.T) {
+	if httpserver.MaxHeaderBytes != 64<<10 {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", httpserver.MaxHeaderBytes, 64<<10)
+	}
 }
 
 func waitReady(t *testing.T, url string) {
