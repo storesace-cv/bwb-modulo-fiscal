@@ -21,6 +21,9 @@ coverage/
 *.out
 coverage.out
 vendor/
+tmp/
+*.db
+*.db-*
 
 # Materiais locais de consulta para Cursor; nunca sincronizar com GitHub.
 local/

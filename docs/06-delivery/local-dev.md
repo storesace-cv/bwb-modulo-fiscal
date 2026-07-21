@@ -1,48 +1,70 @@
-# Desenvolvimento local (scaffold Fase 1)
-
-Comandos mínimos para o binário `fiscal-api` (apenas `GET /v1/health`).
+# Desenvolvimento local (scaffold Fase 1 + fundação de persistência)
 
 ## Pré-requisitos
 
 - Baseline de linguagem no `go.mod`: **Go 1.25.0**.
-- Toolchain de CI/deploy: **Go 1.26.x** mais recente (corrigida; ver [Go Release Policy](https://go.dev/doc/devel/release)).
-- Go 1.24 já não recebe correções de segurança após o lançamento de Go 1.26.
+- Toolchain de CI/deploy: **Go 1.26.x** (ver [Go Release Policy](https://go.dev/doc/devel/release)).
+- PostgreSQL 16+ para testes cloud (`FISCAL_TEST_DATABASE_URL`); SQLite (pure Go) para Edge/local.
 
-## Variáveis de ambiente
+## Variáveis HTTP (`fiscal-api`)
 
 | Variável | Default | Descrição |
 | --- | --- | --- |
-| `FISCAL_HTTP_ADDR` | `127.0.0.1:8080` | Endereço de listen (loopback por omissão; cloud/outras interfaces exigem valor explícito) |
-| `FISCAL_APP_VERSION` | `0.0.0-dev` | Campo `version` do health |
-| `FISCAL_PACKAGE` | `AO-UNDECLARED` | Campo `fiscalPackage` do health |
-| `FISCAL_HTTP_READ_TIMEOUT` | `5s` | Timeout de leitura completa do pedido (ms inteiros ou duração Go) |
-| `FISCAL_HTTP_READ_HEADER_TIMEOUT` | `5s` | Timeout da leitura dos headers (proteção contra slowloris; ms ou duração Go) |
+| `FISCAL_HTTP_ADDR` | `127.0.0.1:8080` | Listen (loopback por omissão) |
+| `FISCAL_APP_VERSION` | `0.0.0-dev` | Health `version` |
+| `FISCAL_PACKAGE` | `AO-UNDECLARED` | Health `fiscalPackage` |
+| `FISCAL_HTTP_READ_TIMEOUT` | `5s` | Timeout de leitura |
+| `FISCAL_HTTP_READ_HEADER_TIMEOUT` | `5s` | Timeout de headers |
 | `FISCAL_HTTP_WRITE_TIMEOUT` | `10s` | Timeout de escrita |
 | `FISCAL_HTTP_IDLE_TIMEOUT` | `60s` | Timeout idle |
-| `FISCAL_HTTP_SHUTDOWN_TIMEOUT` | `10s` | Timeout de graceful shutdown |
+| `FISCAL_HTTP_SHUTDOWN_TIMEOUT` | `10s` | Graceful shutdown |
 
-Limite técnico fixo: `MaxHeaderBytes` = **64 KiB** (não configurável por ambiente).
+## Variáveis de base de dados (`fiscal-migrate` / testes)
 
-O default de `FISCAL_HTTP_ADDR` escuta apenas em loopback. Em cloud (ou qualquer exposição não local), definir explicitamente o endereço desejado (ex.: `0.0.0.0:8080` atrás de um proxy/rede controlada).
+| Variável | Descrição |
+| --- | --- |
+| `FISCAL_DATABASE_DRIVER` | `postgres` ou `sqlite` |
+| `FISCAL_DATABASE_URL` | DSN Postgres ou path do ficheiro SQLite |
+| `FISCAL_TEST_DATABASE_URL` | DSN Postgres para testes de integração |
+
+## Migrations
+
+- SQL embutido no binário (`embed`); forward-only (`*.up.sql`).
+- Controlo Postgres: `public.bwb_schema_migrations`.
+- Tabelas da aplicação: schema `fiscal.*`.
+- CLI produção: só `up` e `version` — ver [migrate-runbook.md](migrate-runbook.md).
+
+```bash
+# SQLite local
+export FISCAL_DATABASE_DRIVER=sqlite
+export FISCAL_DATABASE_URL=./tmp/fiscal.db
+go run ./cmd/fiscal-migrate up
+go run ./cmd/fiscal-migrate version
+
+# Postgres
+export FISCAL_DATABASE_DRIVER=postgres
+export FISCAL_DATABASE_URL='postgres://fiscal:fiscal@127.0.0.1:5432/fiscal?sslmode=disable'
+go run ./cmd/fiscal-migrate up
+```
 
 ## Comandos
 
 ```bash
-# Testes
 go test ./...
 go test -race ./...
-
-# Formatação e análise estática
 gofmt -w .
 go vet ./...
+bash scripts/check-migrations.sh
 
-# Executar API
+# Tools (módulo separado tools/)
+cd tools && go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+cd tools && go install github.com/google/go-licenses@v1.6.0
+govulncheck ./...
+```
+
+```bash
 go run ./cmd/fiscal-api
-
-# Health check
 curl -sS http://127.0.0.1:8080/v1/health
 ```
 
-Encerramento gracioso: `SIGINT` / `SIGTERM`.
-
-Este incremento não inclui base de dados, Docker, ORM nem emissão fiscal.
+Este incremento **não** inclui `SealInTx`, `POST /documents`, worker AGT, JWS nem ORM.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0-draft — 2026-07-21
+
+- Fundação de persistência (PR A): drivers pgx + modernc/sqlite; migrations forward-only embutidas; schema `fiscal` + `public.bwb_schema_migrations`; tipos money/quantity int64; canonical_v1; `cmd/fiscal-migrate` (`up`/`version`); CI com Postgres, imutabilidade de migrations, govulncheck e go-licenses. Sem SealInTx nem endpoints de documentos.
+
 ## 0.1.9-draft — 2026-07-21
 
 - Default `FISCAL_HTTP_ADDR` em `127.0.0.1:8080` (cloud exige bind explícito); CI só em `push`/`pull_request` para `main` com `go vet` + `go test -race`; rejeição de overflow em timeouts em milissegundos.
