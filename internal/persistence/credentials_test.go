@@ -195,33 +195,104 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 		}
 	})
 
-	t.Run("audit_failure_rolls_back_issue", func(t *testing.T) {
+	t.Run("grace_until_must_be_future", func(t *testing.T) {
+		scopeID := "cred-scope-" + uid + "-grace"
+		mustCreateScope(t, ctx, store, scopeID)
+		issued, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+		if err != nil {
+			t.Fatalf("issue: %v", err)
+		}
+		fixed := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+		store.SetClock(func() time.Time { return fixed })
+		t.Cleanup(func() { store.SetClock(nil) })
+
+		assertRotateGraceRejected := func(t *testing.T, grace time.Time, wantCode string) {
+			t.Helper()
+			var credsBefore, auditBefore int
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ?`,
+				[]any{scopeID}, &credsBefore,
+			)
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "audit_events")+` WHERE scope_id = ?`,
+				[]any{scopeID}, &auditBefore,
+			)
+			_, err := store.Rotate(ctx, persistence.RotateParams{
+				ScopeID: scopeID, CreatedBy: "admin", GraceUntil: grace,
+			})
+			var ve *persistence.ValidationError
+			if !errors.As(err, &ve) {
+				t.Fatalf("err=%v want ValidationError", err)
+			}
+			if ve.Field != "grace_until" || ve.Code != wantCode {
+				t.Fatalf("validation = %+v want field=grace_until code=%s", ve, wantCode)
+			}
+			var credsAfter, auditAfter int
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ?`,
+				[]any{scopeID}, &credsAfter,
+			)
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "audit_events")+` WHERE scope_id = ?`,
+				[]any{scopeID}, &auditAfter,
+			)
+			if credsAfter != credsBefore || auditAfter != auditBefore {
+				t.Fatalf("mutation on validation failure creds %d→%d audit %d→%d",
+					credsBefore, credsAfter, auditBefore, auditAfter)
+			}
+			assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "active")
+		}
+
+		t.Run("past", func(t *testing.T) {
+			assertRotateGraceRejected(t, fixed.Add(-time.Second), "not_future")
+		})
+		t.Run("equal_now", func(t *testing.T) {
+			assertRotateGraceRejected(t, fixed, "not_future")
+		})
+		t.Run("future_ok", func(t *testing.T) {
+			rotated, err := store.Rotate(ctx, persistence.RotateParams{
+				ScopeID: scopeID, CreatedBy: "admin", GraceUntil: fixed.Add(time.Hour),
+			})
+			if err != nil {
+				t.Fatalf("rotate future: %v", err)
+			}
+			assertStatus(t, ctx, sqlDB, postgres, scopeID, issued.Credential.CredentialID, "grace")
+			assertStatus(t, ctx, sqlDB, postgres, scopeID, rotated.Credential.CredentialID, "active")
+		})
+	})
+
+	t.Run("audit_failure_rolls_back_mutations", func(t *testing.T) {
+		installAuditInsertReject(t, ctx, sqlDB, postgres)
 		scopeID := "cred-scope-" + uid + "-rollback"
 		mustCreateScope(t, ctx, store, scopeID)
-		store.FailNextAuditInsert()
+
 		_, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 		if err == nil {
-			t.Fatal("expected audit failure")
+			t.Fatal("expected issue audit failure")
 		}
-		var n int
-		mustScan(t, ctx, sqlDB, postgres,
-			`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ?`,
-			[]any{scopeID}, &n,
-		)
-		if n != 0 {
-			t.Fatalf("credentials after rollback = %d", n)
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scopeID, 0, 0)
+
+		// Seed an active credential without going through Issue (audit blocked).
+		seedActiveCredential(t, ctx, sqlDB, postgres, scopeID, "seed-active-"+uid)
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scopeID, 1, 0)
+
+		_, err = store.Rotate(ctx, persistence.RotateParams{
+			ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
+		})
+		if err == nil {
+			t.Fatal("expected rotate audit failure")
 		}
-		mustScan(t, ctx, sqlDB, postgres,
-			`SELECT COUNT(*) FROM `+tblCred(postgres, "audit_events")+` WHERE scope_id = ?`,
-			[]any{scopeID}, &n,
-		)
-		if n != 0 {
-			t.Fatalf("audit after rollback = %d", n)
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scopeID, 1, 0)
+		assertStatus(t, ctx, sqlDB, postgres, scopeID, "seed-active-"+uid, "active")
+
+		_, err = store.Revoke(ctx, persistence.RevokeParams{
+			ScopeID: scopeID, CredentialID: "seed-active-" + uid, ReasonCode: "test",
+		})
+		if err == nil {
+			t.Fatal("expected revoke audit failure")
 		}
-		// Subsequent issue must succeed (hook is one-shot).
-		if _, err := store.Issue(ctx, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"}); err != nil {
-			t.Fatalf("retry issue: %v", err)
-		}
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scopeID, 1, 0)
+		assertStatus(t, ctx, sqlDB, postgres, scopeID, "seed-active-"+uid, "active")
 	})
 
 	t.Run("status_revoked_at_grace_until_constraints", func(t *testing.T) {
@@ -529,4 +600,58 @@ func execShell(dir, cmd string) (string, error) {
 	c.Dir = dir
 	out, err := c.CombinedOutput()
 	return string(out), err
+}
+
+func installAuditInsertReject(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool) {
+	t.Helper()
+	const triggerName = "audit_events_reject_insert_test"
+	if postgres {
+		_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS `+triggerName+` ON fiscal.audit_events`)
+		must(t, execSQL(ctx, sqlDB, true, `
+			CREATE TRIGGER `+triggerName+`
+			BEFORE INSERT ON fiscal.audit_events
+			FOR EACH ROW EXECUTE FUNCTION fiscal.reject_mutation()`))
+		t.Cleanup(func() {
+			_, _ = sqlDB.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS `+triggerName+` ON fiscal.audit_events`)
+		})
+		return
+	}
+	_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS `+triggerName)
+	must(t, execSQL(ctx, sqlDB, false, `
+		CREATE TRIGGER `+triggerName+`
+		BEFORE INSERT ON audit_events
+		BEGIN
+			SELECT RAISE(ABORT, 'audit_events insert rejected for test');
+		END`))
+	t.Cleanup(func() {
+		_, _ = sqlDB.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS `+triggerName)
+	})
+}
+
+func seedActiveCredential(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, scopeID, credID string) {
+	t.Helper()
+	hash := make([]byte, 32)
+	copy(hash, []byte(credID))
+	must(t, execSQL(ctx, sqlDB, postgres, `
+		INSERT INTO `+tblCred(postgres, "api_credentials")+` (
+			credential_id, scope_id, token_hash, status, created_at, created_by
+		) VALUES (?, ?, ?, 'active', ?, 'seed')`,
+		credID, scopeID, hash, timeArg(postgres, time.Now().UTC()),
+	))
+}
+
+func assertScopeUnaffected(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, scopeID string, wantCreds, wantAudit int) {
+	t.Helper()
+	var creds, audit int
+	mustScan(t, ctx, sqlDB, postgres,
+		`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ?`,
+		[]any{scopeID}, &creds,
+	)
+	mustScan(t, ctx, sqlDB, postgres,
+		`SELECT COUNT(*) FROM `+tblCred(postgres, "audit_events")+` WHERE scope_id = ?`,
+		[]any{scopeID}, &audit,
+	)
+	if creds != wantCreds || audit != wantAudit {
+		t.Fatalf("scope %s creds=%d want %d audit=%d want %d", scopeID, creds, wantCreds, audit, wantAudit)
+	}
 }

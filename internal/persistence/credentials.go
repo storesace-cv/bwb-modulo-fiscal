@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -119,9 +118,6 @@ type CredentialStore struct {
 	db      *sql.DB
 	dialect Dialect
 	now     func() time.Time
-
-	// failNextAudit, when true, forces the next audit insert to fail (tests only).
-	failNextAudit atomic.Bool
 }
 
 type auditEvent struct {
@@ -153,12 +149,6 @@ func (s *CredentialStore) SetClock(now func() time.Time) {
 		return
 	}
 	s.now = now
-}
-
-// FailNextAuditInsert forces the next audit write to fail so callers can assert
-// full transactional rollback. Production code must not call this.
-func (s *CredentialStore) FailNextAuditInsert() {
-	s.failNextAudit.Store(true)
 }
 
 // CreateScope inserts a scope. Does not write audit (scope bootstrap is separate from credential mutations).
@@ -288,9 +278,13 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 	if p.CreatedBy == "" {
 		return nil, validationErr("created_by", "required", "created_by is required")
 	}
+	now := s.stamp().UTC().Truncate(time.Microsecond)
 	graceUntil := p.GraceUntil.UTC().Truncate(time.Microsecond)
 	if graceUntil.IsZero() {
 		return nil, validationErr("grace_until", "required", "grace_until is required")
+	}
+	if !graceUntil.After(now) {
+		return nil, validationErr("grace_until", "not_future", "grace_until must be in the future")
 	}
 
 	token, hash, err := generateCredentialToken()
@@ -622,9 +616,6 @@ func (s *CredentialStore) writeAudit(ctx context.Context, q querier, postgres bo
 		return fmt.Errorf("persistence: audit id: %w", err)
 	}
 	ev.EventID = eventID
-	if s.failNextAudit.Swap(false) {
-		return errors.New("persistence: injected audit failure")
-	}
 	t := tablePrefix(postgres)
 	var occurred any = nowArg
 	if postgres {
