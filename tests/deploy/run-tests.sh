@@ -134,7 +134,7 @@ export EXPECTED_COMMIT="${HEAD}"
 export DEPLOY_GOARCH=amd64
 export DEPLOY_TEST_OUT_ROOT="${TMP}"
 export OUT_DIR="${TMP}/release"
-export EXPECTED_SCHEMA_VERSION=2
+export EXPECTED_SCHEMA_VERSION=3
 if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"${TMP}/build.err"; then
   if deploy_verify_release_manifest "${OUT_DIR}" "${HEAD}"; then
     ok "release manifest verifies"
@@ -151,7 +151,7 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
   else
     bad "SHA256SUMS incorrect (runner present or incomplete)"
   fi
-  if [[ "$(tr -d '[:space:]' <"${OUT_DIR}/EXPECTED_SCHEMA_VERSION")" == "2" ]]; then
+  if [[ "$(tr -d '[:space:]' <"${OUT_DIR}/EXPECTED_SCHEMA_VERSION")" == "3" ]]; then
     ok "EXPECTED_SCHEMA_VERSION metadata present"
   else
     bad "EXPECTED_SCHEMA_VERSION missing"
@@ -219,7 +219,7 @@ printf 'euid=%s uid=%s driver=%s url_set=%s path=%s home=%s\n' \
 [[ "\${FISCAL_DATABASE_URL}" == *'#keep' ]] || exit 1
 # Prove ambient secrets are not inherited
 [[ -z "\${SECRET_SHOULD_NOT_LEAK:-}" ]] || exit 1
-echo "version=2 dirty=false"
+echo "version=3 dirty=false"
 EOF
 chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrate"
 (
@@ -232,7 +232,7 @@ if SECRET_SHOULD_NOT_LEAK=pwned \
   BWB_HELPER_LIB="${TMP}/helprefs/lib" \
   bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" migrate "${HEAD}" version \
   >"${TMP}/hm.out" 2>"${TMP}/hm.err"; then
-  if grep -q 'version=2 dirty=false' "${TMP}/hm.out" \
+  if grep -q 'version=3 dirty=false' "${TMP}/hm.out" \
     && [[ -f "${EUID_LOG}" ]] \
     && grep -q 'url_set=1' "${EUID_LOG}" \
     && grep -q 'driver=postgres' "${EUID_LOG}" \
@@ -317,9 +317,9 @@ if DEPLOY_DRY_RUN=1 \
   DEPLOY_GOARCH=amd64 \
   DEPLOY_TEST_OUT_ROOT="${TMP}" \
   OUT_DIR="${TMP}/rel2" \
-  EXPECTED_SCHEMA_VERSION=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=1 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  EXPECTED_SCHEMA_VERSION=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   DEPLOY_N1_COMPAT_PROVEN=0 \
   DEPLOY_SIMULATE_HEALTH_FAIL=1 \
@@ -336,9 +336,9 @@ fi
 
 if DEPLOY_DRY_RUN=1 \
   EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=amd64 \
-  OUT_DIR="${TMP}/rel3" EXPECTED_SCHEMA_VERSION=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  OUT_DIR="${TMP}/rel3" EXPECTED_SCHEMA_VERSION=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=true \
   bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/dirty.out" 2>"${TMP}/dirty.err"; then
   bad "dirty migration should block"
@@ -348,9 +348,9 @@ fi
 
 if DEPLOY_DRY_RUN=1 \
   EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=amd64 \
-  OUT_DIR="${TMP}/rel4" EXPECTED_SCHEMA_VERSION=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
+  OUT_DIR="${TMP}/rel4" EXPECTED_SCHEMA_VERSION=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=4 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/ver.out" 2>"${TMP}/ver.err"; then
   bad "unexpected schema version should block"
@@ -473,7 +473,7 @@ EOF
     EXPECTED_COMMIT="${HEAD}" \
     DEPLOY_GOARCH=amd64 \
     DEPLOY_TEST_OUT_ROOT="${TMP}" \
-    EXPECTED_SCHEMA_VERSION=2 \
+    EXPECTED_SCHEMA_VERSION=3 \
     ENV_LOCAL="${TMP}/operator.live.env" \
     ENV_DEPLOY="${TMP}/fiscal.live.env" \
     ENV_MIGRATE="${TMP}/migrate.live.env" \
@@ -489,8 +489,8 @@ seed_old_envs "${MOCK_FS}"
 
 if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
   OUT_DIR="${TMP}/live-rel" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false; then
   if grep -q 'mode=live' "${TMP}/live.out" \
     && grep -q 'binary=new_release' "${TMP}/live.out" \
@@ -531,8 +531,8 @@ fi
 if HEALTH_URL='http://evil.example/v1/health' \
   run_live "${TMP}/live-health.out" "${TMP}/live-health.err" "${TMP}/mock-health.log" "${TMP}/mockfs-health" \
   OUT_DIR="${TMP}/live-rel-health" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 2>/dev/null; then
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 2>/dev/null; then
   bad "HEALTH_URL should be rejected on live path"
 else
   if grep -q 'HEALTH_URL is forbidden' "${TMP}/live-health.err" "${TMP}/live-health.out"; then
@@ -552,8 +552,8 @@ seed_old_envs "${MOCK_FS2}"
 
 if run_live "${TMP}/live2.out" "${TMP}/live2.err" "${MOCK_LOG2}" "${MOCK_FS2}" \
   OUT_DIR="${TMP}/live-rel2" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   DEPLOY_N1_COMPAT_PROVEN=1 \
   DEPLOY_SIMULATE_HEALTH_FAIL=1; then
@@ -580,8 +580,8 @@ seed_old_envs "${MOCK_FS2r}"
 
 if run_live "${TMP}/live2r.out" "${TMP}/live2r.err" "${MOCK_LOG2r}" "${MOCK_FS2r}" \
   OUT_DIR="${TMP}/live-rel2r" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   DEPLOY_N1_COMPAT_PROVEN=1 \
   DEPLOY_MOCK_FAIL_RESTART=1; then
@@ -609,8 +609,8 @@ seed_old_envs "${MOCK_FSp}"
 
 if run_live "${TMP}/livep.out" "${TMP}/livep.err" "${MOCK_LOGp}" "${MOCK_FSp}" \
   OUT_DIR="${TMP}/live-relp" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_FAIL_INSTALL_ENV=migrate.env; then
   bad "partial install-env should fail"
 else
@@ -636,8 +636,8 @@ printf '%s\n' '{"status":"degraded","note":"ok"}' >"${MOCK_FShd}/.mock-health-bo
 
 if run_live "${TMP}/livehd.out" "${TMP}/livehd.err" "${MOCK_LOGhd}" "${MOCK_FShd}" \
   OUT_DIR="${TMP}/live-relhd" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   DEPLOY_N1_COMPAT_PROVEN=1; then
   bad "deceptive health body should fail"
@@ -659,8 +659,8 @@ mkdir -p "${MOCK_FS3}/opt/bwb-modulo-fiscal/releases" "${MOCK_FS3}/etc/bwb-modul
 seed_old_envs "${MOCK_FS3}"
 if run_live "${TMP}/live3.out" "${TMP}/live3.err" "${MOCK_LOG3}" "${MOCK_FS3}" \
   OUT_DIR="${TMP}/live-rel3" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   DEPLOY_SIMULATE_HEALTH_FAIL=1; then
   bad "missing previous should fail"
@@ -682,8 +682,8 @@ ln -sfn "${MOCK_FS4}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS4}/opt/bw
 seed_old_envs "${MOCK_FS4}"
 if run_live "${TMP}/live4.out" "${TMP}/live4.err" "${MOCK_LOG4}" "${MOCK_FS4}" \
   OUT_DIR="${TMP}/live-rel4" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
-  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE=false \
   DEPLOY_MOCK_MIGRATE_DIRTY_AFTER=true; then
   bad "live dirty should fail"
@@ -730,7 +730,7 @@ ln -sfn "${MOCK_FS5}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS5}/opt/bw
 seed_old_envs "${MOCK_FS5}"
 if run_live "${TMP}/live5.out" "${TMP}/live5.err" "${MOCK_LOG5}" "${MOCK_FS5}" \
   OUT_DIR="${TMP}/live-rel5" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=9 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false; then
   bad "live unexpected version should fail"
@@ -751,7 +751,7 @@ MOCK_LOG6="${TMP}/mock6.log"
 mkdir -p "${MOCK_FS6}/opt/bwb-modulo-fiscal/releases" "${MOCK_FS6}/etc/bwb-modulo-fiscal/backups" "${MOCK_FS6}/tmp"
 if run_live "${TMP}/live6.out" "${TMP}/live6.err" "${MOCK_LOG6}" "${MOCK_FS6}" \
   OUT_DIR="${TMP}/live-rel6" \
-  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=9 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false; then
   bad "absent-env schema fail should fail"

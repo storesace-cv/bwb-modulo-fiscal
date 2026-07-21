@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7-draft — 2026-07-21
+
+- Sandbox POS S1: migration `0003` (PG/SQLite) — `scopes`, `api_credentials`, `audit_events`; `ExpectedVersion=3`; repositórios `issue`/`rotate`/`revoke` com audit co-transacional; token `bwb_sbox_` + SHA-256 sem pepper; sem HTTP/auth/CLI/Nginx/deploy.
+
 ## 0.2.6-draft — 2026-07-21
 
 - D2 staging bootstrap report: host `sandbox.fiscalmod.bwb.pt` operacional (PG16, TLS, helper deploy, health ok). Sem segredos no relatório.
