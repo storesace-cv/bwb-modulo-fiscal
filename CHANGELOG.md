@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.2-draft — 2026-07-21
+
+- Contrato OpenAPI **`0.1.2-draft`**: `POST /documents` (`createDocument`) passa de **202 Accepted** para **201 Created** (criação + selagem local atómica).
+- Removido do contrato o path **`GET /documents/{documentId}`** (estava declarado sem implementação); volta a entrar só com implementação correspondente.
+- Resposta de sucesso deste fluxo: `status: sealed_locally`; **`fiscal_number` e `authority_request_id` ausentes** neste incremento (formato oficial de numeração e ID da autoridade ainda não confirmados / não atribuídos).
+- Adicionado `submission_id` opcional (correlação **interna** do módulo; não é ID AGT).
+- Schema `Problem` e respostas documentadas para 401, 403, 409, 413, 415, 422 e 500; `bearerAuth` descrito como autenticação POS/módulo (não AGT).
+- Docs POS/guidelines/lifecycle/slice/local-dev + exemplo [docs/03-api/examples/create-document.http](docs/03-api/examples/create-document.http). Sem implementação HTTP (PR C2).
+
 ## 0.2.1-draft — 2026-07-21
 
 - SealInTx co-transacional (PR B): idempotência, série (PG `FOR UPDATE` / SQLite `BEGIN IMMEDIATE`), documento, ledger `sealed_locally`, outbox `authority_submission`; testes VS-T01–VS-T07 nos dois motores. Sem HTTP/worker/AGT.

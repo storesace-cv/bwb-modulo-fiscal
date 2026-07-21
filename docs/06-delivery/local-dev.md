@@ -67,4 +67,8 @@ go run ./cmd/fiscal-api
 curl -sS http://127.0.0.1:8080/v1/health
 ```
 
-Este incremento inclui `SealInTx` (API interna) e testes VS-T01–VS-T07. **Não** inclui `POST /documents`, worker AGT, JWS nem ficheiros `.env`.
+Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
+
+Contrato público `0.1.2-draft`: `POST /v1/documents` (`createDocument`, `201`, `sealed_locally`) documentado em [api-guidelines.md](../03-api/api-guidelines.md) e [examples/create-document.http](../03-api/examples/create-document.http). A implementação HTTP (PR C2) ainda não está neste incremento.
+
+**Não** inclui worker AGT, JWS, ficheiros `.env` nem `GET /documents/{id}` (removido do OpenAPI draft).
