@@ -348,18 +348,49 @@ deploy_release_dir_for_sha() {
   printf '/opt/bwb-modulo-fiscal/releases/%s' "${sha}"
 }
 
-# Multiplex dir for ControlMaster (one TCP session per deploy host/user).
-# Keep path short: macOS AF_UNIX sun_path limit is ~104 bytes.
+# Multiplex dir for ControlMaster (one TCP session per deploy host/user/port).
+# Keep path short: macOS AF_UNIX sun_path limit is ~104 bytes. Never under the repo.
 deploy_ssh_mux_dir() {
   local base="/tmp/bwb-ssh-${UID:-$(id -u)}"
-  mkdir -p -m 700 "${base}"
+  mkdir -p "${base}"
+  chmod 700 "${base}"
   printf '%s' "${base}"
+}
+
+# Unique ControlPath per local UID + remote user/host/port (no cross-user reuse).
+deploy_ssh_control_path() {
+  local mux_dir token
+  : "${DEPLOY_USER:?DEPLOY_USER required for ControlPath}"
+  : "${DEPLOY_HOST:?DEPLOY_HOST required for ControlPath}"
+  mux_dir="$(deploy_ssh_mux_dir)"
+  token="$(
+    printf '%s@%s:%s' "${DEPLOY_USER}" "${DEPLOY_HOST}" "${DEPLOY_SSH_PORT:-22}" \
+      | shasum -a 256 \
+      | awk '{ print substr($1, 1, 20) }'
+  )"
+  printf '%s/cm-%s' "${mux_dir}" "${token}"
+}
+
+# Remove stale ControlMaster sockets left by crashed clients.
+deploy_ssh_clear_stale_control() {
+  local cpath="$1"
+  [[ -e "${cpath}" ]] || return 0
+  if ! ssh \
+    -o BatchMode=yes \
+    -o ConnectTimeout=2 \
+    -o ControlPath="${cpath}" \
+    -O check \
+    "${DEPLOY_USER}@${DEPLOY_HOST}" >/dev/null 2>&1; then
+    rm -f "${cpath}"
+  fi
 }
 
 # Shared OpenSSH options: reuse a single TCP connection under UFW LIMIT (6 NEW/30s).
 deploy_ssh_opts() {
-  local mux_dir
-  mux_dir="$(deploy_ssh_mux_dir)"
+  local cpath
+  cpath="$(deploy_ssh_control_path)"
+  deploy_ssh_clear_stale_control "${cpath}"
+  DEPLOY_SSH_CONTROL_PATH="${cpath}"
   # shellcheck disable=SC2034
   DEPLOY_SSH_OPTS=(
     -i "${DEPLOY_SSH_KEY}"
@@ -371,7 +402,7 @@ deploy_ssh_opts() {
     -o ConnectionAttempts=1
     -o ControlMaster=auto
     -o ControlPersist=120
-    -o "ControlPath=${mux_dir}/%C"
+    -o "ControlPath=${cpath}"
   )
 }
 
@@ -384,6 +415,8 @@ deploy_ssh_base() {
     echo "error: DEPLOY_KNOWN_HOSTS must be a regular non-symlink file" >&2
     return 1
   fi
+  : "${DEPLOY_USER:?DEPLOY_USER required}"
+  : "${DEPLOY_HOST:?DEPLOY_HOST required}"
   deploy_ssh_opts
   # shellcheck disable=SC2034
   SSH_BASE=(ssh "${DEPLOY_SSH_OPTS[@]}")
@@ -393,8 +426,10 @@ deploy_ssh_base() {
 }
 
 # Count ssh/scp process invocations (not TCP). With ControlMaster, many invokes share one TCP.
+# Log fields are counters/timestamps only — never keys, paths, or secrets.
 deploy_ssh_note_invoke() {
   local kind="$1"
+  DEPLOY_SSH_INVOCATION_COUNT="${DEPLOY_SSH_INVOCATION_COUNT:-0}"
   DEPLOY_SSH_INVOCATION_COUNT=$((DEPLOY_SSH_INVOCATION_COUNT + 1))
   if [[ -n "${DEPLOY_SSH_INVOKE_LOG:-}" ]]; then
     printf 'invoke kind=%s n=%s ts=%s\n' \
@@ -403,19 +438,46 @@ deploy_ssh_note_invoke() {
   fi
 }
 
-# Retry only connection-level failures (ssh exit 255), with exponential backoff.
+# True only for transient transport failures. Never auth, host-key, or Connection refused
+# (refused often means UFW LIMIT; retrying would open more NEW TCPs and worsen the storm).
+deploy_ssh_is_retryable_transport() {
+  local errf="$1"
+  [[ -s "${errf}" ]] || return 1
+  if grep -Eiq \
+    'Permission denied|Host key verification failed|Too many authentication failures|Authentication (refused|failed)|Bad permissions|UNPROTECTED PRIVATE KEY|Load key|No such identity|identity file|REMOTE HOST IDENTIFICATION HAS CHANGED|Offending (POSIX )?key|Connection refused' \
+    "${errf}"; then
+    return 1
+  fi
+  grep -Eiq \
+    'Connection timed out|Connection reset|Network is unreachable|No route to host|Temporary failure in name resolution|Broken pipe|Connection closed by remote host|kex_exchange_identification|Operation timed out' \
+    "${errf}"
+}
+
+# Retry only retryable transport failures (exit 255), with explicit max + exponential backoff.
 deploy_ssh_run() {
   local attempt=1
   local max_attempts="${DEPLOY_SSH_MAX_ATTEMPTS:-3}"
   local delay="${DEPLOY_SSH_RETRY_DELAY_SEC:-2}"
   local st=0
+  local errf
+  errf="$(mktemp "${TMPDIR:-/tmp}/bwb-ssh-err.XXXXXX")"
   deploy_ssh_note_invoke ssh
   while true; do
-    if "$@"; then
+    # Use && so set -e does not abort, and $? still reflects the ssh/scp status.
+    "$@" 2>"${errf}" && {
+      if [[ -s "${errf}" ]]; then
+        cat "${errf}" >&2
+      fi
+      rm -f "${errf}"
       return 0
-    fi
+    }
     st=$?
-    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]]; then
+    if [[ -s "${errf}" ]]; then
+      cat "${errf}" >&2
+    fi
+    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]] \
+      || ! deploy_ssh_is_retryable_transport "${errf}"; then
+      rm -f "${errf}"
       return "${st}"
     fi
     sleep "${delay}"
@@ -429,13 +491,24 @@ deploy_scp_run() {
   local max_attempts="${DEPLOY_SSH_MAX_ATTEMPTS:-3}"
   local delay="${DEPLOY_SSH_RETRY_DELAY_SEC:-2}"
   local st=0
+  local errf
+  errf="$(mktemp "${TMPDIR:-/tmp}/bwb-ssh-err.XXXXXX")"
   deploy_ssh_note_invoke scp
   while true; do
-    if "$@"; then
+    "$@" 2>"${errf}" && {
+      if [[ -s "${errf}" ]]; then
+        cat "${errf}" >&2
+      fi
+      rm -f "${errf}"
       return 0
-    fi
+    }
     st=$?
-    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]]; then
+    if [[ -s "${errf}" ]]; then
+      cat "${errf}" >&2
+    fi
+    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]] \
+      || ! deploy_ssh_is_retryable_transport "${errf}"; then
+      rm -f "${errf}"
       return "${st}"
     fi
     sleep "${delay}"
@@ -451,5 +524,8 @@ deploy_ssh_mux_stop() {
   set +e
   "${SSH_BASE[@]}" -O exit "${DEPLOY_USER}@${DEPLOY_HOST}" >/dev/null 2>&1
   set -e
+  if [[ -n "${DEPLOY_SSH_CONTROL_PATH:-}" ]]; then
+    rm -f "${DEPLOY_SSH_CONTROL_PATH}"
+  fi
   return 0
 }

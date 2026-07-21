@@ -16,11 +16,30 @@ log() {
 args=("$@")
 remote_cmd=""
 target=""
+control_path=""
+control_op=""
 i=0
 while [[ $i -lt ${#args[@]} ]]; do
   a="${args[$i]}"
   case "${a}" in
-    -i | -o)
+    -O)
+      i=$((i + 1))
+      control_op="${args[$i]:-}"
+      i=$((i + 1))
+      continue
+      ;;
+    -o)
+      i=$((i + 1))
+      opt="${args[$i]:-}"
+      case "${opt}" in
+        ControlPath=*)
+          control_path="${opt#ControlPath=}"
+          ;;
+      esac
+      i=$((i + 1))
+      continue
+      ;;
+    -i)
       i=$((i + 2))
       continue
       ;;
@@ -41,6 +60,40 @@ while [[ $i -lt ${#args[@]} ]]; do
       ;;
   esac
 done
+
+# ControlMaster maintenance (local only).
+if [[ -n "${control_op}" ]]; then
+  log "control_op=${control_op} path=${control_path:-none} target=${target}"
+  case "${control_op}" in
+    check)
+      if [[ -n "${control_path}" && -e "${control_path}" && ! -e "${control_path}.stale" ]]; then
+        exit 0
+      fi
+      exit 1
+      ;;
+    exit)
+      if [[ -n "${control_path}" ]]; then
+        rm -f "${control_path}" "${control_path}.stale"
+      fi
+      exit 0
+      ;;
+    *)
+      echo "error: mock ssh unsupported -O ${control_op}" >&2
+      exit 1
+      ;;
+  esac
+fi
+
+# Optional mux accounting for unit tests (invokes vs first TCP per ControlPath).
+if [[ -n "${DEPLOY_MOCK_MUX_LOG:-}" && -n "${control_path}" ]]; then
+  if [[ -e "${control_path}" ]]; then
+    printf 'tcp=reuse path_set=1\n' >>"${DEPLOY_MOCK_MUX_LOG}"
+  else
+    mkdir -p "$(dirname "${control_path}")"
+    : >"${control_path}"
+    printf 'tcp=new path_set=1\n' >>"${DEPLOY_MOCK_MUX_LOG}"
+  fi
+fi
 
 log "target=${target} cmd=${remote_cmd}"
 

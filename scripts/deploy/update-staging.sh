@@ -337,6 +337,8 @@ deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 
 deploy_ssh_base
+# Invoked via EXIT trap (ShellCheck cannot see indirect use).
+# shellcheck disable=SC2329
 cleanup_live() {
   cleanup_remote_upload
   deploy_ssh_mux_stop

@@ -108,32 +108,31 @@ Este relatório **não** contém passwords, tokens, chaves privadas nem DSN.
 
 **Cliente (causa real):**
 
-- `scripts/deploy/lib/allowlist.sh`: `ControlMaster=auto`, `ControlPersist=120`, `ControlPath` curto (`/tmp/bwb-ssh-$UID/%C`), `IdentitiesOnly`, retries limitados com backoff em `deploy_ssh_run`/`deploy_scp_run`, contagem de invocações via `DEPLOY_SSH_INVOKE_LOG`.
-- `update-staging.sh` / `migrate-remote.sh` / `healthcheck.sh`: usam mux + cleanup `-O exit`.
-- `tests/deploy/run-tests.sh`: asserts de mux e de que o path live excederia UFW LIMIT sem mux.
+- `scripts/deploy/lib/allowlist.sh`: `ControlMaster=auto`, `ControlPersist=120`, `ControlPath` em `/tmp/bwb-ssh-$UID/cm-<hash>` (0700, único por user@host:port), limpeza de sockets stale, `IdentitiesOnly`, retries só para transporte transitório (não auth, não host-key, não `Connection refused`) com máximo explícito e backoff, contagem de invocações via `DEPLOY_SSH_INVOKE_LOG` (sem segredos).
+- `update-staging.sh` / `migrate-remote.sh` / `healthcheck.sh`: ssh/scp partilham as mesmas opções; trap `cleanup_live` faz `ssh -O exit` + remove o socket; rollback/restore de envs preservado; `promote=ok` só após migrate + restart + health.
+- `tests/deploy/run-tests.sh`: 16 invokes → 1 TCP; stale/cleanup; retries limitados; paths com espaços; opções ssh==scp.
 
 **Servidor (limpeza de mitigações injustificadas — não escondem o defeito do cliente):**
 
-- Removido `ignoreip` com IP público dinâmico `109.50.171.37` (apenas `127.0.0.1/8 ::1`).
+- Removido `ignoreip` com IP público dinâmico (apenas loopback).
 - Removido drop-in `MaxStartups 30:50:100` sem métricas → default efectivo `10:30:100`.
-- `sshd -t` + `systemctl reload ssh` (sem reboot); root/password continuam off; UFW LIMIT **mantido**.
+- `sshd -t` + `systemctl reload ssh` (sem reboot); root/password continuam off; UFW LIMIT **mantido**; Fail2ban **mantido**.
 
 ### Estado do incidente
 
-**Mitigado (causa comprovada; correção no cliente).** Não marcado “Resolvido” apenas por reboot/limites. Fail2ban **não** foi a causa demonstrável neste incidente.
+**Mitigado.** Causa = UFW LIMIT + ausência de multiplexing no cliente. O reboot **não** foi a correção. Fail2ban e MaxStartups **não** foram responsáveis.
 
 ### Riscos residuais
 
-- Qualquer cliente que abra ≥6 **novas** TCP/22 em 30s (agente IDE, loops, scans) volta a ver `Connection refused` — comportamento intencional do UFW LIMIT.
-- `MaxSessions 2` limita multiplex concorrente; o updater é sequencial (OK).
-- Agent SSH com várias chaves sem `IdentitiesOnly` gera `Failed publickey` extra (visível nos logs); o deploy path força `IdentitiesOnly=yes`.
-- Dry-run do updater na branch de docs exige `EXPECTED_COMMIT=HEAD` e worktree limpa ou `DEPLOY_TEST_OUT_ROOT` (não é falha SSH).
+- Clientes **não multiplexados** com ≥6 novas TCP/22 em 30s podem ser rejeitados — comportamento **intencional** do UFW LIMIT, **não** falha do servidor SSH.
+- `MaxSessions 2` limita mux paralelo; o updater é sequencial (OK).
+- Agent SSH com várias chaves sem `IdentitiesOnly` gera `Failed publickey` extra; o deploy path força `IdentitiesOnly=yes`.
 
 ## Incidentes
 
 | Severidade | Fase | Causa | Impacto | Resolução | Estado | Risco residual |
 |---|---|---|---|---|---|---|
-| Alta | D2 remoto | UFW LIMIT (6 NEW TCP/22 / 30s → REJECT) + tempestade de ligações novas do updater/agente sem ControlMaster | `Connection refused`; bootstrap/deploy interrompidos | ControlMaster/ControlPersist no deploy; retries backoff; remoção de `ignoreip` dinâmico e MaxStartups sem métrica; UFW LIMIT mantido | Mitigado | Clientes sem mux ainda disparam LIMIT |
+| Alta | D2 remoto | UFW LIMIT (6 NEW TCP/22 / 30s → REJECT) + ausência de multiplexing no updater/agente | `Connection refused`; bootstrap/deploy interrompidos | ControlMaster/ControlPersist no cliente; retries só transporte; limpeza ignoreip dinâmico/MaxStartups sem métrica; UFW LIMIT e Fail2ban mantidos | Mitigado | Clientes não multiplexados com ≥6 NEW/30s são rejeitados (LIMIT intencional, não falha do servidor) |
 | Média | D2 TLS | Renew dry-run ACME falhou porque redirect HTTP→HTTPS interceptava challenge | Bloqueava HSTS | Redirect envolvido em `location /`; challenge em `^~ /.well-known` | Resolvido | Overlay Nginx no host diverge ligeiramente do template versionado (challenge) |
 | Info | D2 acesso | Chave dedicada `bwb_fiscal_staging_ed25519` criada localmente mas acesso operacional usa `~/.ssh/digitalocean` | Confusão potencial de chaves | Documentado: chave operativa = digitalocean | Aceite | Manter inventário de chaves |
 
