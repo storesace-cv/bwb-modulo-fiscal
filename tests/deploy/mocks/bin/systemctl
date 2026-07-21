@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Mock systemctl for deploy live-path tests.
+set -Eeuo pipefail
+
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+printf 'systemctl %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+exit 0

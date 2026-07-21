@@ -2,7 +2,7 @@
 
 ## 0.2.5-draft — 2026-07-21
 
-- PR D1 staging deploy foundation: `.env.example`, allowlists runtime/migrate, systemd unit (`fiscal.env` only), Nginx HTTP bootstrap + TLS templates (`sandbox.fiscalmod.bwb.pt`, `/v1/documents` deny-all), fail-closed deploy scripts (dry-run, SHA-256 release, migration before/after, no post-migration binary rollback without N-1 proof), staging runbook, OpenAPI sandbox URL. Sem acesso a servidor/DNS.
+- PR D1 staging deploy foundation: `.env.example`, allowlists runtime/migrate, systemd unit (`fiscal.env` only), Nginx HTTP bootstrap + TLS templates (`sandbox.fiscalmod.bwb.pt`, `/v1/documents` deny-all, IPv4-only listens), fail-closed deploy scripts with **live updater path** (upload → verify → immutable release → env 0600 → migrate from **new** release → promote → restart → health → N-1 rollback policy), safe env parser (no `eval`/`source` of `migrate.env`), build refuses dirty tree and checksums `COMMIT`, staging runbook, OpenAPI sandbox URL, CI `git diff --check`. Sem acesso a servidor/DNS.
 
 ## 0.2.4-draft — 2026-07-21
 

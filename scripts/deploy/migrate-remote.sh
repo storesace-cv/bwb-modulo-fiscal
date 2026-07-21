@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Run fiscal-migrate on the remote host using migrate.env only (not fiscal.env).
-# Dry-run mocks version output without SSH or DSN.
+# Run fiscal-migrate on the remote host using migrate.env via safe runner (never source).
+# Requires RELEASE_DIR pointing at the release that owns fiscal-migrate (new release for updates).
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,8 +17,7 @@ case "${CMD}" in
     ;;
 esac
 
-if [[ "${DEPLOY_DRY_RUN:-0}" == "1" ]]; then
-  # Mock without touching DB or printing secrets.
+if [[ "${DEPLOY_DRY_RUN:-0}" == "1" && "${DEPLOY_MOCK_REMOTE:-0}" != "1" ]]; then
   MOCK_VERSION="${DEPLOY_MOCK_MIGRATE_VERSION:-2}"
   MOCK_DIRTY="${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
   if [[ "${CMD}" == "up" ]]; then
@@ -33,20 +32,11 @@ fi
 : "${DEPLOY_USER:?DEPLOY_USER required}"
 : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY required}"
 : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS required}"
+: "${RELEASE_DIR:?RELEASE_DIR required (new release path for fiscal-migrate)}"
 
-# Expand ~
-DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY/#\~/${HOME}}"
-DEPLOY_KNOWN_HOSTS="${DEPLOY_KNOWN_HOSTS/#\~/${HOME}}"
+deploy_ssh_base
 
-deploy_require_cmds ssh
-
-# Remote: source migrate.env with set -a, run binary from current release.
-# Values never echoed locally.
-ssh \
-  -i "${DEPLOY_SSH_KEY}" \
-  -o IdentitiesOnly=yes \
-  -o StrictHostKeyChecking=yes \
-  -o UserKnownHostsFile="${DEPLOY_KNOWN_HOSTS}" \
-  -o BatchMode=yes \
-  "${DEPLOY_USER}@${DEPLOY_HOST}" \
-  "set -Eeuo pipefail; set -a; source /etc/bwb-modulo-fiscal/migrate.env; set +a; /opt/bwb-modulo-fiscal/current/fiscal-migrate ${CMD}"
+# Remote runner reads only allowlisted keys; never sources migrate.env as shell.
+# shellcheck disable=SC2029
+"${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+  "set -Eeuo pipefail; bash '${RELEASE_DIR}/remote-migrate-run.sh' '${RELEASE_DIR}' '${CMD}'"

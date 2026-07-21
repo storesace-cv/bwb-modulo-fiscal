@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if forbidden SSH / ignore-error antipatterns appear in deploy scripts.
+# Fail if forbidden SSH / ignore-error / unsafe env antipatterns appear in deploy scripts.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,6 +22,18 @@ for f in "${scan_files[@]}"; do
   fi
   if grep -nE '\|\|[[:space:]]*true' "${f}"; then
     echo "error: '|| true' found in ${f}" >&2
+    failed=1
+  fi
+  if grep -nE 'source[[:space:]].*migrate\.env' "${f}"; then
+    echo "error: sourcing migrate.env is forbidden in ${f}" >&2
+    failed=1
+  fi
+  if grep -nE '^[^#]*\beval\b' "${f}"; then
+    echo "error: eval is forbidden in ${f}" >&2
+    failed=1
+  fi
+  if grep -nE 'current/fiscal-migrate' "${f}"; then
+    echo "error: migrate must use new release binary, not current/, in ${f}" >&2
     failed=1
   fi
 done

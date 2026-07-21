@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Mock SCP for deploy live-path tests.
+set -Eeuo pipefail
+
+: "${DEPLOY_MOCK_FS:?DEPLOY_MOCK_FS required}"
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+
+printf 'scp %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+
+# Collect local sources and remote dest (user@host:path).
+sources=()
+dest=""
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  a="${args[$i]}"
+  case "${a}" in
+    -i | -o)
+      i=$((i + 2))
+      continue
+      ;;
+    -r)
+      i=$((i + 1))
+      continue
+      ;;
+    -*)
+      i=$((i + 1))
+      continue
+      ;;
+    *:*)
+      dest="${a#*:}"
+      i=$((i + 1))
+      ;;
+    *)
+      sources+=("${a}")
+      i=$((i + 1))
+      ;;
+  esac
+done
+
+[[ -n "${dest}" ]] || { echo "mock scp: missing dest" >&2; exit 1; }
+
+# Remap remote dest into mock FS.
+case "${dest}" in
+  /opt/bwb-modulo-fiscal/*)
+    dest="${DEPLOY_MOCK_FS}${dest}"
+    ;;
+  /etc/bwb-modulo-fiscal/*)
+    dest="${DEPLOY_MOCK_FS}${dest}"
+    ;;
+  /tmp/*)
+    dest="${DEPLOY_MOCK_FS}${dest}"
+    ;;
+esac
+
+mkdir -p "$(dirname "${dest}")"
+# If dest looks like a directory (ends with / or exists as dir or multiple sources), copy into it.
+if [[ "${dest}" == */ ]] || [[ -d "${dest}" ]] || [[ ${#sources[@]} -gt 1 ]]; then
+  mkdir -p "${dest}"
+  for s in "${sources[@]}"; do
+    cp -a "${s}" "${dest}/"
+  done
+else
+  mkdir -p "$(dirname "${dest}")"
+  if [[ ${#sources[@]} -eq 1 ]]; then
+    cp -a "${sources[0]}" "${dest}"
+  else
+    mkdir -p "${dest}"
+    for s in "${sources[@]}"; do
+      cp -a "${s}" "${dest}/"
+    done
+  fi
+fi

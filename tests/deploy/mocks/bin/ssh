@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Mock SSH for deploy live-path tests. Never opens a network connection.
+set -Eeuo pipefail
+
+: "${DEPLOY_MOCK_FS:?DEPLOY_MOCK_FS required}"
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+
+log() {
+  printf 'ssh %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+}
+
+args=("$@")
+remote_cmd=""
+target=""
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  a="${args[$i]}"
+  case "${a}" in
+    -i | -o)
+      i=$((i + 2))
+      continue
+      ;;
+    -*)
+      i=$((i + 1))
+      continue
+      ;;
+    *@*)
+      target="${a}"
+      i=$((i + 1))
+      if [[ $i -lt ${#args[@]} ]]; then
+        remote_cmd="${args[$i]}"
+      fi
+      break
+      ;;
+    *)
+      i=$((i + 1))
+      ;;
+  esac
+done
+
+log "target=${target} cmd=${remote_cmd}"
+
+# Intercept only real runner invocations (not "test -x remote-migrate-run.sh").
+if [[ "${remote_cmd}" == *"bash '"*"/remote-migrate-run.sh'"* ]]; then
+  if [[ "${remote_cmd}" == *" 'up'"* ]]; then
+    printf 'ok version=%s dirty=%s\n' \
+      "${DEPLOY_MOCK_MIGRATE_VERSION_AFTER:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
+      "${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
+  else
+    printf 'version=%s dirty=%s\n' \
+      "${DEPLOY_MOCK_MIGRATE_VERSION_BEFORE:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
+      "${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
+  fi
+  exit 0
+fi
+
+FS="${DEPLOY_MOCK_FS}"
+# Remap absolute staging paths into the mock root (no network).
+mapped="${remote_cmd}"
+mapped="${mapped//\/opt\/bwb-modulo-fiscal/${FS}/opt/bwb-modulo-fiscal}"
+mapped="${mapped//\/etc\/bwb-modulo-fiscal/${FS}/etc/bwb-modulo-fiscal}"
+mapped="${mapped//\/tmp\/bwb-/${FS}/tmp/bwb-}"
+
+# Ensure base dirs exist for first-time install.
+mkdir -p "${FS}/opt/bwb-modulo-fiscal/releases" "${FS}/etc/bwb-modulo-fiscal" "${FS}/tmp"
+
+# shellcheck disable=SC2086
+bash -c "${mapped}"

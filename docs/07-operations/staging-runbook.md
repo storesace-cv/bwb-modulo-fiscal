@@ -1,11 +1,14 @@
 # Staging runbook (PR D1 — repository artefacts only)
 
-**Environment label:** staging (not production).  
-**Hostname:** `sandbox.fiscalmod.bwb.pt` → API `https://sandbox.fiscalmod.bwb.pt/v1` · health `/v1/health`.  
-**Apex** `fiscalmod.bwb.pt` is reserved for production after real auth + operational approval.  
+**Environment label:** staging (not production).
+
+**Hostname:** `sandbox.fiscalmod.bwb.pt` → API `https://sandbox.fiscalmod.bwb.pt/v1` · health `/v1/health`.
+
+**Apex** `fiscalmod.bwb.pt` is reserved for production after real auth + operational approval.
+
 **Runtime constraint:** while auth is `dev_static`, `FISCAL_ENV` must remain `development` (code).
 
-D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. **D2** (after merge) performs DNS, TLS, hardening, and host install. Do not run live SSH update from this repo until D2.
+D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live updater path is implemented in-repo and covered by PATH mocks; **D2** performs DNS, TLS, hardening, and the first real host install. Do not point live SSH at the server until D2.
 
 ## Layout
 
@@ -18,8 +21,8 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. **D2** (aft
 | `deploy/env.allowlist` | Allowed runtime keys |
 | `deploy/migrate.env.allowlist` | Allowed migrate keys |
 | `deploy/systemd/bwb-fiscal-api.service` | API unit; **only** `fiscal.env` |
-| `deploy/nginx/bwb-fiscal-sandbox-http.conf` | HTTP bootstrap (no cert paths) |
-| `deploy/nginx/bwb-fiscal-sandbox-tls.conf` | TLS site (enable after ACME) |
+| `deploy/nginx/bwb-fiscal-sandbox-http.conf` | HTTP bootstrap (no cert paths; IPv4 only in D1) |
+| `deploy/nginx/bwb-fiscal-sandbox-tls.conf` | TLS site (enable after ACME; IPv4 only in D1) |
 | `/opt/bwb-modulo-fiscal/releases/<sha>/` | Immutable release + `COMMIT` + `SHA256SUMS` |
 | `/etc/bwb-modulo-fiscal/fiscal.env` | Runtime `root:root` `0600` |
 | `/etc/bwb-modulo-fiscal/migrate.env` | Migration `root:root` `0600` |
@@ -28,7 +31,7 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. **D2** (aft
 ## PostgreSQL roles
 
 - **Runtime role:** CONNECT/USAGE + table privileges strictly needed by the API (SELECT/INSERT/UPDATE as required). Used in `fiscal.env`.
-- **Migration role:** used only by `fiscal-migrate` via `migrate.env`. Never load into systemd.
+- **Migration role:** used only by `fiscal-migrate` via `migrate.env`. Never load into systemd. Never `source` on the server — use `remote-migrate-run.sh`.
 - Listen on localhost only. API must not run as DB owner/superuser.
 
 ## SSH
@@ -45,12 +48,13 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. **D2** (aft
 - Application generates `X-Request-Id`; Nginx clears inbound client `X-Request-Id`.
 - Always `nginx -t` before reload; failed reload keeps previous config.
 - HTTP bootstrap and TLS configs are separate so bootstrap never references missing certificates.
+- IPv6 `listen [::]` is **not** enabled in D1; add only in D2 after address, firewall, and AAAA decision.
 
 ## Deploy / rollback
 
-1. Build with `scripts/deploy/build-linux-release.sh` (`GOOS=linux`, `CGO_ENABLED=0`, `DEPLOY_GOARCH` from D2 `uname -m`).
-2. Verify `SHA256SUMS` on the server before install; reject commit mismatch.
-3. Record `migration_before` / `migration_after` / `dirty` (no DSNs in logs).
+1. Build with `scripts/deploy/build-linux-release.sh` (`GOOS=linux` forced, `CGO_ENABLED=0`, `DEPLOY_GOARCH` amd64|arm64). Refuses dirty worktree; `SHA256SUMS` covers `fiscal-api`, `fiscal-migrate`, and `COMMIT`.
+2. Upload to remote temp → verify `COMMIT`/`SHA256SUMS` → immutable `releases/<sha>` → atomic env install `0600`.
+3. `migration_before` / `up` / `migration_after` use **`fiscal-migrate` from the new release**, never `current`.
 4. Dirty migration **blocks** promotion.
 5. **Before** migration: binary rollback allowed.
 6. **After** schema-changing migration: automatic binary rollback **only** if `DEPLOY_N1_COMPAT_PROVEN=1` (explicit N-1 compatibility proof). Otherwise roll-forward/manual — never restore a binary that cannot write new NOT NULL columns.
@@ -78,10 +82,21 @@ Document and rehearse PostgreSQL backup + restore in D2. Config backups live und
 export DEPLOY_DRY_RUN=1 EXPECTED_COMMIT="$(git rev-parse HEAD)" DEPLOY_GOARCH=amd64
 bash scripts/deploy/update-staging.sh
 
+# Live path with mocked ssh/scp/sudo/systemctl (no network)
+# See tests/deploy/run-tests.sh
+
 bash tests/deploy/run-tests.sh
 bash scripts/deploy/check-antipatterns.sh
 ```
 
-## Incidentes
+## Incidentes (D1 review)
+
+| Severidade | Fase | Descrição | Impacto | Resolução | Estado | Risco residual |
+|---|---|---|---|---|---|---|
+| Médio | D1 review | Updater live ausente apesar de D1 o prometer (`update-staging.sh` stub D2-only) | Deploy real impossível / dry-run apenas | Implementado caminho live + mocks PATH | Corrigido | Execução real só em D2 |
+| Médio | D1 review | `migrate-remote` usava `fiscal-migrate` de `current` em vez da nova release | Schema/binário desalinhados no `up` | Runner + `RELEASE_DIR` da nova release | Corrigido | — |
+| Alto | D1 review | `source migrate.env` podia interpretar conteúdo como shell | RCE/config injection via DSN/token | `remote-migrate-run.sh` lê só 2 chaves; sem `source`/`eval` | Corrigido | — |
+| Médio | D1 review | Artefacto podia ser produzido de working tree diferente do `COMMIT` | Release mentia sobre o commit | Build recusa dirty tree; `SHA256SUMS` inclui `COMMIT` | Corrigido | — |
+| Baixo | D1 review | `git diff --check` com trailing whitespace apesar do relatório OK | Qualidade/CI falsa | Removido; `git diff --check` no CI | Corrigido | — |
 
 Report deploy incidents with severity, phase, description, impact, resolution, state, residual risk — **without** secret values.

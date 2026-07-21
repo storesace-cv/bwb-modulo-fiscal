@@ -10,15 +10,32 @@ source "${SCRIPT_DIR}/lib/allowlist.sh"
 ROOT="$(deploy_repo_root)"
 cd "${ROOT}"
 
-GOARCH="${DEPLOY_GOARCH:-amd64}"
-GOOS="${GOOS:-linux}"
-OUT_DIR="${OUT_DIR:-}"
+GOARCH="${DEPLOY_GOARCH:-}"
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
+OUT_DIR="${OUT_DIR:-}"
+# Force Linux targets for staging artefacts.
+GOOS=linux
 
 deploy_require_cmds go git
 
+case "${GOARCH}" in
+  amd64 | arm64) ;;
+  *)
+    echo "error: DEPLOY_GOARCH must be amd64 or arm64" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "${DEPLOY_ALLOW_DIRTY_WORKTREE:-0}" != "1" ]]; then
+  deploy_assert_clean_worktree
+fi
+
 HEAD="$(git rev-parse HEAD)"
-if [[ -n "${EXPECTED_COMMIT}" && "${HEAD}" != "${EXPECTED_COMMIT}" ]]; then
+if [[ -z "${EXPECTED_COMMIT}" ]]; then
+  echo "error: EXPECTED_COMMIT required" >&2
+  exit 1
+fi
+if [[ "${HEAD}" != "${EXPECTED_COMMIT}" ]]; then
   echo "error: HEAD does not match EXPECTED_COMMIT" >&2
   echo "error: HEAD=${HEAD}" >&2
   echo "error: EXPECTED_COMMIT=${EXPECTED_COMMIT}" >&2
@@ -29,27 +46,36 @@ if [[ -z "${OUT_DIR}" ]]; then
   OUT_DIR="${ROOT}/dist/releases/${HEAD}"
 fi
 
+deploy_validate_out_dir "${ROOT}" "${OUT_DIR}"
+
+if [[ -d "${OUT_DIR}" ]]; then
+  if [[ -f "${OUT_DIR}/COMMIT" ]]; then
+    existing="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"
+    if [[ "${existing}" != "${HEAD}" ]]; then
+      echo "error: refusing overwrite of release with different COMMIT" >&2
+      exit 1
+    fi
+  fi
+fi
+
 mkdir -p "${OUT_DIR}"
-rm -f "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/COMMIT" "${OUT_DIR}/SHA256SUMS"
+rm -f "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/COMMIT" "${OUT_DIR}/SHA256SUMS" "${OUT_DIR}/remote-migrate-run.sh"
 
 echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD}"
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
+cp "${SCRIPT_DIR}/remote-migrate-run.sh" "${OUT_DIR}/remote-migrate-run.sh"
+chmod 0755 "${OUT_DIR}/remote-migrate-run.sh"
+# Bundle allowlist helper next to runner for remote use.
+mkdir -p "${OUT_DIR}/lib"
+cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 
 (
   cd "${OUT_DIR}"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum fiscal-api fiscal-migrate >SHA256SUMS
-    sha256sum -c SHA256SUMS >/dev/null
-  elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 fiscal-api fiscal-migrate | awk '{print $1"  "$2}' >SHA256SUMS
-    shasum -a 256 -c SHA256SUMS >/dev/null
-  else
-    echo "error: sha256sum or shasum required" >&2
-    exit 1
-  fi
+  deploy_sha256_files fiscal-api fiscal-migrate COMMIT >SHA256SUMS
+  deploy_sha256_check SHA256SUMS
 )
 
 GOT_COMMIT="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"

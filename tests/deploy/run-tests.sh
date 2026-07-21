@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy D1 self-tests (no SSH, no server, no real secrets printed).
+# Deploy D1 self-tests (no real SSH/network; no secret values printed).
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -71,7 +71,6 @@ else
   ok "allowlist rejects malformed"
 fi
 
-# Secrets must not appear when validating a file that contains a canary secret
 cat >"${TMP}/canary.env" <<'EOF'
 FISCAL_HTTP_ADDR=127.0.0.1:8080
 FISCAL_APP_VERSION=test
@@ -98,7 +97,6 @@ else
   ok "no secret leak on successful allowlist validation"
 fi
 
-# Force unknown key with canary in value of another line — error path
 cat >"${TMP}/canary2.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://u:CANARY_DSN_SECRET@127.0.0.1/db
@@ -111,16 +109,123 @@ else
   ok "no secret leak on allowlist error path"
 fi
 
+# --- env parser: # only as full-line comment; preserve value after first = ---
+cat >"${TMP}/special.env" <<'EOF'
+# full line comment only
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://u:p@h/db?x=1#frag and spaces $HOME "q" 's' a=b
+EOF
+FISCAL_DATABASE_DRIVER=""
+FISCAL_DATABASE_URL=""
+deploy_load_allowlisted_env "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/special.env"
+expected_url="$(deploy_read_env_value "${TMP}/special.env" FISCAL_DATABASE_URL)"
+# shellcheck disable=SC2016 # intentional: assert literal $HOME remains unexpanded
+if [[ "${FISCAL_DATABASE_DRIVER}" == "postgres" \
+  && "${FISCAL_DATABASE_URL}" == "${expected_url}" \
+  && "${FISCAL_DATABASE_URL}" == *'#frag'* \
+  && "${FISCAL_DATABASE_URL}" == *'$HOME'* \
+  && "${FISCAL_DATABASE_URL}" == *'a=b'* \
+  && "${FISCAL_DATABASE_URL}" == *'"q"'* ]]; then
+  ok "parser preserves # \$ quotes spaces and = in values"
+else
+  bad "parser corrupted special values"
+fi
+
+# Inline hash in value must stay
+cat >"${TMP}/hashval.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=token#not-a-comment
+EOF
+FISCAL_DATABASE_URL=""
+deploy_load_allowlisted_env "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/hashval.env"
+if [[ "${FISCAL_DATABASE_URL}" == "token#not-a-comment" ]]; then
+  ok "hash inside value preserved"
+else
+  bad "hash inside value stripped"
+fi
+
+# Values must not be executed
+PWNED="${TMP}/pwned"
+rm -f "${PWNED}"
+cat >"${TMP}/exec.env" <<EOF
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=\$(touch ${PWNED})
+EOF
+FISCAL_DATABASE_URL=""
+deploy_load_allowlisted_env "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/exec.env"
+if [[ -e "${PWNED}" ]]; then
+  bad "env value was executed"
+else
+  ok "env value not executed"
+fi
+literal_got="$(deploy_read_env_value "${TMP}/exec.env" FISCAL_DATABASE_URL)"
+# shellcheck disable=SC2016 # intentional: assert literal $(touch ...) was not expanded
+if [[ "${FISCAL_DATABASE_URL}" == "${literal_got}" && "${literal_got}" == '$(touch '"${PWNED}"')' ]]; then
+  ok "literal \$(...) preserved without execution"
+else
+  bad "unexpected transformed exec value"
+fi
+
+# remote-migrate-run must not source; read keys only
+cat >"${TMP}/migrate.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://u:p@127.0.0.1/db?x=1#keep
+EOF
+mkdir -p "${TMP}/rel"
+cat >"${TMP}/rel/fiscal-migrate" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+# Stub: prove env was exported without printing secret URL.
+if [[ "${1:-}" == "version" ]]; then
+  [[ -n "${FISCAL_DATABASE_DRIVER:-}" && -n "${FISCAL_DATABASE_URL:-}" ]] || exit 1
+  [[ "${FISCAL_DATABASE_URL}" == *'#keep' ]] || exit 1
+  echo "version=2 dirty=false"
+  exit 0
+fi
+exit 1
+EOF
+chmod 0755 "${TMP}/rel/fiscal-migrate"
+cp "${ROOT}/scripts/deploy/remote-migrate-run.sh" "${TMP}/rel/"
+mkdir -p "${TMP}/rel/lib"
+cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${TMP}/rel/lib/"
+if MIGRATE_ENV_FILE="${TMP}/migrate.env" bash "${TMP}/rel/remote-migrate-run.sh" "${TMP}/rel" version >"${TMP}/rm.out" 2>"${TMP}/rm.err"; then
+  if grep -q 'version=2 dirty=false' "${TMP}/rm.out" && ! grep -q 'postgres://' "${TMP}/rm.out" "${TMP}/rm.err"; then
+    ok "remote-migrate-run loads keys without printing DSN"
+  else
+    bad "remote-migrate-run output incorrect"
+  fi
+else
+  bad "remote-migrate-run failed"
+  cat "${TMP}/rm.err" >&2 || true
+fi
+
 # --- build + checksums ---
 HEAD="$(git rev-parse HEAD)"
 export EXPECTED_COMMIT="${HEAD}"
 export DEPLOY_GOARCH=amd64
+export DEPLOY_ALLOW_DIRTY_WORKTREE=1
+export DEPLOY_TEST_OUT_ROOT="${TMP}"
 export OUT_DIR="${TMP}/release"
 if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"${TMP}/build.err"; then
   if [[ -f "${OUT_DIR}/fiscal-api" && -f "${OUT_DIR}/fiscal-migrate" && -f "${OUT_DIR}/COMMIT" && -f "${OUT_DIR}/SHA256SUMS" ]]; then
     ok "linux release artifacts present"
   else
     bad "release artifacts missing"
+  fi
+  if grep -E 'fiscal-api|fiscal-migrate|^[a-f0-9]{64}  COMMIT$' "${OUT_DIR}/SHA256SUMS" >/dev/null \
+    && grep -q 'fiscal-api' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'fiscal-migrate' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'COMMIT' "${OUT_DIR}/SHA256SUMS"; then
+    ok "SHA256SUMS covers fiscal-api fiscal-migrate COMMIT"
+  else
+    bad "SHA256SUMS incomplete"
+    cat "${OUT_DIR}/SHA256SUMS" >&2 || true
+  fi
+  got="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"
+  if [[ "${got}" == "${HEAD}" ]]; then
+    ok "COMMIT matches HEAD"
+  else
+    bad "COMMIT mismatch"
   fi
   if ! grep -q CANARY "${TMP}/build.out" "${TMP}/build.err" 2>/dev/null; then
     ok "build output free of canary secrets"
@@ -130,9 +235,29 @@ else
   cat "${TMP}/build.err" >&2 || true
 fi
 
-# --- reject wrong commit ---
+# Reject OUT_DIR outside allowlist
+if EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=amd64 DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  OUT_DIR="/tmp/bwb-forbidden-out-$$" \
+  bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/forbid.out" 2>"${TMP}/forbid.err"; then
+  bad "should reject OUT_DIR outside dist/releases"
+  rm -rf "/tmp/bwb-forbidden-out-$$"
+else
+  ok "rejects OUT_DIR outside authorized roots"
+fi
+
+# Reject bad GOARCH
+if EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=386 DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" OUT_DIR="${TMP}/badarch" \
+  bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/arch.out" 2>"${TMP}/arch.err"; then
+  bad "should reject GOARCH 386"
+else
+  ok "rejects unsupported GOARCH"
+fi
+
+# Reject wrong commit
 if EXPECTED_COMMIT=0000000000000000000000000000000000000000 \
-  DEPLOY_GOARCH=amd64 OUT_DIR="${TMP}/badrel" \
+  DEPLOY_GOARCH=amd64 DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" OUT_DIR="${TMP}/badrel" \
   bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/bad.out" 2>"${TMP}/bad.err"; then
   bad "should reject mismatched EXPECTED_COMMIT"
 else
@@ -143,10 +268,39 @@ else
   fi
 fi
 
+# Dirty worktree refusal
+DIRTY_MARKER="${ROOT}/.deploy-dirty-test-$$"
+touch "${DIRTY_MARKER}"
+if EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=amd64 DEPLOY_ALLOW_DIRTY_WORKTREE=0 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" OUT_DIR="${TMP}/dirtybuild" \
+  bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/dirtyb.out" 2>"${TMP}/dirtyb.err"; then
+  bad "should refuse dirty worktree"
+else
+  if grep -q 'dirty worktree' "${TMP}/dirtyb.err"; then
+    ok "refuses dirty worktree"
+  else
+    bad "dirty worktree error incorrect"
+  fi
+fi
+rm -f "${DIRTY_MARKER}"
+
+# Overwrite with different COMMIT refused
+mkdir -p "${TMP}/clash"
+printf 'deadbeef\n' >"${TMP}/clash/COMMIT"
+if EXPECTED_COMMIT="${HEAD}" DEPLOY_GOARCH=amd64 DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" OUT_DIR="${TMP}/clash" \
+  bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/clash.out" 2>"${TMP}/clash.err"; then
+  bad "should refuse overwrite of different COMMIT"
+else
+  ok "refuses overwrite of different COMMIT release"
+fi
+
 # --- update dry-run: post-migration without N-1 refuses health-fail rollback ---
 if DEPLOY_DRY_RUN=1 \
   EXPECTED_COMMIT="${HEAD}" \
   DEPLOY_GOARCH=amd64 \
+  DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" \
   OUT_DIR="${TMP}/rel2" \
   DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=1 \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
@@ -169,6 +323,8 @@ fi
 if DEPLOY_DRY_RUN=1 \
   EXPECTED_COMMIT="${HEAD}" \
   DEPLOY_GOARCH=amd64 \
+  DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" \
   OUT_DIR="${TMP}/rel3" \
   DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
@@ -179,20 +335,124 @@ else
   ok "dirty migration blocks update"
 fi
 
+# --- live path with PATH mocks (zero network) ---
+MOCK_BIN="${ROOT}/tests/deploy/mocks/bin"
+MOCK_FS="${TMP}/mockfs"
+MOCK_LOG="${TMP}/mock.log"
+mkdir -p "${MOCK_FS}/opt/bwb-modulo-fiscal/releases" "${MOCK_FS}/etc/bwb-modulo-fiscal" "${MOCK_FS}/tmp"
+# Seed a previous release for N-1 path coverage
+mkdir -p "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/prevsha"
+printf 'prevsha\n' >"${MOCK_FS}/opt/bwb-modulo-fiscal/releases/prevsha/COMMIT"
+ln -sfn "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/prevsha" "${MOCK_FS}/opt/bwb-modulo-fiscal/current"
+
+# Minimal allowlisted env files for live mock
+cp "${TMP}/canary.env" "${TMP}/fiscal.live.env"
+cat >"${TMP}/migrate.live.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://mig:CANARY_MIG@127.0.0.1/db?x=1#keep
+EOF
+
+# Dummy key/known_hosts paths (never read for crypto by mocks)
+touch "${TMP}/id_test" "${TMP}/known_hosts"
+
+if PATH="${MOCK_BIN}:${PATH}" \
+  DEPLOY_MOCK_REMOTE=1 \
+  DEPLOY_DRY_RUN=0 \
+  DEPLOY_HOST=mock.host \
+  DEPLOY_USER=mock \
+  DEPLOY_SSH_KEY="${TMP}/id_test" \
+  DEPLOY_KNOWN_HOSTS="${TMP}/known_hosts" \
+  DEPLOY_MOCK_FS="${MOCK_FS}" \
+  DEPLOY_MOCK_LOG="${MOCK_LOG}" \
+  EXPECTED_COMMIT="${HEAD}" \
+  DEPLOY_GOARCH=amd64 \
+  DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" \
+  OUT_DIR="${TMP}/live-rel" \
+  ENV_DEPLOY="${TMP}/fiscal.live.env" \
+  ENV_MIGRATE="${TMP}/migrate.live.env" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_DIRTY=false \
+  bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/live.out" 2>"${TMP}/live.err"; then
+  mode_mig="$(stat -f '%Lp' "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" 2>/dev/null || stat -c '%a' "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" 2>/dev/null || echo missing)"
+  if grep -q 'mode=live' "${TMP}/live.out" \
+    && grep -q 'binary=new_release' "${TMP}/live.out" \
+    && grep -q 'promote=ok' "${TMP}/live.out" \
+    && grep -q 'restart=ok' "${TMP}/live.out" \
+    && [[ -f "${MOCK_FS}/etc/bwb-modulo-fiscal/fiscal.env" ]] \
+    && [[ -f "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" ]] \
+    && [[ "${mode_mig}" == "600" ]] \
+    && [[ -d "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}" ]] \
+    && grep -q "bash '.*/remote-migrate-run.sh'" "${MOCK_LOG}" \
+    && ! grep -q 'current/fiscal-migrate' "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" \
+    && ! grep -q 'CANARY' "${TMP}/live.out" "${TMP}/live.err"; then
+    ok "live path mocked upload verify install migrate promote restart"
+  else
+    bad "live mock path assertions failed (mode_mig=${mode_mig})"
+    cat "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" >&2 || true
+  fi
+else
+  bad "live mock update failed"
+  cat "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" >&2 || true
+fi
+
+# Live path: post-migration without N-1 refuses rollback on health fail
+if PATH="${MOCK_BIN}:${PATH}" \
+  DEPLOY_MOCK_REMOTE=1 \
+  DEPLOY_DRY_RUN=0 \
+  DEPLOY_HOST=mock.host \
+  DEPLOY_USER=mock \
+  DEPLOY_SSH_KEY="${TMP}/id_test" \
+  DEPLOY_KNOWN_HOSTS="${TMP}/known_hosts" \
+  DEPLOY_MOCK_FS="${TMP}/mockfs2" \
+  DEPLOY_MOCK_LOG="${TMP}/mock2.log" \
+  EXPECTED_COMMIT="${HEAD}" \
+  DEPLOY_GOARCH=amd64 \
+  DEPLOY_ALLOW_DIRTY_WORKTREE=1 \
+  DEPLOY_TEST_OUT_ROOT="${TMP}" \
+  OUT_DIR="${TMP}/live-rel2" \
+  ENV_DEPLOY="${TMP}/fiscal.live.env" \
+  ENV_MIGRATE="${TMP}/migrate.live.env" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=1 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_DIRTY=false \
+  DEPLOY_N1_COMPAT_PROVEN=0 \
+  DEPLOY_SIMULATE_HEALTH_FAIL=1 \
+  bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/live2.out" 2>"${TMP}/live2.err"; then
+  bad "live mock should fail health without N-1"
+else
+  if grep -q 'roll_forward_or_manual' "${TMP}/live2.out" "${TMP}/live2.err"; then
+    ok "live mock enforces N-1 rollback policy"
+  else
+    bad "live mock N-1 policy not enforced"
+    cat "${TMP}/live2.out" "${TMP}/live2.err" >&2 || true
+  fi
+fi
+
 # --- antipatterns ---
 if bash "${ROOT}/scripts/deploy/check-antipatterns.sh"; then
-  ok "no forbidden SSH antipatterns"
+  ok "no forbidden SSH/env antipatterns"
 else
   bad "antipattern check failed"
 fi
 
-# --- nginx deny-all documents ---
+# No source migrate.env / eval in migrate-remote or update
+if ! grep -E 'source[[:space:]].*migrate\.env' "${ROOT}/scripts/deploy/"*.sh \
+  && ! grep -E '^[^#]*\beval\b' "${ROOT}/scripts/deploy/migrate-remote.sh" "${ROOT}/scripts/deploy/remote-migrate-run.sh" "${ROOT}/scripts/deploy/lib/allowlist.sh"; then
+  ok "no source/eval on migrate env path"
+else
+  bad "source/eval still present"
+fi
+
+# --- nginx deny-all documents + no IPv6 listen in D1 ---
 if grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-http.conf" \
   && grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" \
-  && ! grep -E 'allow[[:space:]]+[0-9]' "${ROOT}/deploy/nginx/"*.conf; then
-  ok "nginx documents deny-all without IP allow placeholders"
+  && ! grep -E 'allow[[:space:]]+[0-9]' "${ROOT}/deploy/nginx/"*.conf \
+  && ! grep -E 'listen[[:space:]]+\[::\]' "${ROOT}/deploy/nginx/"*.conf; then
+  ok "nginx documents deny-all; no IPv6 listen in D1"
 else
-  bad "nginx documents ACL incorrect"
+  bad "nginx ACL/IPv6 incorrect"
 fi
 
 # --- systemd never references migrate.env ---

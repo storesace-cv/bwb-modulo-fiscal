@@ -60,9 +60,14 @@ jobs:
 
       - name: Deploy D1 script tests
         run: |
-          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh
+          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh tests/deploy/mocks/bin/*
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
+          git diff --check
+
+      - name: OpenAPI lint
+        run: |
+          npx --yes @redocly/cli@1.34.3 lint specs/openapi/openapi.yaml
 
       - name: Migration parity and immutability
         if: github.event_name == 'pull_request'

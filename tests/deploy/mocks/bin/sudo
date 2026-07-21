@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Mock sudo: record and execute without privilege escalation.
+set -Eeuo pipefail
+
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+printf 'sudo %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+exec "$@"
