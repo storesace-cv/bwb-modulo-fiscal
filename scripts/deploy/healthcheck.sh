@@ -10,17 +10,13 @@ source "${SCRIPT_DIR}/lib/allowlist.sh"
 # Fixed production/live probe target. Not overridable on the live path.
 LIVE_HEALTH_URL="http://127.0.0.1:8080/v1/health"
 
+# Accept only when the JSON field "status" is exactly "ok".
+# Presence of "ok" in any other field must not count as success.
 check_body() {
   local body="$1"
-  if [[ "${body}" != *'"status"'* ]]; then
-    echo "error: health response missing status" >&2
+  if [[ ! "${body}" =~ \"status\"[[:space:]]*:[[:space:]]*\"ok\" ]]; then
+    echo "error: health status not ok" >&2
     return 1
-  fi
-  if [[ "${body}" != *'"ok"'* && "${body}" != *'"OK"'* ]]; then
-    if [[ ! "${body}" =~ \"status\"[[:space:]]*:[[:space:]]*\"ok\" ]]; then
-      echo "error: health status not ok" >&2
-      return 1
-    fi
   fi
 }
 

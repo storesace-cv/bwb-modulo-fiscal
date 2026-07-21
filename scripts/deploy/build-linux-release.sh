@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Build linux release: binaries, helpers, COMMIT, EXPECTED_SCHEMA_VERSION, SHA256SUMS.
+# Never ships remote-migrate-run.sh — migrate is executed by the closed helper after drop-priv.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -71,10 +72,10 @@ mkdir -p "${OUT_DIR}/lib"
 echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
-cp "${SCRIPT_DIR}/remote-migrate-run.sh" "${OUT_DIR}/remote-migrate-run.sh"
 cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
-chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/remote-migrate-run.sh"
+chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate"
+chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist"
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
@@ -84,7 +85,6 @@ printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
   deploy_sha256_files \
     fiscal-api \
     fiscal-migrate \
-    remote-migrate-run.sh \
     lib/allowlist.sh \
     lib/migrate.env.allowlist \
     COMMIT \

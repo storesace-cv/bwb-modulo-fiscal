@@ -22,7 +22,7 @@ REMOTE_UPLOAD=""
 PREV_SHA=""
 ACTIVE_RELEASE="none"
 ENV_BACKUP_ID=""
-ENVS_INSTALLED=0
+ENVS_RESTORABLE=0
 ENV_RESTORED=0
 ACTIVATED=0
 EXPECTED_SCHEMA_VERSION="${EXPECTED_SCHEMA_VERSION:-${DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT}}"
@@ -52,7 +52,7 @@ load_operator_env() {
     value="${line#*=}"
     key="$(printf '%s' "${key}" | deploy_trim)"
     case "${key}" in
-      DEPLOY_HOST | DEPLOY_USER | DEPLOY_SSH_KEY | DEPLOY_KNOWN_HOSTS | EXPECTED_COMMIT | DEPLOY_GOARCH | DEPLOY_DRY_RUN | DEPLOY_MOCK_REMOTE | DEPLOY_N1_COMPAT_PROVEN | DEPLOY_MOCK_MIGRATE_VERSION_BEFORE | DEPLOY_MOCK_MIGRATE_VERSION_AFTER | DEPLOY_MOCK_MIGRATE_DIRTY | DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE | DEPLOY_MOCK_MIGRATE_DIRTY_AFTER | DEPLOY_SIMULATE_HEALTH_FAIL | OUT_DIR | DEPLOY_TEST_OUT_ROOT | EXPECTED_SCHEMA_VERSION | DEPLOY_TEST_HEALTH_URL) ;;
+      DEPLOY_HOST | DEPLOY_USER | DEPLOY_SSH_KEY | DEPLOY_KNOWN_HOSTS | EXPECTED_COMMIT | DEPLOY_GOARCH | DEPLOY_DRY_RUN | DEPLOY_MOCK_REMOTE | DEPLOY_N1_COMPAT_PROVEN | DEPLOY_MOCK_MIGRATE_VERSION_BEFORE | DEPLOY_MOCK_MIGRATE_VERSION_AFTER | DEPLOY_MOCK_MIGRATE_DIRTY | DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE | DEPLOY_MOCK_MIGRATE_DIRTY_AFTER | DEPLOY_SIMULATE_HEALTH_FAIL | DEPLOY_SIMULATE_RESTART_FAIL | DEPLOY_MOCK_FAIL_INSTALL_ENV | OUT_DIR | DEPLOY_TEST_OUT_ROOT | EXPECTED_SCHEMA_VERSION | DEPLOY_TEST_HEALTH_URL) ;;
       HEALTH_URL)
         die "HEALTH_URL is forbidden; live health is fixed to http://127.0.0.1:8080/v1/health"
         ;;
@@ -89,14 +89,14 @@ cleanup_remote_upload() {
 }
 
 restore_envs_once() {
-  if [[ "${ENVS_INSTALLED}" -eq 1 && "${ENV_RESTORED}" -eq 0 && -n "${ENV_BACKUP_ID}" ]]; then
+  if [[ "${ENVS_RESTORABLE}" -eq 1 && "${ENV_RESTORED}" -eq 0 && -n "${ENV_BACKUP_ID}" ]]; then
     remote_helper restore-env "${ENV_BACKUP_ID}" >/dev/null
     ENV_RESTORED=1
     report "env_restore=ok id=${ENV_BACKUP_ID}"
   fi
 }
 
-# Pre-activation failure: restore envs if installed, report phase, then die.
+# Pre-activation failure: restore envs if restorable, report phase, then die.
 pre_activate_fail() {
   local msg="$1"
   if [[ "${ACTIVATED}" -ne 0 ]]; then
@@ -112,17 +112,15 @@ read_active_release() {
   remote_sh "if [[ -e /opt/bwb-modulo-fiscal/current ]]; then basename \"\$(readlink /opt/bwb-modulo-fiscal/current)\"; else printf 'none'; fi"
 }
 
-promote_symlink() {
-  local sha="$1"
-  deploy_assert_sha1 "promote sha" "${sha}"
-  remote_helper activate "${sha}" >/dev/null
-  ACTIVE_RELEASE="${sha}"
-  ACTIVATED=1
-}
-
-restart_unit() {
-  remote_helper restart >/dev/null
-  report "restart=ok"
+sync_active_release() {
+  local raw
+  raw="$(read_active_release)"
+  if [[ "${raw}" == "none" || -z "${raw}" ]]; then
+    ACTIVE_RELEASE="none"
+  else
+    deploy_assert_sha1 "active release" "${raw}"
+    ACTIVE_RELEASE="${raw}"
+  fi
 }
 
 run_remote_health() {
@@ -132,7 +130,11 @@ run_remote_health() {
     report "health=fail"
     return 1
   fi
-  # Unset HEALTH_URL in a subshell; live healthcheck forbids it.
+  # Capture status explicitly: when this function is invoked under `if`, bash
+  # disables set -e for the body, so a failed healthcheck subshell must not
+  # fall through to reporting health=ok.
+  local st
+  set +e
   (
     if [[ -n "${HEALTH_URL+x}" ]]; then
       unset HEALTH_URL
@@ -140,11 +142,67 @@ run_remote_health() {
     DEPLOY_DRY_RUN=0 DEPLOY_MOCK_REMOTE="${DEPLOY_MOCK_REMOTE}" \
       bash "${SCRIPT_DIR}/healthcheck.sh" >/dev/null
   )
+  st=$?
+  set -e
+  if [[ "${st}" -ne 0 ]]; then
+    report "health=fail"
+    return 1
+  fi
   report "health=ok"
 }
 
 report_active() {
   report "active_release=${ACTIVE_RELEASE}"
+}
+
+# After activate has been attempted: re-read current, then N-1 rollback or roll-forward.
+post_activate_fail() {
+  local msg="$1"
+  report "failure_phase=post_activate"
+  sync_active_release
+
+  if [[ "${rollback_allowed}" == "true" ]]; then
+    if [[ -n "${PREV_SHA}" && "${PREV_SHA}" != "${HEAD}" ]]; then
+      local act_st rst_st
+      set +e
+      remote_helper activate "${PREV_SHA}" >/dev/null
+      act_st=$?
+      set -e
+      sync_active_release
+      if [[ "${act_st}" -ne 0 ]]; then
+        report "action=rollback_activate_failed"
+        report_active
+        die "${msg}; rollback activate failed"
+      fi
+      restore_envs_once
+      set +e
+      remote_helper restart >/dev/null
+      rst_st=$?
+      set -e
+      if [[ "${rst_st}" -ne 0 ]]; then
+        report "action=rollback_restart_failed"
+        report_active
+        die "${msg}; rollback restart failed"
+      fi
+      report "restart=ok"
+      if run_remote_health; then
+        report "action=restore_previous_binary previous=${PREV_SHA}"
+        report "health=ok_after_rollback"
+        report_active
+        die "${msg}; rolled back to previous release"
+      fi
+      report "action=rollback_health_failed"
+      report_active
+      die "${msg}; rollback completed but health still failing; manual intervention required"
+    fi
+    report "action=restore_previous_binary previous=unavailable"
+    report_active
+    die "${msg}; rollback allowed but previous release missing; new release remains active"
+  fi
+
+  report "action=roll_forward_or_manual"
+  report_active
+  die "${msg}; no automatic binary rollback (N-1 not proven)"
 }
 
 if [[ -f "${ENV_LOCAL}" ]]; then
@@ -293,7 +351,6 @@ report "upload_dir=ok"
   "${OUT_DIR}/COMMIT" \
   "${OUT_DIR}/EXPECTED_SCHEMA_VERSION" \
   "${OUT_DIR}/SHA256SUMS" \
-  "${OUT_DIR}/remote-migrate-run.sh" \
   "${OUT_DIR}/lib" \
   "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_UPLOAD}/"
 report "upload=ok"
@@ -317,15 +374,39 @@ fi
 
 ENV_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-${HEAD}"
 remote_helper backup-envs "${ENV_BACKUP_ID}" >/dev/null
+# Mark restorable immediately after backup, before any install attempt.
+ENVS_RESTORABLE=1
+phase="env_install"
+rollback_allowed="true"
 report "env_backup=ok id=${ENV_BACKUP_ID}"
 
 fiscal_tmp="${REMOTE_UPLOAD}/env.fiscal.env.$$"
 migrate_tmp="${REMOTE_UPLOAD}/env.migrate.env.$$"
+
+set +e
 "${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
+scp_st=$?
+set -e
+[[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp fiscal.env failed"
+
+set +e
 "${SCP_BASE[@]}" "${ENV_MIGRATE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${migrate_tmp}"
+scp_st=$?
+set -e
+[[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp migrate.env failed"
+
+set +e
 remote_helper install-env fiscal.env "${fiscal_tmp}" >/dev/null
+inst_st=$?
+set -e
+[[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env fiscal.env failed"
+
+set +e
 remote_helper install-env migrate.env "${migrate_tmp}" >/dev/null
-ENVS_INSTALLED=1
+inst_st=$?
+set -e
+[[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env migrate.env failed"
+
 report "install_env=ok mode=0600 owner=root"
 
 phase="pre_migrate"
@@ -378,8 +459,35 @@ else
 fi
 report "phase=${phase} rollback_allowed=${rollback_allowed}"
 
-promote_symlink "${HEAD}"
-restart_unit
+# --- Post-activation path (activate / restart / health) ---
+set +e
+remote_helper activate "${HEAD}" >/dev/null
+act_st=$?
+set -e
+sync_active_release
+if [[ "${act_st}" -ne 0 ]]; then
+  if [[ "${ACTIVE_RELEASE}" == "${HEAD}" ]]; then
+    ACTIVATED=1
+    post_activate_fail "activate failed but current points to new release"
+  fi
+  # Activate did not switch current — treat as pre-activate for env restore.
+  ACTIVATED=0
+  pre_activate_fail "activate failed"
+fi
+ACTIVATED=1
+
+set +e
+remote_helper restart >/dev/null
+rst_st=$?
+set -e
+if [[ "${rst_st}" -ne 0 ]] || [[ "${DEPLOY_SIMULATE_RESTART_FAIL:-0}" == "1" ]]; then
+  if [[ "${DEPLOY_SIMULATE_RESTART_FAIL:-0}" == "1" ]]; then
+    DEPLOY_SIMULATE_RESTART_FAIL=0
+    export DEPLOY_SIMULATE_RESTART_FAIL
+  fi
+  post_activate_fail "restart failed after activation"
+fi
+report "restart=ok"
 
 if run_remote_health; then
   report "promote=ok symlink=current->${HEAD}"
@@ -389,27 +497,4 @@ if run_remote_health; then
   exit 0
 fi
 
-# Post-activation health failure: N-1 policy (may restore envs with binary).
-if [[ "${rollback_allowed}" == "true" ]]; then
-  if [[ -n "${PREV_SHA}" && "${PREV_SHA}" != "${HEAD}" ]]; then
-    promote_symlink "${PREV_SHA}"
-    restore_envs_once
-    restart_unit
-    if run_remote_health; then
-      report "action=restore_previous_binary previous=${PREV_SHA}"
-      report "health=ok_after_rollback"
-      report_active
-      die "new release health failed; rolled back to previous release"
-    fi
-    report "action=rollback_health_failed"
-    report_active
-    die "rollback completed but health still failing; manual intervention required"
-  fi
-  report "action=restore_previous_binary previous=unavailable"
-  report "active_release=${HEAD}"
-  die "rollback allowed but previous release missing; new release remains active"
-fi
-
-report "action=roll_forward_or_manual"
-report "active_release=${HEAD}"
-die "post-migration health fail without N-1 proof: no automatic binary rollback"
+post_activate_fail "health failed after activation"

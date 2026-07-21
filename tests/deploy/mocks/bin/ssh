@@ -7,6 +7,7 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 HELPER_SRC="${ROOT}/scripts/deploy/remote-deploy-helper.sh"
+HELPER_LIB="${ROOT}/scripts/deploy/lib"
 
 log() {
   printf 'ssh %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
@@ -52,7 +53,14 @@ if [[ "${remote_cmd}" == *"curl -fsS --max-time 5 http://127.0.0.1:8080/v1/healt
     echo "error: mock health fail" >&2
     exit 1
   fi
-  printf '%s\n' '{"status":"ok"}'
+  if [[ -f "${FS}/.mock-health-body" ]]; then
+    cat "${FS}/.mock-health-body"
+    rm -f "${FS}/.mock-health-body"
+  elif [[ -n "${DEPLOY_MOCK_HEALTH_BODY:-}" ]]; then
+    printf '%s\n' "${DEPLOY_MOCK_HEALTH_BODY}"
+  else
+    printf '%s\n' '{"status":"ok"}'
+  fi
   exit 0
 fi
 
@@ -86,10 +94,12 @@ if [[ "${remote_cmd}" == *"sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper"* ]]
     cleaned+=("${a}")
   done
 
+  # Non-root test overrides only (helper refuses these when EUID=0).
   export BWB_DEPLOY_OPT="${FS}/opt/bwb-modulo-fiscal"
   export BWB_DEPLOY_ETC="${FS}/etc/bwb-modulo-fiscal"
   export BWB_MOCK_TMP="${FS}/tmp"
   export BWB_DEPLOY_UNIT="bwb-fiscal-api.service"
+  export BWB_HELPER_LIB="${HELPER_LIB}"
 
   op="${cleaned[0]:-}"
   if [[ "${op}" == "migrate" ]]; then
@@ -104,6 +114,24 @@ if [[ "${remote_cmd}" == *"sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper"* ]]
         "${DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
     fi
     exit 0
+  fi
+
+  if [[ "${op}" == "install-env" && -n "${DEPLOY_MOCK_FAIL_INSTALL_ENV:-}" \
+    && "${cleaned[1]:-}" == "${DEPLOY_MOCK_FAIL_INSTALL_ENV}" ]]; then
+    printf 'sudo /usr/local/sbin/bwb-fiscal-deploy-helper %s\n' "${cleaned[*]}" >>"${DEPLOY_MOCK_LOG}"
+    echo "error: mock install-env fail name=${cleaned[1]}" >&2
+    exit 1
+  fi
+
+  if [[ "${op}" == "restart" && "${DEPLOY_MOCK_FAIL_RESTART:-0}" == "1" ]]; then
+    # Fail only the first restart so N-1 rollback restart can succeed.
+    once="${FS}/.mock-fail-restart-once"
+    if [[ ! -e "${once}" ]]; then
+      touch "${once}"
+      printf 'sudo /usr/local/sbin/bwb-fiscal-deploy-helper %s\n' "${cleaned[*]}" >>"${DEPLOY_MOCK_LOG}"
+      echo "error: mock restart fail" >&2
+      exit 1
+    fi
   fi
 
   # Record sudo helper invocation for tests.

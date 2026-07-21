@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Closed-operation remote deploy helper. Runs as root via sudoers (D2 bootstrap).
-# Never invoked as `sudo bash`. No arbitrary shell snippets.
+# Never invoked as `sudo bash`. Never executes release scripts/binaries as root.
 #
 # Usage: bwb-fiscal-deploy-helper <operation> [args...]
 #
@@ -14,13 +14,26 @@
 #   restore-env <backup-id>
 #   cleanup-upload <upload-dir>
 #
-# Test overrides (never used in production sudoers path):
-#   BWB_DEPLOY_OPT, BWB_DEPLOY_ETC, BWB_DEPLOY_UNIT
+# D2 bootstrap also installs:
+#   /usr/local/lib/bwb-fiscal-deploy/allowlist.sh
+#   /usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist
+#   user bwb-fiscal-migrate (no login shell) for drop-priv migrate execution
 set -Eeuo pipefail
+
+# Test overrides are forbidden when running as root.
+if [[ "${EUID}" -eq 0 ]]; then
+  if [[ -n "${BWB_DEPLOY_OPT:-}" || -n "${BWB_DEPLOY_ETC:-}" || -n "${BWB_DEPLOY_UNIT:-}" \
+    || -n "${BWB_MOCK_TMP:-}" || -n "${BWB_HELPER_LIB:-}" || -n "${BWB_MIGRATE_USER:-}" ]]; then
+    echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
+    exit 1
+  fi
+fi
 
 OPT_ROOT="${BWB_DEPLOY_OPT:-/opt/bwb-modulo-fiscal}"
 ETC_ROOT="${BWB_DEPLOY_ETC:-/etc/bwb-modulo-fiscal}"
 UNIT_NAME="${BWB_DEPLOY_UNIT:-bwb-fiscal-api.service}"
+MIGRATE_USER="${BWB_MIGRATE_USER:-bwb-fiscal-migrate}"
+HELPER_LIB="${BWB_HELPER_LIB:-/usr/local/lib/bwb-fiscal-deploy}"
 RELEASES="${OPT_ROOT}/releases"
 BACKUPS="${ETC_ROOT}/backups"
 
@@ -29,6 +42,9 @@ die() {
   exit 1
 }
 
+# shellcheck source=/dev/null
+source "${HELPER_LIB}/allowlist.sh"
+
 assert_sha1() {
   local name="$1" val="$2"
   [[ "${val}" =~ ^[0-9a-f]{40}$ ]] || die "${name} must be 40-char lowercase hex SHA-1"
@@ -36,28 +52,7 @@ assert_sha1() {
 
 assert_backup_id() {
   local id="$1"
-  # UTC stamp + sha1, e.g. 20260721T143043Z-<40hex>
   [[ "${id}" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{40}$ ]] || die "invalid backup-id"
-}
-
-# Reject symlinks and require a real path under an expected prefix.
-assert_real_under() {
-  local label="$1"
-  local path="$2"
-  local prefix="$3"
-  local real
-  [[ -e "${path}" ]] || die "${label} missing"
-  [[ ! -L "${path}" ]] || die "${label} must not be a symlink"
-  if command -v realpath >/dev/null 2>&1; then
-    real="$(realpath "${path}")"
-  else
-    real="$(cd "${path}" 2>/dev/null && pwd -P)" || real="$(python3 -c "import os; print(os.path.realpath('${path}'))")"
-  fi
-  case "${real}" in
-    "${prefix}" | "${prefix}"/*) ;;
-    *) die "${label} escapes allowed prefix" ;;
-  esac
-  printf '%s' "${real}"
 }
 
 assert_upload_dir() {
@@ -124,6 +119,25 @@ sha256_check() {
   )
 }
 
+# Full release tree validation (never only COMMIT).
+verify_release_tree() {
+  local dir="$1"
+  local sha="$2"
+  [[ -d "${dir}" ]] || die "release dir missing"
+  [[ ! -L "${dir}" ]] || die "release dir must not be a symlink"
+  [[ -f "${dir}/COMMIT" ]] || die "COMMIT missing"
+  [[ -f "${dir}/EXPECTED_SCHEMA_VERSION" ]] || die "EXPECTED_SCHEMA_VERSION missing"
+  [[ -f "${dir}/SHA256SUMS" ]] || die "SHA256SUMS missing"
+  [[ -f "${dir}/fiscal-api" ]] || die "fiscal-api missing"
+  [[ -f "${dir}/fiscal-migrate" ]] || die "fiscal-migrate missing"
+  [[ -f "${dir}/lib/allowlist.sh" ]] || die "lib/allowlist.sh missing"
+  [[ -f "${dir}/lib/migrate.env.allowlist" ]] || die "lib/migrate.env.allowlist missing"
+  # Release must not ship an executable runner — migrate is done by this helper.
+  [[ ! -e "${dir}/remote-migrate-run.sh" ]] || die "remote-migrate-run.sh must not be in release"
+  [[ "$(tr -d '[:space:]' <"${dir}/COMMIT")" == "${sha}" ]] || die "COMMIT mismatch"
+  sha256_check "${dir}"
+}
+
 op_backup_envs() {
   local backup_id="$1"
   assert_backup_id "${backup_id}"
@@ -157,29 +171,29 @@ op_install_release() {
   dest="${RELEASES}/${sha}"
   partial="${dest}.partial"
 
-  [[ -f "${upload}/COMMIT" ]] || die "COMMIT missing in upload"
-  [[ "$(tr -d '[:space:]' <"${upload}/COMMIT")" == "${sha}" ]] || die "COMMIT mismatch"
-  sha256_check "${upload}"
+  verify_release_tree "${upload}" "${sha}"
 
   install -d -m 0755 -o root -g root "${OPT_ROOT}" "${RELEASES}"
   rm -rf -- "${partial}"
   mkdir -p "${partial}"
   cp -a "${upload}/." "${partial}/"
   chown -R root:root "${partial}"
-  chmod 0755 "${partial}/fiscal-api" "${partial}/fiscal-migrate" "${partial}/remote-migrate-run.sh"
+  chmod 0755 "${partial}/fiscal-api" "${partial}/fiscal-migrate"
   chmod 0644 "${partial}/COMMIT" "${partial}/EXPECTED_SCHEMA_VERSION" "${partial}/SHA256SUMS" \
     "${partial}/lib/allowlist.sh" "${partial}/lib/migrate.env.allowlist"
 
   if [[ -d "${dest}" ]]; then
-    [[ "$(tr -d '[:space:]' <"${dest}/COMMIT")" == "${sha}" ]] || die "existing release COMMIT mismatch"
+    verify_release_tree "${dest}" "${sha}"
     rm -rf -- "${partial}"
   else
     mv "${partial}" "${dest}"
   fi
   chown -R root:root "${dest}"
-  chmod 0755 "${dest}" "${dest}/fiscal-api" "${dest}/fiscal-migrate" "${dest}/remote-migrate-run.sh"
+  chmod 0755 "${dest}" "${dest}/fiscal-api" "${dest}/fiscal-migrate"
   chmod 0644 "${dest}/COMMIT" "${dest}/EXPECTED_SCHEMA_VERSION" "${dest}/SHA256SUMS" \
     "${dest}/lib/allowlist.sh" "${dest}/lib/migrate.env.allowlist"
+  # fiscal-migrate must be executable by the drop-priv migrate user (world/group exec OK; not writable).
+  chmod 0755 "${dest}/fiscal-migrate" "${dest}/fiscal-api"
   printf 'install_release_ok sha=%s\n' "${sha}"
 }
 
@@ -202,9 +216,7 @@ op_activate() {
   local sha="$1"
   assert_sha1 "sha" "${sha}"
   local dest="${RELEASES}/${sha}"
-  [[ -d "${dest}" ]] || die "release missing"
-  [[ ! -L "${dest}" ]] || die "release dir must not be a symlink"
-  [[ "$(tr -d '[:space:]' <"${dest}/COMMIT")" == "${sha}" ]] || die "release COMMIT mismatch"
+  verify_release_tree "${dest}" "${sha}"
   ln -sfn "${dest}" "${OPT_ROOT}/current.new"
   mv -f "${OPT_ROOT}/current.new" "${OPT_ROOT}/current"
   printf 'activate_ok sha=%s\n' "${sha}"
@@ -215,6 +227,48 @@ op_restart() {
   printf 'restart_ok unit=%s\n' "${UNIT_NAME}"
 }
 
+# Read migrate.env as root; execute fiscal-migrate only after dropping privileges.
+run_fiscal_migrate_dropped() {
+  local bin="$1"
+  local cmd="$2"
+  local driver="$3"
+  local url="$4"
+
+  [[ -f "${bin}" && -x "${bin}" ]] || die "fiscal-migrate missing or not executable"
+  [[ ! -L "${bin}" ]] || die "fiscal-migrate must not be a symlink"
+
+  if [[ "${EUID}" -ne 0 ]]; then
+    # Non-privileged test mode only.
+    env -i \
+      PATH="/usr/bin:/bin:/usr/local/bin" \
+      FISCAL_DATABASE_DRIVER="${driver}" \
+      FISCAL_DATABASE_URL="${url}" \
+      "${bin}" "${cmd}"
+    return $?
+  fi
+
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "${MIGRATE_USER}" -- env -i \
+      PATH="/usr/bin:/bin" \
+      HOME="/nonexistent" \
+      FISCAL_DATABASE_DRIVER="${driver}" \
+      FISCAL_DATABASE_URL="${url}" \
+      "${bin}" "${cmd}"
+    return $?
+  fi
+  if command -v setpriv >/dev/null 2>&1; then
+    setpriv --reuid="${MIGRATE_USER}" --regid="${MIGRATE_USER}" --init-groups --reset-env \
+      env -i \
+        PATH="/usr/bin:/bin" \
+        HOME="/nonexistent" \
+        FISCAL_DATABASE_DRIVER="${driver}" \
+        FISCAL_DATABASE_URL="${url}" \
+        "${bin}" "${cmd}"
+    return $?
+  fi
+  die "runuser or setpriv required to drop privileges for migrate"
+}
+
 op_migrate() {
   local sha="$1"
   local cmd="$2"
@@ -223,10 +277,24 @@ op_migrate() {
     up | version) ;;
     *) die "invalid migrate command" ;;
   esac
+
   local release="${RELEASES}/${sha}"
-  [[ -x "${release}/remote-migrate-run.sh" ]] || die "remote-migrate-run missing"
-  # Helper is already root; runner reads root:root 0600 migrate.env.
-  bash "${release}/remote-migrate-run.sh" "${release}" "${cmd}"
+  verify_release_tree "${release}" "${sha}"
+
+  local env_file="${ETC_ROOT}/migrate.env"
+  [[ -f "${env_file}" ]] || die "migrate.env missing"
+  [[ ! -L "${env_file}" ]] || die "migrate.env must not be a symlink"
+
+  local allowlist="${HELPER_LIB}/migrate.env.allowlist"
+  [[ -f "${allowlist}" ]] || die "helper migrate allowlist missing"
+  deploy_validate_exact_allowlisted_file "${allowlist}" "${env_file}"
+
+  local driver url
+  driver="$(deploy_read_env_value "${env_file}" FISCAL_DATABASE_DRIVER)"
+  url="$(deploy_read_env_value "${env_file}" FISCAL_DATABASE_URL)"
+
+  # Never bash/source release scripts. Only the fiscal-migrate binary, dropped.
+  run_fiscal_migrate_dropped "${release}/fiscal-migrate" "${cmd}" "${driver}" "${url}"
 }
 
 op_restore_env() {

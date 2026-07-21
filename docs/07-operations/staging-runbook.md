@@ -31,7 +31,8 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live update
 ## PostgreSQL roles
 
 - **Runtime role:** CONNECT/USAGE + table privileges strictly needed by the API (SELECT/INSERT/UPDATE as required). Used in `fiscal.env`.
-- **Migration role:** used only by `fiscal-migrate` via `migrate.env`. Never load into systemd. Never `source` on the server — use `remote-migrate-run.sh`.
+- **Migration role:** used only by `fiscal-migrate` via `migrate.env`. Never load into systemd. Never `source` on the server.
+- **Drop-priv migrate user (D2):** `bwb-fiscal-migrate` (`nologin`, system user). The closed helper reads/validates `migrate.env` as root, then runs `fiscal-migrate` via `runuser`/`setpriv` with a cleaned environment (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL` only). Release scripts/binaries are never executed as root.
 - Listen on localhost only. API must not run as DB owner/superuser.
 
 ## SSH
@@ -52,14 +53,15 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live update
 
 ## Deploy / rollback
 
-1. Build with `scripts/deploy/build-linux-release.sh` (`GOOS=linux` forced, `CGO_ENABLED=0`, `DEPLOY_GOARCH` amd64|arm64). Refuses dirty worktree; `SHA256SUMS` covers `fiscal-api`, `fiscal-migrate`, and `COMMIT`.
-2. Upload to remote temp → verify `COMMIT`/`SHA256SUMS` → immutable `releases/<sha>` → atomic env install `0600`.
-3. `migration_before` / `up` / `migration_after` use **`fiscal-migrate` from the new release**, never `current`.
+1. Build with `scripts/deploy/build-linux-release.sh` (`GOOS=linux` forced, `CGO_ENABLED=0`, `DEPLOY_GOARCH` amd64|arm64). Refuses dirty worktree; `SHA256SUMS` covers binaries, `lib/*`, `COMMIT`, `EXPECTED_SCHEMA_VERSION` (no release migrate runner).
+2. Upload to remote temp → verify full manifest → immutable `releases/<sha>` (full manifest again on `install-release`/`activate`) → env backup then install `0600` (restorable immediately after backup).
+3. `migration_before` / `up` / `migration_after` use **`fiscal-migrate` from the new release** via the closed helper (drop-priv), never `current`, never as root.
 4. Dirty migration **blocks** promotion.
-5. **Before** migration: binary rollback allowed.
-6. **After** schema-changing migration: automatic binary rollback **only** if `DEPLOY_N1_COMPAT_PROVEN=1` (explicit N-1 compatibility proof). Otherwise roll-forward/manual — never restore a binary that cannot write new NOT NULL columns.
-7. Health check does **not** replace `fiscal-migrate version`.
+5. **Before** activation: env restore on failure; binary not switched.
+6. **After** activate/restart/health failure: re-read `current`; N-1 rollback (symlink + envs + restart + health) **only** if policy allows (`DEPLOY_N1_COMPAT_PROVEN=1` when schema changed). Otherwise roll-forward/manual.
+7. Health accepts only JSON `"status":"ok"` (exact field); does **not** replace `fiscal-migrate version`.
 8. Config install: temp file `0600` → atomic install by root under `/etc/bwb-modulo-fiscal/`. Never copy env into release dirs, logs, or reports.
+9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate` (see `deploy/sudoers/bwb-fiscal-deploy`).
 
 ## Token rotation (`dev_static`)
 
@@ -104,5 +106,10 @@ bash scripts/deploy/check-antipatterns.sh
 | Alto | D1 review | `sudo -n bash` / comandos privilegiados genéricos | Root equivalente para a chave de deploy | Helper fechado + sudoers só para o helper | Corrigido | Bootstrap D2 instala helper/sudoers |
 | Médio | D1 review | Envs novos ficavam após falha pré-ativação | Config parcial/inconsistente | Restore/remoção transacional + testes | Corrigido | — |
 | Médio | D1 review | `HEALTH_URL` arbitrário no live path | Probe no destino errado / interpolação | URL fixa `127.0.0.1:8080` | Corrigido | — |
+| Crítico | D1 review | Helper executava `remote-migrate-run.sh`/`fiscal-migrate` da release como root | RCE root via chave deploy + SHA256SUMS arbitrário | Drop-priv `bwb-fiscal-migrate`; runner removido da release | Corrigido | Bootstrap D2 cria o user |
+| Alto | D1 review | `ENVS_INSTALLED` só após ambos os envs; falha no 2.º sem restore | Config parcial (`fiscal.env` novo) | `ENVS_RESTORABLE` pós-backup; cada SCP/install com `pre_activate_fail` | Corrigido | — |
+| Alto | D1 review | `restart` falhava após `activate` sem rollback/relatório | Release ativa inconsistente | Rotina `post_activate_fail` + re-leitura de `current` | Corrigido | — |
+| Médio | D1 review | Health aceitava `"ok"` em qualquer campo JSON | Falso positivo de health | Matcher estrito `"status":"ok"` | Corrigido | — |
+| Alto | D1 review | `run_remote_health` sob `if` ignorava falha real do healthcheck (`set -e` desativado) | `promote=ok` com API unhealthy | Captura explícita do exit status | Corrigido | — |
 
 Report deploy incidents with severity, phase, description, impact, resolution, state, residual risk — **without** secret values.

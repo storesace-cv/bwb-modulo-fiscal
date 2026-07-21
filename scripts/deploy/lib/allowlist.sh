@@ -321,6 +321,7 @@ deploy_sha256_check() {
 }
 
 # Verify release directory layout + full SHA256SUMS manifest.
+# Release must not ship remote-migrate-run.sh (migrate is drop-priv via closed helper).
 deploy_verify_release_manifest() {
   local dir="$1"
   local expected_commit="${2:-}"
@@ -331,7 +332,7 @@ deploy_verify_release_manifest() {
     test -f SHA256SUMS
     test -f fiscal-api
     test -f fiscal-migrate
-    test -f remote-migrate-run.sh
+    test ! -e remote-migrate-run.sh
     test -f lib/allowlist.sh
     test -f lib/migrate.env.allowlist
     deploy_sha256_check SHA256SUMS

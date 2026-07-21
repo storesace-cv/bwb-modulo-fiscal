@@ -136,14 +136,15 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
   else
     bad "release manifest verify failed"
   fi
-  if grep -q 'remote-migrate-run.sh' "${OUT_DIR}/SHA256SUMS" \
+  if ! grep -q 'remote-migrate-run.sh' "${OUT_DIR}/SHA256SUMS" \
+    && [[ ! -e "${OUT_DIR}/remote-migrate-run.sh" ]] \
     && grep -q 'lib/allowlist.sh' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/migrate.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'EXPECTED_SCHEMA_VERSION' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'COMMIT' "${OUT_DIR}/SHA256SUMS"; then
-    ok "SHA256SUMS covers helpers and schema metadata"
+    ok "SHA256SUMS covers release files and omits migrate runner"
   else
-    bad "SHA256SUMS incomplete"
+    bad "SHA256SUMS incorrect (runner present or incomplete)"
   fi
   if [[ "$(tr -d '[:space:]' <"${OUT_DIR}/EXPECTED_SCHEMA_VERSION")" == "2" ]]; then
     ok "EXPECTED_SCHEMA_VERSION metadata present"
@@ -189,40 +190,120 @@ else
 fi
 rm -f "${DIRTY_MARKER}"
 
-# --- remote-migrate-run unit (test env override) ---
-mkdir -p "${TMP}/rel/lib"
-cp -a "${OUT_DIR}/." "${TMP}/rel/"
-cat >"${TMP}/migrate.env" <<'EOF'
+# --- helper migrate: never bash release scripts; clean env; no DSN leak ---
+mkdir -p "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}" \
+  "${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+  "${TMP}/helprefs/lib"
+cp -a "${OUT_DIR}/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
+cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${TMP}/helprefs/lib/allowlist.sh"
+cp "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/helprefs/lib/migrate.env.allowlist"
+cat >"${TMP}/helprefs/etc/bwb-modulo-fiscal/migrate.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://u:p@127.0.0.1/db?x=1#keep
 EOF
-chmod_restrict "${TMP}/migrate.env"
-cat >"${TMP}/rel/fiscal-migrate" <<'EOF'
+chmod_restrict "${TMP}/helprefs/etc/bwb-modulo-fiscal/migrate.env"
+EUID_LOG="${TMP}/migrate-euid.log"
+cat >"${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrate" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ -n "${FISCAL_DATABASE_DRIVER:-}" && -n "${FISCAL_DATABASE_URL:-}" ]] || exit 1
-[[ "${FISCAL_DATABASE_URL}" == *'#keep' ]] || exit 1
+printf 'euid=%s uid=%s driver=%s url_set=%s path=%s home=%s\n' \
+  "\${EUID}" "\$(id -u)" "\${FISCAL_DATABASE_DRIVER:-}" \
+  "\$([ -n "\${FISCAL_DATABASE_URL:-}" ] && echo 1 || echo 0)" \
+  "\${PATH:-}" "\${HOME:-}" >"${EUID_LOG}"
+[[ -n "\${FISCAL_DATABASE_DRIVER:-}" && -n "\${FISCAL_DATABASE_URL:-}" ]] || exit 1
+[[ "\${FISCAL_DATABASE_URL}" == *'#keep' ]] || exit 1
+# Prove ambient secrets are not inherited
+[[ -z "\${SECRET_SHOULD_NOT_LEAK:-}" ]] || exit 1
 echo "version=2 dirty=false"
 EOF
-chmod 0755 "${TMP}/rel/fiscal-migrate"
-# Rebuild checksums after stubbing fiscal-migrate
+chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrate"
 (
-  cd "${TMP}/rel"
-  if command -v sha256sum >/dev/null; then
-    sha256sum fiscal-api fiscal-migrate remote-migrate-run.sh lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
-  else
-    shasum -a 256 fiscal-api fiscal-migrate remote-migrate-run.sh lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION | awk '{print $1"  "$2}' >SHA256SUMS
-  fi
+  cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
+  deploy_sha256_files fiscal-api fiscal-migrate lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
-if MIGRATE_ENV_FILE="${TMP}/migrate.env" bash "${TMP}/rel/remote-migrate-run.sh" "${TMP}/rel" version >"${TMP}/rm.out" 2>"${TMP}/rm.err"; then
-  if grep -q 'version=2 dirty=false' "${TMP}/rm.out" && ! grep -q 'postgres://' "${TMP}/rm.out" "${TMP}/rm.err"; then
-    ok "remote-migrate-run loads keys without printing DSN"
+if SECRET_SHOULD_NOT_LEAK=pwned \
+  BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${TMP}/helprefs/lib" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" migrate "${HEAD}" version \
+  >"${TMP}/hm.out" 2>"${TMP}/hm.err"; then
+  if grep -q 'version=2 dirty=false' "${TMP}/hm.out" \
+    && [[ -f "${EUID_LOG}" ]] \
+    && grep -q 'url_set=1' "${EUID_LOG}" \
+    && grep -q 'driver=postgres' "${EUID_LOG}" \
+    && ! grep -q 'postgres://' "${TMP}/hm.out" "${TMP}/hm.err" \
+    && ! grep -E 'bash|remote-migrate' "${TMP}/hm.out" "${TMP}/hm.err"; then
+    ok "helper migrate runs fiscal-migrate with clean env (no DSN leak)"
   else
-    bad "remote-migrate-run output incorrect"
+    bad "helper migrate output incorrect"
+    cat "${TMP}/hm.out" "${TMP}/hm.err" "${EUID_LOG}" >&2 || true
   fi
 else
-  bad "remote-migrate-run failed"
-  cat "${TMP}/rm.err" >&2 || true
+  bad "helper migrate failed"
+  cat "${TMP}/hm.err" >&2 || true
+fi
+
+# Prove helper never executes release scripts as a shell, and runner is gone
+if ! grep -nE 'bash[[:space:]]+".*\$\{?(release|dir|dest)' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && ! grep -nE 'bash[[:space:]]+.*remote-migrate' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'must not be in release' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && [[ ! -e "${ROOT}/scripts/deploy/remote-migrate-run.sh" ]]; then
+  ok "no release script execution path; runner removed from repo"
+else
+  bad "helper still references release runner/scripts"
+fi
+
+# Root override refusal (simulate via checking the guard is present + non-root path works)
+if grep -q 'BWB_\* test overrides are forbidden when EUID=0' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'runuser\|setpriv' "${ROOT}/scripts/deploy/remote-deploy-helper.sh"; then
+  ok "helper refuses root overrides and drops privileges via runuser/setpriv"
+else
+  bad "root override / drop-priv guards missing"
+fi
+
+# Activate/install require full manifest (not only COMMIT)
+mkdir -p "${TMP}/partial-rel/opt/bwb-modulo-fiscal/releases/${HEAD}"
+printf '%s\n' "${HEAD}" >"${TMP}/partial-rel/opt/bwb-modulo-fiscal/releases/${HEAD}/COMMIT"
+if BWB_DEPLOY_OPT="${TMP}/partial-rel/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${TMP}/partial-rel/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${ROOT}/scripts/deploy/lib" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" activate "${HEAD}" \
+  >"${TMP}/act.out" 2>"${TMP}/act.err"; then
+  bad "activate should reject incomplete release tree"
+else
+  if grep -qiE 'EXPECTED_SCHEMA_VERSION|SHA256SUMS|fiscal-api|missing' "${TMP}/act.err"; then
+    ok "activate validates full release manifest"
+  else
+    bad "activate rejection message incomplete"
+    cat "${TMP}/act.err" >&2 || true
+  fi
+fi
+
+# --- healthcheck: status field must be exactly ok ---
+health_accepts() {
+  local body="$1"
+  [[ "${body}" =~ \"status\"[[:space:]]*:[[:space:]]*\"ok\" ]]
+}
+if health_accepts '{"status":"ok"}'; then
+  ok "health accepts status=ok"
+else
+  bad "health should accept status=ok"
+fi
+if health_accepts '{"status":"degraded","note":"ok"}'; then
+  bad "health must reject ok in non-status field"
+else
+  ok "health rejects deceptive body with ok elsewhere"
+fi
+if health_accepts '{"message":"ok"}'; then
+  bad "health must reject missing status=ok"
+else
+  ok "health rejects body without status=ok"
+fi
+if grep -A6 '^check_body()' "${ROOT}/scripts/deploy/healthcheck.sh" | grep -q '=~' \
+  && ! grep -A6 '^check_body()' "${ROOT}/scripts/deploy/healthcheck.sh" | grep -qF '*"ok"*'; then
+  ok "healthcheck.sh uses strict status==ok matcher"
+else
+  bad "healthcheck.sh matcher not strict"
 fi
 
 # --- dry-run policy ---
@@ -278,14 +359,20 @@ fi
 
 # --- live path with PATH mocks ---
 MOCK_BIN="${ROOT}/tests/deploy/mocks/bin"
-MOCK_FS="${TMP}/mockfs"
-MOCK_LOG="${TMP}/mock.log"
-mkdir -p "${MOCK_FS}/opt/bwb-modulo-fiscal/releases" "${MOCK_FS}/etc/bwb-modulo-fiscal/backups" "${MOCK_FS}/tmp"
-# Previous release (valid sha1-looking 40 hex)
 PREV="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-mkdir -p "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${PREV}"
-printf '%s\n' "${PREV}" >"${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${PREV}/COMMIT"
-ln -sfn "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS}/opt/bwb-modulo-fiscal/current"
+
+seed_sha_release() {
+  local fs="$1" sha="$2"
+  local dest="${fs}/opt/bwb-modulo-fiscal/releases/${sha}"
+  mkdir -p "${dest}" "${fs}/etc/bwb-modulo-fiscal/backups" "${fs}/tmp"
+  cp -a "${TMP}/release/." "${dest}/"
+  rm -f "${dest}/remote-migrate-run.sh"
+  printf '%s\n' "${sha}" >"${dest}/COMMIT"
+  (
+    cd "${dest}"
+    deploy_sha256_files fiscal-api fiscal-migrate lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+  )
+}
 
 cat >"${TMP}/fiscal.live.env" <<'EOF'
 FISCAL_HTTP_ADDR=127.0.0.1:8080
@@ -316,8 +403,6 @@ touch "${TMP}/id_test" "${TMP}/known_hosts"
 chmod 0600 "${TMP}/id_test"
 chmod 0644 "${TMP}/known_hosts"
 
-# Seed existing envs with distinct markers for restore verification
-mkdir -p "${MOCK_FS}/etc/bwb-modulo-fiscal"
 cat >"${TMP}/fiscal.old.env" <<'EOF'
 FISCAL_HTTP_ADDR=127.0.0.1:8080
 FISCAL_APP_VERSION=old
@@ -342,9 +427,6 @@ FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://mig:OLD_MIG@127.0.0.1/db
 EOF
 chmod_restrict "${TMP}/fiscal.old.env" "${TMP}/migrate.old.env"
-cp "${TMP}/fiscal.old.env" "${MOCK_FS}/etc/bwb-modulo-fiscal/fiscal.env"
-cp "${TMP}/migrate.old.env" "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env"
-chmod 0600 "${MOCK_FS}/etc/bwb-modulo-fiscal/"*.env
 
 seed_old_envs() {
   local fs="$1"
@@ -383,6 +465,12 @@ run_live() {
     bash "${ROOT}/scripts/deploy/update-staging.sh" >"${out}" 2>"${err}"
 }
 
+MOCK_FS="${TMP}/mockfs"
+MOCK_LOG="${TMP}/mock.log"
+seed_sha_release "${MOCK_FS}" "${PREV}"
+ln -sfn "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS}/opt/bwb-modulo-fiscal/current"
+seed_old_envs "${MOCK_FS}"
+
 if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
   OUT_DIR="${TMP}/live-rel" \
   DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
@@ -396,6 +484,7 @@ if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
     && grep -q 'owner=root' "${TMP}/live.out" \
     && grep -q 'env_backup=ok' "${TMP}/live.out" \
     && [[ -d "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}" ]] \
+    && [[ ! -e "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}/remote-migrate-run.sh" ]] \
     && grep -q 'bwb-fiscal-deploy-helper' "${MOCK_LOG}" \
     && grep -q 'systemctl restart' "${MOCK_LOG}" \
     && ! grep -E 'sudo -n bash|sudo bash' "${MOCK_LOG}" \
@@ -441,8 +530,7 @@ fi
 # Health fail + rollback + health recheck
 MOCK_FS2="${TMP}/mockfs2"
 MOCK_LOG2="${TMP}/mock2.log"
-mkdir -p "${MOCK_FS2}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS2}/etc/bwb-modulo-fiscal/backups" "${MOCK_FS2}/tmp"
-printf '%s\n' "${PREV}" >"${MOCK_FS2}/opt/bwb-modulo-fiscal/releases/${PREV}/COMMIT"
+seed_sha_release "${MOCK_FS2}" "${PREV}"
 ln -sfn "${MOCK_FS2}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS2}/opt/bwb-modulo-fiscal/current"
 seed_old_envs "${MOCK_FS2}"
 
@@ -464,6 +552,87 @@ else
   else
     bad "rollback+health path incomplete"
     cat "${TMP}/live2.out" "${TMP}/live2.err" >&2 || true
+  fi
+fi
+
+# Restart fail after activate → N-1 rollback
+MOCK_FS2r="${TMP}/mockfs2r"
+MOCK_LOG2r="${TMP}/mock2r.log"
+seed_sha_release "${MOCK_FS2r}" "${PREV}"
+ln -sfn "${MOCK_FS2r}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS2r}/opt/bwb-modulo-fiscal/current"
+seed_old_envs "${MOCK_FS2r}"
+
+if run_live "${TMP}/live2r.out" "${TMP}/live2r.err" "${MOCK_LOG2r}" "${MOCK_FS2r}" \
+  OUT_DIR="${TMP}/live-rel2r" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_DIRTY=false \
+  DEPLOY_N1_COMPAT_PROVEN=1 \
+  DEPLOY_MOCK_FAIL_RESTART=1; then
+  bad "restart fail should not exit 0"
+else
+  if grep -q 'failure_phase=post_activate' "${TMP}/live2r.out" "${TMP}/live2r.err" \
+    && grep -q 'restart failed after activation' "${TMP}/live2r.out" "${TMP}/live2r.err" \
+    && grep -q 'action=restore_previous_binary' "${TMP}/live2r.out" "${TMP}/live2r.err" \
+    && grep -q "active_release=${PREV}" "${TMP}/live2r.out" "${TMP}/live2r.err" \
+    && grep -q 'env_restore=ok' "${TMP}/live2r.out" "${TMP}/live2r.err" \
+    && assert_envs_restored_old "${MOCK_FS2r}"; then
+    ok "restart fail after activate rolls back N-1"
+  else
+    bad "restart-fail rollback incomplete"
+    cat "${TMP}/live2r.out" "${TMP}/live2r.err" "${MOCK_LOG2r}" >&2 || true
+  fi
+fi
+
+# Partial env install: fiscal.env OK, migrate.env fails → restore/remove
+MOCK_FSp="${TMP}/mockfsp"
+MOCK_LOGp="${TMP}/mockp.log"
+seed_sha_release "${MOCK_FSp}" "${PREV}"
+ln -sfn "${MOCK_FSp}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FSp}/opt/bwb-modulo-fiscal/current"
+seed_old_envs "${MOCK_FSp}"
+
+if run_live "${TMP}/livep.out" "${TMP}/livep.err" "${MOCK_LOGp}" "${MOCK_FSp}" \
+  OUT_DIR="${TMP}/live-relp" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_FAIL_INSTALL_ENV=migrate.env; then
+  bad "partial install-env should fail"
+else
+  if grep -q 'install-env migrate.env failed' "${TMP}/livep.out" "${TMP}/livep.err" \
+    && grep -q 'env_restore=ok' "${TMP}/livep.out" "${TMP}/livep.err" \
+    && assert_envs_restored_old "${MOCK_FSp}" \
+    && ! grep -q 'CANARY_SECRET' "${MOCK_FSp}/etc/bwb-modulo-fiscal/fiscal.env"; then
+    ok "partial env install restores fiscal.env after migrate.env fail"
+  else
+    bad "partial env restore incomplete"
+    cat "${TMP}/livep.out" "${TMP}/livep.err" >&2 || true
+    ls -la "${MOCK_FSp}/etc/bwb-modulo-fiscal/" >&2 || true
+  fi
+fi
+
+# Deceptive health body on live path
+MOCK_FShd="${TMP}/mockfshd"
+MOCK_LOGhd="${TMP}/mockhd.log"
+seed_sha_release "${MOCK_FShd}" "${PREV}"
+ln -sfn "${MOCK_FShd}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FShd}/opt/bwb-modulo-fiscal/current"
+seed_old_envs "${MOCK_FShd}"
+printf '%s\n' '{"status":"degraded","note":"ok"}' >"${MOCK_FShd}/.mock-health-body"
+
+if run_live "${TMP}/livehd.out" "${TMP}/livehd.err" "${MOCK_LOGhd}" "${MOCK_FShd}" \
+  OUT_DIR="${TMP}/live-relhd" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=2 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
+  DEPLOY_MOCK_MIGRATE_DIRTY=false \
+  DEPLOY_N1_COMPAT_PROVEN=1; then
+  bad "deceptive health body should fail"
+else
+  if grep -q 'failure_phase=post_activate' "${TMP}/livehd.out" "${TMP}/livehd.err" \
+    && grep -q 'action=restore_previous_binary' "${TMP}/livehd.out" "${TMP}/livehd.err" \
+    && assert_envs_restored_old "${MOCK_FShd}"; then
+    ok "deceptive health body rejected; N-1 rollback"
+  else
+    bad "deceptive health handling incomplete"
+    cat "${TMP}/livehd.out" "${TMP}/livehd.err" >&2 || true
   fi
 fi
 
@@ -492,6 +661,8 @@ fi
 # Live dirty AFTER up: restore old envs
 MOCK_FS4="${TMP}/mockfs4"
 MOCK_LOG4="${TMP}/mock4.log"
+seed_sha_release "${MOCK_FS4}" "${PREV}"
+ln -sfn "${MOCK_FS4}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS4}/opt/bwb-modulo-fiscal/current"
 seed_old_envs "${MOCK_FS4}"
 if run_live "${TMP}/live4.out" "${TMP}/live4.err" "${MOCK_LOG4}" "${MOCK_FS4}" \
   OUT_DIR="${TMP}/live-rel4" \
@@ -515,6 +686,8 @@ fi
 # Live dirty BEFORE: restore old envs
 MOCK_FS4b="${TMP}/mockfs4b"
 MOCK_LOG4b="${TMP}/mock4b.log"
+seed_sha_release "${MOCK_FS4b}" "${PREV}"
+ln -sfn "${MOCK_FS4b}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS4b}/opt/bwb-modulo-fiscal/current"
 seed_old_envs "${MOCK_FS4b}"
 if run_live "${TMP}/live4b.out" "${TMP}/live4b.err" "${MOCK_LOG4b}" "${MOCK_FS4b}" \
   OUT_DIR="${TMP}/live-rel4b" \
@@ -536,6 +709,8 @@ fi
 # Live unexpected version: restore
 MOCK_FS5="${TMP}/mockfs5"
 MOCK_LOG5="${TMP}/mock5.log"
+seed_sha_release "${MOCK_FS5}" "${PREV}"
+ln -sfn "${MOCK_FS5}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FS5}/opt/bwb-modulo-fiscal/current"
 seed_old_envs "${MOCK_FS5}"
 if run_live "${TMP}/live5.out" "${TMP}/live5.err" "${MOCK_LOG5}" "${MOCK_FS5}" \
   OUT_DIR="${TMP}/live-rel5" \
@@ -596,10 +771,12 @@ else
 fi
 
 if ! grep -E 'source[[:space:]].*migrate\.env' "${ROOT}/scripts/deploy/"*.sh \
-  && ! grep -E '^[^#]*\beval\b' "${ROOT}/scripts/deploy/migrate-remote.sh" "${ROOT}/scripts/deploy/remote-migrate-run.sh" "${ROOT}/scripts/deploy/lib/allowlist.sh"; then
-  ok "no source/eval on migrate env path"
+  && ! grep -E '^[^#]*\beval\b' "${ROOT}/scripts/deploy/migrate-remote.sh" "${ROOT}/scripts/deploy/lib/allowlist.sh" \
+  && ! grep -E 'bash[[:space:]]+".*fiscal-migrate|bash[[:space:]]+\$\{[^}]*\}/fiscal-migrate' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && ! grep -E 'bash[[:space:]].*remote-migrate' "${ROOT}/scripts/deploy/remote-deploy-helper.sh"; then
+  ok "no source/eval; helper does not bash release migrate"
 else
-  bad "source/eval still present"
+  bad "source/eval or release-script exec still present"
 fi
 
 if grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-http.conf" \
