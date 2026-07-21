@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1-draft — 2026-07-21
+
+- SealInTx co-transacional (PR B): idempotência, série (PG `FOR UPDATE` / SQLite `BEGIN IMMEDIATE`), documento, ledger `sealed_locally`, outbox `authority_submission`; testes VS-T01–VS-T07 nos dois motores. Sem HTTP/worker/AGT.
+
 ## 0.2.0-draft — 2026-07-21
 
 - Fundação de persistência (PR A): drivers pgx + modernc/sqlite; migrations forward-only embutidas; schema `fiscal` + `public.bwb_schema_migrations`; tipos money/quantity int64; canonical_v1; `cmd/fiscal-migrate` (`up`/`version`); CI com Postgres, imutabilidade de migrations, govulncheck e go-licenses. Sem SealInTx nem endpoints de documentos.

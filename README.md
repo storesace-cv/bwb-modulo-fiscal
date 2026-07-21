@@ -33,6 +33,6 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Etapa: fundação de persistência (PR A) + API health.
 - País ativo: Angola.
 - País futuro: Cabo Verde.
-- Código: Go com health + schema/migrations; sem emissão fiscal HTTP.
+- Código: Go com health, schema/migrations e SealInTx interno; sem emissão fiscal HTTP.
 - Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.1-draft`).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
