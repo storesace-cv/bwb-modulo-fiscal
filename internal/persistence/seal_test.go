@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -312,6 +313,27 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		assertIdempotencyAbsent(t, ctx, sqlDB, postgres, scope, req.IdempotencyKey)
 	})
 
+	t.Run("VS-T07_rollback_after_counter_on_trigger", func(t *testing.T) {
+		const failExternal = "ext-fail-vst07"
+		installTestFailTrigger(t, ctx, sqlDB, postgres, failExternal)
+		t.Cleanup(func() { dropTestFailTrigger(t, ctx, sqlDB, postgres) })
+
+		series := "E-TRIG"
+		before := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
+		req := sampleSealReq(scope, "dddddddd-dddd-dddd-dddd-ddddddddddd2", failExternal, series, "4.00")
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected trigger-induced failure")
+		}
+		after := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
+		if after != before {
+			t.Fatalf("series counter changed on rollback: before=%d after=%d", before, after)
+		}
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, failExternal, 0)
+		assertIdempotencyAbsent(t, ctx, sqlDB, postgres, scope, req.IdempotencyKey)
+		assertNoOrphanFiscalRows(t, ctx, sqlDB, postgres, scope, failExternal)
+	})
+
 	t.Run("independent_series_per_scope", func(t *testing.T) {
 		scope2 := scope + "-other"
 		r1, err := store.SealInTx(ctx, sampleSealReq(scope, "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1", "ext-ind-1", "F", "1.00"))
@@ -431,4 +453,73 @@ func readSeriesLast(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres b
 		t.Fatal(err)
 	}
 	return last.Int64
+}
+
+func installTestFailTrigger(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, externalID string) {
+	t.Helper()
+	lit := strings.ReplaceAll(externalID, "'", "''")
+	if postgres {
+		fn := `
+			CREATE OR REPLACE FUNCTION fiscal.test_fail_seal_vst07() RETURNS trigger AS $fn$
+			BEGIN
+				IF NEW.external_id = '` + lit + `' THEN
+					RAISE EXCEPTION 'test-induced failure after series counter';
+				END IF;
+				RETURN NEW;
+			END;
+			$fn$ LANGUAGE plpgsql`
+		if _, err := sqlDB.ExecContext(ctx, fn); err != nil {
+			t.Fatalf("create function: %v", err)
+		}
+		_, err := sqlDB.ExecContext(ctx, `
+			DROP TRIGGER IF EXISTS documents_test_fail_vst07 ON fiscal.documents;
+			CREATE TRIGGER documents_test_fail_vst07
+				BEFORE INSERT ON fiscal.documents
+				FOR EACH ROW EXECUTE FUNCTION fiscal.test_fail_seal_vst07()`)
+		if err != nil {
+			t.Fatalf("create trigger: %v", err)
+		}
+		return
+	}
+	_, err := sqlDB.ExecContext(ctx, `
+		CREATE TRIGGER documents_test_fail_vst07
+		BEFORE INSERT ON documents
+		FOR EACH ROW
+		WHEN NEW.external_id = '`+lit+`'
+		BEGIN
+			SELECT RAISE(ABORT, 'test-induced failure after series counter');
+		END`)
+	if err != nil {
+		t.Fatalf("create sqlite trigger: %v", err)
+	}
+}
+
+func dropTestFailTrigger(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool) {
+	t.Helper()
+	if postgres {
+		_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS documents_test_fail_vst07 ON fiscal.documents`)
+		_, _ = sqlDB.ExecContext(ctx, `DROP FUNCTION IF EXISTS fiscal.test_fail_seal_vst07()`)
+		return
+	}
+	_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS documents_test_fail_vst07`)
+}
+
+func assertNoOrphanFiscalRows(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, scope, externalID string) {
+	t.Helper()
+	var ledgerN, outboxN int
+	lq := `SELECT COUNT(*) FROM ` + tbl(postgres, "ledger_events") + ` e
+		JOIN ` + tbl(postgres, "documents") + ` d ON d.id = e.document_id
+		WHERE d.scope_id = ? AND d.external_id = ?`
+	if err := sqlDB.QueryRowContext(ctx, rebind(postgres, lq), scope, externalID).Scan(&ledgerN); err != nil {
+		t.Fatal(err)
+	}
+	oq := `SELECT COUNT(*) FROM ` + tbl(postgres, "outbox_messages") + ` o
+		JOIN ` + tbl(postgres, "documents") + ` d ON d.id = o.document_id
+		WHERE d.scope_id = ? AND d.external_id = ?`
+	if err := sqlDB.QueryRowContext(ctx, rebind(postgres, oq), scope, externalID).Scan(&outboxN); err != nil {
+		t.Fatal(err)
+	}
+	if ledgerN != 0 || outboxN != 0 {
+		t.Fatalf("orphan ledger=%d outbox=%d", ledgerN, outboxN)
+	}
 }

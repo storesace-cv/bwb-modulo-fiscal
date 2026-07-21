@@ -3,6 +3,7 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
 	"net/http"
@@ -33,11 +34,13 @@ type DevStaticConfig struct {
 	ForbiddenToken string // optional; min 32 bytes if set; authenticates but forbids
 }
 
-// DevStatic is an explicit development Authenticator (constant-time token compare).
+// DevStatic is an explicit development Authenticator.
+// Tokens are compared via SHA-256 digests with subtle.ConstantTimeCompare (fixed 32-byte width).
 type DevStatic struct {
-	token          []byte
-	forbiddenToken []byte
-	scopeID        string
+	tokenHash          [sha256.Size]byte
+	hasForbidden       bool
+	forbiddenTokenHash [sha256.Size]byte
+	scopeID            string
 }
 
 // NewDevStatic builds a DevStatic authenticator. Caller must enforce FISCAL_ENV=development.
@@ -51,14 +54,15 @@ func NewDevStatic(cfg DevStaticConfig) (*DevStatic, error) {
 		return nil, errors.New("auth: dev scope_id required")
 	}
 	d := &DevStatic{
-		token:   []byte(token),
-		scopeID: scope,
+		tokenHash: sha256.Sum256([]byte(token)),
+		scopeID:   scope,
 	}
 	if cfg.ForbiddenToken != "" {
 		if len(cfg.ForbiddenToken) < 32 {
 			return nil, errors.New("auth: forbidden token must be at least 32 bytes when set")
 		}
-		d.forbiddenToken = []byte(cfg.ForbiddenToken)
+		d.hasForbidden = true
+		d.forbiddenTokenHash = sha256.Sum256([]byte(cfg.ForbiddenToken))
 	}
 	return d, nil
 }
@@ -75,20 +79,12 @@ func (d *DevStatic) Authenticate(ctx context.Context, r *http.Request) (Principa
 	if len(got) == 0 {
 		return Principal{}, ErrUnauthorized
 	}
-	if len(d.forbiddenToken) > 0 && constantTimeEqual(got, d.forbiddenToken) {
+	gotHash := sha256.Sum256(got)
+	if d.hasForbidden && subtle.ConstantTimeCompare(gotHash[:], d.forbiddenTokenHash[:]) == 1 {
 		return Principal{}, ErrForbidden
 	}
-	if !constantTimeEqual(got, d.token) {
+	if subtle.ConstantTimeCompare(gotHash[:], d.tokenHash[:]) != 1 {
 		return Principal{}, ErrUnauthorized
 	}
 	return Principal{ScopeID: d.scopeID}, nil
-}
-
-func constantTimeEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		// Compare against itself to keep timing closer when lengths differ.
-		subtle.ConstantTimeCompare(a, a)
-		return false
-	}
-	return subtle.ConstantTimeCompare(a, b) == 1
 }

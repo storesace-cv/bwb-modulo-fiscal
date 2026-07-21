@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
@@ -45,6 +46,23 @@ func TestDevStaticAuthenticate(t *testing.T) {
 	_, err = a.Authenticate(ctx, req)
 	if !errors.Is(err, auth.ErrUnauthorized) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestDevStaticRejectsWrongTokenDifferentLengths(t *testing.T) {
+	token := strings.Repeat("a", 32)
+	a, err := auth.NewDevStatic(auth.DevStaticConfig{Token: token, ScopeID: "scope-dev"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for _, wrong := range []string{"x", strings.Repeat("b", 16), strings.Repeat("c", 31), strings.Repeat("d", 64), strings.Repeat("e", 128)} {
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+wrong)
+		_, err := a.Authenticate(ctx, req)
+		if !errors.Is(err, auth.ErrUnauthorized) {
+			t.Fatalf("len=%d err=%v", len(wrong), err)
+		}
 	}
 }
 

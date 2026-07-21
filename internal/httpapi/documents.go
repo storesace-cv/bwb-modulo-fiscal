@@ -288,6 +288,9 @@ func mapIntent(scopeID string, body documentIntentBody) (canonical.DocumentInten
 		}
 	}
 	requireNonEmpty("external_id", body.ExternalID)
+	if len(body.ExternalID) > 100 {
+		errs = append(errs, fieldError{Field: "external_id", Code: "MAX_LENGTH", Message: "máximo 100 caracteres"})
+	}
 	if body.DocumentType != "invoice" && body.DocumentType != "credit_note" {
 		errs = append(errs, fieldError{Field: "document_type", Code: "INVALID_ENUM", Message: "valor não permitido"})
 	}

@@ -211,6 +211,16 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 		}
 	})
 
+	t.Run("422_external_id_max_length", func(t *testing.T) {
+		longID := strings.Repeat("e", 101)
+		body := fmt.Sprintf(`{"external_id":%q,"document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`, longID)
+		code, raw, _ := doPOST(t, h, "ffffffff-ffff-4fff-8fff-fffffffffff1", body, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+		if !strings.Contains(string(raw), "external_id") {
+			t.Fatalf("%s", raw)
+		}
+	})
+
 	t.Run("413_body_too_large", func(t *testing.T) {
 		big := `{"external_id":"ext-big","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"` +
 			strings.Repeat("X", 1<<20) + `","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`

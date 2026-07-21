@@ -91,10 +91,11 @@ type querier interface {
 
 func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, hash []byte, postgres bool) (*SealResult, error) {
 	t := tablePrefix(postgres)
-	now := s.stamp()
-	nowArg := any(now)
+	// Microsecond precision matches PostgreSQL timestamptz and keeps SealResult == replay.
+	now := s.stamp().UTC().Truncate(time.Microsecond)
+	var nowArg any = now
 	if !postgres {
-		nowArg = now.Format(time.RFC3339Nano)
+		nowArg = formatUTCMicro(now)
 	}
 
 	// Resolve idempotency under row lock / writer lock.
@@ -223,7 +224,7 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		ScopeID:       req.Intent.ScopeID,
 		ExternalID:    req.Intent.ExternalID,
 		SubmissionID:  submissionID,
-		CreatedAt:     now.UTC(),
+		CreatedAt:     now,
 		IdempotentHit: false,
 	}, nil
 }
@@ -324,7 +325,7 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 		ScopeID:       scopeID,
 		ExternalID:    externalID,
 		SubmissionID:  submissionID,
-		CreatedAt:     createdAt.UTC(),
+		CreatedAt:     createdAt.UTC().Truncate(time.Microsecond),
 		IdempotentHit: true,
 	}, nil
 }
@@ -443,4 +444,9 @@ func nullIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+// formatUTCMicro formats t at microsecond resolution for SQLite TEXT storage.
+func formatUTCMicro(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000000Z07:00")
 }
