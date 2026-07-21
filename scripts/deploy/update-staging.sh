@@ -337,14 +337,18 @@ deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 
 deploy_ssh_base
-# Invoked via EXIT trap (ShellCheck cannot see indirect use).
-# shellcheck disable=SC2329
+# Invoked only via EXIT trap; preserve the script's original exit status.
+# shellcheck disable=SC2317,SC2329
 cleanup_live() {
+  local ec=$?
+  set +e
   cleanup_remote_upload
   deploy_ssh_mux_stop
   if [[ "${DEPLOY_SSH_INVOCATION_COUNT:-0}" -gt 0 ]]; then
     report "ssh_invocations=${DEPLOY_SSH_INVOCATION_COUNT} mux=ControlMaster"
   fi
+  set -e
+  return "${ec}"
 }
 trap cleanup_live EXIT
 
