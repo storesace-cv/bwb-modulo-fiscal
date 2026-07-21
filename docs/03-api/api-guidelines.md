@@ -19,9 +19,10 @@ Contrato: [`specs/openapi/openapi.yaml`](../../specs/openapi/openapi.yaml) (`0.1
 
 ## createDocument — sucesso e replay
 
-- Sucesso: **`201 Created`** com `status: sealed_locally`.
-- Neste incremento a resposta **omite** `fiscal_number` (formato oficial não confirmado) e `authority_request_id` (ainda não atribuído pela autoridade/simulador).
-- `submission_id`, quando presente, é **correlação interna** do módulo — **não** é ID AGT.
+- Sucesso: **`201 Created`** com corpo `CreateDocumentResponse` (`status` const `sealed_locally`; `submission_id` e `created_at` obrigatórios).
+- Neste incremento **não** existem `fiscal_number` nem `authority_request_id` na resposta de createDocument.
+- `submission_id` é **correlação interna** do módulo — **não** é ID AGT.
+- `seller.tax_id` e `seller.name` são obrigatórios e non-empty; `customer` permanece opcional sem a mesma obrigatoriedade (regra legal de customer ainda não confirmada).
 - Replay com a mesma `Idempotency-Key` e o mesmo pedido: **`201`** com os mesmos `id`, `external_id`, `status`, `submission_id` e `created_at` originais.
 - Mesma chave com pedido semanticamente diferente: **`409`** `FISCAL_IDEMPOTENCY_CONFLICT`.
 - `external_id` já usado noutro documento: **`409`** `FISCAL_EXTERNAL_ID_CONFLICT`.
@@ -59,7 +60,7 @@ Após timeout, o cliente repete o mesmo pedido com a **mesma** `Idempotency-Key`
 
 ```json
 {
-  "type": "https://docs.example/errors/validation",
+  "type": "urn:bwb:fiscal:error:validation",
   "title": "Documento inválido",
   "status": 422,
   "code": "FISCAL_VALIDATION_FAILED",
@@ -68,7 +69,7 @@ Após timeout, o cliente repete o mesmo pedido com a **mesma** `Idempotency-Key`
 }
 ```
 
-`request_id` é gerado pelo servidor. Códigos estáveis incluem `FISCAL_UNAUTHORIZED`, `FISCAL_FORBIDDEN`, `FISCAL_IDEMPOTENCY_CONFLICT`, `FISCAL_EXTERNAL_ID_CONFLICT`, `FISCAL_PAYLOAD_TOO_LARGE`, `FISCAL_UNSUPPORTED_MEDIA_TYPE`, `FISCAL_VALIDATION_FAILED`, `FISCAL_INTERNAL_ERROR`.
+`request_id` é gerado pelo servidor. O campo `type` usa URNs estáveis `urn:bwb:fiscal:error:…` (não URLs fictícias). Códigos estáveis incluem `FISCAL_UNAUTHORIZED`, `FISCAL_FORBIDDEN`, `FISCAL_IDEMPOTENCY_CONFLICT`, `FISCAL_EXTERNAL_ID_CONFLICT`, `FISCAL_PAYLOAD_TOO_LARGE`, `FISCAL_UNSUPPORTED_MEDIA_TYPE`, `FISCAL_VALIDATION_FAILED`, `FISCAL_INTERNAL_ERROR`.
 
 ## Exemplo
 

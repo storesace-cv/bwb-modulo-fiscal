@@ -6,6 +6,9 @@ info:
     Contrato público draft para POS/software houses. createDocument cria e sela
     localmente de forma atómica (201). Não pronto para produção. Autenticação
     bearerAuth é do POS/módulo — não são credenciais AGT.
+  license:
+    name: MIT
+    identifier: MIT
 servers:
   - url: https://sandbox.api.example.ao/v1
     description: Sandbox
@@ -26,6 +29,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+        "400":
+          description: Pedido malformado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                badRequest:
+                  value:
+                    type: "urn:bwb:fiscal:error:bad-request"
+                    title: Pedido malformado
+                    status: 400
+                    code: FISCAL_BAD_REQUEST
+                    request_id: "req_01EXAMPLE000000000000000"
   /documents:
     post:
       operationId: createDocument
@@ -66,14 +83,13 @@ paths:
       responses:
         "201":
           description: >
-            Documento criado e selado localmente. status é sealed_locally.
-            Neste incremento fiscal_number e authority_request_id estão ausentes
-            (formato oficial de numeração e ID da autoridade ainda não confirmados).
-            submission_id, se presente, é correlação interna do módulo — não é ID AGT.
+            Documento criado e selado localmente. status é sempre sealed_locally.
+            Sem fiscal_number nem authority_request_id neste schema.
+            submission_id é correlação interna do módulo — não é ID AGT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FiscalDocumentResponse"
+                $ref: "#/components/schemas/CreateDocumentResponse"
               examples:
                 sealedLocally:
                   summary: Sucesso (campos deste incremento)
@@ -97,7 +113,7 @@ paths:
               examples:
                 unauthorized:
                   value:
-                    type: "https://docs.example/errors/unauthorized"
+                    type: "urn:bwb:fiscal:error:unauthorized"
                     title: Não autenticado
                     status: 401
                     code: FISCAL_UNAUTHORIZED
@@ -111,7 +127,7 @@ paths:
               examples:
                 forbidden:
                   value:
-                    type: "https://docs.example/errors/forbidden"
+                    type: "urn:bwb:fiscal:error:forbidden"
                     title: Não autorizado
                     status: 403
                     code: FISCAL_FORBIDDEN
@@ -128,7 +144,7 @@ paths:
                 idempotencyConflict:
                   summary: Conflito de idempotência (AO-IDEM-001)
                   value:
-                    type: "https://docs.example/errors/idempotency-conflict"
+                    type: "urn:bwb:fiscal:error:idempotency-conflict"
                     title: Conflito de idempotência
                     status: 409
                     code: FISCAL_IDEMPOTENCY_CONFLICT
@@ -136,7 +152,7 @@ paths:
                 externalIdConflict:
                   summary: Conflito de external_id
                   value:
-                    type: "https://docs.example/errors/external-id-conflict"
+                    type: "urn:bwb:fiscal:error:external-id-conflict"
                     title: Conflito de identificador externo
                     status: 409
                     code: FISCAL_EXTERNAL_ID_CONFLICT
@@ -150,7 +166,7 @@ paths:
               examples:
                 payloadTooLarge:
                   value:
-                    type: "https://docs.example/errors/payload-too-large"
+                    type: "urn:bwb:fiscal:error:payload-too-large"
                     title: Corpo demasiado grande
                     status: 413
                     code: FISCAL_PAYLOAD_TOO_LARGE
@@ -164,7 +180,7 @@ paths:
               examples:
                 unsupportedMediaType:
                   value:
-                    type: "https://docs.example/errors/unsupported-media-type"
+                    type: "urn:bwb:fiscal:error:unsupported-media-type"
                     title: Tipo de média não suportado
                     status: 415
                     code: FISCAL_UNSUPPORTED_MEDIA_TYPE
@@ -178,7 +194,7 @@ paths:
               examples:
                 validationFailed:
                   value:
-                    type: "https://docs.example/errors/validation"
+                    type: "urn:bwb:fiscal:error:validation"
                     title: Documento inválido
                     status: 422
                     code: FISCAL_VALIDATION_FAILED
@@ -196,7 +212,7 @@ paths:
               examples:
                 internal:
                   value:
-                    type: "https://docs.example/errors/internal"
+                    type: "urn:bwb:fiscal:error:internal"
                     title: Erro interno
                     status: 500
                     code: FISCAL_INTERNAL_ERROR
@@ -261,15 +277,30 @@ components:
             Referência de série pedida pelo POS. A SeriesCode efetiva e autorizada
             é resolvida apenas pelo módulo (AO-SEQ-002). O POS não atribui o número
             fiscal nem escolhe a série efetiva.
-        seller: { $ref: "#/components/schemas/Party" }
-        customer: { $ref: "#/components/schemas/Party" }
+        seller: { $ref: "#/components/schemas/SellerParty" }
+        customer: { $ref: "#/components/schemas/CustomerParty" }
         lines:
           type: array
           minItems: 1
           items: { $ref: "#/components/schemas/DocumentLine" }
-    Party:
+    SellerParty:
       type: object
       additionalProperties: false
+      required: [tax_id, name]
+      description: Vendedor; tax_id e name obrigatórios e non-empty (alinhado à persistência).
+      properties:
+        tax_id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+    CustomerParty:
+      type: object
+      additionalProperties: false
+      description: >
+        Cliente opcional. Campos individuais opcionais; obrigatoriedade legal de
+        customer ainda não confirmada neste draft.
       properties:
         tax_id: { type: string }
         name: { type: string }
@@ -283,46 +314,27 @@ components:
         quantity: { $ref: "#/components/schemas/DecimalQuantity" }
         unit_price: { $ref: "#/components/schemas/Money" }
         tax_code: { type: string }
-    FiscalDocumentResponse:
+    CreateDocumentResponse:
       type: object
       additionalProperties: false
-      required: [id, external_id, status]
+      required: [id, external_id, status, submission_id, created_at]
+      description: >
+        Resposta de createDocument neste incremento. Sem fiscal_number nem
+        authority_request_id. submission_id é correlação interna (não ID AGT).
       properties:
         id: { type: string }
         external_id: { type: string }
         status:
           type: string
+          const: sealed_locally
           description: >
-            Estados técnicos do documento. createDocument neste incremento devolve
-            apenas sealed_locally (derivado do ledger). Outbox pending não implica
-            queued_for_authority sem transição de ledger. sealed_locally não afirma
-            emissão jurídica (DEC-API-004 aberta). contingency_pending está reservado.
-          enum:
-            - received
-            - validated
-            - sealed_locally
-            - contingency_pending
-            - queued_for_authority
-            - authority_processing
-            - authority_accepted
-            - authority_rejected
-            - authority_outcome_unknown
-            - rejected
+            Estado derivado do ledger após selagem local. Não afirma emissão
+            jurídica (DEC-API-004 aberta).
         submission_id:
           type: string
           description: >
-            Identificador interno de correlação do módulo (ex. outbox/submission).
-            Não é um identificador atribuído pela AGT nem authority_request_id.
-        fiscal_number:
-          type: string
-          description: >
-            Número fiscal oficial, quando o formato estiver confirmado. Opcional;
-            ausente neste incremento — não compor a partir de sequência técnica interna.
-        authority_request_id:
-          type: string
-          description: >
-            Identificador atribuído pela autoridade ou simulador. Opcional; ausente
-            até ser recebido da autoridade. Não usar submission_id interno neste campo.
+            Identificador interno de correlação do módulo. Não é authority_request_id
+            nem identificador atribuído pela AGT.
         created_at: { type: string, format: date-time }
     Problem:
       type: object
@@ -332,6 +344,9 @@ components:
         type:
           type: string
           format: uri
+          description: >
+            URN estável do erro (ex. urn:bwb:fiscal:error:validation). Não usar
+            URLs de documentação fictícias.
         title: { type: string }
         status:
           type: integer
