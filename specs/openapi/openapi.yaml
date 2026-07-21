@@ -1,8 +1,14 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal API
-  version: 0.1.1-draft
-  description: Contrato inicial após tarefa zero OpenAPI; não pronto para produção.
+  version: 0.1.2-draft
+  description: >
+    Contrato público draft para POS/software houses. createDocument cria e sela
+    localmente de forma atómica (201). Não pronto para produção. Autenticação
+    bearerAuth é do POS/módulo — não são credenciais AGT.
+  license:
+    name: MIT
+    identifier: MIT
 servers:
   - url: https://sandbox.api.example.ao/v1
     description: Sandbox
@@ -14,6 +20,7 @@ paths:
   /health:
     get:
       operationId: getHealth
+      summary: Health check do serviço
       security: []
       responses:
         "200":
@@ -25,7 +32,14 @@ paths:
   /documents:
     post:
       operationId: createDocument
-      summary: Submete uma intenção de documento para processamento fiscal
+      summary: Cria e sela localmente um documento fiscal (operação atómica)
+      description: >
+        Submete uma intenção de documento. O módulo valida, resolve a série
+        efetiva (o POS não escolhe a SeriesCode autorizada), numera e sela
+        localmente na mesma operação. Sucesso devolve 201 com status
+        sealed_locally. Relacionado com AO-IDEM-001 (idempotência) e AO-SEQ-002
+        (POS não atribui número fiscal); a conformidade certificável ainda não
+        está validada neste draft.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -34,48 +48,185 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/DocumentIntent"
+            examples:
+              minimalInvoice:
+                summary: Intenção mínima (dados fictícios)
+                value:
+                  external_id: "pos-demo-0001"
+                  document_type: invoice
+                  currency: AOA
+                  issued_at: "2026-07-21T10:00:00Z"
+                  requested_series: "REF-A"
+                  seller:
+                    tax_id: "0000000000"
+                    name: "Comerciante Exemplo Lda"
+                  lines:
+                    - line_id: "L1"
+                      description: "Artigo demonstração"
+                      quantity: "1"
+                      unit_price: "10.50"
+                      tax_code: "NOR"
       responses:
-        "202":
-          description: Pedido aceite para processamento
+        "201":
+          description: >
+            Documento criado e selado localmente. status é sempre sealed_locally.
+            Sem fiscal_number nem authority_request_id neste schema.
+            submission_id é correlação interna do módulo — não é ID AGT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FiscalDocumentResponse"
+                $ref: "#/components/schemas/CreateDocumentResponse"
+              examples:
+                sealedLocally:
+                  summary: Sucesso (campos deste incremento)
+                  value:
+                    id: "doc_01EXAMPLE000000000000000"
+                    external_id: "pos-demo-0001"
+                    status: sealed_locally
+                    submission_id: "sub_01EXAMPLE000000000000000"
+                    created_at: "2026-07-21T10:00:01.000000000Z"
+        "401":
+          description: Autenticação ausente ou inválida
+          headers:
+            WWW-Authenticate:
+              description: Desafio Bearer para a API do módulo (não AGT)
+              schema: { type: string }
+              example: Bearer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                unauthorized:
+                  value:
+                    type: "urn:bwb:fiscal:error:unauthorized"
+                    title: Não autenticado
+                    status: 401
+                    code: FISCAL_UNAUTHORIZED
+                    request_id: "req_01EXAMPLE000000000000000"
+        "403":
+          description: Identidade autenticada sem autorização para o recurso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                forbidden:
+                  value:
+                    type: "urn:bwb:fiscal:error:forbidden"
+                    title: Não autorizado
+                    status: 403
+                    code: FISCAL_FORBIDDEN
+                    request_id: "req_01EXAMPLE000000000000000"
         "409":
-          description: Conflito de idempotência ou identificador
-        "422":
-          description: Falha de validação
-  /documents/{documentId}:
-    get:
-      operationId: getDocument
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Estado atual
+          description: >
+            Conflito de idempotência (mesma Idempotency-Key, pedido semanticamente
+            diferente) ou conflito de external_id. Códigos estáveis distintos.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FiscalDocumentResponse"
-        "404": { description: Não encontrado }
+                $ref: "#/components/schemas/Problem"
+              examples:
+                idempotencyConflict:
+                  summary: Conflito de idempotência (AO-IDEM-001)
+                  value:
+                    type: "urn:bwb:fiscal:error:idempotency-conflict"
+                    title: Conflito de idempotência
+                    status: 409
+                    code: FISCAL_IDEMPOTENCY_CONFLICT
+                    request_id: "req_01EXAMPLE000000000000000"
+                externalIdConflict:
+                  summary: Conflito de external_id
+                  value:
+                    type: "urn:bwb:fiscal:error:external-id-conflict"
+                    title: Conflito de identificador externo
+                    status: 409
+                    code: FISCAL_EXTERNAL_ID_CONFLICT
+                    request_id: "req_01EXAMPLE000000000000000"
+        "413":
+          description: Corpo do pedido excede o limite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                payloadTooLarge:
+                  value:
+                    type: "urn:bwb:fiscal:error:payload-too-large"
+                    title: Corpo demasiado grande
+                    status: 413
+                    code: FISCAL_PAYLOAD_TOO_LARGE
+                    request_id: "req_01EXAMPLE000000000000000"
+        "415":
+          description: Content-Type não é application/json (charset válido permitido)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                unsupportedMediaType:
+                  value:
+                    type: "urn:bwb:fiscal:error:unsupported-media-type"
+                    title: Tipo de média não suportado
+                    status: 415
+                    code: FISCAL_UNSUPPORTED_MEDIA_TYPE
+                    request_id: "req_01EXAMPLE000000000000000"
+        "422":
+          description: Falha de validação do pedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                validationFailed:
+                  value:
+                    type: "urn:bwb:fiscal:error:validation"
+                    title: Documento inválido
+                    status: 422
+                    code: FISCAL_VALIDATION_FAILED
+                    request_id: "req_01EXAMPLE000000000000000"
+                    errors:
+                      - field: "currency"
+                        code: "INVALID_ENUM"
+                        message: "Valor não permitido"
+        "500":
+          description: Erro interno; sem exposição de dados fiscais
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                internal:
+                  value:
+                    type: "urn:bwb:fiscal:error:internal"
+                    title: Erro interno
+                    status: 500
+                    code: FISCAL_INTERNAL_ERROR
+                    request_id: "req_01EXAMPLE000000000000000"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+      description: >
+        Autenticação da máquina POS / software house perante o módulo fiscal.
+        Não são credenciais AGT nem tokens da autoridade tributária. O modo de
+        validação concreto é configurado no serviço (produção fail-closed sem
+        validador real).
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
-      description: UUID persistido pelo integrador antes da primeira tentativa.
+      description: >
+        UUID persistido pelo integrador antes da primeira tentativa (AO-IDEM-001).
+        Replay com a mesma chave e o mesmo pedido devolve a resposta original;
+        pedido semanticamente diferente com a mesma chave resulta em 409.
       schema: { type: string, format: uuid }
   schemas:
     Health:
       type: object
+      additionalProperties: false
       required: [status, version]
       properties:
         status: { type: string, enum: [ok, degraded] }
@@ -102,20 +253,47 @@ components:
       additionalProperties: false
       required: [external_id, document_type, currency, issued_at, seller, lines]
       properties:
-        external_id: { type: string, maxLength: 100 }
+        external_id:
+          type: string
+          maxLength: 100
+          pattern: "^.*\\S.*$"
+          description: Identificador externo; pelo menos um carácter não-whitespace.
         document_type: { type: string, enum: [invoice, credit_note] }
         currency: { type: string, enum: [AOA] }
         issued_at: { type: string, format: date-time }
-        requested_series: { type: string, description: Referência de série; o POS não atribui o número fiscal. }
-        seller: { $ref: "#/components/schemas/Party" }
-        customer: { $ref: "#/components/schemas/Party" }
+        requested_series:
+          type: string
+          description: >
+            Referência de série pedida pelo POS. A SeriesCode efetiva e autorizada
+            é resolvida apenas pelo módulo (AO-SEQ-002). O POS não atribui o número
+            fiscal nem escolhe a série efetiva.
+        seller: { $ref: "#/components/schemas/SellerParty" }
+        customer: { $ref: "#/components/schemas/CustomerParty" }
         lines:
           type: array
           minItems: 1
           items: { $ref: "#/components/schemas/DocumentLine" }
-    Party:
+    SellerParty:
       type: object
       additionalProperties: false
+      required: [tax_id, name]
+      description: >
+        Vendedor; tax_id e name obrigatórios com pelo menos um carácter
+        não-whitespace (alinhado à persistência). Sem validação de formato NIF
+        neste draft.
+      properties:
+        tax_id:
+          type: string
+          pattern: "^.*\\S.*$"
+        name:
+          type: string
+          pattern: "^.*\\S.*$"
+    CustomerParty:
+      type: object
+      additionalProperties: false
+      description: >
+        Cliente opcional. Campos individuais opcionais; obrigatoriedade legal de
+        customer ainda não confirmada neste draft.
       properties:
         tax_id: { type: string }
         name: { type: string }
@@ -124,34 +302,71 @@ components:
       additionalProperties: false
       required: [line_id, description, quantity, unit_price, tax_code]
       properties:
-        line_id: { type: string }
-        description: { type: string }
+        line_id:
+          type: string
+          pattern: "^.*\\S.*$"
+        description:
+          type: string
+          pattern: "^.*\\S.*$"
         quantity: { $ref: "#/components/schemas/DecimalQuantity" }
         unit_price: { $ref: "#/components/schemas/Money" }
-        tax_code: { type: string }
-    FiscalDocumentResponse:
+        tax_code:
+          type: string
+          pattern: "^.*\\S.*$"
+          description: Código de imposto da linha; non-empty. Formato fiscal oficial não confirmado neste draft.
+    CreateDocumentResponse:
       type: object
-      required: [id, external_id, status]
+      additionalProperties: false
+      required: [id, external_id, status, submission_id, created_at]
+      description: >
+        Resposta de createDocument neste incremento. Sem fiscal_number nem
+        authority_request_id. submission_id é correlação interna (não ID AGT).
       properties:
         id: { type: string }
         external_id: { type: string }
         status:
           type: string
+          const: sealed_locally
           description: >
-            Estados técnicos do documento. sealed_locally não afirma emissão jurídica
-            (DEC-API-004 aberta). contingency_pending está reservado; o primeiro vertical
-            slice não transita para ele enquanto AO-OFF-* / DEC-REG-004 estiverem abertos.
-          enum:
-            - received
-            - validated
-            - sealed_locally
-            - contingency_pending
-            - queued_for_authority
-            - authority_processing
-            - authority_accepted
-            - authority_rejected
-            - authority_outcome_unknown
-            - rejected
-        fiscal_number: { type: string }
-        authority_request_id: { type: string }
+            Estado derivado do ledger após selagem local. Não afirma emissão
+            jurídica (DEC-API-004 aberta).
+        submission_id:
+          type: string
+          description: >
+            Identificador interno de correlação do módulo. Não é authority_request_id
+            nem identificador atribuído pela AGT.
         created_at: { type: string, format: date-time }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, request_id]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: >
+            URN estável do erro (ex. urn:bwb:fiscal:error:validation). Não usar
+            URLs de documentação fictícias.
+        title: { type: string }
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        code:
+          type: string
+          description: Código estável acionável pelo integrador
+        request_id:
+          type: string
+          description: Identificador gerado pelo servidor para correlação
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemError"
+    ProblemError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }

@@ -1,0 +1,9 @@
+# Redocly per-location ignore file.
+# Do NOT add global rule disables here. Keep exceptions minimal and justified.
+#
+# Exception: GET /health — public probe with no parameters/body and no dedicated
+# 4xx response in this increment. Rule operation-4xx-response remains enabled
+# for all other operations (see redocly.yaml).
+specs/openapi/openapi.yaml:
+  operation-4xx-response:
+    - '#/paths/~1health/get/responses'

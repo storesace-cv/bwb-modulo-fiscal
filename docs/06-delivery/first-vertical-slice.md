@@ -13,7 +13,8 @@ Documentos relacionados:
 - [document-state-machine.md](../04-domain/document-state-machine.md)
 - [api-guidelines.md](../03-api/api-guidelines.md)
 - [testing-strategy.md](testing-strategy.md)
-- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.1-draft`; **tarefa zero aplicada**)
+- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.2-draft`; tarefa zero + contrato createDocument)
+- [api-guidelines.md](../03-api/api-guidelines.md) / [examples/create-document.http](../03-api/examples/create-document.http)
 
 ## Objetivo da demonstração
 
@@ -33,15 +34,15 @@ Provar, de ponta a ponta e de forma **repetível**, com POS demo **CLI ou coleç
 
 ```text
 POS demo (CLI / coleção HTTP)
-  → API mínima (/v1) + autenticação sandbox simples
+  → API mínima (/v1) + autenticação sandbox simples (módulo, não AGT)
   → validação estrutural mínima
   → Idempotency-Key + external_id
-  → série/número (transação por série)
-  → JWS RS256 (par RSA efémero de teste, adaptador)
-  → livro fiscal append-only
+  → série efetiva resolvida pelo módulo (AO-SEQ-002) + sequência técnica
+  → JWS RS256 (par RSA efémero de teste, adaptador) — fase posterior ao C1
+  → livro fiscal append-only (sealed_locally)
   → outbox (payload com controlo de acesso; pode ser cifrado)
-  → simulador AGT (at-least-once, id estável, persistência tentativa/resposta)
-  → GET estado
+  → simulador AGT (at-least-once, id estável) — fase posterior
+  → consulta de estado — fora do contrato 0.1.2-draft (sem GET)
 ```
 
 ## Âmbito excluído
@@ -73,7 +74,7 @@ POS demo (CLI / coleção HTTP)
 
 ## Tarefa zero da Fase 1 (antes do endpoint)
 
-**Estado:** aplicada em `specs/openapi/openapi.yaml` `0.1.1-draft`.
+**Estado:** aplicada; contrato público em `0.1.2-draft` (`POST /documents` → `201`, sem GET fantasma).
 
 1. DEC-API-001 — `Money` canónico (sem sinal, escala 2).
 2. DEC-API-003 — `DecimalQuantity` separado e estritamente positivo.
@@ -81,7 +82,7 @@ POS demo (CLI / coleção HTTP)
 4. `authority_outcome_unknown` no enum; `contingency_pending` reservado; sem `cancelled`.
 5. DEC-API-004 permanece aberta para a semântica jurídica final de emissão/aceitação.
 
-Implementação de endpoints permanece fora desta tarefa.
+Implementação HTTP de `createDocument` é o PR C2 (fora do PR C1 de contrato).
 
 ## Terminologia de estados (até DEC-API-004)
 
@@ -91,7 +92,7 @@ Implementação de endpoints permanece fora desta tarefa.
 |---|---|
 | `received` | Pedido aceite para processamento |
 | `validated` | Validação estrutural OK |
-| `sealed_locally` | **Estado técnico** (não afirmação de emissão fiscal): número atribuído, persistido, JWS de teste aplicado, pronto para outbox |
+| `sealed_locally` | **Estado técnico** (não afirmação de emissão fiscal): documento persistido e selado localmente; resposta HTTP de `createDocument` neste incremento. Formato oficial de número fiscal ainda não confirmado no contrato. |
 | `queued_for_authority` | Na outbox |
 | `authority_processing` | Simulador recebeu / em curso |
 | `authority_accepted` / `authority_rejected` | Resultado do simulador |
@@ -112,20 +113,20 @@ sequenceDiagram
   participant Sim as Simulador AGT
 
   POS->>POS: Idempotency-Key + external_id
-  POS->>API: POST /documents
+  POS->>API: POST /v1/documents
   API->>Core: Validar estrutura
-  Core->>Core: Lock/TX por série → número
-  Core->>Crypto: JWS RS256 (RSA efémero)
+  Core->>Core: Resolver série efetiva + TX → sequência técnica
+  Core->>Crypto: JWS RS256 (RSA efémero; fase posterior)
   Core->>Ledger: Append sealed_locally
   Core->>Outbox: Inserir tentativa (mesma TX)
-  API-->>POS: 202 + id + estado neutro
-  Outbox->>Sim: Transmitir (at-least-once)
+  API-->>POS: 201 + sealed_locally (+ submission_id interno)
+  Note over API,POS: Sem fiscal_number / authority_request_id neste incremento
+  Outbox->>Sim: Transmitir (at-least-once; fase posterior)
   Sim-->>Outbox: id estável + processing
   Outbox->>Core: authority_processing
   Sim-->>Outbox: accepted
   Core->>Ledger: Evento authority_accepted
-  POS->>API: GET estado
-  API-->>POS: authority_accepted
+  Note over POS,API: GET documento fora do contrato 0.1.2-draft
 ```
 
 ## Numeração (AO-SEQ-001 / AO-SEQ-002)
