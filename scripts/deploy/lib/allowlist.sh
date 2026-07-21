@@ -348,6 +348,33 @@ deploy_release_dir_for_sha() {
   printf '/opt/bwb-modulo-fiscal/releases/%s' "${sha}"
 }
 
+# Multiplex dir for ControlMaster (one TCP session per deploy host/user).
+# Keep path short: macOS AF_UNIX sun_path limit is ~104 bytes.
+deploy_ssh_mux_dir() {
+  local base="/tmp/bwb-ssh-${UID:-$(id -u)}"
+  mkdir -p -m 700 "${base}"
+  printf '%s' "${base}"
+}
+
+# Shared OpenSSH options: reuse a single TCP connection under UFW LIMIT (6 NEW/30s).
+deploy_ssh_opts() {
+  local mux_dir
+  mux_dir="$(deploy_ssh_mux_dir)"
+  # shellcheck disable=SC2034
+  DEPLOY_SSH_OPTS=(
+    -i "${DEPLOY_SSH_KEY}"
+    -o IdentitiesOnly=yes
+    -o StrictHostKeyChecking=yes
+    -o UserKnownHostsFile="${DEPLOY_KNOWN_HOSTS}"
+    -o BatchMode=yes
+    -o ConnectTimeout=15
+    -o ConnectionAttempts=1
+    -o ControlMaster=auto
+    -o ControlPersist=120
+    -o "ControlPath=${mux_dir}/%C"
+  )
+}
+
 deploy_ssh_base() {
   DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY/#\~/${HOME}}"
   DEPLOY_KNOWN_HOSTS="${DEPLOY_KNOWN_HOSTS/#\~/${HOME}}"
@@ -357,22 +384,72 @@ deploy_ssh_base() {
     echo "error: DEPLOY_KNOWN_HOSTS must be a regular non-symlink file" >&2
     return 1
   fi
+  deploy_ssh_opts
   # shellcheck disable=SC2034
-  SSH_BASE=(
-    ssh
-    -i "${DEPLOY_SSH_KEY}"
-    -o IdentitiesOnly=yes
-    -o StrictHostKeyChecking=yes
-    -o UserKnownHostsFile="${DEPLOY_KNOWN_HOSTS}"
-    -o BatchMode=yes
-  )
+  SSH_BASE=(ssh "${DEPLOY_SSH_OPTS[@]}")
   # shellcheck disable=SC2034
-  SCP_BASE=(
-    scp
-    -i "${DEPLOY_SSH_KEY}"
-    -o IdentitiesOnly=yes
-    -o StrictHostKeyChecking=yes
-    -o UserKnownHostsFile="${DEPLOY_KNOWN_HOSTS}"
-    -o BatchMode=yes
-  )
+  SCP_BASE=(scp "${DEPLOY_SSH_OPTS[@]}")
+  DEPLOY_SSH_INVOCATION_COUNT="${DEPLOY_SSH_INVOCATION_COUNT:-0}"
+}
+
+# Count ssh/scp process invocations (not TCP). With ControlMaster, many invokes share one TCP.
+deploy_ssh_note_invoke() {
+  local kind="$1"
+  DEPLOY_SSH_INVOCATION_COUNT=$((DEPLOY_SSH_INVOCATION_COUNT + 1))
+  if [[ -n "${DEPLOY_SSH_INVOKE_LOG:-}" ]]; then
+    printf 'invoke kind=%s n=%s ts=%s\n' \
+      "${kind}" "${DEPLOY_SSH_INVOCATION_COUNT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      >>"${DEPLOY_SSH_INVOKE_LOG}"
+  fi
+}
+
+# Retry only connection-level failures (ssh exit 255), with exponential backoff.
+deploy_ssh_run() {
+  local attempt=1
+  local max_attempts="${DEPLOY_SSH_MAX_ATTEMPTS:-3}"
+  local delay="${DEPLOY_SSH_RETRY_DELAY_SEC:-2}"
+  local st=0
+  deploy_ssh_note_invoke ssh
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    st=$?
+    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]]; then
+      return "${st}"
+    fi
+    sleep "${delay}"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
+deploy_scp_run() {
+  local attempt=1
+  local max_attempts="${DEPLOY_SSH_MAX_ATTEMPTS:-3}"
+  local delay="${DEPLOY_SSH_RETRY_DELAY_SEC:-2}"
+  local st=0
+  deploy_ssh_note_invoke scp
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    st=$?
+    if [[ "${st}" -ne 255 || "${attempt}" -ge "${max_attempts}" ]]; then
+      return "${st}"
+    fi
+    sleep "${delay}"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
+deploy_ssh_mux_stop() {
+  if [[ ${#SSH_BASE[@]} -eq 0 || -z "${DEPLOY_HOST:-}" || -z "${DEPLOY_USER:-}" ]]; then
+    return 0
+  fi
+  set +e
+  "${SSH_BASE[@]}" -O exit "${DEPLOY_USER}@${DEPLOY_HOST}" >/dev/null 2>&1
+  set -e
+  return 0
 }

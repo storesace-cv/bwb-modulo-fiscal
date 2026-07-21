@@ -45,5 +45,5 @@ deploy_ssh_base
 
 HELPER="/usr/local/sbin/bwb-fiscal-deploy-helper"
 # shellcheck disable=SC2029
-"${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
   "set -Eeuo pipefail; sudo -n ${HELPER} migrate $(printf '%q' "${sha}") $(printf '%q' "${CMD}")"

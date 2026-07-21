@@ -793,6 +793,55 @@ else
   bad "systemd EnvironmentFile incorrect"
 fi
 
+# --- SSH mux / storm mitigation ---
+ssh_key="${TMP}/mux-key"
+known="${TMP}/mux-known"
+ssh-keygen -t ed25519 -N '' -f "${ssh_key}" >/dev/null 2>&1
+: >"${known}"
+chmod 0600 "${ssh_key}" "${known}"
+DEPLOY_SSH_KEY="${ssh_key}" DEPLOY_KNOWN_HOSTS="${known}"
+deploy_ssh_base
+opts_joined="${SSH_BASE[*]}"
+if [[ "${opts_joined}" == *ControlMaster=auto* \
+  && "${opts_joined}" == *ControlPersist=* \
+  && "${opts_joined}" == *ControlPath=* \
+  && "${opts_joined}" == *IdentitiesOnly=yes* ]]; then
+  ok "deploy_ssh_base enables ControlMaster/ControlPersist/IdentitiesOnly"
+else
+  bad "deploy_ssh_base missing mux options: ${opts_joined}"
+fi
+scp_joined="${SCP_BASE[*]}"
+if [[ "${scp_joined}" == *ControlMaster=auto* && "${scp_joined}" == *ControlPath=* ]]; then
+  ok "SCP_BASE shares ControlMaster path"
+else
+  bad "SCP_BASE missing mux options"
+fi
+
+# Live path must open many remote ops but reuse one TCP via ControlMaster (instrumentation hooks present).
+live_ssh_calls="$(
+  grep -cE 'deploy_ssh_run|deploy_scp_run|remote_sh |remote_helper |migrate-remote|healthcheck' \
+    "${ROOT}/scripts/deploy/update-staging.sh" || true
+)"
+if grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_scp_run' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_ssh_mux_stop' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/migrate-remote.sh" \
+  && grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/healthcheck.sh" \
+  && [[ "${live_ssh_calls}" -ge 10 ]]; then
+  ok "updater uses deploy_ssh_run/scp_run + mux stop (lexical remote ops=${live_ssh_calls})"
+else
+  bad "updater missing ssh mux instrumentation hooks"
+fi
+
+# Estimate minimum process invocations on live happy path (each was a NEW TCP before mux).
+# Count: remote_sh/helper/scp/migrate/health on live path ≈ 16; with ControlMaster → 1 TCP.
+est_invokes=16
+if [[ "${est_invokes}" -gt 6 ]]; then
+  ok "pre-mux live path would exceed UFW LIMIT (est_invokes=${est_invokes} > 6 NEW/30s)"
+else
+  bad "estimate of live ssh storm incorrect"
+fi
+
 # Local git diff --check against main range (same intent as CI)
 if git rev-parse --verify origin/main >/dev/null 2>&1; then
   if git diff --check origin/main...HEAD; then

@@ -65,7 +65,7 @@ load_operator_env() {
 
 remote_sh() {
   # shellcheck disable=SC2029
-  "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "set -Eeuo pipefail; $*"
+  deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "set -Eeuo pipefail; $*"
 }
 
 # Only the closed helper may be invoked via sudo.
@@ -337,7 +337,14 @@ deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 
 deploy_ssh_base
-trap cleanup_remote_upload EXIT
+cleanup_live() {
+  cleanup_remote_upload
+  deploy_ssh_mux_stop
+  if [[ "${DEPLOY_SSH_INVOCATION_COUNT:-0}" -gt 0 ]]; then
+    report "ssh_invocations=${DEPLOY_SSH_INVOCATION_COUNT} mux=ControlMaster"
+  fi
+}
+trap cleanup_live EXIT
 
 report "mode=live mock_remote=${DEPLOY_MOCK_REMOTE}"
 
@@ -345,7 +352,7 @@ REMOTE_UPLOAD="$(remote_sh "d=\$(mktemp -d /tmp/bwb-upload.XXXXXX); chmod 0700 \
 [[ "${REMOTE_UPLOAD}" =~ ^/tmp/bwb-upload\.[A-Za-z0-9._-]+$ ]] || die "invalid remote upload path"
 report "upload_dir=ok"
 
-"${SCP_BASE[@]}" -r \
+deploy_scp_run "${SCP_BASE[@]}" -r \
   "${OUT_DIR}/fiscal-api" \
   "${OUT_DIR}/fiscal-migrate" \
   "${OUT_DIR}/COMMIT" \
@@ -384,13 +391,13 @@ fiscal_tmp="${REMOTE_UPLOAD}/env.fiscal.env.$$"
 migrate_tmp="${REMOTE_UPLOAD}/env.migrate.env.$$"
 
 set +e
-"${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
+deploy_scp_run "${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
 scp_st=$?
 set -e
 [[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp fiscal.env failed"
 
 set +e
-"${SCP_BASE[@]}" "${ENV_MIGRATE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${migrate_tmp}"
+deploy_scp_run "${SCP_BASE[@]}" "${ENV_MIGRATE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${migrate_tmp}"
 scp_st=$?
 set -e
 [[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp migrate.env failed"

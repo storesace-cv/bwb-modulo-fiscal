@@ -34,7 +34,7 @@ if [[ -n "${DEPLOY_HOST:-}" && -n "${DEPLOY_USER:-}" ]]; then
   deploy_ssh_base
   # URL is a fixed literal in this script — never from operator input.
   # shellcheck disable=SC2029
-  body="$("${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+  body="$(deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
     'set -Eeuo pipefail; curl -fsS --max-time 5 http://127.0.0.1:8080/v1/health')"
   check_body "${body}"
   echo "health_ok remote=1 url=${LIVE_HEALTH_URL}"
