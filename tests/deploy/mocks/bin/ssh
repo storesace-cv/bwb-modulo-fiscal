@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Mock SSH for deploy live-path tests. Never opens a network connection.
-# Remaps absolute paths into DEPLOY_MOCK_FS. sudo/systemctl only run via this remote path.
 set -Eeuo pipefail
 
 : "${DEPLOY_MOCK_FS:?DEPLOY_MOCK_FS required}"
 : "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HELPER_SRC="${ROOT}/scripts/deploy/remote-deploy-helper.sh"
 
 log() {
   printf 'ssh %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
@@ -44,8 +46,8 @@ log "target=${target} cmd=${remote_cmd}"
 FS="${DEPLOY_MOCK_FS}"
 mkdir -p "${FS}/opt/bwb-modulo-fiscal/releases" "${FS}/etc/bwb-modulo-fiscal/backups" "${FS}/tmp"
 
-# Health probe on server loopback.
-if [[ "${remote_cmd}" == *"curl "* && "${remote_cmd}" == *"127.0.0.1:8080"* ]]; then
+# Fixed live health probe (literal URL only).
+if [[ "${remote_cmd}" == *"curl -fsS --max-time 5 http://127.0.0.1:8080/v1/health"* ]]; then
   if [[ "${DEPLOY_MOCK_HEALTH_FAIL:-0}" == "1" ]]; then
     echo "error: mock health fail" >&2
     exit 1
@@ -54,8 +56,12 @@ if [[ "${remote_cmd}" == *"curl "* && "${remote_cmd}" == *"127.0.0.1:8080"* ]]; 
   exit 0
 fi
 
-# Create upload dirs under the mock FS but return a logical /tmp/... path
-# so later remaps are applied exactly once.
+# Reject any remote curl that is not the fixed loopback health URL.
+if [[ "${remote_cmd}" == *"curl "* ]]; then
+  echo "error: mock ssh rejected non-fixed health/curl command" >&2
+  exit 1
+fi
+
 if [[ "${remote_cmd}" == *"mktemp -d /tmp/bwb-upload"* ]]; then
   d="$(mktemp -d "${FS}/tmp/bwb-upload.XXXXXX")"
   chmod 0700 "${d}"
@@ -63,40 +69,59 @@ if [[ "${remote_cmd}" == *"mktemp -d /tmp/bwb-upload"* ]]; then
   exit 0
 fi
 
-# Decode remote_sudo payloads and remap absolute paths before execution.
-if [[ "${remote_cmd}" == *"base64"* && "${remote_cmd}" == *"sudo -n bash"* ]]; then
-  b64="$(printf '%s' "${remote_cmd}" | sed -n "s/.*echo '\\([^']*\\)'.*/\\1/p")"
-  if [[ -n "${b64}" ]]; then
-    if ! script="$(printf '%s' "${b64}" | base64 -d 2>/dev/null)"; then
-      script="$(printf '%s' "${b64}" | base64 -D)"
+# Closed helper via sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper ...
+if [[ "${remote_cmd}" == *"sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper"* ]]; then
+  # Strip leading shell preamble and sudo wrapper.
+  rest="${remote_cmd#*sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper }"
+  # shellcheck disable=SC2206
+  helper_args=( ${rest} )
+  # Unquote simple shell-quoted tokens from printf %q
+  cleaned=()
+  for a in "${helper_args[@]}"; do
+    if [[ "${a}" == \'*\' ]]; then
+      a="${a:1:${#a}-2}"
     fi
-    script="${script//\/opt\/bwb-modulo-fiscal/${FS}/opt/bwb-modulo-fiscal}"
-    script="${script//\/etc\/bwb-modulo-fiscal/${FS}/etc/bwb-modulo-fiscal}"
-    script="${script//\/tmp\/bwb-/${FS}/tmp/bwb-}"
-    printf '%s\n' "${script}" | sudo -n bash
-    exit $?
+    # Remove backslash escapes from %q
+    a="${a//\\/}"
+    cleaned+=("${a}")
+  done
+
+  export BWB_DEPLOY_OPT="${FS}/opt/bwb-modulo-fiscal"
+  export BWB_DEPLOY_ETC="${FS}/etc/bwb-modulo-fiscal"
+  export BWB_MOCK_TMP="${FS}/tmp"
+  export BWB_DEPLOY_UNIT="bwb-fiscal-api.service"
+
+  op="${cleaned[0]:-}"
+  if [[ "${op}" == "migrate" ]]; then
+    cmd="${cleaned[2]:-}"
+    if [[ "${cmd}" == "up" ]]; then
+      printf 'ok version=%s dirty=%s\n' \
+        "${DEPLOY_MOCK_MIGRATE_VERSION_AFTER:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
+        "${DEPLOY_MOCK_MIGRATE_DIRTY_AFTER:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
+    else
+      printf 'version=%s dirty=%s\n' \
+        "${DEPLOY_MOCK_MIGRATE_VERSION_BEFORE:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
+        "${DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
+    fi
+    exit 0
   fi
+
+  # Record sudo helper invocation for tests.
+  printf 'sudo /usr/local/sbin/bwb-fiscal-deploy-helper %s\n' "${cleaned[*]}" >>"${DEPLOY_MOCK_LOG}"
+  bash "${HELPER_SRC}" "${cleaned[@]}"
+  exit $?
 fi
 
-# Intercept only real runner invocations under sudo.
-if [[ "${remote_cmd}" == *"remote-migrate-run.sh'"* ]]; then
-  if [[ "${remote_cmd}" == *" 'up'"* ]]; then
-    printf 'ok version=%s dirty=%s\n' \
-      "${DEPLOY_MOCK_MIGRATE_VERSION_AFTER:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
-      "${DEPLOY_MOCK_MIGRATE_DIRTY_AFTER:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
-  else
-    printf 'version=%s dirty=%s\n' \
-      "${DEPLOY_MOCK_MIGRATE_VERSION_BEFORE:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
-      "${DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
-  fi
-  exit 0
+# Forbid privileged shells and generic sudo in remote commands.
+if [[ "${remote_cmd}" == *"sudo -n bash"* || "${remote_cmd}" == *"sudo bash"* \
+  || "${remote_cmd}" == *"sudo -n sh"* || "${remote_cmd}" == *"| sudo"* ]]; then
+  echo "error: privileged shell/sudo pattern forbidden" >&2
+  exit 1
 fi
 
-# Remap only absolute staging prefixes (avoid double-prefixing mock-absolute paths).
 mapped="${remote_cmd}"
 mapped="${mapped//\/opt\/bwb-modulo-fiscal/${FS}/opt/bwb-modulo-fiscal}"
 mapped="${mapped//\/etc\/bwb-modulo-fiscal/${FS}/etc/bwb-modulo-fiscal}"
 mapped="${mapped//\/tmp\/bwb-/${FS}/tmp/bwb-}"
-
 # shellcheck disable=SC2086
 bash -c "${mapped}"

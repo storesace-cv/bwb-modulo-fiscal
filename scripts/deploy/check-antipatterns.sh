@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if forbidden SSH / ignore-error / unsafe env antipatterns appear in deploy scripts.
+# Fail if forbidden SSH / privileged-shell / unsafe env antipatterns appear.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -38,6 +38,14 @@ for f in "${scan_files[@]}"; do
   fi
   if grep -nE 'deploy_require_cmds[[:space:]]+.*\b(sudo|systemctl)\b' "${f}"; then
     echo "error: sudo/systemctl must not be required on the operator host in ${f}" >&2
+    failed=1
+  fi
+  if grep -nE '^[^#]*sudo[[:space:]]+-n[[:space:]]+bash|^[^#]*sudo[[:space:]]+bash|^[^#]*sudo[[:space:]]+-n[[:space:]]+sh|^[^#]*sudo[[:space:]]+sh\b' "${f}"; then
+    echo "error: privileged shell via sudo is forbidden in ${f}" >&2
+    failed=1
+  fi
+  if grep -nE '^[^#]*sudo[[:space:]]+-n[[:space:]]+(rm|cp|install|systemctl|mv|chmod|chown)\b' "${f}"; then
+    echo "error: generic privileged command via sudo is forbidden in ${f} (use deploy helper)" >&2
     failed=1
   fi
 done

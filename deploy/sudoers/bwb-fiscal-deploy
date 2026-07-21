@@ -1,0 +1,15 @@
+# sudoers fragment for staging deploy (install in D2 bootstrap only).
+# Path: /etc/sudoers.d/bwb-fiscal-deploy
+#
+# Grants the deploy SSH user NOPASSWD access ONLY to the closed helper.
+# Forbidden: bash, sh, rm, cp, install, systemctl, or any other binary.
+#
+# Replace DEPLOY_USER with the dedicated deploy account (never the API user).
+#
+# Initial install (D2):
+#   install -m 0755 -o root -g root scripts/deploy/remote-deploy-helper.sh \
+#     /usr/local/sbin/bwb-fiscal-deploy-helper
+#   install -m 0440 this-file /etc/sudoers.d/bwb-fiscal-deploy
+#   visudo -cf /etc/sudoers.d/bwb-fiscal-deploy
+
+DEPLOY_USER ALL=(root) NOPASSWD: /usr/local/sbin/bwb-fiscal-deploy-helper

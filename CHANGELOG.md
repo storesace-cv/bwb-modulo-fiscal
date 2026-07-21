@@ -2,7 +2,7 @@
 
 ## 0.2.5-draft — 2026-07-21
 
-- PR D1 staging deploy foundation: `.env.example`, allowlists runtime/migrate, systemd unit (`fiscal.env` only), Nginx HTTP bootstrap + TLS templates (`sandbox.fiscalmod.bwb.pt`, `/v1/documents` deny-all, IPv4-only listens), fail-closed deploy with **live updater** (mktemp upload 0700, root-owned immutable release, env backups, migrate via sudo runner from **new** release, remote loopback health, N-1 rollback + health recheck), safe env parser (no `eval`/`source`), `EXPECTED_SCHEMA_VERSION` in manifest, CI `git diff --check base...HEAD`. Sem acesso a servidor/DNS.
+- PR D1 staging deploy foundation: allowlists, systemd (`fiscal.env` only), Nginx IPv4-only templates, closed remote helper + sudoers template (no `sudo bash`), transactional env backup/restore before activation, live health fixed to `http://127.0.0.1:8080/v1/health`, schema gate via `EXPECTED_SCHEMA_VERSION`, CI `git diff --check base...HEAD`. Sem acesso a servidor/DNS.
 
 ## 0.2.4-draft — 2026-07-21
 

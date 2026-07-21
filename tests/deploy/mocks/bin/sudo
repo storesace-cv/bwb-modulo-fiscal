@@ -1,42 +1,20 @@
 #!/usr/bin/env bash
-# Mock sudo: record and execute without privilege escalation.
-# Only reachable from mocked remote commands (never required on the operator Mac).
+# Mock sudo: only the closed deploy helper is allowed.
 set -Eeuo pipefail
 
 : "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
 
-# Drop non-interactive flag used by deploy scripts.
 if [[ "${1:-}" == "-n" ]]; then
   shift
 fi
 
 printf 'sudo %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
 
-# Ownership changes are simulated (no root on CI/macOS runners).
-if [[ "${1:-}" == "chown" ]]; then
-  exit 0
+if [[ "${1:-}" != "/usr/local/sbin/bwb-fiscal-deploy-helper" ]]; then
+  echo "error: mock sudo refuses non-helper command: $*" >&2
+  exit 1
 fi
 
-if [[ "${1:-}" == "install" ]]; then
-  # Rewrite install to ignore -o/-g while preserving mode and paths.
-  out=()
-  skip=0
-  for a in "$@"; do
-    if [[ "${skip}" -eq 1 ]]; then
-      skip=0
-      continue
-    fi
-    case "${a}" in
-      -o | -g)
-        skip=1
-        continue
-        ;;
-      *)
-        out+=("${a}")
-        ;;
-    esac
-  done
-  exec "${out[@]}"
-fi
-
-exec "$@"
+# Helper execution is handled inside mock ssh; if invoked directly, refuse.
+echo "error: helper must be invoked via mock ssh path" >&2
+exit 1

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Staging update orchestrator (fail-closed).
-# DEPLOY_DRY_RUN=1: local policy/migration mocks without remote I/O.
-# DEPLOY_MOCK_REMOTE=1: full live path with ssh/scp from PATH (tests; sudo/systemctl only via remote).
-# Neither: real remote update (D2 execution).
+# Privileged remote work goes only through /usr/local/sbin/bwb-fiscal-deploy-helper.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,13 +17,14 @@ DEPLOY_N1_COMPAT_PROVEN="${DEPLOY_N1_COMPAT_PROVEN:-0}"
 ENV_LOCAL="${ENV_LOCAL:-${ROOT}/.env.local}"
 ENV_DEPLOY="${ENV_DEPLOY:-${ROOT}/.env.deploy.local}"
 ENV_MIGRATE="${ENV_MIGRATE:-${ROOT}/.env.migrate.local}"
-REMOTE_OPT="/opt/bwb-modulo-fiscal"
-REMOTE_ETC="/etc/bwb-modulo-fiscal"
-REMOTE_UNIT="bwb-fiscal-api.service"
+REMOTE_HELPER="/usr/local/sbin/bwb-fiscal-deploy-helper"
 REMOTE_UPLOAD=""
 PREV_SHA=""
 ACTIVE_RELEASE="none"
 ENV_BACKUP_ID=""
+ENVS_INSTALLED=0
+ENV_RESTORED=0
+ACTIVATED=0
 EXPECTED_SCHEMA_VERSION="${EXPECTED_SCHEMA_VERSION:-${DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT}}"
 
 report() {
@@ -35,15 +34,6 @@ report() {
 die() {
   echo "error: $*" >&2
   exit 1
-}
-
-cleanup_remote_upload() {
-  if [[ -n "${REMOTE_UPLOAD:-}" && -n "${DEPLOY_HOST:-}" && ${#SSH_BASE[@]} -gt 0 ]]; then
-    set +e
-    remote_sh "sudo -n rm -rf -- '${REMOTE_UPLOAD}'" >/dev/null 2>&1
-    set -e
-    REMOTE_UPLOAD=""
-  fi
 }
 
 load_operator_env() {
@@ -62,7 +52,10 @@ load_operator_env() {
     value="${line#*=}"
     key="$(printf '%s' "${key}" | deploy_trim)"
     case "${key}" in
-      DEPLOY_HOST | DEPLOY_USER | DEPLOY_SSH_KEY | DEPLOY_KNOWN_HOSTS | EXPECTED_COMMIT | DEPLOY_GOARCH | DEPLOY_DRY_RUN | DEPLOY_MOCK_REMOTE | DEPLOY_N1_COMPAT_PROVEN | DEPLOY_MOCK_MIGRATE_VERSION_BEFORE | DEPLOY_MOCK_MIGRATE_VERSION_AFTER | DEPLOY_MOCK_MIGRATE_DIRTY | DEPLOY_SIMULATE_HEALTH_FAIL | HEALTH_URL | OUT_DIR | DEPLOY_TEST_OUT_ROOT | EXPECTED_SCHEMA_VERSION) ;;
+      DEPLOY_HOST | DEPLOY_USER | DEPLOY_SSH_KEY | DEPLOY_KNOWN_HOSTS | EXPECTED_COMMIT | DEPLOY_GOARCH | DEPLOY_DRY_RUN | DEPLOY_MOCK_REMOTE | DEPLOY_N1_COMPAT_PROVEN | DEPLOY_MOCK_MIGRATE_VERSION_BEFORE | DEPLOY_MOCK_MIGRATE_VERSION_AFTER | DEPLOY_MOCK_MIGRATE_DIRTY | DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE | DEPLOY_MOCK_MIGRATE_DIRTY_AFTER | DEPLOY_SIMULATE_HEALTH_FAIL | OUT_DIR | DEPLOY_TEST_OUT_ROOT | EXPECTED_SCHEMA_VERSION | DEPLOY_TEST_HEALTH_URL) ;;
+      HEALTH_URL)
+        die "HEALTH_URL is forbidden; live health is fixed to http://127.0.0.1:8080/v1/health"
+        ;;
       *) die "unknown operator key: ${key}" ;;
     esac
     printf -v "${key}" '%s' "${value}"
@@ -75,68 +68,78 @@ remote_sh() {
   "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "set -Eeuo pipefail; $*"
 }
 
-remote_sudo() {
-  # Encode the snippet so quoting survives SSH/mock remapping.
-  local snippet b64
-  snippet="set -Eeuo pipefail; $*"
-  b64="$(printf '%s' "${snippet}" | base64 | tr -d '\n')"
+# Only the closed helper may be invoked via sudo.
+remote_helper() {
+  local -a args=("$@")
+  local q="" a
+  for a in "${args[@]}"; do
+    q+=" $(printf '%q' "${a}")"
+  done
   # shellcheck disable=SC2029
-  remote_sh "echo '${b64}' | (base64 -d 2>/dev/null || base64 -D) | sudo -n bash"
+  remote_sh "sudo -n ${REMOTE_HELPER}${q}"
+}
+
+cleanup_remote_upload() {
+  if [[ -n "${REMOTE_UPLOAD:-}" && -n "${DEPLOY_HOST:-}" && ${#SSH_BASE[@]} -gt 0 ]]; then
+    set +e
+    remote_helper cleanup-upload "${REMOTE_UPLOAD}" >/dev/null 2>&1
+    set -e
+    REMOTE_UPLOAD=""
+  fi
+}
+
+restore_envs_once() {
+  if [[ "${ENVS_INSTALLED}" -eq 1 && "${ENV_RESTORED}" -eq 0 && -n "${ENV_BACKUP_ID}" ]]; then
+    remote_helper restore-env "${ENV_BACKUP_ID}" >/dev/null
+    ENV_RESTORED=1
+    report "env_restore=ok id=${ENV_BACKUP_ID}"
+  fi
+}
+
+# Pre-activation failure: restore envs if installed, report phase, then die.
+pre_activate_fail() {
+  local msg="$1"
+  if [[ "${ACTIVATED}" -ne 0 ]]; then
+    die "internal error: pre_activate_fail after activation (${msg})"
+  fi
+  report "failure_phase=${phase}"
+  restore_envs_once
+  report_active
+  die "${msg}"
 }
 
 read_active_release() {
-  remote_sh "if [[ -e '${REMOTE_OPT}/current' ]]; then basename \"\$(readlink '${REMOTE_OPT}/current')\"; else printf 'none'; fi"
+  remote_sh "if [[ -e /opt/bwb-modulo-fiscal/current ]]; then basename \"\$(readlink /opt/bwb-modulo-fiscal/current)\"; else printf 'none'; fi"
 }
 
 promote_symlink() {
   local sha="$1"
   deploy_assert_sha1 "promote sha" "${sha}"
-  remote_sudo "ln -sfn '${REMOTE_OPT}/releases/${sha}' '${REMOTE_OPT}/current.new' && mv -f '${REMOTE_OPT}/current.new' '${REMOTE_OPT}/current'"
+  remote_helper activate "${sha}" >/dev/null
   ACTIVE_RELEASE="${sha}"
-}
-
-backup_remote_envs() {
-  ENV_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-${HEAD}"
-  remote_sudo "install -d -m 0750 -o root -g root '${REMOTE_ETC}/backups' && \
-    if [[ -f '${REMOTE_ETC}/fiscal.env' ]]; then install -m 0600 -o root -g root '${REMOTE_ETC}/fiscal.env' '${REMOTE_ETC}/backups/fiscal.env.${ENV_BACKUP_ID}'; fi && \
-    if [[ -f '${REMOTE_ETC}/migrate.env' ]]; then install -m 0600 -o root -g root '${REMOTE_ETC}/migrate.env' '${REMOTE_ETC}/backups/migrate.env.${ENV_BACKUP_ID}'; fi"
-  report "env_backup=ok id=${ENV_BACKUP_ID}"
-}
-
-restore_remote_envs() {
-  if [[ -z "${ENV_BACKUP_ID}" ]]; then
-    return 0
-  fi
-  remote_sudo "\
-    if [[ -f '${REMOTE_ETC}/backups/fiscal.env.${ENV_BACKUP_ID}' ]]; then install -m 0600 -o root -g root '${REMOTE_ETC}/backups/fiscal.env.${ENV_BACKUP_ID}' '${REMOTE_ETC}/fiscal.env'; fi && \
-    if [[ -f '${REMOTE_ETC}/backups/migrate.env.${ENV_BACKUP_ID}' ]]; then install -m 0600 -o root -g root '${REMOTE_ETC}/backups/migrate.env.${ENV_BACKUP_ID}' '${REMOTE_ETC}/migrate.env'; fi"
-  report "env_restore=ok id=${ENV_BACKUP_ID}"
-}
-
-install_env_remote() {
-  local local_file="$1"
-  local remote_name="$2"
-  # Place under the already-random 0700 upload dir (no nested absolute mktemp paths).
-  local remote_tmp="${REMOTE_UPLOAD}/env.${remote_name}.$$"
-  "${SCP_BASE[@]}" "${local_file}" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_tmp}"
-  remote_sudo "install -d -m 0750 -o root -g root '${REMOTE_ETC}' && install -m 0600 -o root -g root '${remote_tmp}' '${REMOTE_ETC}/${remote_name}' && rm -f -- '${remote_tmp}'"
+  ACTIVATED=1
 }
 
 restart_unit() {
-  remote_sudo "systemctl restart '${REMOTE_UNIT}'"
+  remote_helper restart >/dev/null
   report "restart=ok"
 }
 
 run_remote_health() {
   if [[ "${DEPLOY_SIMULATE_HEALTH_FAIL:-0}" == "1" ]]; then
-    # Fail exactly once so post-rollback health can succeed in tests and real recovery paths.
     DEPLOY_SIMULATE_HEALTH_FAIL=0
     export DEPLOY_SIMULATE_HEALTH_FAIL
     report "health=fail"
     return 1
   fi
-  DEPLOY_DRY_RUN=0 DEPLOY_MOCK_REMOTE="${DEPLOY_MOCK_REMOTE}" \
-    bash "${SCRIPT_DIR}/healthcheck.sh"
+  # Unset HEALTH_URL in a subshell; live healthcheck forbids it.
+  (
+    if [[ -n "${HEALTH_URL+x}" ]]; then
+      unset HEALTH_URL
+    fi
+    DEPLOY_DRY_RUN=0 DEPLOY_MOCK_REMOTE="${DEPLOY_MOCK_REMOTE}" \
+      bash "${SCRIPT_DIR}/healthcheck.sh" >/dev/null
+  )
   report "health=ok"
 }
 
@@ -172,7 +175,6 @@ HEAD="$(git rev-parse HEAD)"
 deploy_assert_sha1 "HEAD" "${HEAD}"
 [[ "${HEAD}" == "${EXPECTED_COMMIT}" ]] || die "EXPECTED_COMMIT does not match HEAD"
 
-# Live path never builds from a dirty tree (DEPLOY_TEST_OUT_ROOT only for tests).
 if [[ "${DEPLOY_DRY_RUN}" != "1" || "${DEPLOY_MOCK_REMOTE}" == "1" ]]; then
   if [[ -z "${DEPLOY_TEST_OUT_ROOT:-}" ]]; then
     deploy_assert_clean_worktree
@@ -192,7 +194,7 @@ MOCK_BEFORE="${DEPLOY_MOCK_MIGRATE_VERSION_BEFORE:-2}"
 MOCK_AFTER="${DEPLOY_MOCK_MIGRATE_VERSION_AFTER:-2}"
 MOCK_DIRTY="${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
 
-# --- Local dry-run (no remote path) ---
+# --- Local dry-run ---
 if [[ "${DEPLOY_DRY_RUN}" == "1" && "${DEPLOY_MOCK_REMOTE}" != "1" ]]; then
   migration_before_out="$(
     DEPLOY_DRY_RUN=1 \
@@ -264,13 +266,14 @@ if [[ "${DEPLOY_DRY_RUN}" == "1" && "${DEPLOY_MOCK_REMOTE}" != "1" ]]; then
   exit 0
 fi
 
-# --- Live path (real or mocked remote commands) ---
+# --- Live path ---
 : "${DEPLOY_HOST:?DEPLOY_HOST required}"
 : "${DEPLOY_USER:?DEPLOY_USER required}"
 : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY required}"
 : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS required}"
 [[ -f "${ENV_DEPLOY}" ]] || die "missing deploy env file"
 [[ -f "${ENV_MIGRATE}" ]] || die "missing migrate env file"
+[[ -z "${HEALTH_URL:-}" ]] || die "HEALTH_URL is forbidden on live path"
 
 deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
@@ -280,9 +283,8 @@ trap cleanup_remote_upload EXIT
 
 report "mode=live mock_remote=${DEPLOY_MOCK_REMOTE}"
 
-# Ephemeral remote upload dir (0700); never predictable /tmp/bwb-release-<sha>.
 REMOTE_UPLOAD="$(remote_sh "d=\$(mktemp -d /tmp/bwb-upload.XXXXXX); chmod 0700 \"\$d\"; printf '%s' \"\$d\"")"
-[[ -n "${REMOTE_UPLOAD}" ]] || die "failed to create remote upload directory"
+[[ "${REMOTE_UPLOAD}" =~ ^/tmp/bwb-upload\.[A-Za-z0-9._-]+$ ]] || die "invalid remote upload path"
 report "upload_dir=ok"
 
 "${SCP_BASE[@]}" -r \
@@ -299,20 +301,7 @@ report "upload=ok"
 remote_sh "cd '${REMOTE_UPLOAD}' && test \"\$(tr -d '[:space:]' <COMMIT)\" = '${HEAD}' && test \"\$(tr -d '[:space:]' <EXPECTED_SCHEMA_VERSION)\" = '${EXPECTED_SCHEMA_VERSION}' && (command -v sha256sum >/dev/null && sha256sum -c SHA256SUMS >/dev/null || shasum -a 256 -c SHA256SUMS >/dev/null)"
 report "verify=ok commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
 
-# Immutable root-owned install under releases/<sha>
-remote_sudo "install -d -m 0755 -o root -g root '${REMOTE_OPT}/releases'"
-remote_sudo "rm -rf -- '${RELEASE_DIR}.partial'"
-remote_sudo "mkdir -p '${RELEASE_DIR}.partial'"
-remote_sudo "cp -a '${REMOTE_UPLOAD}/.' '${RELEASE_DIR}.partial/'"
-remote_sudo "chown -R root:root '${RELEASE_DIR}.partial'"
-remote_sudo "chmod 0755 '${RELEASE_DIR}.partial/fiscal-api' '${RELEASE_DIR}.partial/fiscal-migrate' '${RELEASE_DIR}.partial/remote-migrate-run.sh'"
-remote_sudo "chmod 0644 '${RELEASE_DIR}.partial/COMMIT' '${RELEASE_DIR}.partial/EXPECTED_SCHEMA_VERSION' '${RELEASE_DIR}.partial/SHA256SUMS' '${RELEASE_DIR}.partial/lib/allowlist.sh' '${RELEASE_DIR}.partial/lib/migrate.env.allowlist'"
-if remote_sh "[[ -d '${RELEASE_DIR}' ]]"; then
-  remote_sudo "test \"\$(tr -d '[:space:]' <'${RELEASE_DIR}/COMMIT')\" = '${HEAD}'"
-  remote_sudo "rm -rf -- '${RELEASE_DIR}.partial'"
-else
-  remote_sudo "mv '${RELEASE_DIR}.partial' '${RELEASE_DIR}'"
-fi
+remote_helper install-release "${HEAD}" "${REMOTE_UPLOAD}" >/dev/null
 report "install_release=ok path=${RELEASE_DIR} owner=root"
 
 PREV_RAW="$(read_active_release)"
@@ -326,9 +315,17 @@ else
   ACTIVE_RELEASE="${PREV_SHA}"
 fi
 
-backup_remote_envs
-install_env_remote "${ENV_DEPLOY}" "fiscal.env"
-install_env_remote "${ENV_MIGRATE}" "migrate.env"
+ENV_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-${HEAD}"
+remote_helper backup-envs "${ENV_BACKUP_ID}" >/dev/null
+report "env_backup=ok id=${ENV_BACKUP_ID}"
+
+fiscal_tmp="${REMOTE_UPLOAD}/env.fiscal.env.$$"
+migrate_tmp="${REMOTE_UPLOAD}/env.migrate.env.$$"
+"${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
+"${SCP_BASE[@]}" "${ENV_MIGRATE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${migrate_tmp}"
+remote_helper install-env fiscal.env "${fiscal_tmp}" >/dev/null
+remote_helper install-env migrate.env "${migrate_tmp}" >/dev/null
+ENVS_INSTALLED=1
 report "install_env=ok mode=0600 owner=root"
 
 phase="pre_migrate"
@@ -340,33 +337,33 @@ migration_before_out="$(
     DEPLOY_DRY_RUN=0 \
     DEPLOY_MOCK_REMOTE="${DEPLOY_MOCK_REMOTE}" \
     bash "${SCRIPT_DIR}/migrate-remote.sh" version
-)"
-deploy_parse_migrate_version "${migration_before_out}"
+)" || pre_activate_fail "migration version command failed"
+deploy_parse_migrate_version "${migration_before_out}" || pre_activate_fail "could not parse migration_before"
 migration_before="${DEPLOY_MIG_VERSION}"
 migration_before_dirty="${DEPLOY_MIG_DIRTY}"
 report "migration_before=${migration_before} dirty=${migration_before_dirty} binary=new_release"
-[[ "${migration_before_dirty}" == "false" ]] || die "migration dirty before update; refusing"
+if [[ "${migration_before_dirty}" != "false" ]]; then
+  pre_activate_fail "migration dirty before update; refusing"
+fi
 
 migration_after_out="$(
   RELEASE_DIR="${RELEASE_DIR}" \
     DEPLOY_DRY_RUN=0 \
     DEPLOY_MOCK_REMOTE="${DEPLOY_MOCK_REMOTE}" \
     bash "${SCRIPT_DIR}/migrate-remote.sh" up
-)"
-deploy_parse_migrate_version "${migration_after_out}"
+)" || pre_activate_fail "migration up failed"
+deploy_parse_migrate_version "${migration_after_out}" || pre_activate_fail "could not parse migration_after"
 migration_after="${DEPLOY_MIG_VERSION}"
 migration_after_dirty="${DEPLOY_MIG_DIRTY}"
 report "migration_after=${migration_after} dirty=${migration_after_dirty} binary=new_release"
 
 if [[ "${migration_after_dirty}" != "false" ]]; then
   report "promote=blocked reason=dirty"
-  report_active
-  die "migration dirty after up; promotion blocked"
+  pre_activate_fail "migration dirty after up; promotion blocked"
 fi
 if [[ "${migration_after}" != "${EXPECTED_SCHEMA_VERSION}" ]]; then
   report "promote=blocked reason=schema_mismatch expected=${EXPECTED_SCHEMA_VERSION} got=${migration_after}"
-  report_active
-  die "migration version mismatch after up; activation blocked"
+  pre_activate_fail "migration version mismatch after up; activation blocked"
 fi
 
 phase="post_migrate"
@@ -392,11 +389,11 @@ if run_remote_health; then
   exit 0
 fi
 
-# Health failed after promote.
+# Post-activation health failure: N-1 policy (may restore envs with binary).
 if [[ "${rollback_allowed}" == "true" ]]; then
   if [[ -n "${PREV_SHA}" && "${PREV_SHA}" != "${HEAD}" ]]; then
     promote_symlink "${PREV_SHA}"
-    restore_remote_envs
+    restore_envs_once
     restart_unit
     if run_remote_health; then
       report "action=restore_previous_binary previous=${PREV_SHA}"

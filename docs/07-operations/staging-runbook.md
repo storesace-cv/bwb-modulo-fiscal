@@ -101,6 +101,8 @@ bash scripts/deploy/check-antipatterns.sh
 | Alto | D1 review | `sudo`/`systemctl` exigidos no Mac do operador | Deploy impossível fora do servidor | Operações privilegiadas só via SSH remoto | Corrigido | — |
 | Alto | D1 review | Healthcheck no host do operador; `promote=ok` prematuro | Falso positivo de deploy | Health em `127.0.0.1` remoto; promote só após health | Corrigido | — |
 | Médio | D1 review | Upload `/tmp` previsível; sem backup/restore de envs | Race/leak; rollback incompleto | `mktemp -d` 0700; backups root 0600 + restore | Corrigido | — |
-| Médio | D1 review | Manifesto incompleto; schema não validado após `up` | Helpers/schema desalinhados | `EXPECTED_SCHEMA_VERSION` + checksum de helpers | Corrigido | — |
+| Alto | D1 review | `sudo -n bash` / comandos privilegiados genéricos | Root equivalente para a chave de deploy | Helper fechado + sudoers só para o helper | Corrigido | Bootstrap D2 instala helper/sudoers |
+| Médio | D1 review | Envs novos ficavam após falha pré-ativação | Config parcial/inconsistente | Restore/remoção transacional + testes | Corrigido | — |
+| Médio | D1 review | `HEALTH_URL` arbitrário no live path | Probe no destino errado / interpolação | URL fixa `127.0.0.1:8080` | Corrigido | — |
 
 Report deploy incidents with severity, phase, description, impact, resolution, state, residual risk — **without** secret values.
