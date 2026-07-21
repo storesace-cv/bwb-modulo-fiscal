@@ -27,7 +27,7 @@
 - Retificações/anulações.
 - Contingência e reconciliação.
 - SAF-T (AO).
-- Portal operacional.
+- Portal / backoffice operacional (fora do primeiro vertical slice); ver [backoffice-architecture.md](../02-architecture/backoffice-architecture.md).
 - Hardening, carga, backup/restauro e documentação de integradores.
 
 **Gate:** readiness review de certificação.

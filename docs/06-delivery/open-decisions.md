@@ -265,7 +265,61 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 3. Chaves em ficheiro no repositório / imagem — **rejeitada**.
 4. Cofre de CI para chaves falsas do vertical slice — **rejeitada** (custo sem benefício).
 
-**Recomendação:** opção 1 para MVP. Segredos nunca no Git. No slice: JWS RS256 real; chave privada efémera **nunca** persistida nem commitada; fixtures públicas só com chave pública ou vetores estáticos não secretos, se necessário; marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
+**Recomendação:** opção 1 para MVP de infraestrutura genérica, sujeita a DEC-REG-KEY-CUSTODY para material do contribuinte. Segredos nunca no Git. No slice: JWS RS256 real; chave privada efémera **nunca** persistida nem commitada; fixtures públicas só com chave pública ou vetores estáticos não secretos, se necessário; marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
+
+---
+
+## DEC-REG-KEY-CUSTODY — Custódia externa da chave privada do contribuinte
+
+| Campo | Valor |
+|---|---|
+| Estado | aberta |
+| Tipo | Regulatória |
+| Criticidade | **Bloqueante** |
+| Prazo máximo | Antes de provisionar `TaxpayerKeyRef` no `SecretStore` da plataforma |
+| Responsável | Compliance + Jurídico (confirmação junto da AGT) |
+
+**Contexto:** a autorização contratual do contribuinte é necessária, mas pode não ser suficiente. Um contrato privado não prova que a AGT permite entregar a chave privada do contribuinte a um fornecedor externo (módulo fiscal).
+
+**Pergunta oficial:** a AGT permite que um módulo fiscal externo detenha e utilize a chave privada do contribuinte?
+
+**Opções (após resposta oficial):**
+
+1. Custódia/uso no `SecretStore` da plataforma permitido sob condições oficiais.
+2. Custódia externa proibida — chave só em ambiente controlado pelo contribuinte/Edge, ou mecanismo oficial de delegação/assinatura remota.
+3. Modelo híbrido definido pela AGT.
+
+**Evidência para fechar:** orientação/escrito oficial AGT ou regra em diploma/manual versionado. Ver GAP-013 em [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) e [backoffice-architecture.md](../02-architecture/backoffice-architecture.md).
+
+**Dependentes:** DEC-SEC-EDGE-KEYS; provisionamento de `TaxpayerKeyRef` na plataforma.
+
+---
+
+## DEC-SEC-EDGE-KEYS — Local da assinatura fiscal cloud vs Edge
+
+| Campo | Valor |
+|---|---|
+| Estado | aberta |
+| Tipo | Segurança / arquitetura |
+| Criticidade | **Bloqueante** |
+| Prazo máximo | Antes de implementar assinatura fiscal em Edge ou sync de privadas |
+| Responsável | Segurança + Arquitetura + Compliance |
+
+**Dependências:** regras oficiais de contingência (`AO-OFF-*`) **e** DEC-REG-KEY-CUSTODY.
+
+**Contexto:** Edge offline não assina com chave que exista apenas num `SecretStore` cloud. Cópia automática cloud↔Edge de privadas é proibida.
+
+**Opções (nenhuma escolhida):**
+
+| ID | Descrição | Offline fiscal |
+|---|---|---|
+| E1 | Assinatura fiscal exclusivamente cloud | Não |
+| E2 | Chave do contribuinte provisionada diretamente no keystore Edge | Sim, nos limites legais |
+| E3 | Assinatura remota via `SecretStore` (Edge online) | Não |
+
+Se DEC-REG-KEY-CUSTODY proibir custódia externa, E1/E3 com privada na cloud BWB ficam inviáveis para a chave do contribuinte.
+
+**Evidência para fechar:** DEC-REG-KEY-CUSTODY + texto oficial de contingência. Ver [backoffice-architecture.md](../02-architecture/backoffice-architecture.md).
 
 ---
 
@@ -308,10 +362,12 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 ## Prioridade de decisão (abertas)
 
-1. **DEC-REG-002** — Decreto 74/19 e rectificação oficiais.
-2. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
-3. **DEC-REG-003** — tipos documentais do MVP.
-4. **DEC-API-004** — momento jurídico da emissão/aceitação.
+1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante**).
+2. **DEC-REG-002** — Decreto 74/19 e rectificação oficiais.
+3. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
+4. **DEC-SEC-EDGE-KEYS** — local da assinatura cloud/Edge (**bloqueante**; depende de DEC-REG-KEY-CUSTODY e contingência).
+5. **DEC-REG-003** — tipos documentais do MVP.
+6. **DEC-API-004** — momento jurídico da emissão/aceitação.
 
 **Já decididas (fora da lista prioritária):** DEC-STACK-001, DEC-DEL-001, DEC-API-001, DEC-API-003.
 

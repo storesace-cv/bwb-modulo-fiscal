@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4-draft — 2026-07-21
+
+- Arquitetura do backoffice formalizada; DEC-REG-KEY-CUSTODY e DEC-SEC-EDGE-KEYS abertas (bloqueantes); GAP-013 (custódia externa da chave do contribuinte).
+
 ## 0.1.3-draft — 2026-07-21
 
 - DEC-STACK-001 decidida: Go + PostgreSQL na cloud + SQLite WAL no Edge (condições XSD oficial, assinatura fiscal AGT e numeração preservadas).

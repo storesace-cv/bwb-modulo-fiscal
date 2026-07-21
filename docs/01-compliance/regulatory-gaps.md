@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
-**Data:** 2026-07-20  
-**Estado:** inventário inicial da Fase 0  
+**Data:** 2026-07-20
+**Estado:** inventário inicial da Fase 0
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais.
 
 Documentos relacionados:
@@ -32,6 +32,7 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 | GAP-010 | Vetores / resultados de testes oficiais AGT | Não disponíveis | Declaração de conformidade | Relatórios oficiais ou harness alinhado aos testes publicados |
 | GAP-011 | Portal do Contribuinte / guias operacionais estáveis | Manutenção / timeout em 2026-07-20 | Orientação operacional | Reconsulta + arquivo permitido de conteúdo/versão |
 | GAP-012 | Manifesto de fontes versionado no repositório | Estrutura recomendada; ainda não criada | Rastreabilidade contínua | `compliance/sources-manifest.yaml` (metadados públicos) |
+| GAP-013 | Confirmação oficial AGT sobre custódia/uso da chave privada do contribuinte por módulo fiscal externo | Não confirmada; contrato privado insuficiente | Provisionamento de `TaxpayerKeyRef` na plataforma; DEC-REG-KEY-CUSTODY; DEC-SEC-EDGE-KEYS | Orientação/escrito oficial AGT ou regra em diploma/manual versionado; ver [open-decisions.md](../06-delivery/open-decisions.md) e [backoffice-architecture.md](../02-architecture/backoffice-architecture.md) |
 
 ## Decreto Executivo n.º 74/19 e respetiva rectificação
 
