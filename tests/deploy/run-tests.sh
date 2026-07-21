@@ -375,13 +375,20 @@ if PATH="${MOCK_BIN}:${PATH}" \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/live.out" 2>"${TMP}/live.err"; then
-  mode_mig="$(python3 -c "import os; print(f'{os.stat(r'''${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env''').st_mode & 0o777:03o}')")"
+  mode_file="${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env"
+  if mode_mig="$(stat -c '%a' "${mode_file}" 2>/dev/null)"; then
+    :
+  elif mode_mig="$(stat -f '%OLp' "${mode_file}" 2>/dev/null)"; then
+    :
+  else
+    mode_mig=missing
+  fi
   if grep -q 'mode=live' "${TMP}/live.out" \
     && grep -q 'binary=new_release' "${TMP}/live.out" \
     && grep -q 'promote=ok' "${TMP}/live.out" \
     && grep -q 'restart=ok' "${TMP}/live.out" \
     && [[ -f "${MOCK_FS}/etc/bwb-modulo-fiscal/fiscal.env" ]] \
-    && [[ -f "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" ]] \
+    && [[ -f "${mode_file}" ]] \
     && [[ "${mode_mig}" == "600" ]] \
     && [[ -d "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}" ]] \
     && grep -q "bash '.*/remote-migrate-run.sh'" "${MOCK_LOG}" \
