@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.4-draft — 2026-07-21
+
+- DEC-TIME-001 (PR #8): tempo fiscal vs técnico — `issued_at` com timezone IANA do scope (`Africa/Luanda`) e offset persistido; `created_at` UTC técnico (microssegundos, relógio injetável); `canonical_v2` activo com goldens imutáveis `canonical_v1`/`canonical_v2`; packages `fiscaltime`/`fiscaltz` (tzdata embutida, fail-closed); migration `0002` (PG/SQLite) aborta se houver `documents` ou `idempotency_records`; OpenAPI `0.1.3-draft` e exemplo Angola `+01:00`. Sem Cabo Verde runtime; sem recalculo de hashes; API sem migrate no arranque.
+- Reforço SealInTx: `fiscaltime.ValidateNormalizedContext` no `prepareSealRequest` (timezone IANA + offset no instante + UTC micro); testes PG isolados para precondições da migration `0002`.
+
+## 0.2.3-draft — 2026-07-21
+
+- PR C2: `POST /v1/documents` (`createDocument`) sobre `SealInTx`; auth `dev_static` (só `FISCAL_ENV=development`, token ≥32 bytes, comparação constant-time); `SeriesResolver` estático; `SealResult.CreatedAt` persistido e estável no replay; Problem/códigos do contrato; fail-closed sem modo que aceite pedidos; testes HTTP dual-engine. Sem migrations no arranque da API, sem GET, sem AGT/JWS.
+
 ## 0.2.2-draft — 2026-07-21
 
 - Contrato OpenAPI **`0.1.2-draft`**: `POST /documents` (`createDocument`) passa de **202 Accepted** para **201 Created** (criação + selagem local atómica).

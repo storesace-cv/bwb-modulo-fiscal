@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -74,6 +75,12 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		if !r2.IdempotentHit || r2.DocumentID != r1.DocumentID || r2.FiscalSeq != r1.FiscalSeq {
 			t.Fatalf("replay result: %+v want id=%s seq=%d", r2, r1.DocumentID, r1.FiscalSeq)
 		}
+		if r2.CreatedAt.IsZero() || !r1.CreatedAt.Equal(r2.CreatedAt) {
+			t.Fatalf("CreatedAt replay: first=%v second=%v", r1.CreatedAt, r2.CreatedAt)
+		}
+		if r2.SubmissionID != r1.SubmissionID {
+			t.Fatalf("SubmissionID replay mismatch")
+		}
 		assertExactCount(t, ctx, sqlDB, postgres, "documents", scope, 1)
 		assertExactCount(t, ctx, sqlDB, postgres, "outbox_messages", scope, 1)
 		assertExactCount(t, ctx, sqlDB, postgres, "ledger_events", scope, 1)
@@ -140,34 +147,53 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		}
 	})
 
-	t.Run("issued_at_normalized_consistently", func(t *testing.T) {
+	t.Run("issued_at_offset_string_rejected_at_seal", func(t *testing.T) {
+		// Normalization belongs to fiscaltime/HTTP; SealInTx requires UTC micro canonical.
 		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12", "ext-norm-date", "A", "1.00")
 		req.Intent.IssuedAtUTC = "2026-07-21T11:00:00+01:00"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of non-canonical issued_at")
+		}
+	})
+
+	t.Run("issued_timezone_unknown_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14", "ext-bad-tz", "A", "1.00")
+		req.Intent.IssuedTimezone = "Not/ARealZone"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of unknown IANA timezone")
+		}
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
+	t.Run("issued_offset_incompatible_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa15", "ext-bad-off", "A", "1.00")
+		// Valid IANA zone, but offset 0 ≠ Africa/Luanda (+60) at this instant.
+		req.Intent.IssuedOffsetMinutes = 0
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of incompatible offset")
+		}
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
+	t.Run("created_at_uses_injected_clock", func(t *testing.T) {
+		fixed := time.Date(2026, 7, 21, 12, 30, 45, 123456000, time.UTC)
+		store.SetClock(func() time.Time { return fixed })
+		t.Cleanup(func() { store.SetClock(nil) })
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa13", "ext-clock", "A", "1.00")
 		r, err := store.SealInTx(ctx, req)
 		if err != nil {
-			t.Fatalf("seal: %v", err)
+			t.Fatal(err)
 		}
-		want := time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC)
-		q := `SELECT issued_at FROM ` + tbl(postgres, "documents") + ` WHERE id = ?`
-		var got time.Time
-		if postgres {
-			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&got); err != nil {
-				t.Fatal(err)
-			}
-			got = got.UTC()
-		} else {
-			var raw string
-			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&raw); err != nil {
-				t.Fatal(err)
-			}
-			got, err = time.Parse(time.RFC3339Nano, raw)
-			if err != nil {
-				t.Fatalf("parse sqlite issued_at %q: %v", raw, err)
-			}
-			got = got.UTC()
-		}
-		if !got.Equal(want) {
-			t.Fatalf("stored issued_at = %v, want %v", got, want)
+		want := fixed.UTC().Truncate(time.Microsecond)
+		if !r.CreatedAt.Equal(want) {
+			t.Fatalf("CreatedAt=%v want %v", r.CreatedAt, want)
 		}
 	})
 
@@ -289,22 +315,42 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		_ = hits
 	})
 
-	t.Run("VS-T07_rollback_after_counter_on_constraint", func(t *testing.T) {
+	t.Run("VS-T07_validation_rejects_before_side_effects", func(t *testing.T) {
 		series := "E"
 		before := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		req := sampleSealReq(scope, "dddddddd-dddd-dddd-dddd-ddddddddddd1", "ext-fail", series, "4.00")
-		// Passes app prepare, fails DB CHECK after series counter update (trim-empty seller_name).
 		req.Intent.SellerName = "   "
 		_, err := store.SealInTx(ctx, req)
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err = %v, want ErrValidation", err)
+		}
+		after := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
+		if after != before {
+			t.Fatalf("series counter changed on validation failure: before=%d after=%d", before, after)
+		}
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-fail", 0)
+		assertIdempotencyAbsent(t, ctx, sqlDB, postgres, scope, req.IdempotencyKey)
+	})
+
+	t.Run("VS-T07_rollback_after_counter_on_trigger", func(t *testing.T) {
+		const failExternal = "ext-fail-vst07"
+		installTestFailTrigger(t, ctx, sqlDB, postgres, failExternal)
+		t.Cleanup(func() { dropTestFailTrigger(t, ctx, sqlDB, postgres) })
+
+		series := "E-TRIG"
+		before := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
+		req := sampleSealReq(scope, "dddddddd-dddd-dddd-dddd-ddddddddddd2", failExternal, series, "4.00")
+		_, err := store.SealInTx(ctx, req)
 		if err == nil {
-			t.Fatal("expected constraint failure")
+			t.Fatal("expected trigger-induced failure")
 		}
 		after := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		if after != before {
 			t.Fatalf("series counter changed on rollback: before=%d after=%d", before, after)
 		}
-		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-fail", 0)
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, failExternal, 0)
 		assertIdempotencyAbsent(t, ctx, sqlDB, postgres, scope, req.IdempotencyKey)
+		assertNoOrphanFiscalRows(t, ctx, sqlDB, postgres, scope, failExternal)
 	})
 
 	t.Run("independent_series_per_scope", func(t *testing.T) {
@@ -341,13 +387,15 @@ func sampleSealReq(scope, key, externalID, series, price string) persistence.Sea
 		IdempotencyKey: key,
 		SeriesCode:     series,
 		Intent: canonical.DocumentIntent{
-			ScopeID:      scope,
-			ExternalID:   externalID,
-			DocumentType: "invoice",
-			Currency:     "AOA",
-			IssuedAtUTC:  time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC).Format(time.RFC3339Nano),
-			SellerTaxID:  "5000000000",
-			SellerName:   "Seller SA",
+			ScopeID:             scope,
+			ExternalID:          externalID,
+			DocumentType:        "invoice",
+			Currency:            "AOA",
+			IssuedAtUTC:         "2026-07-21T09:00:00.000000Z",
+			IssuedTimezone:      "Africa/Luanda",
+			IssuedOffsetMinutes: 60,
+			SellerTaxID:         "5000000000",
+			SellerName:          "Seller SA",
 			Lines: []canonical.Line{{
 				LineID:      "L1",
 				Description: "Item",
@@ -426,4 +474,73 @@ func readSeriesLast(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres b
 		t.Fatal(err)
 	}
 	return last.Int64
+}
+
+func installTestFailTrigger(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, externalID string) {
+	t.Helper()
+	lit := strings.ReplaceAll(externalID, "'", "''")
+	if postgres {
+		fn := `
+			CREATE OR REPLACE FUNCTION fiscal.test_fail_seal_vst07() RETURNS trigger AS $fn$
+			BEGIN
+				IF NEW.external_id = '` + lit + `' THEN
+					RAISE EXCEPTION 'test-induced failure after series counter';
+				END IF;
+				RETURN NEW;
+			END;
+			$fn$ LANGUAGE plpgsql`
+		if _, err := sqlDB.ExecContext(ctx, fn); err != nil {
+			t.Fatalf("create function: %v", err)
+		}
+		_, err := sqlDB.ExecContext(ctx, `
+			DROP TRIGGER IF EXISTS documents_test_fail_vst07 ON fiscal.documents;
+			CREATE TRIGGER documents_test_fail_vst07
+				BEFORE INSERT ON fiscal.documents
+				FOR EACH ROW EXECUTE FUNCTION fiscal.test_fail_seal_vst07()`)
+		if err != nil {
+			t.Fatalf("create trigger: %v", err)
+		}
+		return
+	}
+	_, err := sqlDB.ExecContext(ctx, `
+		CREATE TRIGGER documents_test_fail_vst07
+		BEFORE INSERT ON documents
+		FOR EACH ROW
+		WHEN NEW.external_id = '`+lit+`'
+		BEGIN
+			SELECT RAISE(ABORT, 'test-induced failure after series counter');
+		END`)
+	if err != nil {
+		t.Fatalf("create sqlite trigger: %v", err)
+	}
+}
+
+func dropTestFailTrigger(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool) {
+	t.Helper()
+	if postgres {
+		_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS documents_test_fail_vst07 ON fiscal.documents`)
+		_, _ = sqlDB.ExecContext(ctx, `DROP FUNCTION IF EXISTS fiscal.test_fail_seal_vst07()`)
+		return
+	}
+	_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS documents_test_fail_vst07`)
+}
+
+func assertNoOrphanFiscalRows(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, scope, externalID string) {
+	t.Helper()
+	var ledgerN, outboxN int
+	lq := `SELECT COUNT(*) FROM ` + tbl(postgres, "ledger_events") + ` e
+		JOIN ` + tbl(postgres, "documents") + ` d ON d.id = e.document_id
+		WHERE d.scope_id = ? AND d.external_id = ?`
+	if err := sqlDB.QueryRowContext(ctx, rebind(postgres, lq), scope, externalID).Scan(&ledgerN); err != nil {
+		t.Fatal(err)
+	}
+	oq := `SELECT COUNT(*) FROM ` + tbl(postgres, "outbox_messages") + ` o
+		JOIN ` + tbl(postgres, "documents") + ` d ON d.id = o.document_id
+		WHERE d.scope_id = ? AND d.external_id = ?`
+	if err := sqlDB.QueryRowContext(ctx, rebind(postgres, oq), scope, externalID).Scan(&outboxN); err != nil {
+		t.Fatal(err)
+	}
+	if ledgerN != 0 || outboxN != 0 {
+		t.Fatalf("orphan ledger=%d outbox=%d", ledgerN, outboxN)
+	}
 }

@@ -3,38 +3,40 @@ package canonical
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
 )
 
-// Version identifies the canonical projection algorithm.
-//
-// Format of Materialize (canonical_v1), UTF-8:
-//
-//  1. The literal Version token, then ASCII LF (0x0A).
-//  2. A fixed sequence of field pairs. Each pair is two length-value (LV) records:
-//     KEY then VALUE. An LV record is decimal ASCII length (no leading zeros except
-//     for zero itself), ASCII colon (0x3A), then exactly that many UTF-8 bytes.
-//     Values and keys may contain newlines, '=', spaces, or any other UTF-8 bytes;
-//     length makes the framing unambiguous (no delimiter scanning of payloads).
-//  3. Document field keys, in this exact order:
-//     scope_id, external_id, document_type, currency, issued_at, requested_series,
-//     series_code, seller_tax_id, seller_name, customer_tax_id, customer_name,
-//     lines_count.
-//  4. For each line in Intent.Lines order (received order; never sorted by LineID),
-//     five field pairs: line.line_id, line.description, line.quantity,
-//     line.unit_price, line.tax_code. Quantity and unit_price use FormatCanonical.
-//
-// RequestHash is SHA-256 over the UTF-8 bytes of Materialize.
-const Version = "canonical_v1"
+const (
+	// VersionV1 is the frozen pre-DEC-TIME-001 algorithm (documented; golden-tested; not used for new seals).
+	VersionV1 = "canonical_v1"
+	// VersionV2 is the active algorithm (DEC-TIME-001): includes fiscal temporal context.
+	VersionV2 = "canonical_v2"
+	// Version is the algorithm used by RequestHash / Materialize for new seals.
+	Version = VersionV2
+	// HashSize is the SHA-256 digest length in bytes.
+	HashSize = 32
+)
 
-// HashSize is the SHA-256 digest length in bytes.
-const HashSize = 32
+// Format of MaterializeV1 (canonical_v1), UTF-8 — IMMUTABLE:
+//
+//  1. Literal VersionV1, then ASCII LF (0x0A).
+//  2. Field pairs as LV records (decimal length, colon, UTF-8 bytes).
+//  3. Keys in order: scope_id, external_id, document_type, currency, issued_at,
+//     requested_series, series_code, seller_tax_id, seller_name, customer_tax_id,
+//     customer_name, lines_count.
+//  4. For each line in received order: line.line_id, line.description, line.quantity,
+//     line.unit_price, line.tax_code.
+//
+// Format of MaterializeV2 (canonical_v2), UTF-8:
+//
+//  Same as v1 through issued_at, then additionally issued_timezone and
+//  issued_offset_minutes (decimal string), then requested_series … lines as in v1.
+//  issued_at MUST be UTC truncated to microseconds, formatted as RFC3339 with
+//  exactly six fractional digits and Z (e.g. 2026-07-21T09:00:00.000000Z).
 
 // Line is one document line in the validated projection.
 type Line struct {
@@ -47,47 +49,60 @@ type Line struct {
 
 // DocumentIntent is the validated semantic projection (not raw JSON).
 type DocumentIntent struct {
-	ScopeID         string
-	ExternalID      string
-	DocumentType    string
-	Currency        string
-	IssuedAtUTC     string // RFC3339Nano UTC (normalized)
-	RequestedSeries string // empty if absent
-	SellerTaxID     string
-	SellerName      string
-	CustomerTaxID   string // empty if absent
-	CustomerName    string // empty if absent
-	Lines           []Line
+	ScopeID             string
+	ExternalID          string
+	DocumentType        string
+	Currency            string
+	IssuedAtUTC         string // UTC micro canonical string for hashing/persistence
+	IssuedTimezone      string // IANA, e.g. Africa/Luanda
+	IssuedOffsetMinutes int    // offset used at emission, minutes east of UTC
+	RequestedSeries     string // empty if absent
+	SellerTaxID         string
+	SellerName          string
+	CustomerTaxID       string // empty if absent
+	CustomerName        string // empty if absent
+	Lines               []Line
 }
 
 // Projection is the full versioned material for request_hash.
-// SeriesCode is the effective numbering series (distinct from RequestedSeries).
 type Projection struct {
 	SeriesCode string
 	Intent     DocumentIntent
 }
 
-// NormalizeIssuedAtUTC parses issued_at and returns RFC3339Nano in UTC.
-func NormalizeIssuedAtUTC(raw string) (string, error) {
-	s := strings.TrimSpace(raw)
-	if s == "" {
-		return "", fmt.Errorf("canonical: empty issued_at")
-	}
-	t, err := time.Parse(time.RFC3339Nano, s)
-	if err != nil {
-		t, err = time.Parse(time.RFC3339, s)
-		if err != nil {
-			return "", fmt.Errorf("canonical: invalid issued_at %q: %w", raw, err)
-		}
-	}
-	return t.UTC().Format(time.RFC3339Nano), nil
+// MaterializeV1 builds canonical_v1 material (frozen; for golden / legacy docs only).
+func MaterializeV1(p Projection) string {
+	return materialize(VersionV1, p, false)
 }
 
-// Materialize builds the versioned canonical byte material for hashing.
-// Line order matches Intent.Lines exactly (same order persistence uses for line_no).
+// MaterializeV2 builds canonical_v2 material (active).
+func MaterializeV2(p Projection) string {
+	return materialize(VersionV2, p, true)
+}
+
+// Materialize builds the active version material (v2).
 func Materialize(p Projection) string {
+	return MaterializeV2(p)
+}
+
+// RequestHashV1 returns SHA-256 of canonical_v1 material.
+func RequestHashV1(p Projection) [HashSize]byte {
+	return sha256.Sum256([]byte(MaterializeV1(p)))
+}
+
+// RequestHashV2 returns SHA-256 of canonical_v2 material.
+func RequestHashV2(p Projection) [HashSize]byte {
+	return sha256.Sum256([]byte(MaterializeV2(p)))
+}
+
+// RequestHash returns the active (v2) digest.
+func RequestHash(p Projection) [HashSize]byte {
+	return RequestHashV2(p)
+}
+
+func materialize(version string, p Projection, withTemporal bool) string {
 	var b strings.Builder
-	b.WriteString(Version)
+	b.WriteString(version)
 	b.WriteByte('\n')
 
 	writeField(&b, "scope_id", p.Intent.ScopeID)
@@ -95,6 +110,10 @@ func Materialize(p Projection) string {
 	writeField(&b, "document_type", p.Intent.DocumentType)
 	writeField(&b, "currency", p.Intent.Currency)
 	writeField(&b, "issued_at", p.Intent.IssuedAtUTC)
+	if withTemporal {
+		writeField(&b, "issued_timezone", p.Intent.IssuedTimezone)
+		writeField(&b, "issued_offset_minutes", strconv.Itoa(p.Intent.IssuedOffsetMinutes))
+	}
 	writeField(&b, "requested_series", p.Intent.RequestedSeries)
 	writeField(&b, "series_code", p.SeriesCode)
 	writeField(&b, "seller_tax_id", p.Intent.SellerTaxID)
@@ -111,12 +130,6 @@ func Materialize(p Projection) string {
 		writeField(&b, "line.tax_code", ln.TaxCode)
 	}
 	return b.String()
-}
-
-// RequestHash returns the 32-byte SHA-256 of the canonical projection.
-func RequestHash(p Projection) [HashSize]byte {
-	sum := sha256.Sum256([]byte(Materialize(p)))
-	return sum
 }
 
 func writeField(b *strings.Builder, key, value string) {

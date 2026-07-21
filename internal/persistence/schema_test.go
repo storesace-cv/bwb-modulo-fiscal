@@ -149,9 +149,11 @@ func assertSchemaBehavior(t *testing.T, ctx context.Context, sqlDB *sql.DB, post
 	must(t, exec(`
 		INSERT INTO `+tbl("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		docID, "scope", "ext-1", "invoice", "AOA", now,
+		"Africa/Luanda", 60,
 		"A", int64(1), "5000000000", "Seller", now, now,
 	))
 	must(t, exec(`
@@ -182,20 +184,42 @@ func assertSchemaBehavior(t *testing.T, ctx context.Context, sqlDB *sql.DB, post
 	if err := exec(`
 		INSERT INTO `+tbl("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"doc-bad-cur", "scope", "ext-bad-cur", "invoice", "USD", now, "A", int64(2), "5000000000", "Seller", now, now,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"doc-bad-cur", "scope", "ext-bad-cur", "invoice", "USD", now, "Africa/Luanda", 60, "A", int64(2), "5000000000", "Seller", now, now,
 	); err == nil {
 		t.Fatal("expected currency check failure")
 	}
 	if err := exec(`
 		INSERT INTO `+tbl("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"doc-bad-seller", "scope", "ext-bad-seller", "invoice", "AOA", now, "A", int64(3), " ", "Seller", now, now,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"doc-bad-seller", "scope", "ext-bad-seller", "invoice", "AOA", now, "Africa/Luanda", 60, "A", int64(3), " ", "Seller", now, now,
 	); err == nil {
 		t.Fatal("expected seller_tax_id nonempty check failure")
+	}
+	if err := exec(`
+		INSERT INTO `+tbl("documents")+` (
+			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
+			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"doc-bad-off", "scope", "ext-bad-off", "invoice", "AOA", now, "Africa/Luanda", 841, "A", int64(4), "5000000000", "Seller", now, now,
+	); err == nil {
+		t.Fatal("expected issued_offset_minutes range check failure")
+	}
+	if err := exec(`
+		INSERT INTO `+tbl("documents")+` (
+			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
+			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"doc-bad-tz", "scope", "ext-bad-tz", "invoice", "AOA", now, "   ", 60, "A", int64(5), "5000000000", "Seller", now, now,
+	); err == nil {
+		t.Fatal("expected issued_timezone nonempty check failure")
 	}
 	if err := exec(`
 		INSERT INTO `+tbl("idempotency_records")+` (
@@ -225,9 +249,10 @@ func assertSchemaBehavior(t *testing.T, ctx context.Context, sqlDB *sql.DB, post
 	must(t, exec(`
 		INSERT INTO `+tbl("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			series_code, fiscal_seq, seller_tax_id, seller_name, created_at, sealed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"doc-cn", "scope", "ext-cn", "credit_note", "AOA", now, "A", int64(9), "5000000000", "Seller", now, now,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"doc-cn", "scope", "ext-cn", "credit_note", "AOA", now, "Africa/Luanda", 60, "A", int64(9), "5000000000", "Seller", now, now,
 	))
 
 	if err := exec(`UPDATE `+tbl("documents")+` SET seller_name = ? WHERE id = ?`, "X", docID); err == nil {

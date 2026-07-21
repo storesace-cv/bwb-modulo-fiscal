@@ -91,10 +91,11 @@ type querier interface {
 
 func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, hash []byte, postgres bool) (*SealResult, error) {
 	t := tablePrefix(postgres)
-	now := s.stamp()
-	nowArg := any(now)
+	// Microsecond precision matches PostgreSQL timestamptz and keeps SealResult == replay.
+	now := s.stamp().UTC().Truncate(time.Microsecond)
+	var nowArg any = now
 	if !postgres {
-		nowArg = now.Format(time.RFC3339Nano)
+		nowArg = formatUTCMicro(now)
 	}
 
 	// Resolve idempotency under row lock / writer lock.
@@ -141,14 +142,17 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		return nil, err
 	}
 
-	issuedAt := req.Intent.IssuedAtUTC // already normalized RFC3339Nano UTC
+	issuedAt := req.Intent.IssuedAtUTC // UTC micro from fiscaltime
 	var issuedAtArg any = issuedAt
 	if postgres {
-		parsed, err := time.Parse(time.RFC3339Nano, issuedAt)
+		parsed, err := time.Parse("2006-01-02T15:04:05.000000Z", issuedAt)
 		if err != nil {
-			return nil, fmt.Errorf("persistence: issued_at: %w", err)
+			parsed, err = time.Parse(time.RFC3339Nano, issuedAt)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: issued_at: %w", err)
+			}
 		}
-		issuedAtArg = parsed.UTC()
+		issuedAtArg = parsed.UTC().Truncate(time.Microsecond)
 	}
 
 	custTax := nullIfEmpty(req.Intent.CustomerTaxID)
@@ -158,11 +162,13 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 	_, err = q.ExecContext(ctx, `
 		INSERT INTO `+t("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			requested_series, series_code, fiscal_seq,
 			seller_tax_id, seller_name, customer_tax_id, customer_name,
 			created_at, sealed_at
-		) VALUES (`+placeholders(postgres, 15)+`)`,
+		) VALUES (`+placeholders(postgres, 17)+`)`,
 		docID, req.Intent.ScopeID, req.Intent.ExternalID, req.Intent.DocumentType, req.Intent.Currency, issuedAtArg,
+		req.Intent.IssuedTimezone, req.Intent.IssuedOffsetMinutes,
 		reqSeries, req.SeriesCode, fiscalSeq,
 		req.Intent.SellerTaxID, req.Intent.SellerName, custTax, custName,
 		nowArg, nowArg,
@@ -223,6 +229,7 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		ScopeID:       req.Intent.ScopeID,
 		ExternalID:    req.Intent.ExternalID,
 		SubmissionID:  submissionID,
+		CreatedAt:     now,
 		IdempotentHit: false,
 	}, nil
 }
@@ -282,16 +289,39 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 		externalID   string
 		scopeID      string
 		submissionID string
+		createdAt    time.Time
 	)
-	err := q.QueryRowContext(ctx, `
-		SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, o.submission_id
-		FROM `+t("documents")+` d
-		JOIN `+t("outbox_messages")+` o ON o.document_id = d.id
-		WHERE d.id = `+ph(postgres, 1),
-		docID,
-	).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &submissionID)
-	if err != nil {
-		return nil, fmt.Errorf("persistence: load completed: %w", err)
+	if postgres {
+		err := q.QueryRowContext(ctx, `
+			SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, d.created_at, o.submission_id
+			FROM `+t("documents")+` d
+			JOIN `+t("outbox_messages")+` o ON o.document_id = d.id
+			WHERE d.id = $1`,
+			docID,
+		).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &createdAt, &submissionID)
+		if err != nil {
+			return nil, fmt.Errorf("persistence: load completed: %w", err)
+		}
+	} else {
+		var createdRaw string
+		err := q.QueryRowContext(ctx, `
+			SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, d.created_at, o.submission_id
+			FROM documents d
+			JOIN outbox_messages o ON o.document_id = d.id
+			WHERE d.id = ?`,
+			docID,
+		).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &createdRaw, &submissionID)
+		if err != nil {
+			return nil, fmt.Errorf("persistence: load completed: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, createdRaw)
+		if err != nil {
+			parsed, err = time.Parse(time.RFC3339, createdRaw)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: load completed created_at: %w", err)
+			}
+		}
+		createdAt = parsed
 	}
 	return &SealResult{
 		DocumentID:    docID,
@@ -300,6 +330,7 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 		ScopeID:       scopeID,
 		ExternalID:    externalID,
 		SubmissionID:  submissionID,
+		CreatedAt:     createdAt.UTC().Truncate(time.Microsecond),
 		IdempotentHit: true,
 	}, nil
 }
@@ -418,4 +449,9 @@ func nullIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+// formatUTCMicro formats t at microsecond resolution for SQLite TEXT storage.
+func formatUTCMicro(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000000Z07:00")
 }

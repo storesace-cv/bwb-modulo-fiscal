@@ -1,6 +1,6 @@
 # Diretrizes da API para POS
 
-Contrato: [`specs/openapi/openapi.yaml`](../../specs/openapi/openapi.yaml) (`0.1.2-draft`).
+Contrato: [`specs/openapi/openapi.yaml`](../../specs/openapi/openapi.yaml) (`0.1.3-draft`).
 
 ## Princípios
 
@@ -13,6 +13,7 @@ Contrato: [`specs/openapi/openapi.yaml`](../../specs/openapi/openapi.yaml) (`0.1
 - O POS **não** atribui número fiscal nem escolhe a série efetiva — **AO-SEQ-002** (requisito de catálogo; conformidade ainda não validada).
 - `scope_id` **não** vai no body; vem exclusivamente da identidade autenticada.
 - `requested_series` é apenas referência; a `SeriesCode` efetiva é resolvida pelo módulo.
+- `issued_at` é tempo **fiscal** (civil no estabelecimento): RFC 3339 com offset compatível com a timezone IANA do scope (Angola `Africa/Luanda` → `+01:00`). `Z`/UTC e offsets incompatíveis são rejeitados. Distinto de `created_at` (instante técnico UTC do módulo) — DEC-TIME-001.
 - Erros são estruturados (`Problem`), estáveis e acionáveis.
 - Autenticação `bearerAuth` é **POS/módulo**, não credenciais AGT.
 - Webhooks (quando existirem) serão assinados, repetíveis e consultáveis por polling.
@@ -78,4 +79,4 @@ Coleção mínima sem segredos: [examples/create-document.http](examples/create-
 
 ## Compatibilidade
 
-Adicionar campos opcionais é compatível. Remover, renomear, mudar semântica, tornar obrigatório ou alterar enum exige nova versão principal ou período formal de migração. Alterações deste draft (`0.1.2-draft`: `201`, remoção do GET, campos de resposta) estão no [CHANGELOG](../../CHANGELOG.md).
+Adicionar campos opcionais é compatível. Remover, renomear, mudar semântica, tornar obrigatório ou alterar enum exige nova versão principal ou período formal de migração. Alterações deste draft (`0.1.3-draft`: DEC-TIME-001 / `issued_at`+offset Angola) estão no [CHANGELOG](../../CHANGELOG.md).

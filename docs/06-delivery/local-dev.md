@@ -33,11 +33,13 @@
 - Controlo Postgres: `public.bwb_schema_migrations`.
 - Tabelas da aplicação: schema `fiscal.*`.
 - CLI produção: só `up` e `version` — ver [migrate-runbook.md](migrate-runbook.md).
+- **Migration `0002` (DEC-TIME-001):** aborta se existirem linhas em `documents` **ou** `idempotency_records` (hashes `canonical_v1` / sem contexto temporal). Em desenvolvimento, **recriar a BD**; **não** recalcular hashes existentes.
 
 ```bash
 # SQLite local
 export FISCAL_DATABASE_DRIVER=sqlite
 export FISCAL_DATABASE_URL=./tmp/fiscal.db
+# Se a BD foi criada antes de 0002: rm ./tmp/fiscal.db
 go run ./cmd/fiscal-migrate up
 go run ./cmd/fiscal-migrate version
 
@@ -67,8 +69,43 @@ go run ./cmd/fiscal-api
 curl -sS http://127.0.0.1:8080/v1/health
 ```
 
+## Variáveis do endpoint de documentos (`fiscal-api`)
+
+A API **não** executa migrations no arranque — usar `fiscal-migrate` antes.
+
+| Variável | Obrigatório | Descrição |
+| --- | --- | --- |
+| `FISCAL_ENV` | sim | Deve ser `development` para `dev_static` |
+| `FISCAL_AUTH_MODE` | sim | Apenas `dev_static` neste incremento (fail-closed se ausente) |
+| `FISCAL_AUTH_DEV_TOKEN` | sim | Bearer do módulo; mínimo 32 bytes; nunca em logs |
+| `FISCAL_AUTH_DEV_SCOPE_ID` | sim | `scope_id` injetado na identidade (não vem do body) |
+| `FISCAL_SCOPE_TIMEZONE` | sim | IANA do scope; neste incremento apenas `Africa/Luanda` (DEC-TIME-001) |
+| `FISCAL_AUTH_DEV_FORBIDDEN_TOKEN` | não | Token válido que devolve 403 (testes) |
+| `FISCAL_SERIES_MODE` | sim | Apenas `static` neste incremento |
+| `FISCAL_SERIES_EFFECTIVE_CODE` | sim | `SeriesCode` efetiva autorizada (POS não controla) |
+| `FISCAL_DATABASE_DRIVER` | sim | `postgres` ou `sqlite` |
+| `FISCAL_DATABASE_URL` | sim | DSN Postgres ou path SQLite |
+
+Exemplo local (token fictício ≥32 bytes):
+
+```bash
+export FISCAL_ENV=development
+export FISCAL_AUTH_MODE=dev_static
+export FISCAL_AUTH_DEV_TOKEN='0123456789abcdef0123456789abcdef'
+export FISCAL_AUTH_DEV_SCOPE_ID=scope-dev
+export FISCAL_SCOPE_TIMEZONE=Africa/Luanda
+export FISCAL_SERIES_MODE=static
+export FISCAL_SERIES_EFFECTIVE_CODE=A
+export FISCAL_DATABASE_DRIVER=sqlite
+export FISCAL_DATABASE_URL=./tmp/fiscal.db
+go run ./cmd/fiscal-migrate up
+go run ./cmd/fiscal-api
+```
+
+Contrato: [api-guidelines.md](../03-api/api-guidelines.md). Sem ficheiros `.env` versionados.
+
 Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
 
-Contrato público `0.1.2-draft`: `POST /v1/documents` (`createDocument`, `201`, `sealed_locally`) documentado em [api-guidelines.md](../03-api/api-guidelines.md) e [examples/create-document.http](../03-api/examples/create-document.http). A implementação HTTP (PR C2) ainda não está neste incremento.
+Contrato público `0.1.3-draft` + implementação HTTP `POST /v1/documents` (PR C2) + DEC-TIME-001 (`canonical_v2`, migration `0002`).
 
-**Não** inclui worker AGT, JWS, ficheiros `.env` nem `GET /documents/{id}` (removido do OpenAPI draft).
+**Não** inclui worker AGT, JWS, ficheiros `.env` nem `GET /documents/{id}`. Cabo Verde runtime **não** está implementado.
