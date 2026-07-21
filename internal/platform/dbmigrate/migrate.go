@@ -20,7 +20,7 @@ const (
 	// MigrationsTable is the control table name (PostgreSQL: public.bwb_schema_migrations).
 	MigrationsTable = "bwb_schema_migrations"
 	// ExpectedVersion is the latest forward migration version shipped in this binary.
-	ExpectedVersion = uint(2)
+	ExpectedVersion = uint(3)
 )
 
 // Dialect selects which embedded migration set to apply.

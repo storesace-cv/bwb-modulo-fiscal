@@ -8,7 +8,7 @@ set -Eeuo pipefail
 # Schema version expected after successful migrate up for this release line.
 # Keep in sync with the highest forward migration in migrations/.
 # shellcheck disable=SC2034 # referenced by build/update scripts that source this library
-DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=2
+DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=3
 
 deploy_repo_root() {
   local here
