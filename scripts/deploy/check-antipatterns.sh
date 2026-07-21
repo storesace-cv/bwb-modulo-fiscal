@@ -36,6 +36,10 @@ for f in "${scan_files[@]}"; do
     echo "error: migrate must use new release binary, not current/, in ${f}" >&2
     failed=1
   fi
+  if grep -nE 'deploy_require_cmds[[:space:]]+.*\b(sudo|systemctl)\b' "${f}"; then
+    echo "error: sudo/systemctl must not be required on the operator host in ${f}" >&2
+    failed=1
+  fi
 done
 
 if [[ "${failed}" -ne 0 ]]; then

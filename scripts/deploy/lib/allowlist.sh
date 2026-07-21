@@ -5,6 +5,11 @@
 
 set -Eeuo pipefail
 
+# Schema version expected after successful migrate up for this release line.
+# Keep in sync with the highest forward migration in migrations/.
+# shellcheck disable=SC2034 # referenced by build/update scripts that source this library
+DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=2
+
 deploy_repo_root() {
   local here
   here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -12,8 +17,59 @@ deploy_repo_root() {
 }
 
 deploy_trim() {
-  # Trim leading/trailing whitespace from stdin; preserve interior content.
   sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+deploy_assert_sha1() {
+  local name="$1"
+  local val="$2"
+  if [[ ! "${val}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "error: ${name} must be a 40-char lowercase hex SHA-1" >&2
+    return 1
+  fi
+}
+
+deploy_file_mode_octal() {
+  local f="$1"
+  if mode="$(stat -c '%a' "${f}" 2>/dev/null)"; then
+    printf '%s' "${mode}"
+    return 0
+  fi
+  if mode="$(stat -f '%OLp' "${f}" 2>/dev/null)"; then
+    printf '%s' "${mode}"
+    return 0
+  fi
+  return 1
+}
+
+# Regular file, not a symlink, owner-only access (no group/other bits).
+deploy_assert_restricted_file() {
+  local label="$1"
+  local f="$2"
+  local mode
+  if [[ ! -e "${f}" ]]; then
+    echo "error: ${label} missing" >&2
+    return 1
+  fi
+  if [[ -L "${f}" ]]; then
+    echo "error: ${label} must not be a symlink" >&2
+    return 1
+  fi
+  if [[ ! -f "${f}" ]]; then
+    echo "error: ${label} must be a regular file" >&2
+    return 1
+  fi
+  mode="$(deploy_file_mode_octal "${f}")" || {
+    echo "error: ${label} could not read mode" >&2
+    return 1
+  }
+  case "${mode}" in
+    400 | 600 | 0400 | 0600) ;;
+    *)
+      echo "error: ${label} permissions must be 0600 or 0400 (got ${mode})" >&2
+      return 1
+      ;;
+  esac
 }
 
 deploy_allowlist_has() {
@@ -31,7 +87,17 @@ deploy_allowlist_has() {
   return 1
 }
 
-# True if line (after leading spaces) is empty or a full-line comment.
+deploy_allowlist_keys() {
+  local allowlist_file="$1"
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="$(printf '%s' "${line}" | deploy_trim)"
+    [[ -z "${line}" ]] && continue
+    [[ "${line}" == \#* ]] && continue
+    printf '%s\n' "${line}"
+  done <"${allowlist_file}"
+}
+
 deploy_is_skip_line() {
   local line="$1"
   local trimmed
@@ -49,7 +115,7 @@ deploy_validate_key_name() {
   return 0
 }
 
-# Validate file against allowlist without exporting (for tests / dry checks).
+# Keys present must be in allowlist; no duplicates; well-formed.
 deploy_validate_allowlisted_file() {
   local allowlist_file="$1"
   local env_file="$2"
@@ -103,10 +169,22 @@ deploy_validate_allowlisted_file() {
   return 0
 }
 
-# Load KEY=VALUE into the current shell after allowlist validation.
-# Comment lines: only when the line (after leading spaces) starts with #.
-# Value: everything after the first '=' (including # $ " ' = spaces).
-# Never uses eval on values.
+# Exactly the allowlisted keys (all required, none extra). Used for migrate.env.
+deploy_validate_exact_allowlisted_file() {
+  local allowlist_file="$1"
+  local env_file="$2"
+  local key
+  deploy_validate_allowlisted_file "${allowlist_file}" "${env_file}" || return 1
+  while IFS= read -r key || [[ -n "${key}" ]]; do
+    [[ -z "${key}" ]] && continue
+    if ! deploy_read_env_value "${env_file}" "${key}" >/dev/null; then
+      echo "error: missing required allowlisted key: ${key}" >&2
+      return 1
+    fi
+  done < <(deploy_allowlist_keys "${allowlist_file}")
+  return 0
+}
+
 deploy_load_allowlisted_env() {
   local allowlist_file="$1"
   local env_file="$2"
@@ -127,8 +205,6 @@ deploy_load_allowlisted_env() {
   done <"${env_file}"
 }
 
-# Read a single required key from an env file without sourcing.
-# Prints only the value to stdout (callers must not log it).
 deploy_read_env_value() {
   local env_file="$1"
   local want_key="$2"
@@ -244,12 +320,42 @@ deploy_sha256_check() {
   fi
 }
 
+# Verify release directory layout + full SHA256SUMS manifest.
+deploy_verify_release_manifest() {
+  local dir="$1"
+  local expected_commit="${2:-}"
+  (
+    cd "${dir}"
+    test -f COMMIT
+    test -f EXPECTED_SCHEMA_VERSION
+    test -f SHA256SUMS
+    test -f fiscal-api
+    test -f fiscal-migrate
+    test -f remote-migrate-run.sh
+    test -f lib/allowlist.sh
+    test -f lib/migrate.env.allowlist
+    deploy_sha256_check SHA256SUMS
+    if [[ -n "${expected_commit}" ]]; then
+      test "$(tr -d '[:space:]' <COMMIT)" = "${expected_commit}"
+    fi
+  )
+}
+
+deploy_release_dir_for_sha() {
+  local sha="$1"
+  deploy_assert_sha1 "release sha" "${sha}" || return 1
+  printf '/opt/bwb-modulo-fiscal/releases/%s' "${sha}"
+}
+
 deploy_ssh_base() {
-  # Expand ~
   DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY/#\~/${HOME}}"
   DEPLOY_KNOWN_HOSTS="${DEPLOY_KNOWN_HOSTS/#\~/${HOME}}"
   deploy_require_cmds ssh scp
-  # Populated for callers that source this library (update-staging / migrate-remote).
+  deploy_assert_restricted_file "DEPLOY_SSH_KEY" "${DEPLOY_SSH_KEY}"
+  if [[ ! -f "${DEPLOY_KNOWN_HOSTS}" || -L "${DEPLOY_KNOWN_HOSTS}" ]]; then
+    echo "error: DEPLOY_KNOWN_HOSTS must be a regular non-symlink file" >&2
+    return 1
+  fi
   # shellcheck disable=SC2034
   SSH_BASE=(
     ssh

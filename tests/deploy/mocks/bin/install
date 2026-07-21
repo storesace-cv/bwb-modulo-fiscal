@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Mock install(1): ignore ownership flags for non-root test environments.
+set -Eeuo pipefail
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+printf 'install %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+
+out=()
+skip=0
+for a in "$@"; do
+  if [[ "${skip}" -eq 1 ]]; then
+    skip=0
+    continue
+  fi
+  case "${a}" in
+    -o | -g)
+      skip=1
+      continue
+      ;;
+    *)
+      out+=("${a}")
+      ;;
+  esac
+done
+
+# Prefer real install without ownership, else emulate common modes.
+if command -v /usr/bin/install >/dev/null 2>&1; then
+  exec /usr/bin/install "${out[@]}"
+fi
+
+# Minimal fallback: support -d and file copy with -m.
+mode=""
+dir_only=0
+args=()
+i=0
+while [[ $i -lt ${#out[@]} ]]; do
+  a="${out[$i]}"
+  case "${a}" in
+    -d)
+      dir_only=1
+      i=$((i + 1))
+      ;;
+    -m)
+      i=$((i + 1))
+      mode="${out[$i]}"
+      i=$((i + 1))
+      ;;
+    *)
+      args+=("${a}")
+      i=$((i + 1))
+      ;;
+  esac
+done
+if [[ "${dir_only}" -eq 1 ]]; then
+  mkdir -p "${args[@]}"
+  [[ -n "${mode}" ]] && chmod "${mode}" "${args[@]}"
+  exit 0
+fi
+src="${args[0]}"
+dst="${args[1]}"
+cp "${src}" "${dst}"
+[[ -n "${mode}" ]] && chmod "${mode}" "${dst}"

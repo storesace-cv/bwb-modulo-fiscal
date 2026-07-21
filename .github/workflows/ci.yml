@@ -63,7 +63,12 @@ jobs:
           bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh tests/deploy/mocks/bin/*
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
-          git diff --check
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
+          else
+            git diff --check "HEAD~1...HEAD" || git diff --check
+          fi
+          git diff --check origin/main...HEAD || git diff --check "$(git merge-base origin/main HEAD)...HEAD"
 
       - name: OpenAPI lint
         run: |

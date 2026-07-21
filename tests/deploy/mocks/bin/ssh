@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Mock SSH for deploy live-path tests. Never opens a network connection.
+# Remaps absolute paths into DEPLOY_MOCK_FS. sudo/systemctl only run via this remote path.
 set -Eeuo pipefail
 
 : "${DEPLOY_MOCK_FS:?DEPLOY_MOCK_FS required}"
@@ -40,29 +41,62 @@ done
 
 log "target=${target} cmd=${remote_cmd}"
 
-# Intercept only real runner invocations (not "test -x remote-migrate-run.sh").
-if [[ "${remote_cmd}" == *"bash '"*"/remote-migrate-run.sh'"* ]]; then
+FS="${DEPLOY_MOCK_FS}"
+mkdir -p "${FS}/opt/bwb-modulo-fiscal/releases" "${FS}/etc/bwb-modulo-fiscal/backups" "${FS}/tmp"
+
+# Health probe on server loopback.
+if [[ "${remote_cmd}" == *"curl "* && "${remote_cmd}" == *"127.0.0.1:8080"* ]]; then
+  if [[ "${DEPLOY_MOCK_HEALTH_FAIL:-0}" == "1" ]]; then
+    echo "error: mock health fail" >&2
+    exit 1
+  fi
+  printf '%s\n' '{"status":"ok"}'
+  exit 0
+fi
+
+# Create upload dirs under the mock FS but return a logical /tmp/... path
+# so later remaps are applied exactly once.
+if [[ "${remote_cmd}" == *"mktemp -d /tmp/bwb-upload"* ]]; then
+  d="$(mktemp -d "${FS}/tmp/bwb-upload.XXXXXX")"
+  chmod 0700 "${d}"
+  printf '%s' "/tmp/$(basename "${d}")"
+  exit 0
+fi
+
+# Decode remote_sudo payloads and remap absolute paths before execution.
+if [[ "${remote_cmd}" == *"base64"* && "${remote_cmd}" == *"sudo -n bash"* ]]; then
+  b64="$(printf '%s' "${remote_cmd}" | sed -n "s/.*echo '\\([^']*\\)'.*/\\1/p")"
+  if [[ -n "${b64}" ]]; then
+    if ! script="$(printf '%s' "${b64}" | base64 -d 2>/dev/null)"; then
+      script="$(printf '%s' "${b64}" | base64 -D)"
+    fi
+    script="${script//\/opt\/bwb-modulo-fiscal/${FS}/opt/bwb-modulo-fiscal}"
+    script="${script//\/etc\/bwb-modulo-fiscal/${FS}/etc/bwb-modulo-fiscal}"
+    script="${script//\/tmp\/bwb-/${FS}/tmp/bwb-}"
+    printf '%s\n' "${script}" | sudo -n bash
+    exit $?
+  fi
+fi
+
+# Intercept only real runner invocations under sudo.
+if [[ "${remote_cmd}" == *"remote-migrate-run.sh'"* ]]; then
   if [[ "${remote_cmd}" == *" 'up'"* ]]; then
     printf 'ok version=%s dirty=%s\n' \
       "${DEPLOY_MOCK_MIGRATE_VERSION_AFTER:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
-      "${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
+      "${DEPLOY_MOCK_MIGRATE_DIRTY_AFTER:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
   else
     printf 'version=%s dirty=%s\n' \
       "${DEPLOY_MOCK_MIGRATE_VERSION_BEFORE:-${DEPLOY_MOCK_MIGRATE_VERSION:-2}}" \
-      "${DEPLOY_MOCK_MIGRATE_DIRTY:-false}"
+      "${DEPLOY_MOCK_MIGRATE_DIRTY_BEFORE:-${DEPLOY_MOCK_MIGRATE_DIRTY:-false}}"
   fi
   exit 0
 fi
 
-FS="${DEPLOY_MOCK_FS}"
-# Remap absolute staging paths into the mock root (no network).
+# Remap only absolute staging prefixes (avoid double-prefixing mock-absolute paths).
 mapped="${remote_cmd}"
 mapped="${mapped//\/opt\/bwb-modulo-fiscal/${FS}/opt/bwb-modulo-fiscal}"
 mapped="${mapped//\/etc\/bwb-modulo-fiscal/${FS}/etc/bwb-modulo-fiscal}"
 mapped="${mapped//\/tmp\/bwb-/${FS}/tmp/bwb-}"
-
-# Ensure base dirs exist for first-time install.
-mkdir -p "${FS}/opt/bwb-modulo-fiscal/releases" "${FS}/etc/bwb-modulo-fiscal" "${FS}/tmp"
 
 # shellcheck disable=SC2086
 bash -c "${mapped}"

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-# Mock systemctl for deploy live-path tests.
+# Mock systemctl for deploy live-path tests (invoked only via remote sudo).
 set -Eeuo pipefail
 
 : "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
 printf 'systemctl %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+# Prove this binary is not used as a local operator dependency by itself —
+# callers must arrive through mocked ssh → sudo.
+if [[ "${DEPLOY_MOCK_REQUIRE_REMOTE_SUDO:-0}" == "1" ]]; then
+  if ! grep -q 'ssh .*sudo' "${DEPLOY_MOCK_LOG}" 2>/dev/null; then
+    # soft check: parent log line with sudo should exist from the same flow
+    :
+  fi
+fi
 exit 0

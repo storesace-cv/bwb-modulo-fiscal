@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build linux release: fiscal-api, fiscal-migrate, COMMIT, SHA256SUMS.
+# Build linux release: binaries, helpers, COMMIT, EXPECTED_SCHEMA_VERSION, SHA256SUMS.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,7 @@ cd "${ROOT}"
 GOARCH="${DEPLOY_GOARCH:-}"
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 OUT_DIR="${OUT_DIR:-}"
-# Force Linux targets for staging artefacts.
+EXPECTED_SCHEMA_VERSION="${EXPECTED_SCHEMA_VERSION:-${DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT}}"
 GOOS=linux
 
 deploy_require_cmds go git
@@ -26,19 +26,25 @@ case "${GOARCH}" in
     ;;
 esac
 
-if [[ "${DEPLOY_ALLOW_DIRTY_WORKTREE:-0}" != "1" ]]; then
+deploy_assert_sha1 "EXPECTED_COMMIT" "${EXPECTED_COMMIT}"
+
+# Real releases must always be from a clean tree. Builds under DEPLOY_TEST_OUT_ROOT
+# are isolated test artefacts only (never used for live deploy without that gate).
+if [[ -z "${DEPLOY_TEST_OUT_ROOT:-}" ]]; then
   deploy_assert_clean_worktree
 fi
 
 HEAD="$(git rev-parse HEAD)"
-if [[ -z "${EXPECTED_COMMIT}" ]]; then
-  echo "error: EXPECTED_COMMIT required" >&2
-  exit 1
-fi
+deploy_assert_sha1 "HEAD" "${HEAD}"
 if [[ "${HEAD}" != "${EXPECTED_COMMIT}" ]]; then
   echo "error: HEAD does not match EXPECTED_COMMIT" >&2
   echo "error: HEAD=${HEAD}" >&2
   echo "error: EXPECTED_COMMIT=${EXPECTED_COMMIT}" >&2
+  exit 1
+fi
+
+if [[ ! "${EXPECTED_SCHEMA_VERSION}" =~ ^[0-9]+$ ]]; then
+  echo "error: EXPECTED_SCHEMA_VERSION must be a non-negative integer" >&2
   exit 1
 fi
 
@@ -51,37 +57,40 @@ deploy_validate_out_dir "${ROOT}" "${OUT_DIR}"
 if [[ -d "${OUT_DIR}" ]]; then
   if [[ -f "${OUT_DIR}/COMMIT" ]]; then
     existing="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"
-    if [[ "${existing}" != "${HEAD}" ]]; then
+    if [[ -n "${existing}" && "${existing}" != "${HEAD}" ]]; then
       echo "error: refusing overwrite of release with different COMMIT" >&2
       exit 1
     fi
   fi
+  # Wipe fully so stale helpers cannot survive into the new artefact.
+  rm -rf "${OUT_DIR}"
 fi
 
-mkdir -p "${OUT_DIR}"
-rm -f "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/COMMIT" "${OUT_DIR}/SHA256SUMS" "${OUT_DIR}/remote-migrate-run.sh"
+mkdir -p "${OUT_DIR}/lib"
 
-echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD}"
+echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
 cp "${SCRIPT_DIR}/remote-migrate-run.sh" "${OUT_DIR}/remote-migrate-run.sh"
-chmod 0755 "${OUT_DIR}/remote-migrate-run.sh"
-# Bundle allowlist helper next to runner for remote use.
-mkdir -p "${OUT_DIR}/lib"
 cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
+cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
+chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/remote-migrate-run.sh"
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
+printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
 
 (
   cd "${OUT_DIR}"
-  deploy_sha256_files fiscal-api fiscal-migrate COMMIT >SHA256SUMS
-  deploy_sha256_check SHA256SUMS
+  deploy_sha256_files \
+    fiscal-api \
+    fiscal-migrate \
+    remote-migrate-run.sh \
+    lib/allowlist.sh \
+    lib/migrate.env.allowlist \
+    COMMIT \
+    EXPECTED_SCHEMA_VERSION \
+    >SHA256SUMS
+  deploy_verify_release_manifest "${OUT_DIR}" "${HEAD}"
 )
 
-GOT_COMMIT="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"
-if [[ "${GOT_COMMIT}" != "${HEAD}" ]]; then
-  echo "error: COMMIT file mismatch" >&2
-  exit 1
-fi
-
-echo "release_ok dir=${OUT_DIR} commit=${HEAD} arch=${GOARCH}"
+echo "release_ok dir=${OUT_DIR} commit=${HEAD} arch=${GOARCH} schema=${EXPECTED_SCHEMA_VERSION}"
