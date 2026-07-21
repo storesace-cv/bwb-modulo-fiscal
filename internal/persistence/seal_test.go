@@ -93,6 +93,60 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-2", 1)
 	})
 
+	t.Run("series_code_changes_idempotency_hash", func(t *testing.T) {
+		key := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa10"
+		req := sampleSealReq(scope, key, "ext-series-hash", "SA", "10.50")
+		if _, err := store.SealInTx(ctx, req); err != nil {
+			t.Fatalf("seal: %v", err)
+		}
+		other := sampleSealReq(scope, key, "ext-series-hash", "SB", "10.50")
+		_, err := store.SealInTx(ctx, other)
+		if !errors.Is(err, persistence.ErrIdempotencyConflict) {
+			t.Fatalf("err = %v, want ErrIdempotencyConflict", err)
+		}
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-series-hash", 1)
+	})
+
+	t.Run("issued_at_invalid_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa11", "ext-bad-date", "A", "1.00")
+		req.Intent.IssuedAtUTC = "not-a-date"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected invalid issued_at error")
+		}
+	})
+
+	t.Run("issued_at_normalized_consistently", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12", "ext-norm-date", "A", "1.00")
+		req.Intent.IssuedAtUTC = "2026-07-21T11:00:00+01:00"
+		r, err := store.SealInTx(ctx, req)
+		if err != nil {
+			t.Fatalf("seal: %v", err)
+		}
+		want := time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC)
+		q := `SELECT issued_at FROM ` + tbl(postgres, "documents") + ` WHERE id = ?`
+		var got time.Time
+		if postgres {
+			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&got); err != nil {
+				t.Fatal(err)
+			}
+			got = got.UTC()
+		} else {
+			var raw string
+			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&raw); err != nil {
+				t.Fatal(err)
+			}
+			got, err = time.Parse(time.RFC3339Nano, raw)
+			if err != nil {
+				t.Fatalf("parse sqlite issued_at %q: %v", raw, err)
+			}
+			got = got.UTC()
+		}
+		if !got.Equal(want) {
+			t.Fatalf("stored issued_at = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("VS-T05_external_id_conflict", func(t *testing.T) {
 		req1 := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3", "ext-shared", "B", "1.00")
 		if _, err := store.SealInTx(ctx, req1); err != nil {
@@ -103,6 +157,39 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		if !errors.Is(err, persistence.ErrExternalIDConflict) {
 			t.Fatalf("err = %v, want ErrExternalIDConflict", err)
 		}
+	})
+
+	t.Run("VS-T05_concurrent_external_id", func(t *testing.T) {
+		const n = 6
+		errs := make([]error, n)
+		results := make([]*persistence.SealResult, n)
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			i := i
+			go func() {
+				defer wg.Done()
+				req := sampleSealReq(scope, fmt.Sprintf("aaaaaaaa-aaaa-aaaa-aaaa-a%010d", 100+i), "ext-race", "R", "1.00")
+				results[i], errs[i] = store.SealInTx(ctx, req)
+			}()
+		}
+		wg.Wait()
+		ok := 0
+		conflicts := 0
+		for i := 0; i < n; i++ {
+			switch {
+			case errs[i] == nil:
+				ok++
+			case errors.Is(errs[i], persistence.ErrExternalIDConflict):
+				conflicts++
+			default:
+				t.Fatalf("goroutine %d: unexpected err %v", i, errs[i])
+			}
+		}
+		if ok != 1 || conflicts != n-1 {
+			t.Fatalf("ok=%d conflicts=%d, want 1 and %d", ok, conflicts, n-1)
+		}
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-race", 1)
 	})
 
 	t.Run("VS-T06_concurrency_same_series", func(t *testing.T) {
@@ -178,14 +265,15 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		_ = hits
 	})
 
-	t.Run("VS-T07_rollback_on_injected_failure", func(t *testing.T) {
+	t.Run("VS-T07_rollback_after_counter_on_constraint", func(t *testing.T) {
 		series := "E"
 		before := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		req := sampleSealReq(scope, "dddddddd-dddd-dddd-dddd-ddddddddddd1", "ext-fail", series, "4.00")
-		req.FailBeforeCommit = func() error { return errors.New("injected failure") }
+		// Passes app prepare, fails DB CHECK after series counter update (trim-empty seller_name).
+		req.Intent.SellerName = "   "
 		_, err := store.SealInTx(ctx, req)
 		if err == nil {
-			t.Fatal("expected injected failure")
+			t.Fatal("expected constraint failure")
 		}
 		after := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		if after != before {

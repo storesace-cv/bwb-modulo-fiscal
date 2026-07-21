@@ -34,8 +34,6 @@ type SealRequest struct {
 	IdempotencyKey string
 	SeriesCode     string
 	Intent         canonical.DocumentIntent
-	// FailBeforeCommit, if non-nil and returning an error, aborts before COMMIT (VS-T07).
-	FailBeforeCommit func() error
 }
 
 // SealResult is the outcome of a successful seal (new or idempotent replay).
@@ -69,45 +67,56 @@ func NewStore(db *sql.DB, dialect Dialect) *Store {
 
 // SealInTx seals a document in a single transaction: idempotency, series, document, ledger, outbox.
 func (s *Store) SealInTx(ctx context.Context, req SealRequest) (*SealResult, error) {
-	if err := validateSealRequest(req); err != nil {
+	normalized, err := prepareSealRequest(req)
+	if err != nil {
 		return nil, err
 	}
-	hash := canonical.RequestHash(req.Intent)
+	hash := canonical.RequestHash(canonical.Projection{
+		SeriesCode: normalized.SeriesCode,
+		Intent:     normalized.Intent,
+	})
 	hashBytes := hash[:]
 
 	switch s.dialect {
 	case DialectPostgres:
-		return s.sealPostgres(ctx, req, hashBytes)
+		return s.sealPostgres(ctx, normalized, hashBytes)
 	case DialectSQLite:
-		return s.sealSQLite(ctx, req, hashBytes)
+		return s.sealSQLite(ctx, normalized, hashBytes)
 	default:
 		return nil, fmt.Errorf("persistence: unknown dialect %q", s.dialect)
 	}
 }
 
-func validateSealRequest(req SealRequest) error {
+func prepareSealRequest(req SealRequest) (SealRequest, error) {
 	if strings.TrimSpace(req.IdempotencyKey) == "" {
-		return fmt.Errorf("persistence: empty idempotency key")
+		return SealRequest{}, fmt.Errorf("persistence: empty idempotency key")
 	}
 	if strings.TrimSpace(req.SeriesCode) == "" {
-		return fmt.Errorf("persistence: empty series code")
+		return SealRequest{}, fmt.Errorf("persistence: empty series code")
 	}
 	if strings.TrimSpace(req.Intent.ScopeID) == "" {
-		return fmt.Errorf("persistence: empty scope_id")
+		return SealRequest{}, fmt.Errorf("persistence: empty scope_id")
 	}
 	if strings.TrimSpace(req.Intent.ExternalID) == "" {
-		return fmt.Errorf("persistence: empty external_id")
+		return SealRequest{}, fmt.Errorf("persistence: empty external_id")
 	}
 	if req.Intent.Currency != "AOA" {
-		return fmt.Errorf("persistence: currency must be AOA")
+		return SealRequest{}, fmt.Errorf("persistence: currency must be AOA")
 	}
 	if req.Intent.DocumentType != "invoice" && req.Intent.DocumentType != "credit_note" {
-		return fmt.Errorf("persistence: invalid document_type")
+		return SealRequest{}, fmt.Errorf("persistence: invalid document_type")
 	}
 	if len(req.Intent.Lines) == 0 {
-		return fmt.Errorf("persistence: lines required")
+		return SealRequest{}, fmt.Errorf("persistence: lines required")
 	}
-	return nil
+	issued, err := canonical.NormalizeIssuedAtUTC(req.Intent.IssuedAtUTC)
+	if err != nil {
+		return SealRequest{}, fmt.Errorf("persistence: %w", err)
+	}
+	out := req
+	out.SeriesCode = strings.TrimSpace(req.SeriesCode)
+	out.Intent.IssuedAtUTC = issued
+	return out, nil
 }
 
 func newID() (string, error) {
@@ -115,7 +124,6 @@ func newID() (string, error) {
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
-	// UUID-like hex without inventing fiscal meaning.
 	return hex.EncodeToString(b[:]), nil
 }
 
@@ -123,6 +131,20 @@ func (s *Store) stamp() time.Time {
 	return s.now().UTC()
 }
 
-func (s *Store) stampText() string {
-	return s.stamp().Format(time.RFC3339Nano)
+// mapExternalIDConflict maps UNIQUE violations on documents(scope_id, external_id) only.
+func mapExternalIDConflict(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "documents_scope_external_unique") {
+		return ErrExternalIDConflict
+	}
+	// SQLite: UNIQUE constraint failed: documents.scope_id, documents.external_id
+	if strings.Contains(msg, "unique constraint failed") &&
+		strings.Contains(msg, "documents") &&
+		strings.Contains(msg, "external_id") {
+		return ErrExternalIDConflict
+	}
+	return err
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
@@ -32,7 +33,7 @@ type DocumentIntent struct {
 	ExternalID      string
 	DocumentType    string
 	Currency        string
-	IssuedAtUTC     string // RFC3339Nano UTC
+	IssuedAtUTC     string // RFC3339Nano UTC (normalized)
 	RequestedSeries string // empty if absent
 	SellerTaxID     string
 	SellerName      string
@@ -41,23 +42,47 @@ type DocumentIntent struct {
 	Lines           []Line
 }
 
+// Projection is the full versioned material for request_hash.
+// SeriesCode is the effective numbering series (distinct from RequestedSeries).
+type Projection struct {
+	SeriesCode string
+	Intent     DocumentIntent
+}
+
+// NormalizeIssuedAtUTC parses issued_at and returns RFC3339Nano in UTC.
+func NormalizeIssuedAtUTC(raw string) (string, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", fmt.Errorf("canonical: empty issued_at")
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, s)
+		if err != nil {
+			return "", fmt.Errorf("canonical: invalid issued_at %q: %w", raw, err)
+		}
+	}
+	return t.UTC().Format(time.RFC3339Nano), nil
+}
+
 // Materialize builds the versioned canonical byte material for hashing.
-func Materialize(in DocumentIntent) string {
+func Materialize(p Projection) string {
 	var b strings.Builder
 	b.WriteString(Version)
 	b.WriteByte('\n')
-	writeField(&b, "scope_id", in.ScopeID)
-	writeField(&b, "external_id", in.ExternalID)
-	writeField(&b, "document_type", in.DocumentType)
-	writeField(&b, "currency", in.Currency)
-	writeField(&b, "issued_at", in.IssuedAtUTC)
-	writeField(&b, "requested_series", in.RequestedSeries)
-	writeField(&b, "seller_tax_id", in.SellerTaxID)
-	writeField(&b, "seller_name", in.SellerName)
-	writeField(&b, "customer_tax_id", in.CustomerTaxID)
-	writeField(&b, "customer_name", in.CustomerName)
+	writeField(&b, "scope_id", p.Intent.ScopeID)
+	writeField(&b, "external_id", p.Intent.ExternalID)
+	writeField(&b, "document_type", p.Intent.DocumentType)
+	writeField(&b, "currency", p.Intent.Currency)
+	writeField(&b, "issued_at", p.Intent.IssuedAtUTC)
+	writeField(&b, "requested_series", p.Intent.RequestedSeries)
+	writeField(&b, "series_code", p.SeriesCode)
+	writeField(&b, "seller_tax_id", p.Intent.SellerTaxID)
+	writeField(&b, "seller_name", p.Intent.SellerName)
+	writeField(&b, "customer_tax_id", p.Intent.CustomerTaxID)
+	writeField(&b, "customer_name", p.Intent.CustomerName)
 
-	lines := append([]Line(nil), in.Lines...)
+	lines := append([]Line(nil), p.Intent.Lines...)
 	sort.Slice(lines, func(i, j int) bool {
 		return lines[i].LineID < lines[j].LineID
 	})
@@ -75,8 +100,8 @@ func Materialize(in DocumentIntent) string {
 }
 
 // RequestHash returns the 32-byte SHA-256 of the canonical projection.
-func RequestHash(in DocumentIntent) [HashSize]byte {
-	sum := sha256.Sum256([]byte(Materialize(in)))
+func RequestHash(p Projection) [HashSize]byte {
+	sum := sha256.Sum256([]byte(Materialize(p)))
 	return sum
 }
 

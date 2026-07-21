@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -23,11 +24,6 @@ func (s *Store) sealPostgres(ctx context.Context, req SealRequest, hash []byte) 
 	res, err := s.sealInQuerier(ctx, &pgQuerier{tx: tx}, req, hash, true)
 	if err != nil {
 		return nil, err
-	}
-	if req.FailBeforeCommit != nil {
-		if err := req.FailBeforeCommit(); err != nil {
-			return nil, err
-		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("persistence: commit: %w", err)
@@ -68,11 +64,6 @@ func (s *Store) sealSQLite(ctx context.Context, req SealRequest, hash []byte) (*
 	res, err := s.sealInQuerier(ctx, &sqliteQuerier{conn: conn}, req, hash, false)
 	if err != nil {
 		return nil, err
-	}
-	if req.FailBeforeCommit != nil {
-		if err := req.FailBeforeCommit(); err != nil {
-			return nil, err
-		}
 	}
 	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
 		return nil, fmt.Errorf("persistence: commit: %w", err)
@@ -150,18 +141,12 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		return nil, err
 	}
 
-	issuedAt := req.Intent.IssuedAtUTC
-	if issuedAt == "" {
-		issuedAt = now.Format(time.RFC3339Nano)
-	}
+	issuedAt := req.Intent.IssuedAtUTC // already normalized RFC3339Nano UTC
 	var issuedAtArg any = issuedAt
 	if postgres {
 		parsed, err := time.Parse(time.RFC3339Nano, issuedAt)
 		if err != nil {
-			parsed, err = time.Parse(time.RFC3339, issuedAt)
-			if err != nil {
-				return nil, fmt.Errorf("persistence: issued_at: %w", err)
-			}
+			return nil, fmt.Errorf("persistence: issued_at: %w", err)
 		}
 		issuedAtArg = parsed.UTC()
 	}
@@ -183,6 +168,9 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		nowArg, nowArg,
 	)
 	if err != nil {
+		if mapped := mapExternalIDConflict(err); errors.Is(mapped, ErrExternalIDConflict) {
+			return nil, ErrExternalIDConflict
+		}
 		return nil, fmt.Errorf("persistence: insert document: %w", err)
 	}
 
