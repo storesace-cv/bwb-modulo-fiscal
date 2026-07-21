@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7-draft — 2026-07-21
+
+- Scaffold Fase 1: módulo Go `github.com/storesace-cv/bwb-modulo-fiscal`, binário `cmd/fiscal-api` com `GET /v1/health` (stdlib), config por ambiente, timeouts HTTP, graceful shutdown, logs estruturados; CI mínima; guia local em `docs/06-delivery/local-dev.md`. Sem emissão fiscal, BD, Docker ou frameworks.
+
 ## 0.1.6-draft — 2026-07-21
 
 - Tarefa zero OpenAPI (`0.1.1-draft`): `Money`/`DecimalQuantity` canónicos, `sealed_locally`, `authority_outcome_unknown`; `contingency_pending` reservado; diretrizes e máquina de estados harmonizadas; DEC-API-001/003 aplicadas no contrato.
