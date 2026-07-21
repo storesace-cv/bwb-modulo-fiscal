@@ -847,7 +847,8 @@ else
 fi
 
 mux_dir="$(deploy_ssh_mux_dir)"
-mux_mode="$(stat -f '%Lp' "${mux_dir}" 2>/dev/null || stat -c '%a' "${mux_dir}")"
+# GNU stat first (Linux CI); BSD/macOS fallback. Never use GNU `stat -f` (means --file-system).
+mux_mode="$(stat -c '%a' "${mux_dir}" 2>/dev/null || stat -f '%Lp' "${mux_dir}")"
 case "${mux_mode}" in
   700) ok "mux dir mode 0700 at ${mux_dir}" ;;
   *) bad "mux dir mode want 700 got ${mux_mode}" ;;
