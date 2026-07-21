@@ -8,7 +8,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
@@ -16,7 +17,8 @@ const (
 	DriverPostgres = "postgres"
 	DriverSQLite   = "sqlite"
 
-	// DefaultSearchPath pins session resolution; application SQL still uses fiscal.* qualifiers.
+	// DefaultSearchPath is applied via pgx RuntimeParams on every pool connection.
+	// Application SQL must still use fiscal.* qualifiers explicitly.
 	DefaultSearchPath = "fiscal,public"
 
 	defaultBusyTimeout = 5 * time.Second
@@ -25,17 +27,17 @@ const (
 // PostgresConfig configures a cloud PostgreSQL connection.
 type PostgresConfig struct {
 	URL        string
-	SearchPath string // default DefaultSearchPath
+	SearchPath string // default DefaultSearchPath; set on every connection via RuntimeParams
 }
 
 // SQLiteConfig configures an Edge SQLite connection.
 type SQLiteConfig struct {
 	Path         string
 	BusyTimeout  time.Duration // default 5s
-	MaxOpenConns int           // Edge must be 1
+	MaxOpenConns int           // must be 0 (default) or 1; Edge is always a single open connection
 }
 
-// OpenPostgres opens pgx via database/sql and sets search_path explicitly.
+// OpenPostgres opens pgx via database/sql with search_path on all pool connections.
 func OpenPostgres(ctx context.Context, cfg PostgresConfig) (*sql.DB, error) {
 	if strings.TrimSpace(cfg.URL) == "" {
 		return nil, fmt.Errorf("db: empty postgres URL")
@@ -44,40 +46,42 @@ func OpenPostgres(ctx context.Context, cfg PostgresConfig) (*sql.DB, error) {
 	if searchPath == "" {
 		searchPath = DefaultSearchPath
 	}
-	db, err := sql.Open("pgx", cfg.URL)
+
+	pgCfg, err := pgx.ParseConfig(cfg.URL)
 	if err != nil {
-		return nil, fmt.Errorf("db: open postgres: %w", err)
+		return nil, fmt.Errorf("db: parse postgres config: %w", err)
 	}
+	if pgCfg.RuntimeParams == nil {
+		pgCfg.RuntimeParams = make(map[string]string)
+	}
+	pgCfg.RuntimeParams["search_path"] = searchPath
+
+	db := stdlib.OpenDB(*pgCfg)
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("db: ping postgres: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, "SELECT set_config('search_path', $1, false)", searchPath); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("db: set search_path: %w", err)
-	}
 	return db, nil
 }
 
-// OpenSQLite opens modernc SQLite with WAL, foreign_keys, busy_timeout and MaxOpenConns for Edge.
+// OpenSQLite opens modernc SQLite with WAL, foreign_keys, busy_timeout and MaxOpenConns(1).
 func OpenSQLite(ctx context.Context, cfg SQLiteConfig) (*sql.DB, error) {
 	if strings.TrimSpace(cfg.Path) == "" {
 		return nil, fmt.Errorf("db: empty sqlite path")
 	}
+	if cfg.MaxOpenConns != 0 && cfg.MaxOpenConns != 1 {
+		return nil, fmt.Errorf("db: MaxOpenConns must be 0 or 1 for Edge SQLite, got %d", cfg.MaxOpenConns)
+	}
 	busy := cfg.BusyTimeout
 	if busy <= 0 {
 		busy = defaultBusyTimeout
-	}
-	maxOpen := cfg.MaxOpenConns
-	if maxOpen <= 0 {
-		maxOpen = 1
 	}
 
 	db, err := sql.Open("sqlite", cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("db: open sqlite: %w", err)
 	}
-	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxOpenConns(1)
 
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
