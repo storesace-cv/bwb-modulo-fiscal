@@ -87,9 +87,11 @@ deploy_load_allowlisted_env() {
     line="$(printf '%s' "${line}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [[ -z "${line}" ]] && continue
     key="${line%%=*}"
+    # shellcheck disable=SC2034
     value="${line#*=}"
     # Assign without echoing value.
-    eval "${key}=\"\${value}\""
+    # shellcheck disable=SC2086
+    eval "${key}=\$value"
     eval "export ${key}"
   done <"${env_file}"
 }

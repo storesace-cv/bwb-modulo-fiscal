@@ -5,6 +5,7 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT}"
 # shellcheck source=../../scripts/deploy/lib/allowlist.sh
+# shellcheck disable=SC1091
 source "${ROOT}/scripts/deploy/lib/allowlist.sh"
 
 TMP="$(mktemp -d)"

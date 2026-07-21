@@ -53,7 +53,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck -x scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh
+          shellcheck -x -P SCRIPTDIR -e SC1091 \
+            scripts/deploy/lib/allowlist.sh \
+            scripts/deploy/*.sh \
+            tests/deploy/run-tests.sh
 
       - name: Deploy D1 script tests
         run: |

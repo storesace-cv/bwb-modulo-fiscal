@@ -4,6 +4,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/allowlist.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/allowlist.sh"
 
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8080/v1/health}"
