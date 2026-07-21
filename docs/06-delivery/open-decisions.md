@@ -159,9 +159,11 @@ A alternativa Java 21 permanece apenas como comparação histórica em [technica
 **Decisão:**
 
 1. Valores monetários no JSON como **strings decimais**.
-2. Formato canónico, escala e limites **explícitos** no OpenAPI (na primeira revisão autorizada).
+2. Formato canónico, escala e limites **explícitos** no OpenAPI (aplicados na tarefa zero: pattern sem sinal, escala 2, máx. 16 dígitos inteiros técnicos).
 3. Representação interna com **decimal exato**.
 4. **Proibição** de `float` / `double` para dinheiro.
+
+**Aplicação:** `specs/openapi/openapi.yaml` `0.1.1-draft` (tarefa zero Fase 1).
 
 Relaciona: `AO-TAX-001`.
 
@@ -200,13 +202,15 @@ Relaciona: `AO-TAX-001`.
 |---|---|
 | Estado | **decidida** |
 | Tipo | Técnica |
-| Prazo máximo | Alteração do YAML na primeira revisão contratual autorizada |
+| Prazo máximo | — (aplicado na tarefa zero) |
 | Responsável | API Owner |
 | Decisão | 2026-07-20 |
 
-**Contradição:** CTX-003 — fechada ao nível de decisão; YAML ainda não alterado.
+**Contradição:** CTX-003 — fechada ao nível de decisão; YAML atualizado na tarefa zero.
 
-**Decisão:** criar schema `DecimalQuantity` separado de `Money`. Adiar a edição de `openapi.yaml` até à primeira revisão contratual autorizada.
+**Decisão:** criar schema `DecimalQuantity` separado de `Money` (quantidade estritamente positiva e canónica; limites 12/4 técnicos).
+
+**Aplicação:** `DocumentLine.quantity` → `DecimalQuantity` em `openapi.yaml` `0.1.1-draft`.
 
 ---
 
@@ -241,7 +245,7 @@ Relaciona: `AO-TAX-001`.
 | 2 | Alinha a aceitação autoridade | Impacto em UX/POS e contingência |
 | 3 | Flexível | Complexidade; exige fonte oficial |
 
-**Recomendação:** não escolher 1–3 sem fonte oficial. Até decisão: usar apenas o estado técnico neutro `sealed_locally` (não é afirmação de emissão fiscal). A **tarefa zero da Fase 1** é a revisão mínima do OpenAPI que introduz `sealed_locally` e aplica DEC-API-001/003 **antes** de implementar o endpoint; o YAML **não** é alterado nesta correção documental da Fase 0.
+**Recomendação:** não escolher 1–3 sem fonte oficial. O contrato usa o estado técnico `sealed_locally` (tarefa zero OpenAPI aplicada); DEC-API-004 permanece **aberta** para a semântica jurídica final.
 
 **Evidência para fechar:** diploma/orientação AGT + snapshot FE + ata de compliance.
 
@@ -356,7 +360,7 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 **Contradição:** CTX-004 — fechada.
 
-**Decisão:** o OpenAPI `0.1.0-draft` atual **cumpre** o gate documental da Fase 0, **condicionado** à lista de correções. A **primeira tarefa técnica da Fase 1** é a revisão mínima do OpenAPI (DEC-API-001, DEC-API-003, estado técnico `sealed_locally`) **antes** de implementar o endpoint. Não exigir OpenAPI «quase v1» na Fase 0; não editar o YAML nesta correção documental.
+**Decisão:** o OpenAPI `0.1.0-draft` cumpriu o gate documental da Fase 0. A **tarefa zero da Fase 1** foi aplicada em `0.1.1-draft` (DEC-API-001/003, `sealed_locally`, `authority_outcome_unknown`; `contingency_pending` reservado; sem `cancelled`). Endpoints de produção ainda não implementados.
 
 ---
 

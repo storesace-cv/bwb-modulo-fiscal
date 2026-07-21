@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6-draft — 2026-07-21
+
+- Tarefa zero OpenAPI (`0.1.1-draft`): `Money`/`DecimalQuantity` canónicos, `sealed_locally`, `authority_outcome_unknown`; `contingency_pending` reservado; diretrizes e máquina de estados harmonizadas; DEC-API-001/003 aplicadas no contrato.
+
 ## 0.1.5-draft — 2026-07-21
 
 - Adicionados princípios obrigatórios de engenharia sénior (`ENGINEERING_PRINCIPLES.md`), ligação em `AGENTS.md`/`README.md` e regra Cursor `senior-engineering.mdc`.
