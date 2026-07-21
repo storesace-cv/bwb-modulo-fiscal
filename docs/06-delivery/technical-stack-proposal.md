@@ -1,10 +1,10 @@
 # Proposta de stack técnica — Fase 0
 
-**Data:** 2026-07-20  
-**Estado:** proposta (não implementada)  
+**Data:** 2026-07-20 (decisão formalizada 2026-07-21)
+**Estado:** **DEC-STACK-001 decidida** — não implementada (sem scaffold)
 **Restrições:** monólito modular ([ADR-0002](../02-architecture/adrs/ADR-0002-modular-monolith.md)); sem microserviços; pacotes por país ([ADR-0003](../02-architecture/adrs/ADR-0003-country-packages.md)); paridade de **pacote fiscal** cloud/Edge; precisão decimal; sem segredos no repositório.
 
-Decisão associada: **DEC-STACK-001** em [open-decisions.md](open-decisions.md).
+Decisão associada: **DEC-STACK-001** em [open-decisions.md](open-decisions.md) — **Go + PostgreSQL (cloud) + SQLite WAL (Edge)**.
 
 ## Critérios de avaliação
 
@@ -12,14 +12,14 @@ Decisão associada: **DEC-STACK-001** em [open-decisions.md](open-decisions.md).
 |---|---|
 | Transações fortes | Idempotência, série/número e livro fiscal na mesma unidade de trabalho (`AO-IDEM-001`, `AO-SEQ-001`) |
 | Precisão decimal | `AO-TAX-001`; proibição de `float`/`double` para dinheiro (DEC-API-001) |
-| Assinatura RSA / JWS | `AO-CRYPTO-001`, conector AGT (RS256); implementação real atrás de adaptador |
-| XML / XSD | SAF-T (AO) futuro (`AO-SAF-001`) — fora do primeiro slice |
+| Assinatura | Separar assinatura interna da API (se aplicável) da assinatura fiscal AGT (`AO-CRYPTO-001`); regra fiscal só após fontes oficiais |
+| XML / XSD | SAF-T (AO) futuro (`AO-SAF-001`); validação oficial via libxml2/xmllint (ou equivalente) contra XSD AGT |
 | Operação offline Edge | Persistência local com baixo custo operacional (`AO-OFF-*` quando autorizado) |
 | Facilidade de auditoria | Trilho append-only (`AO-AUD-001`) |
 | Custo operacional Edge | Instalação, backup, suporte e footprint |
 | Observabilidade segura | Metadados e correlação nos logs; payloads fiscais fora dos logs |
 
-## Alternativa A — Go + PostgreSQL (cloud) + SQLite WAL (Edge) — recomendada
+## Alternativa A — Go + PostgreSQL (cloud) + SQLite WAL (Edge) — **decidida**
 
 ### Visão
 
@@ -34,8 +34,8 @@ Monólito modular em **Go**. Na **cloud**: API HTTP + **PostgreSQL** + outbox na
 | Filas | Outbox co-transacional + worker; entrega **at-least-once** | Idempotência + deduplicação por id estável de submissão; sem exactly-once |
 | Portal | **Fora da 1.ª implementação** | Slice posterior |
 | Edge Linux | Binário + `systemd`; POS → API local | Sem PostgreSQL local no MVP |
-| Criptografia | JWS RS256 real; chaves de teste atrás de interface/adaptador | Não certificado; sem stub descartável; sem regras 74/19 inventadas |
-| XML/XSD | Mais tarde, com XSD oficial | Fora do primeiro slice |
+| Criptografia | Adaptador; separar assinatura interna da API (se aplicável) da assinatura fiscal AGT | Fiscal: algoritmo/canonicalização/campos só após 74/19 e docs oficiais; RS256/JWS não são regra fiscal confirmada |
+| XML/XSD | Validação oficial via libxml2/xmllint (ou equivalente isolado) + testes contra XSD AGT | Não implementar até XSD oficial; fora do primeiro slice |
 | Observabilidade | OpenTelemetry + logs estruturados | Só metadados/IDs; outbox ≠ log |
 | Testes | `go test`, contract tests, vetores `AO-*` comuns cloud/Edge | Conformidade partilhada |
 | Deployment cloud | Contentores + IaC + migrações | [deployment.md](../07-operations/deployment.md) |
@@ -52,7 +52,8 @@ Monólito modular em **Go**. Na **cloud**: API HTTP + **PostgreSQL** + outbox na
 
 - SQLite pode revelar limites sob carga/requisito oficial — mitigar com benchmarks antes de adotar Postgres local.
 - Abstração dual-store exige disciplina (interfaces estreitas).
-- XML/XSD mais trabalhoso em Go quando chegar SAF-T.
+- Pipeline SAF-T/XSD depende do XSD oficial e de componente de validação externo (libxml2/xmllint ou equivalente).
+- Confusão entre assinatura interna (API) e assinatura fiscal AGT se os adaptadores não estiverem separados.
 
 ### Quando considerar PostgreSQL no Edge
 
@@ -97,17 +98,9 @@ Mesmo modelo de armazenamento e outbox que A; backend Java 21 / Spring Boot; Edg
 | Tempo até slice | Favorece equipa Go | Favorece equipa Java |
 | ORM | Evitar ORM pesado | Preferir JDBC/repositórios claros |
 
-## Numeração fiscal (ambos)
+## Numeração fiscal
 
-Não prometer «zero buracos» genericamente. Exigir:
-
-- exclusão mútua / transação por série;
-- números nunca duplicados;
-- números emitidos nunca reutilizados;
-- rastreabilidade de números reservados, falhados ou rejeitados;
-- política de buracos/sequência contínua **dependente da regra oficial** (DEC-REG-002 / 74/19).
-
-Não usar sequences PostgreSQL comuns como garantia fiscal sem análise de rollback, cache e falhas.
+A estratégia transacional de numeração será definida **após confirmação das regras oficiais** (DEC-REG-002 / 74/19). Até lá: exclusão mútua / transação por série no desenho; sem afirmações definitivas sobre duplicados ou «buracos». Não usar sequences PostgreSQL comuns como garantia fiscal sem análise de rollback, cache e falhas.
 
 ## Comunicação com a autoridade (ambos)
 
@@ -117,13 +110,15 @@ Não usar sequences PostgreSQL comuns como garantia fiscal sem análise de rollb
 - Persistência da tentativa e da resposta (outbox com controlo de acesso; payload pode ir cifrado — **não** é log operacional).
 - Reconciliação quando o resultado for desconhecido.
 
-## Recomendação
+## Decisão
 
-**Adotar a Alternativa A**, com PostgreSQL só na cloud e SQLite WAL no Edge.
+**DEC-STACK-001 decidida:** Alternativa A — Go + PostgreSQL (cloud) + SQLite WAL (Edge).
 
-Escolher B se a equipa núcleo for predominantemente Java.
+A Alternativa B (Java) fica apenas como comparação histórica; não é opção residual.
 
-Em ambos os casos: sem microserviços; sem portal no primeiro slice; DEC-STACK-001 antes do scaffold.
+Sem microserviços; sem portal no primeiro slice; sem scaffold até a Fase 1 autorizada.
+
+**Condição de execução:** nenhuma dependência fiscal, biblioteca XML/XSD ou algoritmo criptográfico entra em produção sem evidência documental oficial e testes de conformidade.
 
 ## Explicitamente fora desta proposta
 
@@ -132,7 +127,9 @@ Em ambos os casos: sem microserviços; sem portal no primeiro slice; DEC-STACK-0
 - Bases NoSQL para o livro fiscal.
 - Exactly-once ponta a ponta com a AGT.
 - Portal frontend na Fase 1 inicial.
+- Tratar JWS RS256 como regra fiscal AGT confirmada.
+- Implementar validação SAF-T/XSD antes do XSD oficial.
 
 ## Próximo passo
 
-Fechar DEC-STACK-001 em [open-decisions.md](open-decisions.md) e só então iniciar o monorepo na Fase 1.
+Scaffold da Fase 1 apenas após autorização de implementação; revisão mínima OpenAPI permanece tarefa zero.

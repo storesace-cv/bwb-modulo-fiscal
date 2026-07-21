@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3-draft — 2026-07-21
+
+- DEC-STACK-001 decidida: Go + PostgreSQL na cloud + SQLite WAL no Edge (condições XSD oficial, assinatura fiscal AGT e numeração preservadas).
+
 ## 0.1.2-draft — 2026-07-20
 
 - Harmonização final do plano Fase 0: DEC-STACK-001 recomendada, `sealed_locally` único, OpenAPI tarefa zero, RSA efémero.

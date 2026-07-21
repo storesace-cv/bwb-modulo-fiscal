@@ -82,7 +82,7 @@ flowchart TD
 | Atividade | Dependências | Responsável sugerido | Entregável |
 |---|---|---|---|
 | Rever ADRs 0001–0003 | Documentação existente | Arquitetura | Confirmação |
-| Aprovar DEC-STACK-001 (Go / PG cloud / SQLite Edge) | [technical-stack-proposal.md](technical-stack-proposal.md) | Arquitetura + Tech Lead | Decisão |
+| Formalizar DEC-STACK-001 (Go / PG cloud / SQLite Edge) | [technical-stack-proposal.md](technical-stack-proposal.md) | Arquitetura + Tech Lead | **Decidida** (2026-07-21) |
 | STRIDE curto focado no vertical slice | [first-vertical-slice.md](first-vertical-slice.md) | Segurança | Lista curta de ameaças do slice |
 | Fechar especificação do vertical slice | Decisões acima | Engenharia + Produto | Aceitação Fase 1 |
 
@@ -102,7 +102,7 @@ flowchart TD
 | PDF oficial 74/19 + rectificação | Assinatura legal normativa, menções | Requisitos em «rascunho»; não usar proposta em `local/` como norma |
 | Confirmação `ASM-REG-001` | Modelo comercial de certificação | Manter premissa; pedido documentado |
 | DEC-API-004 | Semântica jurídica final de emissão/aceitação | Estado técnico `sealed_locally` no slice (não afirma emissão fiscal) |
-| DEC-STACK-001 | Scaffold da Fase 1 | Manter recomendação até aprovação explícita; decidir antes do scaffold |
+| DEC-STACK-001 | Scaffold da Fase 1 | **Decidida** (Go + PG cloud + SQLite WAL Edge); scaffold só na Fase 1 autorizada |
 | Tipos documentais MVP | Âmbito do slice | Fatura simples |
 
 ## Responsáveis sugeridos (RACI resumido)
@@ -121,7 +121,7 @@ flowchart TD
 2. Matriz preenchida **apenas** onde a fonte permite.
 3. [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) mantido.
 4. Decisões prioritárias tratadas: ver [open-decisions.md](open-decisions.md).
-5. Stack recomendada atualizada (Go + PG cloud + SQLite Edge).
+5. Stack **decidida** (Go + PG cloud + SQLite WAL Edge); ver DEC-STACK-001.
 6. [first-vertical-slice.md](first-vertical-slice.md) enxuto (sem portal, webhooks, frontend POS).
 7. Lista justificada de correções OpenAPI para a primeira revisão contratual (YAML ainda não alterado).
 8. Perguntas formais à AGT sobre `ASM-REG-001` (envio; resposta pode ficar pendente).
@@ -134,7 +134,7 @@ flowchart TD
 2. Lacunas regulatórias inventariadas; espera AGT não bloqueia o gate interno se waivers existirem.
 3. `ASM-REG-001` intacta; pedido de validação documentado.
 4. DEC-DEL-001, DEC-API-001 e DEC-API-003 fechadas conforme [open-decisions.md](open-decisions.md).
-5. DEC-STACK-001 permanece **recomendada** até aprovação explícita do responsável; deve estar **decidida** antes do scaffold da Fase 1 (não é requisito de fecho documental da Fase 0).
+5. DEC-STACK-001 **decidida** (Go + PostgreSQL cloud + SQLite WAL Edge); scaffold só na Fase 1 autorizada.
 6. DEC-API-004 aberta ou bloqueada-por-lacuna; estado técnico neutro acordado: `sealed_locally`.
 7. Vertical slice especificado (aceitação + falhas; at-least-once + idempotência); tarefa zero da Fase 1 = revisão mínima OpenAPI.
 8. Nenhum segredo ou dado fiscal real no repositório.
@@ -155,7 +155,7 @@ flowchart TD
 | Gate | Critério | Se falhar |
 |---|---|---|
 | G0-T1 | ADR-0001/0002/0003 confirmados | Novo ADR antes da Fase 1 |
-| G0-T2 | DEC-STACK-001 aprovada/decidida **antes do scaffold** da Fase 1 (pode continuar «recomendada» no fecho documental da Fase 0) | Não iniciar scaffold |
+| G0-T2 | DEC-STACK-001 **decidida** (cumprido); scaffold da Fase 1 ainda requer autorização de implementação | Não iniciar scaffold sem autorização |
 | G0-T3 | Vertical slice aceite | Replanejar Fase 1 |
 | G0-T4 | DEC-DEL-001 decidida + lista de correções OpenAPI | Não fingir contrato «final» |
 | G0-T5 | Política de numeração do slice alinhada a exclusão por série (sem «zero buracos» genérico) | Rever [first-vertical-slice.md](first-vertical-slice.md) |
@@ -186,7 +186,7 @@ flowchart TD
 ## Relação com fases seguintes
 
 - **Fase 1 — tarefa zero:** revisão mínima do OpenAPI (DEC-API-001, DEC-API-003, estado técnico `sealed_locally`) **antes** de implementar o endpoint.
-- **Fase 1** implementa em seguida o [first-vertical-slice.md](first-vertical-slice.md) (API mínima, CLI/coleção, simulador; sem portal/webhooks), após DEC-STACK-001 decidida.
+- **Fase 1** implementa em seguida o [first-vertical-slice.md](first-vertical-slice.md) (API mínima, CLI/coleção, simulador; sem portal/webhooks); DEC-STACK-001 já decidida.
 - **Fase 2+** declara conformidade de produção só após fecho das lacunas em [regulatory-gaps.md](../01-compliance/regulatory-gaps.md).
 
 ## Referências

@@ -222,11 +222,11 @@ Declarar sempre: «simulador — não é a AGT».
 - [ ] JWS RS256 real via adaptador; RSA efémero; não certificado.
 - [ ] At-least-once + deduplicação + reconciliação documentados.
 - [ ] Separação simulador vs AGT na config.
-- [ ] DEC-STACK-001 decidida antes do scaffold.
+- [ ] Scaffold alinhado a DEC-STACK-001 (Go + PostgreSQL cloud + SQLite WAL Edge), só após autorização.
 
 ## Dependências da Fase 0
 
-- DEC-STACK-001 **recomendada** (aprovar/decidir antes do scaffold).
+- DEC-STACK-001 **decidida** (Go + PostgreSQL cloud + SQLite WAL Edge).
 - DEC-REG-003 (pelo menos fatura simples).
 - DEC-API-004 em curso (`sealed_locally` técnico até fecho jurídico).
 - DEC-DEL-001 cumprida (lista de correções → tarefa zero OpenAPI na Fase 1).

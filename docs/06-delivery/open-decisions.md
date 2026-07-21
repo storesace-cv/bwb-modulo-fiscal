@@ -123,19 +123,24 @@ Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 
 | Campo | Valor |
 |---|---|
-| Estado | recomendada |
+| Estado | **decidida** |
 | Tipo | Técnica |
-| Prazo máximo | Dentro das 2–4 semanas internas |
+| Prazo máximo | — |
 | Responsável | Arquitetura (aprovação: Tech Lead + PO) |
+| Decisão | 2026-07-21 |
 
 Ver análise completa em [technical-stack-proposal.md](technical-stack-proposal.md).
 
-**Opções:**
+**Decisão inequívoca:** Go no backend; PostgreSQL na cloud; SQLite em WAL no Edge (um processo fiscal escritor; POS só via API local); pacote fiscal e testes comuns; abstração de persistência limitada (sem ORM genérico excessivo). PostgreSQL local no Edge só com benchmark/requisito oficial que prove SQLite insuficiente. Sem portal na primeira implementação. Sem scaffold nesta fase.
 
-1. **Recomendada:** Go no backend; PostgreSQL na cloud; SQLite em WAL no Edge (um processo fiscal escritor; POS só via API local); pacote fiscal e testes comuns; abstração de persistência limitada (sem ORM genérico excessivo). PostgreSQL local no Edge só com benchmark/requisito oficial que prove SQLite insuficiente.
-2. **Alternativa:** Java 21 (Spring Boot) + PostgreSQL cloud + SQLite WAL no Edge com as mesmas restrições de escrita única.
+**Condições preservadas:**
 
-**Recomendação:** opção 1. Sem portal na primeira implementação. Estado permanece **recomendada** até aprovação explícita do responsável; deve passar a **decidida** antes do scaffold da Fase 1. Não implementar nesta fase.
+- Validação XSD/SAF-T oficial com ferramenta comprovada baseada em libxml2/xmllint (ou componente isolado equivalente) e testes contra o XSD oficial da AGT; não implementar até obter esse XSD.
+- Separar assinatura interna da API (se aplicável) da assinatura fiscal AGT (algoritmo, canonicalização e campos dependem do Decreto 74/19 e documentação oficial pendente); não tratar JWS RS256 como regra fiscal confirmada.
+- Estratégia transacional de numeração definida após confirmação das regras oficiais; sem conclusões prematuras sobre duplicados ou «buracos».
+- Nenhuma dependência fiscal, biblioteca XML/XSD ou algoritmo criptográfico entra em produção sem evidência documental oficial e testes de conformidade.
+
+A alternativa Java 21 permanece apenas como comparação histórica em [technical-stack-proposal.md](technical-stack-proposal.md); não é opção residual.
 
 ---
 
@@ -301,15 +306,14 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 ---
 
-## Prioridade de decisão (as cinco primeiras)
+## Prioridade de decisão (abertas)
 
 1. **DEC-REG-002** — Decreto 74/19 e rectificação oficiais.
 2. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
 3. **DEC-REG-003** — tipos documentais do MVP.
 4. **DEC-API-004** — momento jurídico da emissão/aceitação.
-5. **DEC-STACK-001** — stack e armazenamento cloud/Edge.
 
-**Já decididas (fora da lista prioritária):** DEC-DEL-001, DEC-API-001, DEC-API-003.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, DEC-DEL-001, DEC-API-001, DEC-API-003.
 
 ---
 
