@@ -49,6 +49,18 @@ jobs:
             exit 1
           fi
 
+      - name: Shellcheck deploy scripts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -x scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh
+
+      - name: Deploy D1 script tests
+        run: |
+          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh
+          bash scripts/deploy/check-antipatterns.sh
+          bash tests/deploy/run-tests.sh
+
       - name: Migration parity and immutability
         if: github.event_name == 'pull_request'
         env:

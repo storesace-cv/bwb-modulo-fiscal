@@ -1,0 +1,38 @@
+[Unit]
+Description=BWB fiscal API (staging)
+Documentation=https://github.com/storesace-cv/bwb-modulo-fiscal
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fiscal
+Group=fiscal
+WorkingDirectory=/opt/bwb-modulo-fiscal/current
+# Runtime secrets only — do not load the migration credentials file here.
+EnvironmentFile=/etc/bwb-modulo-fiscal/fiscal.env
+ExecStart=/opt/bwb-modulo-fiscal/current/fiscal-api
+Restart=on-failure
+RestartSec=2s
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/bwb-modulo-fiscal /var/log/bwb-modulo-fiscal
+LimitNOFILE=65536
+UMask=0077
+
+# Bind is controlled by FISCAL_HTTP_ADDR in fiscal.env (must be 127.0.0.1)
+
+[Install]
+WantedBy=multi-user.target

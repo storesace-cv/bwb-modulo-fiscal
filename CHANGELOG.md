@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5-draft — 2026-07-21
+
+- PR D1 staging deploy foundation: `.env.example`, allowlists runtime/migrate, systemd unit (`fiscal.env` only), Nginx HTTP bootstrap + TLS templates (`sandbox.fiscalmod.bwb.pt`, `/v1/documents` deny-all), fail-closed deploy scripts (dry-run, SHA-256 release, migration before/after, no post-migration binary rollback without N-1 proof), staging runbook, OpenAPI sandbox URL. Sem acesso a servidor/DNS.
+
 ## 0.2.4-draft — 2026-07-21
 
 - DEC-TIME-001 (PR #8): tempo fiscal vs técnico — `issued_at` com timezone IANA do scope (`Africa/Luanda`) e offset persistido; `created_at` UTC técnico (microssegundos, relógio injetável); `canonical_v2` activo com goldens imutáveis `canonical_v1`/`canonical_v2`; packages `fiscaltime`/`fiscaltz` (tzdata embutida, fail-closed); migration `0002` (PG/SQLite) aborta se houver `documents` ou `idempotency_records`; OpenAPI `0.1.3-draft` e exemplo Angola `+01:00`. Sem Cabo Verde runtime; sem recalculo de hashes; API sem migrate no arranque.

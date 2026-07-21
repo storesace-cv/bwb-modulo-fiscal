@@ -36,3 +36,4 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Código: Go com health, schema/migrations, SealInTx e `POST /v1/documents` (auth/series de desenvolvimento fail-closed).
 - Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.3-draft`).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
+- Staging (D1 artefactos): [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).
