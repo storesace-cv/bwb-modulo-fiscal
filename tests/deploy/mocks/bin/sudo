@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Mock sudo: only the closed deploy helper is allowed.
+set -Eeuo pipefail
+
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+
+if [[ "${1:-}" == "-n" ]]; then
+  shift
+fi
+
+printf 'sudo %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+
+if [[ "${1:-}" != "/usr/local/sbin/bwb-fiscal-deploy-helper" ]]; then
+  echo "error: mock sudo refuses non-helper command: $*" >&2
+  exit 1
+fi
+
+# Helper execution is handled inside mock ssh; if invoked directly, refuse.
+echo "error: helper must be invoked via mock ssh path" >&2
+exit 1

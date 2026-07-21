@@ -108,4 +108,6 @@ Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
 
 Contrato público `0.1.3-draft` + implementação HTTP `POST /v1/documents` (PR C2) + DEC-TIME-001 (`canonical_v2`, migration `0002`).
 
+Staging deploy (artefactos D1): [staging-runbook.md](../07-operations/staging-runbook.md).
+
 **Não** inclui worker AGT, JWS, ficheiros `.env` nem `GET /documents/{id}`. Cabo Verde runtime **não** está implementado.

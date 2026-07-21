@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Mock chown: no-op ownership changes in tests.
+set -Eeuo pipefail
+: "${DEPLOY_MOCK_LOG:?DEPLOY_MOCK_LOG required}"
+printf 'chown %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
+exit 0

@@ -49,6 +49,31 @@ jobs:
             exit 1
           fi
 
+      - name: Shellcheck deploy scripts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -x -P SCRIPTDIR -e SC1091 \
+            scripts/deploy/lib/allowlist.sh \
+            scripts/deploy/*.sh \
+            tests/deploy/run-tests.sh
+
+      - name: Deploy D1 script tests
+        run: |
+          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh tests/deploy/mocks/bin/*
+          bash scripts/deploy/check-antipatterns.sh
+          bash tests/deploy/run-tests.sh
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
+          else
+            git diff --check "HEAD~1...HEAD" || git diff --check
+          fi
+          git diff --check origin/main...HEAD || git diff --check "$(git merge-base origin/main HEAD)...HEAD"
+
+      - name: OpenAPI lint
+        run: |
+          npx --yes @redocly/cli@1.34.3 lint specs/openapi/openapi.yaml
+
       - name: Migration parity and immutability
         if: github.event_name == 'pull_request'
         env:

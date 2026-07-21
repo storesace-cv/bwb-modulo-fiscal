@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5-draft — 2026-07-21
+
+- Staging deploy: migrate sob drop-priv (`bwb-fiscal-migrate`); runner removido da release; envs restorable logo após backup; falhas pós-activate (restart/health) com rotina N-1; health estrito a `"status":"ok"`; captura explícita do exit status do healthcheck sob `if`.
+- PR D1 staging deploy foundation: allowlists, systemd (`fiscal.env` only), Nginx IPv4-only templates, closed remote helper + sudoers template (no `sudo bash`), transactional env backup/restore before activation, live health fixed to `http://127.0.0.1:8080/v1/health`, schema gate via `EXPECTED_SCHEMA_VERSION`, CI `git diff --check base...HEAD`. Sem acesso a servidor/DNS.
+
 ## 0.2.4-draft — 2026-07-21
 
 - DEC-TIME-001 (PR #8): tempo fiscal vs técnico — `issued_at` com timezone IANA do scope (`Africa/Luanda`) e offset persistido; `created_at` UTC técnico (microssegundos, relógio injetável); `canonical_v2` activo com goldens imutáveis `canonical_v1`/`canonical_v2`; packages `fiscaltime`/`fiscaltz` (tzdata embutida, fail-closed); migration `0002` (PG/SQLite) aborta se houver `documents` ou `idempotency_records`; OpenAPI `0.1.3-draft` e exemplo Angola `+01:00`. Sem Cabo Verde runtime; sem recalculo de hashes; API sem migrate no arranque.

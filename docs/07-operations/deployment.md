@@ -4,19 +4,22 @@
 
 - `local`: desenvolvimento.
 - `test`: testes automáticos e simuladores.
-- `sandbox`: integração de software houses.
-- `staging`: réplica operacional sem dados reais.
-- `production`: dados e credenciais reais.
+- `sandbox` / **staging hostname**: `sandbox.fiscalmod.bwb.pt` (operacional staging; auth actual `dev_static`).
+- `production` hostname: `fiscalmod.bwb.pt` — **reservado** até autenticação real e aprovação operacional.
+- Não partilhar credenciais, chaves ou bases de dados entre ambientes.
 
-Não partilhar credenciais, chaves ou bases de dados entre ambientes.
+Ver runbook de staging: [staging-runbook.md](staging-runbook.md).
 
-## Cloud
+## Cloud (staging D1/D2)
 
-Infraestrutura como código, imagens imutáveis, migrações verificadas, rollout canário e healthchecks. Base de dados com backup point-in-time e restauração ensaiada.
+- **D1 (repo):** systemd, Nginx templates, allowlists, scripts fail-closed, OpenAPI sandbox URL — sem acesso ao servidor.
+- **D2 (host):** DNS A, TLS ACME, hardening, roles PostgreSQL, install — só após merge D1.
+- Artefactos Linux por commit SHA + `SHA256SUMS`; migrate separado do restart; rollback de binário pós-migration só com prova N-1.
+- API em `127.0.0.1`; TLS no Nginx; `/v1/documents` deny-all no Git.
 
 ## Edge
 
-Artefactos por arquitetura suportada, manifesto de compatibilidade, assinatura e canal de atualização. Atualização: descarregar → verificar → preparar → parar com segurança → migrar → testar saúde → promover ou recuperar executável anterior.
+Artefactos por arquitetura suportada, manifesto de compatibilidade, assinatura e canal de atualização. Atualização: descarregar → verificar → preparar → parar com segurança → migrar → testar saúde → promover ou recuperar executável anterior (com as mesmas regras de compatibilidade de schema).
 
 ## Versionamento
 

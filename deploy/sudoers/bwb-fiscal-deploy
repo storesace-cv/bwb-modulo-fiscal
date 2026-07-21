@@ -1,0 +1,30 @@
+# sudoers fragment for staging deploy (install in D2 bootstrap only).
+# Path: /etc/sudoers.d/bwb-fiscal-deploy
+#
+# Grants the deploy SSH user NOPASSWD access ONLY to the closed helper.
+# Forbidden: bash, sh, rm, cp, install, systemctl, or any other binary.
+#
+# Replace DEPLOY_USER with the dedicated deploy account (never the API user).
+#
+# D2 bootstrap (order matters):
+#   1. Create drop-priv migrate user (no login shell, no password):
+#        useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin \
+#          --user-group bwb-fiscal-migrate
+#   2. Install helper libraries (root-owned, not from a release tree at runtime):
+#        install -d -m 0755 -o root -g root /usr/local/lib/bwb-fiscal-deploy
+#        install -m 0644 -o root -g root scripts/deploy/lib/allowlist.sh \
+#          /usr/local/lib/bwb-fiscal-deploy/allowlist.sh
+#        install -m 0644 -o root -g root deploy/migrate.env.allowlist \
+#          /usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist
+#   3. Install closed helper:
+#        install -m 0755 -o root -g root scripts/deploy/remote-deploy-helper.sh \
+#          /usr/local/sbin/bwb-fiscal-deploy-helper
+#   4. Install this sudoers fragment and validate:
+#        install -m 0440 this-file /etc/sudoers.d/bwb-fiscal-deploy
+#        visudo -cf /etc/sudoers.d/bwb-fiscal-deploy
+#
+# The helper reads migrate.env as root, then runs fiscal-migrate via runuser/setpriv
+# as bwb-fiscal-migrate with a cleaned environment (only FISCAL_DATABASE_*).
+# Release scripts/binaries are never executed as root.
+
+DEPLOY_USER ALL=(root) NOPASSWD: /usr/local/sbin/bwb-fiscal-deploy-helper
