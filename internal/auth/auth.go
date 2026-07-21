@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 )
@@ -263,12 +262,15 @@ func validSandboxTokenFormat(token string) bool {
 	if !strings.HasPrefix(token, persistence.CredentialTokenPrefix) {
 		return false
 	}
-	body := token[len(persistence.CredentialTokenPrefix):]
-	for _, r := range body {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+	// Byte-wise Base64URL alphabet only (A-Z, a-z, 0-9, '-', '_'); no Unicode.
+	for i := len(persistence.CredentialTokenPrefix); i < len(token); i++ {
+		c := token[i]
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '-', c == '_':
 			continue
+		default:
+			return false
 		}
-		return false
 	}
 	return true
 }

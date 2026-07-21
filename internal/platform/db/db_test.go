@@ -2,12 +2,13 @@ package db_test
 
 import (
 	"context"
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 )
 
 func TestOpenSQLiteRejectsMaxOpenConnsAboveOne(t *testing.T) {
@@ -37,10 +38,8 @@ func TestOpenSQLiteForcesMaxOpenConnsOne(t *testing.T) {
 }
 
 func TestOpenPostgresSearchPathOnAllPoolConns(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 	sqlDB, err := db.OpenPostgres(ctx, db.PostgresConfig{URL: dsn})
 	if err != nil {
@@ -85,6 +84,9 @@ func TestOpenPostgresSearchPathOnAllPoolConns(t *testing.T) {
 		got := normalizeSearchPath(c.path)
 		if got != want {
 			t.Fatalf("conn[%d] search_path = %q (normalized %q), want %q", i, c.path, got, want)
+		}
+		if !strings.Contains(c.path, "fiscal") {
+			t.Fatalf("search_path[%d]=%q, want fiscal", i, c.path)
 		}
 	}
 }

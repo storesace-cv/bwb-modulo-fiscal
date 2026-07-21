@@ -151,6 +151,8 @@ type CredentialStore struct {
 	db      *sql.DB
 	dialect Dialect
 	now     func() time.Time
+	// commitHook, when set, replaces engine commit (tests inject commit failures).
+	commitHook func() error
 }
 
 type auditEvent struct {
@@ -182,6 +184,12 @@ func (s *CredentialStore) SetClock(now func() time.Time) {
 		return
 	}
 	s.now = now
+}
+
+// SetCommitHook replaces the transaction commit step. Intended for tests only.
+// When the hook returns an error, the transaction is rolled back.
+func (s *CredentialStore) SetCommitHook(fn func() error) {
+	s.commitHook = fn
 }
 
 // CreateScope inserts a scope. Does not write audit (scope bootstrap is separate from credential mutations).
@@ -704,7 +712,7 @@ func (s *CredentialStore) withScopeTxPostgres(ctx context.Context, scopeID strin
 	if err := fn(q, true, now, now); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := s.commitTx(func() error { return tx.Commit() }); err != nil {
 		return fmt.Errorf("persistence: commit: %w", err)
 	}
 	committed = true
@@ -746,11 +754,21 @@ func (s *CredentialStore) withScopeTxSQLite(ctx context.Context, scopeID string,
 	if err := fn(q, false, now, nowArg); err != nil {
 		return err
 	}
-	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
+	if err := s.commitTx(func() error {
+		_, err := conn.ExecContext(ctx, "COMMIT")
+		return err
+	}); err != nil {
 		return fmt.Errorf("persistence: commit: %w", err)
 	}
 	committed = true
 	return nil
+}
+
+func (s *CredentialStore) commitTx(commit func() error) error {
+	if s.commitHook != nil {
+		return s.commitHook()
+	}
+	return commit()
 }
 
 type insertCredentialArgs struct {

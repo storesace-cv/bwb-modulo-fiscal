@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
 )
 
@@ -44,10 +46,8 @@ func TestCreateDocumentSQLite(t *testing.T) {
 }
 
 func TestCreateDocumentPostgres(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
 		t.Fatal(err)
@@ -289,6 +289,78 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 			t.Fatalf("%d %s", code, raw)
 		}
 	})
+}
+
+type errAuth struct{ err error }
+
+func (e errAuth) Authenticate(ctx context.Context, r *http.Request) (auth.ScopeBinding, error) {
+	return auth.ScopeBinding{}, e.err
+}
+
+func TestCreateDocumentAuthInternalMapsTo500(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "docs-500.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+
+	var logBuf strings.Builder
+	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
+		Store: persistence.NewStore(sqlDB, persistence.DialectSQLite),
+		Auth:  errAuth{err: auth.ErrInternal},
+		Log:   slog.New(slog.NewTextHandler(&logBuf, nil)),
+	})
+	token := persistence.CredentialTokenPrefix + strings.Repeat("B", 43)
+	code, raw, _ := doPOST(t, h, "a5a5a5a5-a5a5-45a5-85a5-a5a5a5a5a5a5", minimalBody("ext-500", "R"), token, "application/json")
+	assertProblem(t, code, raw, http.StatusInternalServerError, "FISCAL_INTERNAL_ERROR")
+	if strings.Contains(string(raw), token) || strings.Contains(logBuf.String(), token) {
+		t.Fatal("token leaked in 500 response or logs")
+	}
+}
+
+func TestCreateDocumentAuthCanceledContextMapsTo500(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "docs-cancel.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: time.Second, MaxOpenConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	store := persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite)
+	a, err := auth.NewCredentialStoreAuthenticator(store, "homologation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logBuf strings.Builder
+	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
+		Store: persistence.NewStore(sqlDB, persistence.DialectSQLite),
+		Auth:  a,
+		Log:   slog.New(slog.NewTextHandler(&logBuf, nil)),
+	})
+
+	token := persistence.CredentialTokenPrefix + strings.Repeat("C", 43)
+	req := httptest.NewRequest(http.MethodPost, "/v1/documents", strings.NewReader(minimalBody("ext-cancel", "R")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "a6a6a6a6-a6a6-46a6-86a6-a6a6a6a6a6a6")
+	req.Header.Set("Authorization", "Bearer "+token)
+	canceled, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(canceled)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	assertProblem(t, rr.Code, rr.Body.Bytes(), http.StatusInternalServerError, "FISCAL_INTERNAL_ERROR")
+	if strings.Contains(rr.Body.String(), token) || strings.Contains(logBuf.String(), token) {
+		t.Fatal("token leaked on canceled auth path")
+	}
 }
 
 func doPOST(t *testing.T, h http.Handler, idem, body, token, contentType string) (int, []byte, http.Header) {

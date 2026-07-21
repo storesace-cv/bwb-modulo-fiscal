@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -37,28 +38,32 @@ func run(args []string) int {
 	}
 }
 
-func openStore(ctx context.Context) (*persistence.CredentialStore, error) {
+func openStore(ctx context.Context) (*persistence.CredentialStore, func(), error) {
 	driver := strings.TrimSpace(os.Getenv("FISCAL_DATABASE_DRIVER"))
 	url := strings.TrimSpace(os.Getenv("FISCAL_DATABASE_URL"))
 	if driver == "" || url == "" {
-		return nil, errors.New("FISCAL_DATABASE_DRIVER and FISCAL_DATABASE_URL are required")
+		return nil, nil, errors.New("FISCAL_DATABASE_DRIVER and FISCAL_DATABASE_URL are required")
 	}
+	var (
+		sqlDB *sql.DB
+		err   error
+		dia   persistence.Dialect
+	)
 	switch driver {
 	case db.DriverPostgres:
-		sqlDB, err := db.OpenPostgres(ctx, db.PostgresConfig{URL: url})
-		if err != nil {
-			return nil, err
-		}
-		return persistence.NewCredentialStore(sqlDB, persistence.DialectPostgres), nil
+		sqlDB, err = db.OpenPostgres(ctx, db.PostgresConfig{URL: url})
+		dia = persistence.DialectPostgres
 	case db.DriverSQLite:
-		sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: url})
-		if err != nil {
-			return nil, err
-		}
-		return persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite), nil
+		sqlDB, err = db.OpenSQLite(ctx, db.SQLiteConfig{Path: url})
+		dia = persistence.DialectSQLite
 	default:
-		return nil, fmt.Errorf("unsupported driver %q", driver)
+		return nil, nil, fmt.Errorf("unsupported driver %q", driver)
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup := func() { _ = sqlDB.Close() }
+	return persistence.NewCredentialStore(sqlDB, dia), cleanup, nil
 }
 
 func runScope(ctx context.Context, args []string) int {
@@ -77,11 +82,17 @@ func runScope(ctx context.Context, args []string) int {
 		fmt.Fprintln(os.Stderr, "invalid flags")
 		return 2
 	}
-	store, err := openStore(ctx)
+	if strings.TrimSpace(*scopeID) == "" || strings.TrimSpace(*nif) == "" ||
+		strings.TrimSpace(*tz) == "" || strings.TrimSpace(*series) == "" || strings.TrimSpace(*env) == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags")
+		return 2
+	}
+	store, closeStore, err := openStore(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "database error")
 		return 1
 	}
+	defer closeStore()
 	rec, err := store.CreateScope(ctx, persistence.CreateScopeParams{
 		ScopeID:             *scopeID,
 		TaxpayerNIF:         *nif,
@@ -126,18 +137,9 @@ func runIssue(ctx context.Context, args []string) int {
 		fmt.Fprintln(os.Stderr, "invalid flags")
 		return 2
 	}
-	sink, closer, err := openTokenSink(*outFile)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return 1
-	}
-	if closer != nil {
-		defer closer()
-	}
-	store, err := openStore(ctx)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "database error")
-		return 1
+	if strings.TrimSpace(*scopeID) == "" || strings.TrimSpace(*createdBy) == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags")
+		return 2
 	}
 	var exp *time.Time
 	if strings.TrimSpace(*expiresAt) != "" {
@@ -149,6 +151,23 @@ func runIssue(ctx context.Context, args []string) int {
 		t = t.UTC()
 		exp = &t
 	}
+
+	store, closeStore, err := openStore(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "database error")
+		return 1
+	}
+	defer closeStore()
+
+	sink, closer, err := openTokenSink(*outFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	if closer != nil {
+		defer closer()
+	}
+
 	rec, err := store.Issue(ctx, persistence.IssueParams{
 		ScopeID:   *scopeID,
 		CreatedBy: *createdBy,
@@ -157,7 +176,7 @@ func runIssue(ctx context.Context, args []string) int {
 		Deliver:   sink,
 	})
 	if err != nil {
-		if *outFile != "" {
+		if strings.TrimSpace(*outFile) != "" {
 			fmt.Fprintln(os.Stderr, "credential issue failed; if an output file was created, delete it manually")
 		} else {
 			fmt.Fprintln(os.Stderr, "credential issue failed")
@@ -180,18 +199,9 @@ func runRotate(ctx context.Context, args []string) int {
 		fmt.Fprintln(os.Stderr, "invalid flags")
 		return 2
 	}
-	sink, closer, err := openTokenSink(*outFile)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return 1
-	}
-	if closer != nil {
-		defer closer()
-	}
-	store, err := openStore(ctx)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "database error")
-		return 1
+	if strings.TrimSpace(*scopeID) == "" || strings.TrimSpace(*createdBy) == "" || strings.TrimSpace(*graceUntil) == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags")
+		return 2
 	}
 	gu, err := time.Parse(time.RFC3339, *graceUntil)
 	if err != nil {
@@ -208,6 +218,23 @@ func runRotate(ctx context.Context, args []string) int {
 		t = t.UTC()
 		exp = &t
 	}
+
+	store, closeStore, err := openStore(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "database error")
+		return 1
+	}
+	defer closeStore()
+
+	sink, closer, err := openTokenSink(*outFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	if closer != nil {
+		defer closer()
+	}
+
 	out, err := store.Rotate(ctx, persistence.RotateParams{
 		ScopeID:    *scopeID,
 		CreatedBy:  *createdBy,
@@ -217,7 +244,7 @@ func runRotate(ctx context.Context, args []string) int {
 		Deliver:    sink,
 	})
 	if err != nil {
-		if *outFile != "" {
+		if strings.TrimSpace(*outFile) != "" {
 			fmt.Fprintln(os.Stderr, "credential rotate failed; if an output file was created, delete it manually")
 		} else {
 			fmt.Fprintln(os.Stderr, "credential rotate failed")
@@ -239,11 +266,16 @@ func runRevoke(ctx context.Context, args []string) int {
 		fmt.Fprintln(os.Stderr, "invalid flags")
 		return 2
 	}
-	store, err := openStore(ctx)
+	if strings.TrimSpace(*scopeID) == "" || strings.TrimSpace(*credID) == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags")
+		return 2
+	}
+	store, closeStore, err := openStore(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "database error")
 		return 1
 	}
+	defer closeStore()
 	rec, err := store.Revoke(ctx, persistence.RevokeParams{
 		ScopeID:      *scopeID,
 		CredentialID: *credID,
@@ -256,6 +288,21 @@ func runRevoke(ctx context.Context, args []string) int {
 	}
 	fmt.Printf("credential_id=%s scope_id=%s status=%s\n", rec.CredentialID, rec.ScopeID, rec.Status)
 	return 0
+}
+
+type syncWriter interface {
+	io.Writer
+	Sync() error
+}
+
+func writeAndSyncToken(w syncWriter, token string) error {
+	if _, err := io.WriteString(w, token); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, "\n"); err != nil {
+		return err
+	}
+	return w.Sync()
 }
 
 func openTokenSink(outPath string) (persistence.TokenSink, func(), error) {
@@ -274,13 +321,7 @@ func openTokenSink(outPath string) (persistence.TokenSink, func(), error) {
 		return nil, nil, err
 	}
 	return func(token string) error {
-		if _, err := io.WriteString(f, token); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(f, "\n"); err != nil {
-			return err
-		}
-		return f.Sync()
+		return writeAndSyncToken(f, token)
 	}, func() { _ = f.Close() }, nil
 }
 

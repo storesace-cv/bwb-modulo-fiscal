@@ -18,6 +18,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 )
 
 func deliverCapture(dst *string) persistence.TokenSink {
@@ -78,10 +79,8 @@ func TestCredentialsSQLiteSuite(t *testing.T) {
 }
 
 func TestCredentialsPostgresSuite(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
 		t.Fatalf("migrate: %v", err)
@@ -631,6 +630,16 @@ func installAuditInsertReject(t *testing.T, ctx context.Context, sqlDB *sql.DB, 
 	t.Cleanup(func() {
 		_, _ = sqlDB.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS `+triggerName)
 	})
+}
+
+func dropAuditInsertReject(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool) {
+	t.Helper()
+	const triggerName = "audit_events_reject_insert_test"
+	if postgres {
+		_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS `+triggerName+` ON fiscal.audit_events`)
+		return
+	}
+	_, _ = sqlDB.ExecContext(ctx, `DROP TRIGGER IF EXISTS `+triggerName)
 }
 
 func seedActiveCredential(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, scopeID, credID string) {

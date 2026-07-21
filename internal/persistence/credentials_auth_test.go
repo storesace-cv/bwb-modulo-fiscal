@@ -2,6 +2,7 @@ package persistence_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 )
 
 func TestPublicAPIDoesNotExposeTokenHash(t *testing.T) {
@@ -31,18 +33,21 @@ func TestPublicAPIDoesNotExposeTokenHash(t *testing.T) {
 	}
 }
 
-func TestTokenSinkRollbackAndVerify(t *testing.T) {
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "sink.db")
-	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
-		t.Fatal(err)
-	}
-	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: time.Second, MaxOpenConns: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestTokenSinkRollbackAndVerifySQLite(t *testing.T) {
+	store, sqlDB := openCredSQLite(t)
 	defer sqlDB.Close()
-	store := persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite)
+	runTokenSinkSuite(t, store, sqlDB, false)
+}
+
+func TestTokenSinkRollbackAndVerifyPostgres(t *testing.T) {
+	store, sqlDB := openCredPostgres(t)
+	defer sqlDB.Close()
+	runTokenSinkSuite(t, store, sqlDB, true)
+}
+
+func runTokenSinkSuite(t *testing.T, store *persistence.CredentialStore, sqlDB *sql.DB, postgres bool) {
+	t.Helper()
+	ctx := context.Background()
 	scopeID := "sink-scope"
 	mustCreateScope(t, ctx, store, scopeID)
 
@@ -54,7 +59,7 @@ func TestTokenSinkRollbackAndVerify(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected sink failure")
 		}
-		assertScopeUnaffected(t, ctx, sqlDB, false, scopeID, 0, 0)
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scopeID, 0, 0)
 	})
 
 	t.Run("rotate_deliver_failure_keeps_active", func(t *testing.T) {
@@ -66,7 +71,7 @@ func TestTokenSinkRollbackAndVerify(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected rotate sink failure")
 		}
-		assertStatus(t, ctx, sqlDB, false, scopeID, rec.CredentialID, "active")
+		assertStatus(t, ctx, sqlDB, postgres, scopeID, rec.CredentialID, "active")
 		got, err := store.VerifyCredentialTokenHash(ctx, persistence.HashCredentialToken(tok))
 		if err != nil || got.CredentialID != rec.CredentialID {
 			t.Fatalf("previous token must still verify: %v %#v", err, got)
@@ -88,21 +93,67 @@ func TestTokenSinkRollbackAndVerify(t *testing.T) {
 			t.Fatalf("err=%v", err)
 		}
 	})
+
+	t.Run("audit_after_deliver_rolls_back_delivered_not_verifiable", func(t *testing.T) {
+		installAuditInsertReject(t, ctx, sqlDB, postgres)
+		scope := "sink-audit-after"
+		mustCreateScope(t, ctx, store, scope)
+		var delivered string
+		_, err := store.Issue(ctx, persistence.IssueParams{
+			ScopeID: scope, CreatedBy: "admin",
+			Deliver: func(token string) error {
+				delivered = token
+				return nil
+			},
+		})
+		if err == nil {
+			t.Fatal("expected audit failure after deliver")
+		}
+		if delivered == "" {
+			t.Fatal("token was delivered to sink before audit failure")
+		}
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scope, 0, 0)
+		_, err = store.VerifyCredentialTokenHash(ctx, persistence.HashCredentialToken(delivered))
+		if !errors.Is(err, persistence.ErrCredentialNotFound) {
+			t.Fatalf("delivered token must not verify after rollback: %v", err)
+		}
+		assertNoSecretInAudit(t, ctx, sqlDB, postgres, scope, delivered)
+		dropAuditInsertReject(t, ctx, sqlDB, postgres)
+	})
+
+	t.Run("commit_after_deliver_fails_token_not_usable", func(t *testing.T) {
+		scope := "sink-commit-fail"
+		mustCreateScope(t, ctx, store, scope)
+		store.SetCommitHook(func() error { return errors.New("forced commit failure") })
+		defer store.SetCommitHook(nil)
+
+		var delivered string
+		_, err := store.Issue(ctx, persistence.IssueParams{
+			ScopeID: scope, CreatedBy: "admin",
+			Deliver: func(token string) error {
+				delivered = token
+				return nil
+			},
+		})
+		if err == nil {
+			t.Fatal("expected commit failure")
+		}
+		if delivered == "" {
+			t.Fatal("expected deliver before commit failure")
+		}
+		assertScopeUnaffected(t, ctx, sqlDB, postgres, scope, 0, 0)
+		_, err = store.VerifyCredentialTokenHash(ctx, persistence.HashCredentialToken(delivered))
+		if !errors.Is(err, persistence.ErrCredentialNotFound) {
+			t.Fatalf("token must not be usable after commit failure: %v", err)
+		}
+	})
 }
 
 func TestCredentialStoreAuthEnvironmentMismatchSQLite(t *testing.T) {
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "env.db")
-	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
-		t.Fatal(err)
-	}
-	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: time.Second, MaxOpenConns: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
+	store, sqlDB := openCredSQLite(t)
 	defer sqlDB.Close()
-	store := persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite)
-	_, err = store.CreateScope(ctx, persistence.CreateScopeParams{
+	ctx := context.Background()
+	_, err := store.CreateScope(ctx, persistence.CreateScopeParams{
 		ScopeID: "env-dev", TaxpayerNIF: "5000000000", IANATimezone: "Africa/Luanda",
 		SeriesEffectiveCode: "A", Environment: "development",
 	})
@@ -117,4 +168,33 @@ func TestCredentialStoreAuthEnvironmentMismatchSQLite(t *testing.T) {
 	if rec.ScopeEnvironment != "development" {
 		t.Fatalf("%q", rec.ScopeEnvironment)
 	}
+}
+
+func openCredSQLite(t *testing.T) (*persistence.CredentialStore, *sql.DB) {
+	t.Helper()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "sink.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: time.Second, MaxOpenConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite), sqlDB
+}
+
+func openCredPostgres(t *testing.T) (*persistence.CredentialStore, *sql.DB) {
+	t.Helper()
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenPostgres(ctx, db.PostgresConfig{URL: dsn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return persistence.NewCredentialStore(sqlDB, persistence.DialectPostgres), sqlDB
 }
