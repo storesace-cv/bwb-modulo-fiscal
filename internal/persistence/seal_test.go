@@ -147,34 +147,28 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		}
 	})
 
-	t.Run("issued_at_normalized_consistently", func(t *testing.T) {
+	t.Run("issued_at_offset_string_rejected_at_seal", func(t *testing.T) {
+		// Normalization belongs to fiscaltime/HTTP; SealInTx requires UTC micro canonical.
 		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12", "ext-norm-date", "A", "1.00")
 		req.Intent.IssuedAtUTC = "2026-07-21T11:00:00+01:00"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of non-canonical issued_at")
+		}
+	})
+
+	t.Run("created_at_uses_injected_clock", func(t *testing.T) {
+		fixed := time.Date(2026, 7, 21, 12, 30, 45, 123456000, time.UTC)
+		store.SetClock(func() time.Time { return fixed })
+		t.Cleanup(func() { store.SetClock(nil) })
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa13", "ext-clock", "A", "1.00")
 		r, err := store.SealInTx(ctx, req)
 		if err != nil {
-			t.Fatalf("seal: %v", err)
+			t.Fatal(err)
 		}
-		want := time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC)
-		q := `SELECT issued_at FROM ` + tbl(postgres, "documents") + ` WHERE id = ?`
-		var got time.Time
-		if postgres {
-			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&got); err != nil {
-				t.Fatal(err)
-			}
-			got = got.UTC()
-		} else {
-			var raw string
-			if err := sqlDB.QueryRowContext(ctx, rebind(postgres, q), r.DocumentID).Scan(&raw); err != nil {
-				t.Fatal(err)
-			}
-			got, err = time.Parse(time.RFC3339Nano, raw)
-			if err != nil {
-				t.Fatalf("parse sqlite issued_at %q: %v", raw, err)
-			}
-			got = got.UTC()
-		}
-		if !got.Equal(want) {
-			t.Fatalf("stored issued_at = %v, want %v", got, want)
+		want := fixed.UTC().Truncate(time.Microsecond)
+		if !r.CreatedAt.Equal(want) {
+			t.Fatalf("CreatedAt=%v want %v", r.CreatedAt, want)
 		}
 	})
 
@@ -368,13 +362,15 @@ func sampleSealReq(scope, key, externalID, series, price string) persistence.Sea
 		IdempotencyKey: key,
 		SeriesCode:     series,
 		Intent: canonical.DocumentIntent{
-			ScopeID:      scope,
-			ExternalID:   externalID,
-			DocumentType: "invoice",
-			Currency:     "AOA",
-			IssuedAtUTC:  time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC).Format(time.RFC3339Nano),
-			SellerTaxID:  "5000000000",
-			SellerName:   "Seller SA",
+			ScopeID:             scope,
+			ExternalID:          externalID,
+			DocumentType:        "invoice",
+			Currency:            "AOA",
+			IssuedAtUTC:         "2026-07-21T09:00:00.000000Z",
+			IssuedTimezone:      "Africa/Luanda",
+			IssuedOffsetMinutes: 60,
+			SellerTaxID:         "5000000000",
+			SellerName:          "Seller SA",
 			Lines: []canonical.Line{{
 				LineID:      "L1",
 				Description: "Item",

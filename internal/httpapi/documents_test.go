@@ -14,6 +14,8 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
@@ -75,10 +77,15 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tzResolver, err := fiscaltz.NewStaticAfricaLuanda(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
 	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
-		Store:  store,
-		Auth:   authenticator,
-		Series: resolver,
+		Store:    store,
+		Auth:     authenticator,
+		Series:   resolver,
+		FiscalTZ: tzResolver,
 	})
 
 	t.Run("201_and_replay", func(t *testing.T) {
@@ -188,7 +195,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 
 	t.Run("422_unknown_field_and_trailing", func(t *testing.T) {
 		key := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"
-		code, raw, _ := doPOST(t, h, key, `{"external_id":"x","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}],"extra":1}`,
+		code, raw, _ := doPOST(t, h, key, `{"external_id":"x","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}],"extra":1}`,
 			devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 
@@ -203,7 +210,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	})
 
 	t.Run("422_scope_id_in_body", func(t *testing.T) {
-		body := `{"scope_id":"evil","external_id":"ext-scope","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
+		body := `{"scope_id":"evil","external_id":"ext-scope","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
 		code, raw, _ := doPOST(t, h, "dddddddd-dddd-4ddd-8ddd-ddddddddddd1", body, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 		if !strings.Contains(string(raw), "scope_id") {
@@ -213,7 +220,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 
 	t.Run("422_external_id_max_length", func(t *testing.T) {
 		longID := strings.Repeat("e", 101)
-		body := fmt.Sprintf(`{"external_id":%q,"document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`, longID)
+		body := fmt.Sprintf(`{"external_id":%q,"document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`, longID)
 		code, raw, _ := doPOST(t, h, "ffffffff-ffff-4fff-8fff-fffffffffff1", body, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 		if !strings.Contains(string(raw), "external_id") {
@@ -222,10 +229,41 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	})
 
 	t.Run("413_body_too_large", func(t *testing.T) {
-		big := `{"external_id":"ext-big","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00Z","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"` +
+		big := `{"external_id":"ext-big","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"` +
 			strings.Repeat("X", 1<<20) + `","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
 		code, raw, _ := doPOST(t, h, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1", big, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusRequestEntityTooLarge, "FISCAL_PAYLOAD_TOO_LARGE")
+	})
+
+	t.Run("422_issued_at_z_rejected", func(t *testing.T) {
+		body := strings.Replace(minimalBody("ext-z", "R"), `+01:00`, `Z`, 1)
+		code, raw, _ := doPOST(t, h, "a1a1a1a1-a1a1-41a1-81a1-a1a1a1a1a1a1", body, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+		if !strings.Contains(string(raw), "issued_at") {
+			t.Fatalf("%s", raw)
+		}
+	})
+
+	t.Run("422_issued_at_bad_offset", func(t *testing.T) {
+		body := strings.Replace(minimalBody("ext-off", "R"), `+01:00`, `+02:00`, 1)
+		code, raw, _ := doPOST(t, h, "a2a2a2a2-a2a2-42a2-82a2-a2a2a2a2a2a2", body, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+	})
+
+	t.Run("422_issued_at_no_offset", func(t *testing.T) {
+		body := `{"external_id":"ext-nooff","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
+		code, raw, _ := doPOST(t, h, "a3a3a3a3-a3a3-43a3-83a3-a3a3a3a3a3a3", body, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+	})
+
+	t.Run("201_plus_one_accepted", func(t *testing.T) {
+		prev := os.Getenv("TZ")
+		t.Cleanup(func() { _ = os.Setenv("TZ", prev) })
+		_ = os.Setenv("TZ", "Pacific/Kiritimati")
+		code, raw, _ := doPOST(t, h, "a4a4a4a4-a4a4-44a4-84a4-a4a4a4a4a4a4", minimalBody("ext-plus1", "R"), devToken, "application/json")
+		if code != http.StatusCreated {
+			t.Fatalf("%d %s", code, raw)
+		}
 	})
 }
 
@@ -262,7 +300,7 @@ func minimalBody(externalID, requestedSeries string) string {
   "external_id": %q,
   "document_type": "invoice",
   "currency": "AOA",
-  "issued_at": "2026-07-21T10:00:00Z",
+  "issued_at": "2026-07-21T10:00:00+01:00",
   "requested_series": %q,
   "seller": {"tax_id": "0000000000", "name": "Seller Demo"},
   "lines": [{"line_id": "L1", "description": "Item", "quantity": "1", "unit_price": "10.50", "tax_code": "NOR"}]
@@ -273,13 +311,15 @@ func sampleIntent(scope, external string) canonical.DocumentIntent {
 	qty, _ := quantity.ParseCanonical("1")
 	price, _ := money.ParseCanonical("1.00")
 	return canonical.DocumentIntent{
-		ScopeID:      scope,
-		ExternalID:   external,
-		DocumentType: "invoice",
-		Currency:     "AOA",
-		IssuedAtUTC:  time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC).Format(time.RFC3339Nano),
-		SellerTaxID:  "0000000000",
-		SellerName:   "Seller Demo",
+		ScopeID:             scope,
+		ExternalID:          external,
+		DocumentType:        "invoice",
+		Currency:            "AOA",
+		IssuedAtUTC:         "2026-07-21T09:00:00.000000Z",
+		IssuedTimezone:      fiscaltime.AfricaLuanda,
+		IssuedOffsetMinutes: 60,
+		SellerTaxID:         "0000000000",
+		SellerName:          "Seller Demo",
 		Lines: []canonical.Line{{
 			LineID: "L1", Description: "Item", Quantity: qty, UnitPrice: price, TaxCode: "NOR",
 		}},

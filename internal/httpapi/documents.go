@@ -18,6 +18,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
@@ -37,10 +39,11 @@ var correlationIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
 
 // DocumentsHandler serves POST /v1/documents.
 type DocumentsHandler struct {
-	Store  *persistence.Store
-	Auth   auth.Authenticator
-	Series series.Resolver
-	Log    *slog.Logger
+	Store    *persistence.Store
+	Auth     auth.Authenticator
+	Series   series.Resolver
+	FiscalTZ fiscaltz.Resolver
+	Log      *slog.Logger
 }
 
 // CreateDocumentResponse matches OpenAPI CreateDocumentResponse.
@@ -180,7 +183,28 @@ func (h *DocumentsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	intent, ferrs := mapIntent(principal.ScopeID, body)
+	if h.FiscalTZ == nil {
+		h.writeProblem(w, r, http.StatusInternalServerError, "urn:bwb:fiscal:error:internal", "Erro interno", "FISCAL_INTERNAL_ERROR", nil)
+		return
+	}
+	ianaTZ, err := h.FiscalTZ.Resolve(principal.ScopeID)
+	if err != nil {
+		h.writeProblem(w, r, http.StatusForbidden, "urn:bwb:fiscal:error:forbidden", "Não autorizado", "FISCAL_FORBIDDEN", nil)
+		return
+	}
+	if strings.TrimSpace(body.IssuedAt) == "" {
+		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED",
+			[]fieldError{{Field: "issued_at", Code: "REQUIRED", Message: "obrigatório"}})
+		return
+	}
+	normIssued, err := fiscaltime.NormalizeIssued(body.IssuedAt, ianaTZ)
+	if err != nil {
+		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED",
+			[]fieldError{{Field: "issued_at", Code: "INVALID_ISSUED_AT", Message: "offset ausente ou incompatível com a timezone fiscal do scope"}})
+		return
+	}
+
+	intent, ferrs := mapIntent(principal.ScopeID, body, normIssued)
 	if len(ferrs) > 0 {
 		h.writeProblem(w, r, http.StatusUnprocessableEntity, "urn:bwb:fiscal:error:validation", "Documento inválido", "FISCAL_VALIDATION_FAILED", ferrs)
 		return
@@ -280,7 +304,7 @@ func decodeDocumentIntent(r io.Reader) (documentIntentBody, error) {
 	return body, nil
 }
 
-func mapIntent(scopeID string, body documentIntentBody) (canonical.DocumentIntent, []fieldError) {
+func mapIntent(scopeID string, body documentIntentBody, issued fiscaltime.NormalizedIssued) (canonical.DocumentIntent, []fieldError) {
 	var errs []fieldError
 	requireNonEmpty := func(field, v string) {
 		if strings.TrimSpace(v) == "" {
@@ -297,7 +321,6 @@ func mapIntent(scopeID string, body documentIntentBody) (canonical.DocumentInten
 	if body.Currency != "AOA" {
 		errs = append(errs, fieldError{Field: "currency", Code: "INVALID_ENUM", Message: "valor não permitido"})
 	}
-	requireNonEmpty("issued_at", body.IssuedAt)
 	if body.Seller == nil {
 		errs = append(errs, fieldError{Field: "seller", Code: "REQUIRED", Message: "obrigatório"})
 	} else {
@@ -309,12 +332,14 @@ func mapIntent(scopeID string, body documentIntentBody) (canonical.DocumentInten
 	}
 
 	intent := canonical.DocumentIntent{
-		ScopeID:         scopeID,
-		ExternalID:      body.ExternalID,
-		DocumentType:    body.DocumentType,
-		Currency:        body.Currency,
-		IssuedAtUTC:     body.IssuedAt,
-		RequestedSeries: body.RequestedSeries,
+		ScopeID:             scopeID,
+		ExternalID:          body.ExternalID,
+		DocumentType:        body.DocumentType,
+		Currency:            body.Currency,
+		IssuedAtUTC:         issued.UTCString,
+		IssuedTimezone:      issued.Timezone,
+		IssuedOffsetMinutes: issued.OffsetMinutes,
+		RequestedSeries:     body.RequestedSeries,
 	}
 	if body.Seller != nil {
 		intent.SellerTaxID = body.Seller.TaxID

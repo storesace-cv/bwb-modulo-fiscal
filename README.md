@@ -34,5 +34,5 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - País ativo: Angola.
 - País futuro: Cabo Verde.
 - Código: Go com health, schema/migrations, SealInTx e `POST /v1/documents` (auth/series de desenvolvimento fail-closed).
-- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.2-draft`).
+- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.3-draft`).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).

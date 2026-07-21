@@ -142,14 +142,17 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		return nil, err
 	}
 
-	issuedAt := req.Intent.IssuedAtUTC // already normalized RFC3339Nano UTC
+	issuedAt := req.Intent.IssuedAtUTC // UTC micro from fiscaltime
 	var issuedAtArg any = issuedAt
 	if postgres {
-		parsed, err := time.Parse(time.RFC3339Nano, issuedAt)
+		parsed, err := time.Parse("2006-01-02T15:04:05.000000Z", issuedAt)
 		if err != nil {
-			return nil, fmt.Errorf("persistence: issued_at: %w", err)
+			parsed, err = time.Parse(time.RFC3339Nano, issuedAt)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: issued_at: %w", err)
+			}
 		}
-		issuedAtArg = parsed.UTC()
+		issuedAtArg = parsed.UTC().Truncate(time.Microsecond)
 	}
 
 	custTax := nullIfEmpty(req.Intent.CustomerTaxID)
@@ -159,11 +162,13 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 	_, err = q.ExecContext(ctx, `
 		INSERT INTO `+t("documents")+` (
 			id, scope_id, external_id, document_type, currency, issued_at,
+			issued_timezone, issued_offset_minutes,
 			requested_series, series_code, fiscal_seq,
 			seller_tax_id, seller_name, customer_tax_id, customer_name,
 			created_at, sealed_at
-		) VALUES (`+placeholders(postgres, 15)+`)`,
+		) VALUES (`+placeholders(postgres, 17)+`)`,
 		docID, req.Intent.ScopeID, req.Intent.ExternalID, req.Intent.DocumentType, req.Intent.Currency, issuedAtArg,
+		req.Intent.IssuedTimezone, req.Intent.IssuedOffsetMinutes,
 		reqSeries, req.SeriesCode, fiscalSeq,
 		req.Intent.SellerTaxID, req.Intent.SellerName, custTax, custName,
 		nowArg, nowArg,

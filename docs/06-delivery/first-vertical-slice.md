@@ -13,7 +13,7 @@ Documentos relacionados:
 - [document-state-machine.md](../04-domain/document-state-machine.md)
 - [api-guidelines.md](../03-api/api-guidelines.md)
 - [testing-strategy.md](testing-strategy.md)
-- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.2-draft`; tarefa zero + contrato createDocument)
+- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.3-draft`; tarefa zero + contrato createDocument)
 - [api-guidelines.md](../03-api/api-guidelines.md) / [examples/create-document.http](../03-api/examples/create-document.http)
 
 ## Objetivo da demonstração
@@ -42,7 +42,7 @@ POS demo (CLI / coleção HTTP)
   → livro fiscal append-only (sealed_locally)
   → outbox (payload com controlo de acesso; pode ser cifrado)
   → simulador AGT (at-least-once, id estável) — fase posterior
-  → consulta de estado — fora do contrato 0.1.2-draft (sem GET)
+  → consulta de estado — fora do contrato 0.1.3-draft (sem GET)
 ```
 
 ## Âmbito excluído
@@ -74,7 +74,7 @@ POS demo (CLI / coleção HTTP)
 
 ## Tarefa zero da Fase 1 (antes do endpoint)
 
-**Estado:** aplicada; contrato público em `0.1.2-draft` (`POST /documents` → `201`, sem GET fantasma).
+**Estado:** aplicada; contrato público em `0.1.3-draft` (`POST /documents` → `201`, sem GET fantasma).
 
 1. DEC-API-001 — `Money` canónico (sem sinal, escala 2).
 2. DEC-API-003 — `DecimalQuantity` separado e estritamente positivo.
@@ -126,7 +126,7 @@ sequenceDiagram
   Outbox->>Core: authority_processing
   Sim-->>Outbox: accepted
   Core->>Ledger: Evento authority_accepted
-  Note over POS,API: GET documento fora do contrato 0.1.2-draft
+  Note over POS,API: GET documento fora do contrato 0.1.3-draft
 ```
 
 ## Numeração (AO-SEQ-001 / AO-SEQ-002)

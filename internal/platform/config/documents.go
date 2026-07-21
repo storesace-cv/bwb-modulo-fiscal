@@ -12,6 +12,7 @@ const (
 	envAuthDevToken     = "FISCAL_AUTH_DEV_TOKEN"
 	envAuthDevForbidden = "FISCAL_AUTH_DEV_FORBIDDEN_TOKEN"
 	envAuthDevScope     = "FISCAL_AUTH_DEV_SCOPE_ID"
+	envScopeTimezone    = "FISCAL_SCOPE_TIMEZONE"
 	envSeriesMode       = "FISCAL_SERIES_MODE"
 	envSeriesEffective  = "FISCAL_SERIES_EFFECTIVE_CODE"
 	envDatabaseDriver   = "FISCAL_DATABASE_DRIVER"
@@ -20,6 +21,8 @@ const (
 	seriesModeStatic    = "static"
 	envDevelopment      = "development"
 	minDevTokenBytes    = 32
+	// scopeTimezoneAngola is the only authorized development timezone in this increment (DEC-TIME-001).
+	scopeTimezoneAngola = "Africa/Luanda"
 )
 
 // DocumentsRuntime is the fail-closed configuration required to serve POST /v1/documents.
@@ -29,6 +32,7 @@ type DocumentsRuntime struct {
 	AuthDevToken          string
 	AuthDevForbiddenToken string
 	AuthDevScopeID        string
+	ScopeTimezone         string // IANA; development: Africa/Luanda
 	SeriesMode            string
 	SeriesEffectiveCode   string
 	DatabaseDriver        string
@@ -43,6 +47,7 @@ func DocumentsEnvKeys() []string {
 		envAuthDevToken,
 		envAuthDevForbidden,
 		envAuthDevScope,
+		envScopeTimezone,
 		envSeriesMode,
 		envSeriesEffective,
 		envDatabaseDriver,
@@ -59,6 +64,7 @@ func LoadDocumentsRuntime() (DocumentsRuntime, error) {
 		AuthDevToken:          os.Getenv(envAuthDevToken),
 		AuthDevForbiddenToken: os.Getenv(envAuthDevForbidden),
 		AuthDevScopeID:        strings.TrimSpace(os.Getenv(envAuthDevScope)),
+		ScopeTimezone:         strings.TrimSpace(os.Getenv(envScopeTimezone)),
 		SeriesMode:            strings.TrimSpace(os.Getenv(envSeriesMode)),
 		SeriesEffectiveCode:   strings.TrimSpace(os.Getenv(envSeriesEffective)),
 		DatabaseDriver:        strings.TrimSpace(os.Getenv(envDatabaseDriver)),
@@ -89,6 +95,12 @@ func (c DocumentsRuntime) Validate() error {
 	}
 	if c.AuthDevForbiddenToken != "" && len(c.AuthDevForbiddenToken) < minDevTokenBytes {
 		return fmt.Errorf("%s must be at least %d bytes when set", envAuthDevForbidden, minDevTokenBytes)
+	}
+	if c.ScopeTimezone == "" {
+		return fmt.Errorf("%s is required (fail-closed)", envScopeTimezone)
+	}
+	if c.ScopeTimezone != scopeTimezoneAngola {
+		return fmt.Errorf("%s=%q is not supported in this increment; only %q (Cabo Verde runtime not implemented)", envScopeTimezone, c.ScopeTimezone, scopeTimezoneAngola)
 	}
 	if c.SeriesMode == "" {
 		return fmt.Errorf("%s is required (fail-closed)", envSeriesMode)

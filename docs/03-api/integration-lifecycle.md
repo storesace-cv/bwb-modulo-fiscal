@@ -29,4 +29,4 @@
 
 - [api-guidelines.md](api-guidelines.md)
 - [examples/create-document.http](examples/create-document.http)
-- [OpenAPI 0.1.2-draft](../../specs/openapi/openapi.yaml)
+- [OpenAPI 0.1.3-draft](../../specs/openapi/openapi.yaml)

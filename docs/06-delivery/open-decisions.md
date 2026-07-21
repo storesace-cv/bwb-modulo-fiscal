@@ -364,6 +364,30 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 ---
 
+## DEC-TIME-001 — Tempo fiscal (`issued_at`) vs tempo técnico (`created_at`)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Domínio / API / persistência |
+| Prazo máximo | — |
+| Responsável | Arquitectura + engenharia |
+| Decisão | 2026-07-21 |
+
+**Decisão:**
+
+| Campo | Natureza | Regra |
+|---|---|---|
+| `created_at` | Técnico | Gerado pelo módulo, UTC, precisão microsegundo; independente do TZ do processo/host |
+| `issued_at` | Fiscal | Civil no estabelecimento; offset obrigatório compatível com IANA do scope; persistir UTC micro + `issued_timezone` + `issued_offset_minutes` |
+| Hash | `canonical_v2` | Inclui timezone e offset; `canonical_v1` congelado (golden) |
+| Desenvolvimento AO | Scope | `FISCAL_SCOPE_TIMEZONE=Africa/Luanda` (fail-closed); Cabo Verde não wired |
+| Migration `0002` | Forward-only | Aborta se existirem `documents` ou `idempotency_records`; sem recalculo de hashes |
+
+**Evidência:** OpenAPI `0.1.3-draft`, migrations `0002`, testes golden + HTTP + migrate guards.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante**).
@@ -373,7 +397,7 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 5. **DEC-REG-003** — tipos documentais do MVP.
 6. **DEC-API-004** — momento jurídico da emissão/aceitação.
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, DEC-DEL-001, DEC-API-001, DEC-API-003.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, DEC-DEL-001, DEC-API-001, DEC-API-003, **DEC-TIME-001**.
 
 ---
 

@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
@@ -63,13 +64,22 @@ func run() int {
 		logger.Error("series_config_invalid", "error", err.Error())
 		return 1
 	}
+	tzResolver, err := fiscaltz.NewStatic(fiscaltz.StaticConfig{
+		ScopeID:  docsCfg.AuthDevScopeID,
+		Timezone: docsCfg.ScopeTimezone,
+	})
+	if err != nil {
+		logger.Error("fiscal_timezone_config_invalid", "error", err.Error())
+		return 1
+	}
 
 	store := persistence.NewStore(sqlDB, dialect)
 	docs := &httpapi.DocumentsHandler{
-		Store:  store,
-		Auth:   authenticator,
-		Series: resolver,
-		Log:    logger,
+		Store:    store,
+		Auth:     authenticator,
+		Series:   resolver,
+		FiscalTZ: tzResolver,
+		Log:      logger,
 	}
 
 	mux := http.NewServeMux()
