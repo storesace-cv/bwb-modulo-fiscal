@@ -375,7 +375,7 @@ if PATH="${MOCK_BIN}:${PATH}" \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=2 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false \
   bash "${ROOT}/scripts/deploy/update-staging.sh" >"${TMP}/live.out" 2>"${TMP}/live.err"; then
-  mode_mig="$(stat -f '%Lp' "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" 2>/dev/null || stat -c '%a' "${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env" 2>/dev/null || echo missing)"
+  mode_mig="$(python3 -c "import os; print(f'{os.stat(r'''${MOCK_FS}/etc/bwb-modulo-fiscal/migrate.env''').st_mode & 0o777:03o}')")"
   if grep -q 'mode=live' "${TMP}/live.out" \
     && grep -q 'binary=new_release' "${TMP}/live.out" \
     && grep -q 'promote=ok' "${TMP}/live.out" \
