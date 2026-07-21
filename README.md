@@ -30,8 +30,9 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 
 ## Estado
 
-- Etapa: documentação inicial e preparação da Fase 0.
+- Etapa: scaffold Fase 1 (API mínima com health).
 - País ativo: Angola.
 - País futuro: Cabo Verde.
-- Código de produção: ainda não iniciado.
-- Contrato OpenAPI: esqueleto inicial em `specs/openapi/openapi.yaml`.
+- Código: módulo Go iniciado (`cmd/fiscal-api`); sem emissão fiscal.
+- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.1-draft`).
+- Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).

@@ -14,5 +14,13 @@ coverage/
 .vscode/
 .DS_Store
 
+# Go
+/bin/
+*.exe
+*.test
+*.out
+coverage.out
+vendor/
+
 # Materiais locais de consulta para Cursor; nunca sincronizar com GitHub.
 local/
