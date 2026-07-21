@@ -29,20 +29,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
-        "400":
-          description: Pedido malformado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-              examples:
-                badRequest:
-                  value:
-                    type: "urn:bwb:fiscal:error:bad-request"
-                    title: Pedido malformado
-                    status: 400
-                    code: FISCAL_BAD_REQUEST
-                    request_id: "req_01EXAMPLE000000000000000"
   /documents:
     post:
       operationId: createDocument
@@ -267,7 +253,11 @@ components:
       additionalProperties: false
       required: [external_id, document_type, currency, issued_at, seller, lines]
       properties:
-        external_id: { type: string, maxLength: 100 }
+        external_id:
+          type: string
+          maxLength: 100
+          pattern: "^.*\\S.*$"
+          description: Identificador externo; pelo menos um carácter não-whitespace.
         document_type: { type: string, enum: [invoice, credit_note] }
         currency: { type: string, enum: [AOA] }
         issued_at: { type: string, format: date-time }
@@ -287,14 +277,17 @@ components:
       type: object
       additionalProperties: false
       required: [tax_id, name]
-      description: Vendedor; tax_id e name obrigatórios e non-empty (alinhado à persistência).
+      description: >
+        Vendedor; tax_id e name obrigatórios com pelo menos um carácter
+        não-whitespace (alinhado à persistência). Sem validação de formato NIF
+        neste draft.
       properties:
         tax_id:
           type: string
-          minLength: 1
+          pattern: "^.*\\S.*$"
         name:
           type: string
-          minLength: 1
+          pattern: "^.*\\S.*$"
     CustomerParty:
       type: object
       additionalProperties: false
@@ -309,11 +302,18 @@ components:
       additionalProperties: false
       required: [line_id, description, quantity, unit_price, tax_code]
       properties:
-        line_id: { type: string }
-        description: { type: string }
+        line_id:
+          type: string
+          pattern: "^.*\\S.*$"
+        description:
+          type: string
+          pattern: "^.*\\S.*$"
         quantity: { $ref: "#/components/schemas/DecimalQuantity" }
         unit_price: { $ref: "#/components/schemas/Money" }
-        tax_code: { type: string }
+        tax_code:
+          type: string
+          pattern: "^.*\\S.*$"
+          description: Código de imposto da linha; non-empty. Formato fiscal oficial não confirmado neste draft.
     CreateDocumentResponse:
       type: object
       additionalProperties: false

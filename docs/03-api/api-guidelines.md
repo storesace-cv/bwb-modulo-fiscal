@@ -22,7 +22,8 @@ Contrato: [`specs/openapi/openapi.yaml`](../../specs/openapi/openapi.yaml) (`0.1
 - Sucesso: **`201 Created`** com corpo `CreateDocumentResponse` (`status` const `sealed_locally`; `submission_id` e `created_at` obrigatórios).
 - Neste incremento **não** existem `fiscal_number` nem `authority_request_id` na resposta de createDocument.
 - `submission_id` é **correlação interna** do módulo — **não** é ID AGT.
-- `seller.tax_id` e `seller.name` são obrigatórios e non-empty; `customer` permanece opcional sem a mesma obrigatoriedade (regra legal de customer ainda não confirmada).
+- `seller.tax_id` e `seller.name` são obrigatórios com pelo menos um carácter não-whitespace (sem formato NIF neste draft); `customer` permanece opcional sem a mesma obrigatoriedade.
+- `external_id` e campos de linha `line_id` / `description` / `tax_code` exigem pelo menos um carácter não-whitespace (formato fiscal de `tax_code` não confirmado).
 - Replay com a mesma `Idempotency-Key` e o mesmo pedido: **`201`** com os mesmos `id`, `external_id`, `status`, `submission_id` e `created_at` originais.
 - Mesma chave com pedido semanticamente diferente: **`409`** `FISCAL_IDEMPOTENCY_CONFLICT`.
 - `external_id` já usado noutro documento: **`409`** `FISCAL_EXTERNAL_ID_CONFLICT`.

@@ -1,0 +1,11 @@
+# Redocly configuration for the public fiscal OpenAPI contract.
+extends:
+  - recommended
+
+apis:
+  fiscal@0.1.2-draft:
+    root: specs/openapi/openapi.yaml
+
+rules:
+  # Kept on globally; only GET /health is excepted via .redocly.lint-ignore.yaml.
+  operation-4xx-response: warn
