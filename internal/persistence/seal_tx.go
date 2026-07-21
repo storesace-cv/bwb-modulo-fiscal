@@ -223,6 +223,7 @@ func (s *Store) sealInQuerier(ctx context.Context, q querier, req SealRequest, h
 		ScopeID:       req.Intent.ScopeID,
 		ExternalID:    req.Intent.ExternalID,
 		SubmissionID:  submissionID,
+		CreatedAt:     now.UTC(),
 		IdempotentHit: false,
 	}, nil
 }
@@ -282,16 +283,39 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 		externalID   string
 		scopeID      string
 		submissionID string
+		createdAt    time.Time
 	)
-	err := q.QueryRowContext(ctx, `
-		SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, o.submission_id
-		FROM `+t("documents")+` d
-		JOIN `+t("outbox_messages")+` o ON o.document_id = d.id
-		WHERE d.id = `+ph(postgres, 1),
-		docID,
-	).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &submissionID)
-	if err != nil {
-		return nil, fmt.Errorf("persistence: load completed: %w", err)
+	if postgres {
+		err := q.QueryRowContext(ctx, `
+			SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, d.created_at, o.submission_id
+			FROM `+t("documents")+` d
+			JOIN `+t("outbox_messages")+` o ON o.document_id = d.id
+			WHERE d.id = $1`,
+			docID,
+		).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &createdAt, &submissionID)
+		if err != nil {
+			return nil, fmt.Errorf("persistence: load completed: %w", err)
+		}
+	} else {
+		var createdRaw string
+		err := q.QueryRowContext(ctx, `
+			SELECT d.scope_id, d.external_id, d.series_code, d.fiscal_seq, d.created_at, o.submission_id
+			FROM documents d
+			JOIN outbox_messages o ON o.document_id = d.id
+			WHERE d.id = ?`,
+			docID,
+		).Scan(&scopeID, &externalID, &seriesCode, &fiscalSeq, &createdRaw, &submissionID)
+		if err != nil {
+			return nil, fmt.Errorf("persistence: load completed: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, createdRaw)
+		if err != nil {
+			parsed, err = time.Parse(time.RFC3339, createdRaw)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: load completed created_at: %w", err)
+			}
+		}
+		createdAt = parsed
 	}
 	return &SealResult{
 		DocumentID:    docID,
@@ -300,6 +324,7 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 		ScopeID:       scopeID,
 		ExternalID:    externalID,
 		SubmissionID:  submissionID,
+		CreatedAt:     createdAt.UTC(),
 		IdempotentHit: true,
 	}, nil
 }

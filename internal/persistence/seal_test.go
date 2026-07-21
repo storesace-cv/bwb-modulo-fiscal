@@ -74,6 +74,12 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		if !r2.IdempotentHit || r2.DocumentID != r1.DocumentID || r2.FiscalSeq != r1.FiscalSeq {
 			t.Fatalf("replay result: %+v want id=%s seq=%d", r2, r1.DocumentID, r1.FiscalSeq)
 		}
+		if r2.CreatedAt.IsZero() || !r1.CreatedAt.Equal(r2.CreatedAt) {
+			t.Fatalf("CreatedAt replay: first=%v second=%v", r1.CreatedAt, r2.CreatedAt)
+		}
+		if r2.SubmissionID != r1.SubmissionID {
+			t.Fatalf("SubmissionID replay mismatch")
+		}
 		assertExactCount(t, ctx, sqlDB, postgres, "documents", scope, 1)
 		assertExactCount(t, ctx, sqlDB, postgres, "outbox_messages", scope, 1)
 		assertExactCount(t, ctx, sqlDB, postgres, "ledger_events", scope, 1)
@@ -289,19 +295,18 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		_ = hits
 	})
 
-	t.Run("VS-T07_rollback_after_counter_on_constraint", func(t *testing.T) {
+	t.Run("VS-T07_validation_rejects_before_side_effects", func(t *testing.T) {
 		series := "E"
 		before := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		req := sampleSealReq(scope, "dddddddd-dddd-dddd-dddd-ddddddddddd1", "ext-fail", series, "4.00")
-		// Passes app prepare, fails DB CHECK after series counter update (trim-empty seller_name).
 		req.Intent.SellerName = "   "
 		_, err := store.SealInTx(ctx, req)
-		if err == nil {
-			t.Fatal("expected constraint failure")
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err = %v, want ErrValidation", err)
 		}
 		after := readSeriesLast(t, ctx, sqlDB, postgres, scope, series)
 		if after != before {
-			t.Fatalf("series counter changed on rollback: before=%d after=%d", before, after)
+			t.Fatalf("series counter changed on validation failure: before=%d after=%d", before, after)
 		}
 		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-fail", 0)
 		assertIdempotencyAbsent(t, ctx, sqlDB, postgres, scope, req.IdempotencyKey)

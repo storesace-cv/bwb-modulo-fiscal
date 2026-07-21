@@ -27,7 +27,31 @@ var (
 	ErrIdempotencyConflict = errors.New("persistence: idempotency key conflict")
 	// ErrExternalIDConflict is returned when external_id already belongs to another document.
 	ErrExternalIDConflict = errors.New("persistence: external_id conflict")
+	// ErrValidation is the sentinel for typed request validation failures.
+	ErrValidation = errors.New("persistence: validation failed")
 )
+
+// ValidationError is a typed field-level validation failure (not string-matched).
+type ValidationError struct {
+	Field   string
+	Code    string
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	if e == nil {
+		return "persistence: validation failed"
+	}
+	return fmt.Sprintf("persistence: validation %s: %s", e.Field, e.Message)
+}
+
+func (e *ValidationError) Is(target error) bool {
+	return target == ErrValidation
+}
+
+func validationErr(field, code, message string) error {
+	return &ValidationError{Field: field, Code: code, Message: message}
+}
 
 // SealRequest is the validated input for SealInTx.
 type SealRequest struct {
@@ -44,6 +68,7 @@ type SealResult struct {
 	ScopeID       string
 	ExternalID    string
 	SubmissionID  string
+	CreatedAt     time.Time // persisted documents.created_at; identical on replay
 	IdempotentHit bool
 }
 
@@ -89,34 +114,56 @@ func (s *Store) SealInTx(ctx context.Context, req SealRequest) (*SealResult, err
 
 func prepareSealRequest(req SealRequest) (SealRequest, error) {
 	if strings.TrimSpace(req.IdempotencyKey) == "" {
-		return SealRequest{}, fmt.Errorf("persistence: empty idempotency key")
+		return SealRequest{}, validationErr("idempotency_key", "REQUIRED", "obrigatório")
 	}
 	if strings.TrimSpace(req.SeriesCode) == "" {
-		return SealRequest{}, fmt.Errorf("persistence: empty series code")
+		return SealRequest{}, validationErr("series_code", "REQUIRED", "obrigatório")
 	}
 	if strings.TrimSpace(req.Intent.ScopeID) == "" {
-		return SealRequest{}, fmt.Errorf("persistence: empty scope_id")
+		return SealRequest{}, validationErr("scope_id", "REQUIRED", "obrigatório")
 	}
-	if strings.TrimSpace(req.Intent.ExternalID) == "" {
-		return SealRequest{}, fmt.Errorf("persistence: empty external_id")
+	if !hasNonWhitespace(req.Intent.ExternalID) {
+		return SealRequest{}, validationErr("external_id", "REQUIRED", "obrigatório e non-empty")
 	}
 	if req.Intent.Currency != "AOA" {
-		return SealRequest{}, fmt.Errorf("persistence: currency must be AOA")
+		return SealRequest{}, validationErr("currency", "INVALID_ENUM", "deve ser AOA")
 	}
 	if req.Intent.DocumentType != "invoice" && req.Intent.DocumentType != "credit_note" {
-		return SealRequest{}, fmt.Errorf("persistence: invalid document_type")
+		return SealRequest{}, validationErr("document_type", "INVALID_ENUM", "valor não permitido")
 	}
 	if len(req.Intent.Lines) == 0 {
-		return SealRequest{}, fmt.Errorf("persistence: lines required")
+		return SealRequest{}, validationErr("lines", "REQUIRED", "pelo menos uma linha")
+	}
+	if !hasNonWhitespace(req.Intent.SellerTaxID) {
+		return SealRequest{}, validationErr("seller.tax_id", "REQUIRED", "obrigatório e non-empty")
+	}
+	if !hasNonWhitespace(req.Intent.SellerName) {
+		return SealRequest{}, validationErr("seller.name", "REQUIRED", "obrigatório e non-empty")
+	}
+	for i, ln := range req.Intent.Lines {
+		prefix := fmt.Sprintf("lines[%d]", i)
+		if !hasNonWhitespace(ln.LineID) {
+			return SealRequest{}, validationErr(prefix+".line_id", "REQUIRED", "obrigatório e non-empty")
+		}
+		if !hasNonWhitespace(ln.Description) {
+			return SealRequest{}, validationErr(prefix+".description", "REQUIRED", "obrigatório e non-empty")
+		}
+		if !hasNonWhitespace(ln.TaxCode) {
+			return SealRequest{}, validationErr(prefix+".tax_code", "REQUIRED", "obrigatório e non-empty")
+		}
 	}
 	issued, err := canonical.NormalizeIssuedAtUTC(req.Intent.IssuedAtUTC)
 	if err != nil {
-		return SealRequest{}, fmt.Errorf("persistence: %w", err)
+		return SealRequest{}, validationErr("issued_at", "INVALID_FORMAT", "data/hora inválida")
 	}
 	out := req
 	out.SeriesCode = strings.TrimSpace(req.SeriesCode)
 	out.Intent.IssuedAtUTC = issued
 	return out, nil
+}
+
+func hasNonWhitespace(s string) bool {
+	return strings.TrimSpace(s) != ""
 }
 
 func newID() (string, error) {

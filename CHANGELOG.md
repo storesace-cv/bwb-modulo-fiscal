@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3-draft — 2026-07-21
+
+- PR C2: `POST /v1/documents` (`createDocument`) sobre `SealInTx`; auth `dev_static` (só `FISCAL_ENV=development`, token ≥32 bytes, comparação constant-time); `SeriesResolver` estático; `SealResult.CreatedAt` persistido e estável no replay; Problem/códigos do contrato; fail-closed sem modo que aceite pedidos; testes HTTP dual-engine. Sem migrations no arranque da API, sem GET, sem AGT/JWS.
+
 ## 0.2.2-draft — 2026-07-21
 
 - Contrato OpenAPI **`0.1.2-draft`**: `POST /documents` (`createDocument`) passa de **202 Accepted** para **201 Created** (criação + selagem local atómica).
