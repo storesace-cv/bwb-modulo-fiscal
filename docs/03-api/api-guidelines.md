@@ -10,11 +10,17 @@
 - Erros são estruturados, estáveis e acionáveis.
 - Webhooks são assinados, repetíveis e consultáveis por polling.
 
-## Estados conceptuais
+## Estados técnicos (contrato)
 
-`received → validated → fiscally_issued → queued_for_authority → authority_processing → authority_accepted`
+Sequência feliz:
 
-Saídas alternativas: `rejected`, `authority_rejected`, `cancelled` ou `contingency_pending`, conforme regras do documento.
+`received → validated → sealed_locally → queued_for_authority → authority_processing → authority_accepted`
+
+Saídas alternativas no contrato: `rejected`, `authority_rejected`, `authority_outcome_unknown`.
+
+- `sealed_locally` é estado **técnico** (número + persistência + artefacto local); **não** fecha DEC-API-004 nem afirma emissão jurídica perante a AGT.
+- `contingency_pending` permanece no enum como **reservado**; o primeiro vertical slice **não** transita para este estado enquanto as regras oficiais de contingência estiverem abertas.
+- `cancelled` **não** faz parte do contrato (DEC-API-002 aberta).
 
 ## Semântica de timeout
 

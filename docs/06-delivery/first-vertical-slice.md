@@ -13,7 +13,7 @@ Documentos relacionados:
 - [document-state-machine.md](../04-domain/document-state-machine.md)
 - [api-guidelines.md](../03-api/api-guidelines.md)
 - [testing-strategy.md](testing-strategy.md)
-- [openapi.yaml](../../specs/openapi/openapi.yaml) (esqueleto; revisão mínima = **tarefa zero da Fase 1**, antes do endpoint; **não** alterar nesta correção documental)
+- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.1-draft`; **tarefa zero aplicada**)
 
 ## Objetivo da demonstração
 
@@ -73,14 +73,15 @@ POS demo (CLI / coleção HTTP)
 
 ## Tarefa zero da Fase 1 (antes do endpoint)
 
-Não implementar estados `sealed_locally` enquanto o OpenAPI só aceitar `fiscally_issued`. A **primeira tarefa técnica** da Fase 1 é uma **revisão mínima do OpenAPI**, antes de implementar `POST /documents` e restantes endpoints do slice. Essa revisão deve:
+**Estado:** aplicada em `specs/openapi/openapi.yaml` `0.1.1-draft`.
 
-1. aplicar DEC-API-001 (Money como string decimal canónica);
-2. aplicar DEC-API-003 (`DecimalQuantity` separado);
-3. introduzir o estado técnico neutro único `sealed_locally` (substituindo o uso de `fiscally_issued` no fluxo do slice);
-4. deixar DEC-API-004 aberta para a semântica jurídica final de emissão/aceitação.
+1. DEC-API-001 — `Money` canónico (sem sinal, escala 2).
+2. DEC-API-003 — `DecimalQuantity` separado e estritamente positivo.
+3. Estado técnico `sealed_locally` (substitui `fiscally_issued` no fluxo do slice).
+4. `authority_outcome_unknown` no enum; `contingency_pending` reservado; sem `cancelled`.
+5. DEC-API-004 permanece aberta para a semântica jurídica final de emissão/aceitação.
 
-O ficheiro `specs/openapi/openapi.yaml` **não** é alterado nesta correção documental da Fase 0.
+Implementação de endpoints permanece fora desta tarefa.
 
 ## Terminologia de estados (até DEC-API-004)
 
@@ -175,7 +176,7 @@ Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem anál
 9. Suite CI cobre fluxo feliz e VS-T01…VS-T12.
 10. Relatório referencia `AO-*`.
 11. Sem credenciais reais AGT, chaves de produção ou NIF reais; sem privadas RSA de teste no Git.
-12. Revisão mínima do OpenAPI concluída **antes** da implementação do endpoint (tarefa zero); DEC-DEL-001 / DEC-API-001 / DEC-API-003 / `sealed_locally`.
+12. Revisão mínima do OpenAPI (tarefa zero) aplicada em `0.1.1-draft` antes da implementação do endpoint.
 
 ## Cenários obrigatórios
 
@@ -214,7 +215,7 @@ Declarar sempre: «simulador — não é a AGT».
 
 ## Definição de pronto (Fase 1)
 
-- [ ] Revisão mínima do OpenAPI (tarefa zero) mergeada antes do código do endpoint.
+- [x] Revisão mínima do OpenAPI (tarefa zero) em `0.1.1-draft` antes do código do endpoint.
 - [ ] Fluxo feliz verde em CI.
 - [ ] VS-T01…VS-T12 cobertos.
 - [ ] POS demo = CLI ou coleção (< 15 min).

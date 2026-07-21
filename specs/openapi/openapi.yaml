@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal API
-  version: 0.1.0-draft
-  description: Contrato inicial, não pronto para produção.
+  version: 0.1.1-draft
+  description: Contrato inicial após tarefa zero OpenAPI; não pronto para produção.
 servers:
   - url: https://sandbox.api.example.ao/v1
     description: Sandbox
@@ -83,8 +83,20 @@ components:
         fiscalPackage: { type: string }
     Money:
       type: string
-      pattern: "^-?[0-9]+(\\.[0-9]{1,4})?$"
-      examples: ["1250.00"]
+      description: >
+        Valor monetário canónico em string (DEC-API-001). Uso atual unit_price.
+        Escala fixa 2 casas (MVP AOA). Sem sinal; notas de crédito via document_type.
+        Limite de 16 dígitos inteiros é técnico de segurança, não regra fiscal AGT.
+      pattern: "^(0|[1-9][0-9]{0,15})\\.[0-9]{2}$"
+      examples: ["1250.00", "0.00", "10.50"]
+    DecimalQuantity:
+      type: string
+      description: >
+        Quantidade de linha estritamente positiva e canónica (DEC-API-003).
+        Sem zeros à esquerda nem zeros fracionários finais desnecessários.
+        Limites 12 dígitos inteiros / 4 fracionários são técnicos, não fiscais.
+      pattern: "^(?:0\\.[0-9]{0,3}[1-9]|[1-9][0-9]{0,11}(?:\\.[0-9]{0,3}[1-9])?)$"
+      examples: ["1", "1.5", "0.0001", "12.3456", "1.01"]
     DocumentIntent:
       type: object
       additionalProperties: false
@@ -114,7 +126,7 @@ components:
       properties:
         line_id: { type: string }
         description: { type: string }
-        quantity: { $ref: "#/components/schemas/Money" }
+        quantity: { $ref: "#/components/schemas/DecimalQuantity" }
         unit_price: { $ref: "#/components/schemas/Money" }
         tax_code: { type: string }
     FiscalDocumentResponse:
@@ -125,7 +137,21 @@ components:
         external_id: { type: string }
         status:
           type: string
-          enum: [received, validated, fiscally_issued, contingency_pending, queued_for_authority, authority_processing, authority_accepted, authority_rejected, rejected]
+          description: >
+            Estados técnicos do documento. sealed_locally não afirma emissão jurídica
+            (DEC-API-004 aberta). contingency_pending está reservado; o primeiro vertical
+            slice não transita para ele enquanto AO-OFF-* / DEC-REG-004 estiverem abertos.
+          enum:
+            - received
+            - validated
+            - sealed_locally
+            - contingency_pending
+            - queued_for_authority
+            - authority_processing
+            - authority_accepted
+            - authority_rejected
+            - authority_outcome_unknown
+            - rejected
         fiscal_number: { type: string }
         authority_request_id: { type: string }
         created_at: { type: string, format: date-time }
