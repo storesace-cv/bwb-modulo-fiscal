@@ -4,7 +4,7 @@ package canonical
 import (
 	"crypto/sha256"
 	"fmt"
-	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +13,24 @@ import (
 )
 
 // Version identifies the canonical projection algorithm.
+//
+// Format of Materialize (canonical_v1), UTF-8:
+//
+//  1. The literal Version token, then ASCII LF (0x0A).
+//  2. A fixed sequence of field pairs. Each pair is two length-value (LV) records:
+//     KEY then VALUE. An LV record is decimal ASCII length (no leading zeros except
+//     for zero itself), ASCII colon (0x3A), then exactly that many UTF-8 bytes.
+//     Values and keys may contain newlines, '=', spaces, or any other UTF-8 bytes;
+//     length makes the framing unambiguous (no delimiter scanning of payloads).
+//  3. Document field keys, in this exact order:
+//     scope_id, external_id, document_type, currency, issued_at, requested_series,
+//     series_code, seller_tax_id, seller_name, customer_tax_id, customer_name,
+//     lines_count.
+//  4. For each line in Intent.Lines order (received order; never sorted by LineID),
+//     five field pairs: line.line_id, line.description, line.quantity,
+//     line.unit_price, line.tax_code. Quantity and unit_price use FormatCanonical.
+//
+// RequestHash is SHA-256 over the UTF-8 bytes of Materialize.
 const Version = "canonical_v1"
 
 // HashSize is the SHA-256 digest length in bytes.
@@ -66,10 +84,12 @@ func NormalizeIssuedAtUTC(raw string) (string, error) {
 }
 
 // Materialize builds the versioned canonical byte material for hashing.
+// Line order matches Intent.Lines exactly (same order persistence uses for line_no).
 func Materialize(p Projection) string {
 	var b strings.Builder
 	b.WriteString(Version)
 	b.WriteByte('\n')
+
 	writeField(&b, "scope_id", p.Intent.ScopeID)
 	writeField(&b, "external_id", p.Intent.ExternalID)
 	writeField(&b, "document_type", p.Intent.DocumentType)
@@ -81,15 +101,9 @@ func Materialize(p Projection) string {
 	writeField(&b, "seller_name", p.Intent.SellerName)
 	writeField(&b, "customer_tax_id", p.Intent.CustomerTaxID)
 	writeField(&b, "customer_name", p.Intent.CustomerName)
+	writeField(&b, "lines_count", strconv.Itoa(len(p.Intent.Lines)))
 
-	lines := append([]Line(nil), p.Intent.Lines...)
-	sort.Slice(lines, func(i, j int) bool {
-		return lines[i].LineID < lines[j].LineID
-	})
-	b.WriteString("lines_count=")
-	b.WriteString(fmt.Sprintf("%d", len(lines)))
-	b.WriteByte('\n')
-	for _, ln := range lines {
+	for _, ln := range p.Intent.Lines {
 		writeField(&b, "line.line_id", ln.LineID)
 		writeField(&b, "line.description", ln.Description)
 		writeField(&b, "line.quantity", ln.Quantity.FormatCanonical())
@@ -106,8 +120,12 @@ func RequestHash(p Projection) [HashSize]byte {
 }
 
 func writeField(b *strings.Builder, key, value string) {
-	b.WriteString(key)
-	b.WriteByte('=')
-	b.WriteString(value)
-	b.WriteByte('\n')
+	writeLV(b, key)
+	writeLV(b, value)
+}
+
+func writeLV(b *strings.Builder, s string) {
+	b.WriteString(strconv.Itoa(len(s)))
+	b.WriteByte(':')
+	b.WriteString(s)
 }

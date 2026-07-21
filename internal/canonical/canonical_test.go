@@ -1,6 +1,7 @@
 package canonical_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -50,10 +51,14 @@ func TestRequestHashStableAnd32Bytes(t *testing.T) {
 	if h1 != h2 {
 		t.Fatal("hash not stable")
 	}
-	in.Intent.Lines[0], in.Intent.Lines[1] = in.Intent.Lines[1], in.Intent.Lines[0]
-	h3 := canonical.RequestHash(in)
-	if h1 != h3 {
-		t.Fatal("hash depends on line order")
+}
+
+func TestRequestHashPreservesLineOrder(t *testing.T) {
+	a := sampleProjection("A")
+	b := sampleProjection("A")
+	b.Intent.Lines[0], b.Intent.Lines[1] = b.Intent.Lines[1], b.Intent.Lines[0]
+	if canonical.RequestHash(a) == canonical.RequestHash(b) {
+		t.Fatal("same lines in different order must produce different hashes")
 	}
 }
 
@@ -76,11 +81,87 @@ func TestRequestHashDiffersOnSemanticChange(t *testing.T) {
 
 func TestMaterializeIncludesVersionAndSeries(t *testing.T) {
 	m := canonical.Materialize(sampleProjection("SER1"))
-	if m[:len(canonical.Version)] != canonical.Version {
-		t.Fatalf("materialize missing version prefix: %q", m[:20])
+	if !strings.HasPrefix(m, canonical.Version+"\n") {
+		t.Fatalf("materialize missing version prefix: %q", m[:min(40, len(m))])
 	}
-	if !strings.Contains(m, "series_code=SER1\n") {
-		t.Fatalf("missing series_code field in materialize")
+	// length-prefixed: 11:series_code4:SER1
+	if !strings.Contains(m, "11:series_code4:SER1") {
+		t.Fatalf("missing series_code LV field in materialize: %q", m)
+	}
+}
+
+func TestMaterializeUnambiguousWithSpecialValues(t *testing.T) {
+	qty, _ := quantity.ParseCanonical("1")
+	price, _ := money.ParseCanonical("1.00")
+	base := sampleProjection("A")
+	base.Intent.Lines = []canonical.Line{{
+		LineID:      "L1",
+		Description: "plain",
+		Quantity:    qty,
+		UnitPrice:   price,
+		TaxCode:     "NOR",
+	}}
+
+	withNL := base
+	withNL.Intent.SellerName = "Seller\nName"
+	withEq := base
+	withEq.Intent.SellerName = "Seller=Name"
+	withUnicode := base
+	withUnicode.Intent.SellerName = "Seller café 🇵🇹"
+	withEmbedded := base
+	withEmbedded.Intent.SellerName = "11:fake_key0:"
+
+	materials := []string{
+		canonical.Materialize(base),
+		canonical.Materialize(withNL),
+		canonical.Materialize(withEq),
+		canonical.Materialize(withUnicode),
+		canonical.Materialize(withEmbedded),
+	}
+	for i := 0; i < len(materials); i++ {
+		for j := i + 1; j < len(materials); j++ {
+			if materials[i] == materials[j] {
+				t.Fatalf("materials %d and %d collided", i, j)
+			}
+		}
+	}
+	if !bytes.Contains([]byte(materials[1]), []byte("Seller\nName")) {
+		t.Fatal("newline value must appear verbatim inside LV payload")
+	}
+	if !bytes.Contains([]byte(materials[2]), []byte("Seller=Name")) {
+		t.Fatal("equals value must appear verbatim inside LV payload")
+	}
+	if !bytes.Contains([]byte(materials[3]), []byte("Seller café 🇵🇹")) {
+		t.Fatal("unicode value must appear verbatim inside LV payload")
+	}
+}
+
+func TestMaterializeStructurallyDifferentNeverCollide(t *testing.T) {
+	a := sampleProjection("A")
+	// Split what could look like key=value framing in the old format.
+	b := sampleProjection("A")
+	b.Intent.ScopeID = "scope"
+	b.Intent.ExternalID = "-aext-1" // different structure from scope-a + ext-1
+
+	c := sampleProjection("A")
+	c.Intent.SellerName = "X\nlines_count=0\n" // must not inject extra fields
+
+	ma, mb, mc := canonical.Materialize(a), canonical.Materialize(b), canonical.Materialize(c)
+	if ma == mb || ma == mc || mb == mc {
+		t.Fatal("structurally different projections must not share material")
+	}
+}
+
+func TestMaterializeAndHashDeterministic(t *testing.T) {
+	in := sampleProjection("A")
+	in.Intent.SellerName = "line1\nline2=x 漢字"
+	m1 := canonical.Materialize(in)
+	m2 := canonical.Materialize(in)
+	if m1 != m2 {
+		t.Fatal("Materialize not byte-identical across runs")
+	}
+	if canonical.RequestHash(in) != canonical.RequestHash(in) {
+		t.Fatal("RequestHash not identical across runs")
 	}
 }
 

@@ -107,6 +107,30 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-series-hash", 1)
 	})
 
+	t.Run("line_order_changes_idempotency_hash", func(t *testing.T) {
+		key := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa16"
+		qty, _ := quantity.ParseCanonical("1")
+		price, _ := money.ParseCanonical("10.50")
+		req := sampleSealReq(scope, key, "ext-line-order", "LO", "10.50")
+		req.Intent.Lines = []canonical.Line{
+			{LineID: "L1", Description: "A", Quantity: qty, UnitPrice: price, TaxCode: "NOR"},
+			{LineID: "L2", Description: "B", Quantity: qty, UnitPrice: price, TaxCode: "NOR"},
+		}
+		if _, err := store.SealInTx(ctx, req); err != nil {
+			t.Fatalf("seal: %v", err)
+		}
+		reordered := sampleSealReq(scope, key, "ext-line-order", "LO", "10.50")
+		reordered.Intent.Lines = []canonical.Line{
+			{LineID: "L2", Description: "B", Quantity: qty, UnitPrice: price, TaxCode: "NOR"},
+			{LineID: "L1", Description: "A", Quantity: qty, UnitPrice: price, TaxCode: "NOR"},
+		}
+		_, err := store.SealInTx(ctx, reordered)
+		if !errors.Is(err, persistence.ErrIdempotencyConflict) {
+			t.Fatalf("err = %v, want ErrIdempotencyConflict", err)
+		}
+		assertDocCountByExternal(t, ctx, sqlDB, postgres, scope, "ext-line-order", 1)
+	})
+
 	t.Run("issued_at_invalid_rejected", func(t *testing.T) {
 		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa11", "ext-bad-date", "A", "1.00")
 		req.Intent.IssuedAtUTC = "not-a-date"
