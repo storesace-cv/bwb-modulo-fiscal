@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6-draft — 2026-07-21
+
+- D2 staging bootstrap report: host `sandbox.fiscalmod.bwb.pt` operacional (PG16, TLS, helper deploy, health ok). Sem segredos no relatório.
+
 ## 0.2.5-draft — 2026-07-21
 
 - Staging deploy: migrate sob drop-priv (`bwb-fiscal-migrate`); runner removido da release; envs restorable logo após backup; falhas pós-activate (restart/health) com rotina N-1; health estrito a `"status":"ok"`; captura explícita do exit status do healthcheck sob `if`.

@@ -91,6 +91,10 @@ bash tests/deploy/run-tests.sh
 bash scripts/deploy/check-antipatterns.sh
 ```
 
+## D2 status (2026-07-21)
+
+Bootstrap e primeiro deploy em `sandbox.fiscalmod.bwb.pt` concluídos. Relatório: [d2-staging-bootstrap-report.md](d2-staging-bootstrap-report.md).
+
 ## Incidentes (D1 review)
 
 | Severidade | Fase | Descrição | Impacto | Resolução | Estado | Risco residual |

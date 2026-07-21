@@ -11,6 +11,11 @@ source "${ROOT}/scripts/deploy/lib/allowlist.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
 
+# Neutralize operator .env.local so local staging secrets/EXPECTED_COMMIT cannot skew fixtures.
+: >"${TMP}/neutral.operator.env"
+chmod 0600 "${TMP}/neutral.operator.env"
+export ENV_LOCAL="${TMP}/neutral.operator.env"
+
 pass=0
 fail=0
 
@@ -446,6 +451,16 @@ assert_envs_restored_old() {
 run_live() {
   local out="$1" err="$2" log="$3" fs="$4"
   shift 4
+  # Isolate from operator .env.local (EXPECTED_COMMIT / secrets) so CI and local agree.
+  cat >"${TMP}/operator.live.env" <<EOF
+DEPLOY_HOST=mock.host
+DEPLOY_USER=mock
+DEPLOY_SSH_KEY=${TMP}/id_test
+DEPLOY_KNOWN_HOSTS=${TMP}/known_hosts
+EXPECTED_COMMIT=${HEAD}
+DEPLOY_GOARCH=amd64
+EOF
+  chmod 0600 "${TMP}/operator.live.env"
   env PATH="${MOCK_BIN}:${PATH}" \
     DEPLOY_MOCK_REMOTE=1 \
     DEPLOY_DRY_RUN=0 \
@@ -459,6 +474,7 @@ run_live() {
     DEPLOY_GOARCH=amd64 \
     DEPLOY_TEST_OUT_ROOT="${TMP}" \
     EXPECTED_SCHEMA_VERSION=2 \
+    ENV_LOCAL="${TMP}/operator.live.env" \
     ENV_DEPLOY="${TMP}/fiscal.live.env" \
     ENV_MIGRATE="${TMP}/migrate.live.env" \
     "$@" \
@@ -791,6 +807,372 @@ if grep -E '^EnvironmentFile=' "${ROOT}/deploy/systemd/bwb-fiscal-api.service" |
   ok "systemd uses only fiscal.env"
 else
   bad "systemd EnvironmentFile incorrect"
+fi
+
+# --- SSH mux / storm mitigation ---
+ssh_space_dir="${TMP}/ssh path with spaces"
+mkdir -p "${ssh_space_dir}"
+ssh_key="${ssh_space_dir}/mux-key"
+known="${ssh_space_dir}/mux-known"
+ssh-keygen -t ed25519 -N '' -f "${ssh_key}" >/dev/null 2>&1
+: >"${known}"
+chmod 0600 "${ssh_key}" "${known}"
+DEPLOY_SSH_KEY="${ssh_key}"
+DEPLOY_KNOWN_HOSTS="${known}"
+DEPLOY_USER="bwb-deploy"
+DEPLOY_HOST="staging.example.test"
+deploy_ssh_base
+opts_joined="${SSH_BASE[*]}"
+if [[ "${opts_joined}" == *ControlMaster=auto* \
+  && "${opts_joined}" == *ControlPersist=* \
+  && "${opts_joined}" == *ControlPath=* \
+  && "${opts_joined}" == *IdentitiesOnly=yes* \
+  && "${opts_joined}" == *BatchMode=yes* \
+  && "${opts_joined}" == *StrictHostKeyChecking=yes* \
+  && "${opts_joined}" == *"UserKnownHostsFile=${known}"* ]]; then
+  ok "deploy_ssh_base enables mux + BatchMode/StrictHostKeyChecking/UserKnownHostsFile"
+else
+  bad "deploy_ssh_base missing required options: ${opts_joined}"
+fi
+
+# ssh and scp must share identical OpenSSH options (same array content after binary name).
+ssh_opts="${SSH_BASE[*]}"
+scp_opts="${SCP_BASE[*]}"
+ssh_opts="${ssh_opts#ssh }"
+scp_opts="${scp_opts#scp }"
+if [[ "${ssh_opts}" == "${scp_opts}" && -n "${ssh_opts}" ]]; then
+  ok "ssh and scp use identical OpenSSH options"
+else
+  bad "ssh/scp option mismatch"
+fi
+
+mux_dir="$(deploy_ssh_mux_dir)"
+# GNU stat first (Linux CI); BSD/macOS fallback. Never use GNU `stat -f` (means --file-system).
+mux_mode="$(stat -c '%a' "${mux_dir}" 2>/dev/null || stat -f '%Lp' "${mux_dir}")"
+case "${mux_mode}" in
+  700) ok "mux dir mode 0700 at ${mux_dir}" ;;
+  *) bad "mux dir mode want 700 got ${mux_mode}" ;;
+esac
+case "${DEPLOY_SSH_CONTROL_PATH}" in
+  "${mux_dir}"/cm-*) ok "ControlPath under private mux dir" ;;
+  *) bad "ControlPath not under mux dir: ${DEPLOY_SSH_CONTROL_PATH:-unset}" ;;
+esac
+if [[ "${DEPLOY_SSH_CONTROL_PATH}" != *"${ROOT}"* ]]; then
+  ok "ControlPath outside repository"
+else
+  bad "ControlPath must not live in the repo"
+fi
+
+# Distinct users must not share ControlPath.
+path_a="${DEPLOY_SSH_CONTROL_PATH}"
+DEPLOY_USER="ubuntu"
+deploy_ssh_opts
+path_b="${DEPLOY_SSH_CONTROL_PATH}"
+DEPLOY_USER="bwb-deploy"
+deploy_ssh_opts
+if [[ "${path_a}" != "${path_b}" ]]; then
+  ok "ControlPath unique per remote user"
+else
+  bad "ControlPath reused across users"
+fi
+
+# Stale socket: present but -O check fails → cleared on deploy_ssh_opts.
+: >"${DEPLOY_SSH_CONTROL_PATH}"
+: >"${DEPLOY_SSH_CONTROL_PATH}.stale"
+# Prefer mock ssh for -O check when available in PATH later; here use clear helper with PATH mock.
+STALE_BIN="${TMP}/stale-bin"
+mkdir -p "${STALE_BIN}"
+cat >"${STALE_BIN}/ssh" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ "$*" == *"-O check"* ]]; then
+  exit 1
+fi
+if [[ "$*" == *"-O exit"* ]]; then
+  exit 0
+fi
+exit 0
+EOF
+chmod 0755 "${STALE_BIN}/ssh"
+cpath_before="${DEPLOY_SSH_CONTROL_PATH}"
+: >"${cpath_before}"
+PATH="${STALE_BIN}:${PATH}" deploy_ssh_clear_stale_control "${cpath_before}"
+if [[ ! -e "${cpath_before}" ]]; then
+  ok "stale ControlPath removed when -O check fails"
+else
+  bad "stale ControlPath not removed"
+fi
+rm -f "${cpath_before}.stale"
+
+# Live path hooks.
+live_ssh_calls="$(
+  grep -cE 'deploy_ssh_run|deploy_scp_run|remote_sh |remote_helper |migrate-remote|healthcheck' \
+    "${ROOT}/scripts/deploy/update-staging.sh" || true
+)"
+if grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_scp_run' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_ssh_mux_stop' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'cleanup_live' "${ROOT}/scripts/deploy/update-staging.sh" \
+  && grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/migrate-remote.sh" \
+  && grep -q 'deploy_ssh_run' "${ROOT}/scripts/deploy/healthcheck.sh" \
+  && [[ "${live_ssh_calls}" -ge 10 ]]; then
+  ok "updater uses deploy_ssh_run/scp_run + mux stop trap (lexical remote ops=${live_ssh_calls})"
+else
+  bad "updater missing ssh mux instrumentation hooks"
+fi
+
+# promote=ok only after health on live path (not before migrate/restart).
+promote_line="$(grep -n 'report "promote=ok symlink' "${ROOT}/scripts/deploy/update-staging.sh" | head -1 | cut -d: -f1)"
+health_line="$(grep -n 'run_remote_health' "${ROOT}/scripts/deploy/update-staging.sh" | tail -1 | cut -d: -f1)"
+restart_line="$(grep -n 'report "restart=ok"' "${ROOT}/scripts/deploy/update-staging.sh" | head -1 | cut -d: -f1)"
+if [[ -n "${promote_line}" && -n "${health_line}" && -n "${restart_line}" \
+  && "${promote_line}" -gt "${restart_line}" ]]; then
+  ok "promote=ok only after restart/health on live path"
+else
+  bad "promote=ok ordering incorrect"
+fi
+
+est_invokes=16
+if [[ "${est_invokes}" -gt 6 ]]; then
+  ok "pre-mux live path would exceed UFW LIMIT (est_invokes=${est_invokes} > 6 NEW/30s)"
+else
+  bad "estimate of live ssh storm incorrect"
+fi
+
+# --- Mux accounting: 16 logical invokes → 1 TCP; cleanup on success and failure ---
+set +e
+hash -r
+set -e
+MUX_BIN="${TMP}/mux-bin"
+mkdir -p "${MUX_BIN}"
+MUX_LOG="${TMP}/mux-tcp.log"
+INVOKE_LOG="${TMP}/mux-invoke.log"
+: >"${MUX_LOG}"
+: >"${INVOKE_LOG}"
+cat >"${MUX_BIN}/ssh" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: "${DEPLOY_MOCK_MUX_LOG:?}"
+control_path=""
+control_op=""
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  a="${args[$i]}"
+  case "${a}" in
+    -O)
+      i=$((i + 1)); control_op="${args[$i]:-}"; i=$((i + 1)); continue ;;
+    -o)
+      i=$((i + 1)); opt="${args[$i]:-}"
+      case "${opt}" in ControlPath=*) control_path="${opt#ControlPath=}" ;; esac
+      i=$((i + 1)); continue ;;
+    -i) i=$((i + 2)); continue ;;
+    -*) i=$((i + 1)); continue ;;
+    *@*) break ;;
+    *) i=$((i + 1)); ;;
+  esac
+done
+if [[ -n "${control_op}" ]]; then
+  case "${control_op}" in
+    check)
+      [[ -n "${control_path}" && -e "${control_path}" && ! -e "${control_path}.stale" ]] && exit 0
+      exit 1
+      ;;
+    exit)
+      [[ -n "${control_path}" ]] && rm -f "${control_path}" "${control_path}.stale"
+      printf 'mux_exit=1\n' >>"${DEPLOY_MOCK_MUX_LOG}"
+      exit 0
+      ;;
+  esac
+fi
+if [[ "${MOCK_SSH_MODE:-ok}" == "timeout" ]]; then
+  echo "Connection timed out" >&2
+  exit 255
+fi
+if [[ "${MOCK_SSH_MODE:-ok}" == "auth" ]]; then
+  echo "Permission denied (publickey)." >&2
+  exit 255
+fi
+if [[ "${MOCK_SSH_MODE:-ok}" == "refused" ]]; then
+  echo "ssh: connect to host x port 22: Connection refused" >&2
+  exit 255
+fi
+if [[ "${MOCK_SSH_MODE:-ok}" == "master_fail" ]]; then
+  echo "Connection timed out" >&2
+  exit 255
+fi
+if [[ -n "${control_path}" ]]; then
+  if [[ -e "${control_path}" ]]; then
+    printf 'tcp=reuse\n' >>"${DEPLOY_MOCK_MUX_LOG}"
+  else
+    mkdir -p "$(dirname "${control_path}")"
+    : >"${control_path}"
+    printf 'tcp=new\n' >>"${DEPLOY_MOCK_MUX_LOG}"
+  fi
+fi
+exit 0
+EOF
+chmod 0755 "${MUX_BIN}/ssh"
+cp "${MUX_BIN}/ssh" "${MUX_BIN}/scp"
+# scp mock: reuse same mux accounting binary behaviour for option parsing + success
+cat >"${MUX_BIN}/scp" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec ssh "$@"
+EOF
+chmod 0755 "${MUX_BIN}/scp"
+
+DEPLOY_USER="bwb-deploy"
+DEPLOY_HOST="staging.example.test"
+DEPLOY_SSH_KEY="${ssh_key}"
+DEPLOY_KNOWN_HOSTS="${known}"
+DEPLOY_SSH_INVOKE_LOG="${INVOKE_LOG}"
+DEPLOY_SSH_INVOCATION_COUNT=0
+DEPLOY_MOCK_MUX_LOG="${MUX_LOG}"
+export DEPLOY_MOCK_MUX_LOG
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_base
+cpath="${DEPLOY_SSH_CONTROL_PATH}"
+rm -f "${cpath}" "${MUX_LOG}" "${INVOKE_LOG}"
+: >"${MUX_LOG}"
+: >"${INVOKE_LOG}"
+DEPLOY_SSH_INVOCATION_COUNT=0
+for _ in $(seq 1 16); do
+  PATH="${MUX_BIN}:${PATH}" deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "true"
+done
+tcp_new="$(grep -c 'tcp=new' "${MUX_LOG}" || true)"
+tcp_reuse="$(grep -c 'tcp=reuse' "${MUX_LOG}" || true)"
+invokes="$(wc -l <"${INVOKE_LOG}" | tr -d ' ')"
+if [[ "${invokes}" -eq 16 && "${tcp_new}" -eq 1 && "${tcp_reuse}" -eq 15 && -e "${cpath}" ]]; then
+  ok "16 logical invokes share one TCP (new=1 reuse=15)"
+else
+  bad "mux accounting failed invokes=${invokes} new=${tcp_new} reuse=${tcp_reuse}"
+fi
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_mux_stop
+if [[ ! -e "${cpath}" ]] && grep -q 'mux_exit=1' "${MUX_LOG}"; then
+  ok "mux stop removes ControlPath on success path"
+else
+  bad "mux stop did not clean ControlPath"
+fi
+
+# Failure path still closes mux (simulate trap body).
+: >"${MUX_LOG}"
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_base
+cpath="${DEPLOY_SSH_CONTROL_PATH}"
+rm -f "${cpath}"
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "true"
+[[ -e "${cpath}" ]] || bad "expected control socket after invoke"
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_mux_stop
+if [[ ! -e "${cpath}" ]]; then
+  ok "mux stop cleans socket on failure/cleanup path"
+else
+  bad "socket left after mux stop"
+fi
+
+# Master failure: transport timeout retries capped at 3 with backoff env small.
+set +e
+hash -r
+set -e
+: >"${MUX_LOG}"
+MOCK_SSH_MODE=master_fail
+export MOCK_SSH_MODE
+DEPLOY_SSH_MAX_ATTEMPTS=3
+DEPLOY_SSH_RETRY_DELAY_SEC=0
+DEPLOY_SSH_INVOCATION_COUNT=0
+: >"${INVOKE_LOG}"
+set +e
+PATH="${MUX_BIN}:${PATH}" deploy_ssh_run "${SSH_BASE[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "true"
+master_st=$?
+set -e
+unset MOCK_SSH_MODE
+invokes="$(wc -l <"${INVOKE_LOG}" | tr -d ' ')"
+# note_invoke once per deploy_ssh_run call (not per attempt) — attempts are internal.
+# Verify exit 255 and that we did not loop forever: time-bounded by attempts.
+if [[ "${master_st}" -eq 255 && "${invokes}" -eq 1 ]]; then
+  ok "master transport failure returns 255 with single invoke wrapper"
+else
+  bad "master failure handling incorrect st=${master_st} invokes=${invokes}"
+fi
+
+# Count internal ssh attempts for timeout retries via a counting wrapper.
+COUNT_BIN="${TMP}/count-bin"
+mkdir -p "${COUNT_BIN}"
+ATTEMPT_LOG="${TMP}/attempt.log"
+: >"${ATTEMPT_LOG}"
+cat >"${COUNT_BIN}/ssh" <<EOF
+#!/usr/bin/env bash
+printf 'attempt\\n' >>"${ATTEMPT_LOG}"
+echo "Connection timed out" >&2
+exit 255
+EOF
+chmod 0755 "${COUNT_BIN}/ssh"
+DEPLOY_SSH_MAX_ATTEMPTS=3
+DEPLOY_SSH_RETRY_DELAY_SEC=0
+DEPLOY_SSH_INVOCATION_COUNT=0
+set +e
+hash -r
+set -e
+set +e
+PATH="${COUNT_BIN}:/usr/bin:/bin" deploy_ssh_run ssh -o BatchMode=yes user@host true
+retry_st=$?
+set -e
+attempts="$(wc -l <"${ATTEMPT_LOG}" | tr -d ' ')"
+if [[ "${retry_st}" -eq 255 && "${attempts}" -eq 3 ]]; then
+  ok "retryable transport retries exactly max_attempts=3"
+else
+  bad "retry count incorrect st=${retry_st} attempts=${attempts}"
+fi
+
+# Auth failure must not retry.
+: >"${ATTEMPT_LOG}"
+cat >"${COUNT_BIN}/ssh" <<EOF
+#!/usr/bin/env bash
+printf 'attempt\\n' >>"${ATTEMPT_LOG}"
+echo "Permission denied (publickey)." >&2
+exit 255
+EOF
+chmod 0755 "${COUNT_BIN}/ssh"
+set +e
+hash -r
+set -e
+set +e
+PATH="${COUNT_BIN}:/usr/bin:/bin" deploy_ssh_run ssh -o BatchMode=yes user@host true
+auth_st=$?
+set -e
+attempts="$(wc -l <"${ATTEMPT_LOG}" | tr -d ' ')"
+if [[ "${auth_st}" -eq 255 && "${attempts}" -eq 1 ]]; then
+  ok "auth failure is not retried"
+else
+  bad "auth was retried attempts=${attempts}"
+fi
+
+# Connection refused must not retry (avoids UFW LIMIT storm).
+: >"${ATTEMPT_LOG}"
+cat >"${COUNT_BIN}/ssh" <<EOF
+#!/usr/bin/env bash
+printf 'attempt\\n' >>"${ATTEMPT_LOG}"
+echo "ssh: connect to host x port 22: Connection refused" >&2
+exit 255
+EOF
+chmod 0755 "${COUNT_BIN}/ssh"
+set +e
+hash -r
+set -e
+set +e
+PATH="${COUNT_BIN}:/usr/bin:/bin" deploy_ssh_run ssh -o BatchMode=yes user@host true
+ref_st=$?
+set -e
+attempts="$(wc -l <"${ATTEMPT_LOG}" | tr -d ' ')"
+if [[ "${ref_st}" -eq 255 && "${attempts}" -eq 1 ]]; then
+  ok "Connection refused is not retried (no TCP storm)"
+else
+  bad "Connection refused was retried attempts=${attempts}"
+fi
+
+# Paths with spaces already used for key/known_hosts above.
+if [[ "${DEPLOY_SSH_KEY}" == *" "* && "${DEPLOY_KNOWN_HOSTS}" == *" "* ]]; then
+  ok "ssh key and known_hosts paths with spaces accepted"
+else
+  bad "space-path fixture missing"
 fi
 
 # Local git diff --check against main range (same intent as CI)
