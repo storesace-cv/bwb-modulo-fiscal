@@ -1,7 +1,9 @@
 package config_test
 
 import (
+	"math"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,8 +17,8 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() unexpected error: %v", err)
 	}
-	if cfg.HTTPAddr != ":8080" {
-		t.Fatalf("HTTPAddr = %q, want :8080", cfg.HTTPAddr)
+	if cfg.HTTPAddr != "127.0.0.1:8080" {
+		t.Fatalf("HTTPAddr = %q, want 127.0.0.1:8080", cfg.HTTPAddr)
 	}
 	if cfg.Version != "0.0.0-dev" {
 		t.Fatalf("Version = %q, want 0.0.0-dev", cfg.Version)
@@ -109,6 +111,17 @@ func TestLoadRejectsInvalidReadHeaderTimeout(t *testing.T) {
 	_, err := config.Load()
 	if err == nil {
 		t.Fatal("Load() expected error for zero ReadHeaderTimeout")
+	}
+}
+
+func TestLoadRejectsDurationMillisOverflow(t *testing.T) {
+	clearFiscalEnv(t)
+	overflowMS := math.MaxInt64/int64(time.Millisecond) + 1
+	t.Setenv("FISCAL_HTTP_READ_TIMEOUT", strconv.FormatInt(overflowMS, 10))
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("Load() expected error for millisecond overflow")
 	}
 }
 

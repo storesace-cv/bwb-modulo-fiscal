@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -30,9 +30,6 @@ jobs:
 
       - name: Vet
         run: go vet ./...
-
-      - name: Test
-        run: go test ./...
 
       - name: Test race
         run: go test -race ./...

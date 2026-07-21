@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -10,7 +11,7 @@ import (
 )
 
 const (
-	defaultHTTPAddr          = ":8080"
+	defaultHTTPAddr          = "127.0.0.1:8080"
 	defaultReadTimeout       = 5 * time.Second
 	defaultReadHeaderTimeout = 5 * time.Second
 	defaultWriteTimeout      = 10 * time.Second
@@ -134,6 +135,10 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 	if ms, err := strconv.ParseInt(raw, 10, 64); err == nil {
 		if ms <= 0 {
 			return 0, fmt.Errorf("%s must be a positive integer (milliseconds)", key)
+		}
+		maxMS := math.MaxInt64 / int64(time.Millisecond)
+		if ms > maxMS {
+			return 0, fmt.Errorf("%s exceeds maximum supported duration in milliseconds", key)
 		}
 		return time.Duration(ms) * time.Millisecond, nil
 	}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9-draft — 2026-07-21
+
+- Default `FISCAL_HTTP_ADDR` em `127.0.0.1:8080` (cloud exige bind explícito); CI só em `push`/`pull_request` para `main` com `go vet` + `go test -race`; rejeição de overflow em timeouts em milissegundos.
+
 ## 0.1.8-draft — 2026-07-21
 
 - Hardening do scaffold: `go.mod` 1.25.0 e CI/deploy em Go 1.26.x ([release policy](https://go.dev/doc/devel/release)); `ReadHeaderTimeout` configurável; `MaxHeaderBytes` 64 KiB; `Server.Serve(net.Listener)`; `TestLoadDefaults` hermético.
