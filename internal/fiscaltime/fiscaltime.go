@@ -97,3 +97,42 @@ func RebuildLocal(utc time.Time, ianaTZ string) (time.Time, error) {
 	}
 	return utc.UTC().Truncate(time.Microsecond).In(loc), nil
 }
+
+// ValidateNormalizedContext checks an already-normalized fiscal temporal triple
+// (UTC micro issued_at + IANA timezone + offset minutes) before seal/hash.
+// Fail-closed: unknown IANA zones, non-canonical UTC strings, and offsets that
+// do not match the zone at that instant are rejected.
+func ValidateNormalizedContext(utcMicro, ianaTZ string, offsetMinutes int) error {
+	utcMicro = strings.TrimSpace(utcMicro)
+	ianaTZ = strings.TrimSpace(ianaTZ)
+	if utcMicro == "" {
+		return fmt.Errorf("%w: empty issued_at", ErrInvalidIssuedAt)
+	}
+	if ianaTZ == "" {
+		return fmt.Errorf("%w: empty timezone", ErrInvalidIssuedAt)
+	}
+	if offsetMinutes < minOffsetMinutes || offsetMinutes > maxOffsetMinutes {
+		return fmt.Errorf("%w: offset out of range", ErrInvalidIssuedAt)
+	}
+
+	parsed, err := time.Parse(UTCMicroFormat, utcMicro)
+	if err != nil {
+		return fmt.Errorf("%w: issued_at must be UTC micro canonical (%s)", ErrInvalidIssuedAt, UTCMicroFormat)
+	}
+	utc := parsed.UTC().Truncate(time.Microsecond)
+	if utc.Format(UTCMicroFormat) != utcMicro {
+		return fmt.Errorf("%w: issued_at must be UTC micro canonical", ErrInvalidIssuedAt)
+	}
+
+	loc, err := time.LoadLocation(ianaTZ)
+	if err != nil {
+		return fmt.Errorf("%w: load timezone %q: %v", ErrInvalidIssuedAt, ianaTZ, err)
+	}
+	_, fiscalOffSec := utc.In(loc).Zone()
+	fiscalOffMin := fiscalOffSec / 60
+	if fiscalOffMin != offsetMinutes {
+		return fmt.Errorf("%w: offset %d incompatible with %s at %s (want %d)",
+			ErrInvalidIssuedAt, offsetMinutes, ianaTZ, utcMicro, fiscalOffMin)
+	}
+	return nil
+}

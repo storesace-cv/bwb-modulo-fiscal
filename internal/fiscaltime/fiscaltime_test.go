@@ -81,3 +81,32 @@ func TestRebuildLocalLuanda(t *testing.T) {
 		t.Fatalf("local=%v", local)
 	}
 }
+
+func TestValidateNormalizedContextOK(t *testing.T) {
+	err := fiscaltime.ValidateNormalizedContext("2026-07-21T09:00:00.000000Z", fiscaltime.AfricaLuanda, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateNormalizedContextRejects(t *testing.T) {
+	cases := []struct {
+		name   string
+		utc    string
+		tz     string
+		offset int
+	}{
+		{"unknown_tz", "2026-07-21T09:00:00.000000Z", "Not/ARealZone", 60},
+		{"incompatible_offset", "2026-07-21T09:00:00.000000Z", fiscaltime.AfricaLuanda, 0},
+		{"non_canonical_z", "2026-07-21T09:00:00Z", fiscaltime.AfricaLuanda, 60},
+		{"offset_string", "2026-07-21T10:00:00+01:00", fiscaltime.AfricaLuanda, 60},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := fiscaltime.ValidateNormalizedContext(tc.utc, tc.tz, tc.offset)
+			if !errors.Is(err, fiscaltime.ErrInvalidIssuedAt) {
+				t.Fatalf("err=%v", err)
+			}
+		})
+	}
+}

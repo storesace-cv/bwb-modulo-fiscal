@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
 )
 
 // Dialect identifies the SQL dialect and locking strategy.
@@ -158,16 +159,13 @@ func prepareSealRequest(req SealRequest) (SealRequest, error) {
 	if !hasNonWhitespace(req.Intent.IssuedAtUTC) {
 		return SealRequest{}, validationErr("issued_at", "REQUIRED", "obrigatório")
 	}
-	// IssuedAtUTC must already be UTC micro from fiscaltime (no silent re-normalization that drops TZ context).
-	if _, err := time.Parse("2006-01-02T15:04:05.000000Z", req.Intent.IssuedAtUTC); err != nil {
-		// also accept Format without forcing parse layout — try RFC3339Nano then truncate check
-		t, err2 := time.Parse(time.RFC3339Nano, req.Intent.IssuedAtUTC)
-		if err2 != nil {
-			return SealRequest{}, validationErr("issued_at", "INVALID_FORMAT", "UTC micro inválido")
-		}
-		if t.UTC().Truncate(time.Microsecond).Format("2006-01-02T15:04:05.000000Z") != req.Intent.IssuedAtUTC {
-			return SealRequest{}, validationErr("issued_at", "INVALID_FORMAT", "deve ser UTC com microssegundos canónicos")
-		}
+	// Fail-closed temporal context for any SealInTx caller (HTTP or direct adapter).
+	if err := fiscaltime.ValidateNormalizedContext(
+		req.Intent.IssuedAtUTC,
+		req.Intent.IssuedTimezone,
+		req.Intent.IssuedOffsetMinutes,
+	); err != nil {
+		return SealRequest{}, validationErr("issued_at", "INVALID_ISSUED_AT", "contexto temporal inválido")
 	}
 	for i, ln := range req.Intent.Lines {
 		prefix := fmt.Sprintf("lines[%d]", i)

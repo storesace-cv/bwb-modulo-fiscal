@@ -157,6 +157,31 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		}
 	})
 
+	t.Run("issued_timezone_unknown_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14", "ext-bad-tz", "A", "1.00")
+		req.Intent.IssuedTimezone = "Not/ARealZone"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of unknown IANA timezone")
+		}
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
+	t.Run("issued_offset_incompatible_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa15", "ext-bad-off", "A", "1.00")
+		// Valid IANA zone, but offset 0 ≠ Africa/Luanda (+60) at this instant.
+		req.Intent.IssuedOffsetMinutes = 0
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected rejection of incompatible offset")
+		}
+		if !errors.Is(err, persistence.ErrValidation) {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
 	t.Run("created_at_uses_injected_clock", func(t *testing.T) {
 		fixed := time.Date(2026, 7, 21, 12, 30, 45, 123456000, time.UTC)
 		store.SetClock(func() time.Time { return fixed })

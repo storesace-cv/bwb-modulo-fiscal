@@ -3,6 +3,7 @@
 ## 0.2.4-draft — 2026-07-21
 
 - DEC-TIME-001 (PR #8): tempo fiscal vs técnico — `issued_at` com timezone IANA do scope (`Africa/Luanda`) e offset persistido; `created_at` UTC técnico (microssegundos, relógio injetável); `canonical_v2` activo com goldens imutáveis `canonical_v1`/`canonical_v2`; packages `fiscaltime`/`fiscaltz` (tzdata embutida, fail-closed); migration `0002` (PG/SQLite) aborta se houver `documents` ou `idempotency_records`; OpenAPI `0.1.3-draft` e exemplo Angola `+01:00`. Sem Cabo Verde runtime; sem recalculo de hashes; API sem migrate no arranque.
+- Reforço SealInTx: `fiscaltime.ValidateNormalizedContext` no `prepareSealRequest` (timezone IANA + offset no instante + UTC micro); testes PG isolados para precondições da migration `0002`.
 
 ## 0.2.3-draft — 2026-07-21
 
