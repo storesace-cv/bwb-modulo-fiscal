@@ -67,4 +67,4 @@ go run ./cmd/fiscal-api
 curl -sS http://127.0.0.1:8080/v1/health
 ```
 
-Este incremento **não** inclui `SealInTx`, `POST /documents`, worker AGT, JWS nem ORM.
+Este incremento inclui `SealInTx` (API interna) e testes VS-T01–VS-T07. **Não** inclui `POST /documents`, worker AGT, JWS nem ficheiros `.env`.
