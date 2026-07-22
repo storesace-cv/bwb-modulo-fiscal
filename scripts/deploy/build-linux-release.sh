@@ -88,6 +88,7 @@ cp "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" "${OUT_DIR}/nginx/
 cp "${ROOT}/deploy/nginx/README.md" "${OUT_DIR}/nginx/README.md"
 cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.service" "${OUT_DIR}/systemd/"
 cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer" "${OUT_DIR}/systemd/"
+cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" "${OUT_DIR}/systemd/"
 chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
   "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
 chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" \
@@ -159,6 +160,7 @@ fi
     nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service \
     systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT \
     EXPECTED_SCHEMA_VERSION \
     >SHA256SUMS

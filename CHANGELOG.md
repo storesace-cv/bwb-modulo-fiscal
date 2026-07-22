@@ -2,7 +2,8 @@
 
 ## 0.2.12-draft — 2026-07-22
 
-- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`), deny-all imutável no release, zone final, helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer systemd 5 min fail-safe; relatório S3C1; testes arm/confirm/timeout/rollback. Sem deploy/promoção/abertura no host.
+- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`, `location = /v1/documents`), HSTS `max-age=31536000` (sem `includeSubDomains`), redirect HTTP→HTTPS sob `location /` (ACME intacto), deny-all imutável no release, zone final, helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer 5 min + boot-recovery fail-closed; flock exclusivo; arm confirma timer active e restaura deny-all se o arm do timer falhar; confirm grava `confirmed` antes de cancelar o timer; relatório S3C1; testes arm/confirm/timeout/rollback/boot/concorrência. Sem deploy/promoção/abertura no host.
+- Hardening pré-merge (#16): fail-closed se timer não ficar active; ordem confirm→state antes de stop; serialização flock; boot-recovery para `armed`; ACME/HSTS/exact location alinhados com D2 live.
 
 ## 0.2.11-draft — 2026-07-22
 

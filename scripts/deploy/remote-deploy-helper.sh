@@ -25,8 +25,10 @@
 #   nginx-open-confirm <sha40>
 #   nginx-deny-all <sha40>
 #   nginx-open-rollback-fire
+#   nginx-open-boot-recovery
 #
 # Updater never activates open. Open only via nginx-open-arm (paths fixed in release).
+# nginx-open-* / nginx-deny-all take an exclusive flock on a fixed root-owned lock path.
 # activate requires GNU coreutils `mv -T` (Ubuntu 22.04 staging). BSD mv is not supported.
 #
 # D2 bootstrap also installs:
@@ -40,7 +42,7 @@ if [[ "${EUID}" -eq 0 ]]; then
     || -n "${BWB_MOCK_TMP:-}" || -n "${BWB_HELPER_LIB:-}" || -n "${BWB_MIGRATE_USER:-}" \
     || -n "${BWB_ADMIN_USER:-}" || -n "${BWB_ADMIN_TOKEN_DIR:-}" \
     || -n "${BWB_NGINX_ROOT:-}" || -n "${BWB_SYSTEMCTL:-}" || -n "${BWB_NGINX_BIN:-}" \
-    || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" ]]; then
+    || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" || -n "${BWB_NGINX_LOCK:-}" ]]; then
     echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
     exit 1
   fi
@@ -63,8 +65,10 @@ CURL_BIN="${BWB_CURL:-curl}"
 NGINX_SITE_NAME="bwb-fiscal-sandbox"
 NGINX_MEASURE_SITE="bwb-fiscal-sandbox-measure-loopback"
 NGINX_OPEN_STATE="${ETC_ROOT}/nginx-open.state"
+NGINX_OPEN_LOCK="${BWB_NGINX_LOCK:-/var/lock/bwb-fiscal-nginx-open.lock}"
 NGINX_ROLLBACK_TIMER="bwb-fiscal-nginx-open-rollback.timer"
 NGINX_ROLLBACK_SERVICE="bwb-fiscal-nginx-open-rollback.service"
+NGINX_BOOT_RECOVERY_SERVICE="bwb-fiscal-nginx-open-boot-recovery.service"
 
 die() {
   echo "error: $*" >&2
@@ -189,12 +193,31 @@ verify_release_tree() {
   [[ -f "${dir}/nginx/limit-req-documents.conf" ]] || die "nginx/limit-req-documents.conf missing"
   [[ -f "${dir}/systemd/${NGINX_ROLLBACK_SERVICE}" ]] || die "rollback service unit missing"
   [[ -f "${dir}/systemd/${NGINX_ROLLBACK_TIMER}" ]] || die "rollback timer unit missing"
+  [[ -f "${dir}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" ]] || die "boot recovery unit missing"
   # Release must not ship an executable runner — migrate is done by this helper.
   [[ ! -e "${dir}/remote-migrate-run.sh" ]] || die "remote-migrate-run.sh must not be in release"
   # Legacy open.candidate path must never ship (open is nginx/tls.open.conf only).
   [[ ! -e "${dir}/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" ]] || die "open candidate must not be in release"
   [[ "$(tr -d '[:space:]' <"${dir}/COMMIT")" == "${sha}" ]] || die "COMMIT mismatch"
   grep -q 'deny all' "${dir}/nginx/tls.deny.conf" || die "tls.deny.conf must deny-all documents"
+  grep -q 'location = /v1/documents' "${dir}/nginx/tls.deny.conf" || die "tls.deny.conf must use exact /v1/documents"
+  grep -q 'location = /v1/documents' "${dir}/nginx/tls.open.conf" || die "tls.open.conf must use exact /v1/documents"
+  grep -q 'Strict-Transport-Security "max-age=31536000"' "${dir}/nginx/tls.deny.conf" || die "tls.deny.conf missing HSTS"
+  grep -q 'Strict-Transport-Security "max-age=31536000"' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing HSTS"
+  if grep -E '^[[:space:]]*add_header[[:space:]]+Strict-Transport-Security' "${dir}/nginx/tls.deny.conf" \
+    | grep -q 'includeSubDomains'; then
+    die "tls.deny.conf must not set includeSubDomains"
+  fi
+  if grep -E '^[[:space:]]*add_header[[:space:]]+Strict-Transport-Security' "${dir}/nginx/tls.open.conf" \
+    | grep -q 'includeSubDomains'; then
+    die "tls.open.conf must not set includeSubDomains"
+  fi
+  grep -q 'location ^~ /.well-known/acme-challenge/' "${dir}/nginx/tls.deny.conf" || die "tls.deny.conf missing ACME location"
+  grep -q 'location ^~ /.well-known/acme-challenge/' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing ACME location"
+  grep -B2 'return 301 https://' "${dir}/nginx/tls.deny.conf" | grep -q 'location /' \
+    || die "tls.deny.conf HTTPS redirect must be under location /"
+  grep -B2 'return 301 https://' "${dir}/nginx/tls.open.conf" | grep -q 'location /' \
+    || die "tls.open.conf HTTPS redirect must be under location /"
   grep -q 'limit_req zone=bwb_documents burst=20' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing burst=20"
   grep -q 'limit_req_status 429' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing limit_req_status 429"
   grep -q 'proxy_set_header X-Request-Id ""' "${dir}/nginx/tls.open.conf" || die "tls.open.conf must clear X-Request-Id"
@@ -254,7 +277,8 @@ op_install_release() {
     "${partial}/lib/allowlist.sh" "${partial}/lib/migrate.env.allowlist" "${partial}/lib/admin.env.allowlist" \
     "${partial}/nginx/tls.open.conf" "${partial}/nginx/tls.deny.conf" \
     "${partial}/nginx/limit-req-documents.conf" "${partial}/nginx/README.md" \
-    "${partial}/systemd/${NGINX_ROLLBACK_SERVICE}" "${partial}/systemd/${NGINX_ROLLBACK_TIMER}"
+    "${partial}/systemd/${NGINX_ROLLBACK_SERVICE}" "${partial}/systemd/${NGINX_ROLLBACK_TIMER}" \
+    "${partial}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}"
 
   if [[ -d "${dest}" ]]; then
     verify_release_tree "${dest}" "${sha}"
@@ -269,7 +293,8 @@ op_install_release() {
     "${dest}/lib/allowlist.sh" "${dest}/lib/migrate.env.allowlist" "${dest}/lib/admin.env.allowlist" \
     "${dest}/nginx/tls.open.conf" "${dest}/nginx/tls.deny.conf" \
     "${dest}/nginx/limit-req-documents.conf" "${dest}/nginx/README.md" \
-    "${dest}/systemd/${NGINX_ROLLBACK_SERVICE}" "${dest}/systemd/${NGINX_ROLLBACK_TIMER}"
+    "${dest}/systemd/${NGINX_ROLLBACK_SERVICE}" "${dest}/systemd/${NGINX_ROLLBACK_TIMER}" \
+    "${dest}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}"
   # Drop-priv users need exec on binaries/scripts (not writable).
   chmod 0755 "${dest}/fiscal-migrate" "${dest}/fiscal-api" "${dest}/fiscal-admin" \
     "${dest}/fiscal-sandbox-e2e" "${dest}/fiscal-sandbox-measure"
@@ -922,15 +947,16 @@ nginx_install_dir() {
 
 nginx_write_state() {
   local state="$1" sha="$2"
-  nginx_install_dir 0750 "${ETC_ROOT}"
+  nginx_install_dir 0750 "${ETC_ROOT}" || return 1
   local tmp="${NGINX_OPEN_STATE}.new"
   {
     printf 'state=%s\n' "${state}"
     printf 'sha=%s\n' "${sha}"
     printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  } >"${tmp}"
-  chmod 0600 "${tmp}"
-  nginx_atomic_replace "${tmp}" "${NGINX_OPEN_STATE}"
+  } >"${tmp}" || return 1
+  chmod 0600 "${tmp}" || return 1
+  nginx_atomic_replace "${tmp}" "${NGINX_OPEN_STATE}" || return 1
+  return 0
 }
 
 nginx_read_state_field() {
@@ -946,15 +972,19 @@ nginx_read_state_field() {
 }
 
 nginx_cancel_rollback_timer() {
+  local st=0
   if command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1; then
     set +e
     "${SYSTEMCTL_BIN}" stop "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+    st=$((st | $?))
     "${SYSTEMCTL_BIN}" disable "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+    st=$((st | $?))
     set -e
   fi
+  return "${st}"
 }
 
-nginx_arm_rollback_timer() {
+nginx_install_failsafe_units() {
   local release="$1"
   nginx_install_dir 0755 "${SYSTEMD_DIR}"
   nginx_install_file 0644 \
@@ -963,12 +993,57 @@ nginx_arm_rollback_timer() {
   nginx_install_file 0644 \
     "${release}/systemd/${NGINX_ROLLBACK_TIMER}" \
     "${SYSTEMD_DIR}/${NGINX_ROLLBACK_TIMER}"
-  "${SYSTEMCTL_BIN}" daemon-reload
+  nginx_install_file 0644 \
+    "${release}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" \
+    "${SYSTEMD_DIR}/${NGINX_BOOT_RECOVERY_SERVICE}"
+}
+
+nginx_arm_rollback_timer() {
+  local release="$1"
+  nginx_install_failsafe_units "${release}"
+  "${SYSTEMCTL_BIN}" daemon-reload || return 1
   set +e
   "${SYSTEMCTL_BIN}" stop "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
-  "${SYSTEMCTL_BIN}" enable "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
   set -e
-  "${SYSTEMCTL_BIN}" start "${NGINX_ROLLBACK_TIMER}"
+  "${SYSTEMCTL_BIN}" enable "${NGINX_BOOT_RECOVERY_SERVICE}" || return 1
+  "${SYSTEMCTL_BIN}" enable "${NGINX_ROLLBACK_TIMER}" || return 1
+  "${SYSTEMCTL_BIN}" start "${NGINX_ROLLBACK_TIMER}" || return 1
+  "${SYSTEMCTL_BIN}" is-active --quiet "${NGINX_ROLLBACK_TIMER}" || return 1
+  return 0
+}
+
+nginx_open_lock_enter() {
+  local lock_dir
+  lock_dir="$(dirname "${NGINX_OPEN_LOCK}")"
+  mkdir -p "${lock_dir}"
+  # Fixed path; operator cannot choose it. Root owns it when EUID=0.
+  : >"${NGINX_OPEN_LOCK}" || die "cannot create nginx open lock"
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown root:root "${NGINX_OPEN_LOCK}"
+    chmod 0600 "${NGINX_OPEN_LOCK}"
+  else
+    chmod 0600 "${NGINX_OPEN_LOCK}" 2>/dev/null
+  fi
+  if command -v flock >/dev/null 2>&1; then
+    exec 200>"${NGINX_OPEN_LOCK}"
+    flock -x 200 || die "nginx open lock failed"
+    return 0
+  fi
+  # Production host is Linux and must have util-linux flock.
+  if [[ "${EUID}" -eq 0 ]]; then
+    die "flock(1) is required for nginx open serialization"
+  fi
+  # Non-root unit-test fallback (e.g. macOS without flock): exclusive mkdir lock.
+  local slot="${NGINX_OPEN_LOCK}.mkdir"
+  local i=0
+  while ! mkdir "${slot}" 2>/dev/null; do
+    i=$((i + 1))
+    [[ "${i}" -lt 400 ]] || die "nginx open lock failed"
+    sleep 0.025
+  done
+  # Release mkdir lock when this helper process exits.
+  # shellcheck disable=SC2064
+  trap "rmdir '${slot}' 2>/dev/null || :" EXIT
 }
 
 nginx_install_site_atomic() {
@@ -1026,12 +1101,30 @@ nginx_verify_documents_403() {
   [[ "${code}" == "403" ]] || die "documents probe expected 403 got ${code}"
 }
 
+# Restore deny-all after a failed arm (open already applied). Always attempt -t/reload/403.
+nginx_fail_closed_deny() {
+  local sha="$1" release="$2" reason="$3"
+  set +e
+  nginx_disable_measure
+  nginx_install_zone "${release}/nginx/limit-req-documents.conf"
+  nginx_install_site_atomic "${release}/nginx/tls.deny.conf"
+  nginx_run_t
+  nginx_reload
+  nginx_verify_documents_403
+  nginx_write_state "denied" "${sha}"
+  nginx_cancel_rollback_timer
+  set -e
+  die "nginx open arm fail-closed: ${reason}"
+}
+
 op_nginx_deny_all() {
   local sha="$1"
   assert_sha1 "sha" "${sha}"
   local release="${RELEASES}/${sha}"
   verify_release_tree "${release}" "${sha}"
+  set +e
   nginx_cancel_rollback_timer
+  set -e
   nginx_disable_measure
   nginx_install_zone "${release}/nginx/limit-req-documents.conf"
   nginx_install_site_atomic "${release}/nginx/tls.deny.conf"
@@ -1055,8 +1148,6 @@ op_nginx_open_arm() {
   local site_dest backup
   site_dest="$(nginx_site_path)"
   backup="${BACKUPS}/nginx-site.pre-open.${sha}"
-  nginx_install_dir 0750 "${ETC_ROOT}"
-  nginx_install_dir 0750 "${BACKUPS}"
   if [[ -f "${site_dest}" && ! -L "${site_dest}" ]]; then
     nginx_install_file 0644 "${site_dest}" "${backup}"
   else
@@ -1084,8 +1175,13 @@ op_nginx_open_arm() {
     die "nginx reload failed after open install; restored backup"
   fi
 
-  nginx_write_state "armed" "${sha}"
-  nginx_arm_rollback_timer "${release}"
+  # Open is live. Any failure before an active timer must fail-closed to deny-all.
+  if ! nginx_write_state "armed" "${sha}"; then
+    nginx_fail_closed_deny "${sha}" "${release}" "armed state write failed"
+  fi
+  if ! nginx_arm_rollback_timer "${release}"; then
+    nginx_fail_closed_deny "${sha}" "${release}" "rollback timer not active"
+  fi
   printf 'nginx_open_arm_ok sha=%s timer=%s\n' "${sha}" "${NGINX_ROLLBACK_TIMER}"
 }
 
@@ -1104,8 +1200,12 @@ op_nginx_open_confirm() {
   if grep -q 'deny all' "${dest}"; then
     die "active site still deny-all"
   fi
-  nginx_cancel_rollback_timer
+  # Persist confirmed BEFORE cancelling the timer so a late fire is a noop.
   nginx_write_state "confirmed" "${sha}"
+  if ! nginx_cancel_rollback_timer; then
+    echo "error: nginx open confirmed but timer stop/disable failed (fire is noop while confirmed)" >&2
+    exit 1
+  fi
   printf 'nginx_open_confirm_ok sha=%s\n' "${sha}"
 }
 
@@ -1123,8 +1223,34 @@ op_nginx_open_rollback_fire() {
       nginx_write_state "rolled_back" "${st_sha}"
       printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
       ;;
-    confirmed | denied | rolled_back)
+    confirmed | denied | rolled_back | boot_recovered)
       printf 'nginx_open_rollback_fire=noop reason=state_%s\n' "${st_state}"
+      ;;
+    *)
+      die "unknown nginx open state"
+      ;;
+  esac
+}
+
+op_nginx_open_boot_recovery() {
+  # Boot/helper recovery: armed must not survive reboot (OnActiveSec may reset).
+  local st_state st_sha
+  if ! st_state="$(nginx_read_state_field state)"; then
+    printf 'nginx_open_boot_recovery=noop reason=no_state\n'
+    return 0
+  fi
+  case "${st_state}" in
+    armed)
+      st_sha="$(nginx_read_state_field sha)" || die "armed state missing sha"
+      op_nginx_deny_all "${st_sha}"
+      nginx_write_state "boot_recovered" "${st_sha}"
+      printf 'nginx_open_boot_recovery=ok sha=%s action=deny_all\n' "${st_sha}"
+      ;;
+    confirmed)
+      printf 'nginx_open_boot_recovery=noop reason=confirmed_remains_open\n'
+      ;;
+    denied | rolled_back | boot_recovered)
+      printf 'nginx_open_boot_recovery=noop reason=state_%s\n' "${st_state}"
       ;;
     *)
       die "unknown nginx open state"
@@ -1202,21 +1328,30 @@ case "${OP}" in
     [[ $# -eq 3 ]] || die "usage: admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>"
     op_admin_sandbox_ab_revoke_gate "$1" "$2" "$3"
     ;;
-  nginx-open-arm)
-    [[ $# -eq 1 ]] || die "usage: nginx-open-arm <sha40>"
-    op_nginx_open_arm "$1"
-    ;;
-  nginx-open-confirm)
-    [[ $# -eq 1 ]] || die "usage: nginx-open-confirm <sha40>"
-    op_nginx_open_confirm "$1"
-    ;;
-  nginx-deny-all)
-    [[ $# -eq 1 ]] || die "usage: nginx-deny-all <sha40>"
-    op_nginx_deny_all "$1"
-    ;;
-  nginx-open-rollback-fire)
-    [[ $# -eq 0 ]] || die "usage: nginx-open-rollback-fire"
-    op_nginx_open_rollback_fire
+  nginx-open-arm | nginx-open-confirm | nginx-deny-all | nginx-open-rollback-fire | nginx-open-boot-recovery)
+    nginx_open_lock_enter
+    case "${OP}" in
+      nginx-open-arm)
+        [[ $# -eq 1 ]] || die "usage: nginx-open-arm <sha40>"
+        op_nginx_open_arm "$1"
+        ;;
+      nginx-open-confirm)
+        [[ $# -eq 1 ]] || die "usage: nginx-open-confirm <sha40>"
+        op_nginx_open_confirm "$1"
+        ;;
+      nginx-deny-all)
+        [[ $# -eq 1 ]] || die "usage: nginx-deny-all <sha40>"
+        op_nginx_deny_all "$1"
+        ;;
+      nginx-open-rollback-fire)
+        [[ $# -eq 0 ]] || die "usage: nginx-open-rollback-fire"
+        op_nginx_open_rollback_fire
+        ;;
+      nginx-open-boot-recovery)
+        [[ $# -eq 0 ]] || die "usage: nginx-open-boot-recovery"
+        op_nginx_open_boot_recovery
+        ;;
+    esac
     ;;
   install-nginx-open | activate-open-candidate | nginx-open)
     die "open HTTPS candidate cannot be activated by this helper; use nginx-open-arm"

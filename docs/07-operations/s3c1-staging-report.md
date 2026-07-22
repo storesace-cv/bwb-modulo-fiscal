@@ -113,3 +113,5 @@ Base: `http://127.0.0.1:18080`. Zona provisória: `rate=10r/s`, `burst=20`, `lim
 ## Conclusão
 
 S3C1 **aprovado** com deny-all público preservado. Evidência de taxa sustentada ≈10 r/s e burst (201∈[20,25], resto 429) disponível para o PR S3C2 futuro. Evidência aceite para PR S3C2 (repo only; promoção no host só após merge).
+
+Incidentes de desenho do helper/Nginx S3C2 encontrados em revisão pré-merge (timer/confirm/flock/boot/ACME/HSTS/exact location) estão documentados e corrigidos no runbook § «S3C2 — incidentes pré-merge» — **não** foram aplicados no host; deny-all permanece.

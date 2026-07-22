@@ -109,22 +109,35 @@ Bootstrap e primeiro deploy em `sandbox.fiscalmod.bwb.pt` concluídos. Relatóri
 
 **S3C1 (ops, pós-deploy tooling):** medição em `:18080` com perfis fechados; 443 documents permanece deny-all; remover `:18080` no fim.
 
-**S3C2 (PR repo, pós-S3C1):** valores finais `rate=10r/s` / `burst=20`; site open + deny-all versionados no release; helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer systemd 5 min fail-safe; `:18080` desactivado no arm. **Promoção no host só após merge.**
+**S3C2 (PR repo, pós-S3C1):** valores finais `rate=10r/s` / `burst=20`; site open + deny-all versionados no release; helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer systemd 5 min + `nginx-open-boot-recovery`; flock em `/var/lock/bwb-fiscal-nginx-open.lock`; `:18080` desactivado no arm. **Promoção no host só após merge.**
 
 ### S3C2 — abertura controlada (fail-safe)
 
-Artefactos no release (`nginx/tls.open.conf`, `nginx/tls.deny.conf`, `nginx/limit-req-documents.conf`, units systemd):
+Artefactos no release (`nginx/tls.open.conf`, `nginx/tls.deny.conf`, `nginx/limit-req-documents.conf`, units systemd rollback + boot-recovery):
 
 | Op fechada | Comportamento |
 |---|---|
-| `nginx-open-arm <sha40>` | Instala open (paths fixos), zone 10r/s, remove measure `:18080`, `nginx -t`, reload; arma timer **5 min** de rollback |
-| `nginx-open-confirm <sha40>` | Cancela timer após gates (host+externo na ops de promoção) |
+| `nginx-open-arm <sha40>` | Instala open (paths fixos), zone 10r/s, remove measure `:18080`, `nginx -t`, reload; grava `armed`; arma timer **5 min** e exige `is-active`; se o timer falhar → restore deny-all + `-t` + reload + 403 |
+| `nginx-open-confirm <sha40>` | Grava `confirmed` **antes** de `stop`/`disable` do timer; falha de stop reporta erro mas mantém `confirmed` (fire = noop) |
 | `nginx-deny-all <sha40>` | Restaura deny-all, `nginx -t`, reload, verifica 403; cancela timer |
-| `nginx-open-rollback-fire` | Alvo do timer: se ainda `armed`, executa deny-all |
+| `nginx-open-rollback-fire` | Alvo do timer: se ainda `armed`, executa deny-all; se `confirmed`, noop |
+| `nginx-open-boot-recovery` | No boot: se `armed`, deny-all imediato (OnActiveSec pode reiniciar após reboot); `confirmed` permanece aberto |
 
-Sem paths/URLs/comandos arbitrários do operador. Updater **não** activa open. Legacy `install-nginx-open` continua rejeitado.
+Todas as ops `nginx-open-*` / `nginx-deny-all` tomam **flock exclusivo** em path fixo root-owned. Sem paths/URLs/comandos arbitrários do operador. Updater **não** activa open. Legacy `install-nginx-open` continua rejeitado.
 
-Open: `limit_req` burst=20 + `limit_req_status 429`; health fora do limiter; `X-Request-Id` inbound limpo.
+Open/deny: `location = /v1/documents`; HSTS `max-age=31536000` sem `includeSubDomains`; ACME em `^~ /.well-known/acme-challenge/`; redirect HTTPS só em `location /`. Open: `limit_req` burst=20 + `limit_req_status 429`; health fora do limiter; `X-Request-Id` inbound limpo.
+
+### S3C2 — incidentes pré-merge (corrigidos no Draft)
+
+| # | Achado | Risco | Correcção |
+|---|---|---|---|
+| 1 | Open aplicado antes do timer active | Nginx aberto sem fail-safe | Fail-closed deny-all + exigir `is-active` |
+| 2 | Confirm cancelava timer antes de `confirmed` | Aberto + `armed` sem timer | State `confirmed` antes de stop |
+| 3 | Sem serialização arm/confirm/rollback | Corrida confirm vs fire | `flock` exclusivo |
+| 4 | Reboot reinicia `OnActiveSec` | Janela aberta prolongada | `nginx-open-boot-recovery` |
+| 5 | `return 301` server-level | ACME quebrado (D2) | Redirect sob `location /` |
+| 6 | HSTS comentado nos templates | Live perderia HSTS | HSTS nos dois artefactos |
+| 7 | `location /v1/documents` prefix | Paths semelhantes à API | `location = /v1/documents` |
 
 ### S3C1 — matriz e thresholds (aprovados)
 
@@ -165,7 +178,7 @@ Zone provisória (S3A/S3B): `deploy/nginx/http.d/bwb-limit-req-documents-provisi
 
 Fluxo: helper root → parser allowlist (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL`) → `env -i` → drop para `bwb-fiscal-admin`. DSN/token **nunca** em argv/stdout/logs. `bwb-deploy` não lê `admin.env` nem tokens. `--output-file` é sempre escolhido pelo helper sob o dir de tokens.
 
-Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure <sha> sustained|burst|replay`, `admin-sandbox-ab-revoke-gate`, `nginx-open-arm|nginx-open-confirm|nginx-deny-all` (só pós-merge S3C2). Rejeitadas: `install-nginx-open` / `activate-open-candidate`.
+Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure <sha> sustained|burst|replay`, `admin-sandbox-ab-revoke-gate`, `nginx-open-arm|nginx-open-confirm|nginx-deny-all|nginx-open-boot-recovery` (só pós-merge S3C2). Rejeitadas: `install-nginx-open` / `activate-open-candidate`.
 
 ### Grants PostgreSQL (S3A artefact / S3B apply)
 

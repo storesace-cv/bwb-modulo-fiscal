@@ -348,9 +348,14 @@ deploy_verify_release_manifest() {
     test -f nginx/limit-req-documents.conf
     test -f systemd/bwb-fiscal-nginx-open-rollback.service
     test -f systemd/bwb-fiscal-nginx-open-rollback.timer
+    test -f systemd/bwb-fiscal-nginx-open-boot-recovery.service
     # Legacy open.candidate must never ship inside the release tree.
     test ! -e nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf
     grep -q 'deny all' nginx/tls.deny.conf
+    grep -q 'location = /v1/documents' nginx/tls.deny.conf
+    grep -q 'location = /v1/documents' nginx/tls.open.conf
+    grep -q 'Strict-Transport-Security "max-age=31536000"' nginx/tls.deny.conf
+    grep -q 'Strict-Transport-Security "max-age=31536000"' nginx/tls.open.conf
     grep -q 'limit_req zone=bwb_documents burst=20' nginx/tls.open.conf
     grep -q 'rate=10r/s' nginx/limit-req-documents.conf
     deploy_sha256_check SHA256SUMS

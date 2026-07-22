@@ -153,6 +153,7 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
     && grep -q 'nginx/tls.open.conf' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'nginx/tls.deny.conf' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'systemd/bwb-fiscal-nginx-open-rollback.timer' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'systemd/bwb-fiscal-nginx-open-boot-recovery.service' "${OUT_DIR}/SHA256SUMS" \
     && [[ ! -e "${OUT_DIR}/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" ]]; then
     ok "SHA256SUMS covers release files and omits migrate runner/open candidate"
   else
@@ -241,6 +242,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrat
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 if SECRET_SHOULD_NOT_LEAK=pwned \
@@ -324,6 +326,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 TOKEN_DIR="${TMP}/admin-tokens"
@@ -420,6 +423,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbo
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 GATE_TOKENS="${TMP}/gate-tokens"
@@ -492,24 +496,38 @@ else
 fi
 
 # Nginx deny-all / open / measure invariants (S3C2)
-if grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" \
+OPEN_CONF="${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf"
+DENY_CONF="${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf"
+if grep -q 'deny all' "${DENY_CONF}" \
+  && grep -q 'location = /v1/documents' "${DENY_CONF}" \
+  && grep -q 'location = /v1/documents' "${OPEN_CONF}" \
+  && ! grep -qE 'location[[:space:]]+/v1/documents[[:space:]]' "${DENY_CONF}" \
+  && ! grep -qE 'location[[:space:]]+/v1/documents[[:space:]]' "${OPEN_CONF}" \
+  && grep -q 'Strict-Transport-Security "max-age=31536000"' "${DENY_CONF}" \
+  && grep -q 'Strict-Transport-Security "max-age=31536000"' "${OPEN_CONF}" \
+  && ! grep -E '^[[:space:]]*add_header[[:space:]]+Strict-Transport-Security' "${DENY_CONF}" \
+    | grep -q 'includeSubDomains' \
+  && ! grep -E '^[[:space:]]*add_header[[:space:]]+Strict-Transport-Security' "${OPEN_CONF}" \
+    | grep -q 'includeSubDomains' \
+  && grep -q 'location ^~ /.well-known/acme-challenge/' "${DENY_CONF}" \
+  && grep -q 'location ^~ /.well-known/acme-challenge/' "${OPEN_CONF}" \
+  && grep -B2 'return 301 https://' "${DENY_CONF}" | grep -q 'location /' \
+  && grep -B2 'return 301 https://' "${OPEN_CONF}" | grep -q 'location /' \
   && grep -q 'listen 127.0.0.1:18080' "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
   && grep -q 'limit_req zone=bwb_documents burst=20' \
     "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
-  && grep -q 'limit_req zone=bwb_documents burst=20' \
-    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
-  && grep -q 'limit_req_status 429' \
-    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
+  && grep -q 'limit_req zone=bwb_documents burst=20' "${OPEN_CONF}" \
+  && grep -q 'limit_req_status 429' "${OPEN_CONF}" \
   && grep -q 'rate=10r/s' \
     "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" \
-  && grep -q 'proxy_set_header X-Request-Id ""' \
-    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
-  && grep -A4 'location = /v1/health' \
-    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
-    | grep -qv 'limit_req' \
+  && grep -q 'proxy_set_header X-Request-Id ""' "${OPEN_CONF}" \
+  && grep -A4 'location = /v1/health' "${OPEN_CONF}" | grep -qv 'limit_req' \
   && grep -q 'nginx-open-arm' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
-  && grep -q 'OnActiveSec=5min' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer"; then
-  ok "nginx deny-all + open(10r/s,burst=20,429) + measure + fail-safe timer"
+  && grep -q 'nginx-open-boot-recovery' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'flock' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'OnActiveSec=5min' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer" \
+  && [[ -f "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" ]]; then
+  ok "nginx deny-all + open(10r/s,burst=20,429,HSTS,ACME,exact path) + fail-safe"
 else
   bad "nginx open/deny/measure/timer invariants failed"
 fi
@@ -524,9 +542,11 @@ fi
 NGX="${TMP}/nginx-root"
 SYS="${TMP}/systemd-dir"
 CTLLOG="${TMP}/systemctl.log"
+NGX_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal"
+NGX_LOCK="${TMP}/nginx-open.lock"
 : >"${CTLLOG}"
 mkdir -p "${NGX}/sites-available" "${NGX}/sites-enabled" "${NGX}/conf.d" "${SYS}" \
-  "${TMP}/mockbin"
+  "${TMP}/mockbin" "${NGX_ETC}"
 # Seed deny-all as currently active public site + stale measure listener.
 cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${NGX}/sites-available/bwb-fiscal-sandbox"
 ln -sfn "${NGX}/sites-available/bwb-fiscal-sandbox" "${NGX}/sites-enabled/bwb-fiscal-sandbox"
@@ -541,10 +561,51 @@ set -Eeuo pipefail
 printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
 exit 0
 EOF
+# Mock systemctl: tracks timer active; optional FAIL_SYSTEMCTL_CMD marker.
 cat >"${TMP}/mockbin/systemctl" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf '%s\n' "\$*" >>"${CTLLOG}"
+cmd="\${1:-}"
+unit="\${2:-}"
+if [[ -f "${TMP}/FAIL_SYSTEMCTL_CMD" ]]; then
+  want="\$(tr -d '[:space:]' <"${TMP}/FAIL_SYSTEMCTL_CMD")"
+  if [[ "\${cmd}" == "\${want}" ]]; then
+    echo "error: mock systemctl fail cmd=\${cmd}" >&2
+    exit 1
+  fi
+fi
+case "\${cmd}" in
+  start)
+    if [[ "\${unit}" == "bwb-fiscal-nginx-open-rollback.timer" ]]; then
+      mkdir -p "${TMP}/mock-systemd-state"
+      echo active >"${TMP}/mock-systemd-state/rollback.timer"
+    fi
+    ;;
+  stop|disable)
+    if [[ "\${unit}" == "bwb-fiscal-nginx-open-rollback.timer" ]]; then
+      rm -f "${TMP}/mock-systemd-state/rollback.timer"
+    fi
+    ;;
+  is-active)
+    # systemctl is-active --quiet UNIT
+    quiet=0
+    target=""
+    for a in "\$@"; do
+      case "\$a" in
+        --quiet) quiet=1 ;;
+        *.timer|*.service) target="\$a" ;;
+      esac
+    done
+    if [[ "\${target}" == "bwb-fiscal-nginx-open-rollback.timer" \
+      && -f "${TMP}/mock-systemd-state/rollback.timer" ]]; then
+      [[ "\${quiet}" -eq 1 ]] || echo active
+      exit 0
+    fi
+    [[ "\${quiet}" -eq 1 ]] || echo inactive
+    exit 3
+    ;;
+esac
 exit 0
 EOF
 cat >"${TMP}/mockbin/curl" <<EOF
@@ -560,24 +621,40 @@ exit 1
 EOF
 chmod 0755 "${TMP}/mockbin/nginx" "${TMP}/mockbin/systemctl" "${TMP}/mockbin/curl"
 : >"${TMP}/nginx-invocations.log"
+rm -rf "${TMP}/mock-systemd-state"
+mkdir -p "${TMP}/mock-systemd-state"
 
 # Ensure helprefs release has nginx artefacts from OUT_DIR build
 if [[ ! -f "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/nginx/tls.open.conf" ]]; then
   cp -a "${OUT_DIR}/nginx" "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
   cp -a "${OUT_DIR}/systemd" "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
 fi
+# Keep release systemd boot-recovery in tree after rebuilds.
+cp -a "${OUT_DIR}/systemd/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/systemd/"
+cp -a "${OUT_DIR}/nginx/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/nginx/"
 
 run_ngx_helper() {
   PATH="${TMP}/mockbin:/usr/bin:/bin" \
     BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
-    BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+    BWB_DEPLOY_ETC="${NGX_ETC}" \
     BWB_HELPER_LIB="${TMP}/helprefs/lib" \
     BWB_NGINX_ROOT="${NGX}" \
     BWB_SYSTEMD_DIR="${SYS}" \
+    BWB_NGINX_LOCK="${NGX_LOCK}" \
     BWB_SYSTEMCTL=systemctl \
     BWB_NGINX_BIN=nginx \
     BWB_CURL=curl \
     bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" "$@"
+}
+
+reset_ngx_site_deny() {
+  cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${NGX}/sites-available/bwb-fiscal-sandbox"
+  rm -f "${NGX_ETC}/nginx-open.state" "${NGX_ETC}/nginx-open.state.new"
+  rm -rf "${NGX_LOCK}.mkdir"
+  rm -f "${TMP}/FAIL_SYSTEMCTL_CMD"
+  rm -rf "${TMP}/mock-systemd-state"
+  mkdir -p "${TMP}/mock-systemd-state"
+  : >"${CTLLOG}"
 }
 
 if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.out" 2>"${TMP}/arm.err"; then
@@ -588,9 +665,12 @@ if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.out" 2>"${TMP}/arm.err";
     && [[ -f "${NGX}/conf.d/bwb-limit-req-documents.conf" ]] \
     && [[ ! -e "${NGX}/conf.d/bwb-limit-req-documents-provisional.conf" ]] \
     && grep -q 'start bwb-fiscal-nginx-open-rollback.timer' "${CTLLOG}" \
-    && grep -q 'state=armed' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state" \
-    && [[ -f "${SYS}/bwb-fiscal-nginx-open-rollback.timer" ]]; then
-    ok "nginx-open-arm installs open, disables :18080 measure, arms 5m timer"
+    && grep -q 'is-active' "${CTLLOG}" \
+    && grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+    && [[ -f "${SYS}/bwb-fiscal-nginx-open-rollback.timer" ]] \
+    && [[ -f "${SYS}/bwb-fiscal-nginx-open-boot-recovery.service" ]] \
+    && [[ -f "${TMP}/mock-systemd-state/rollback.timer" ]]; then
+    ok "nginx-open-arm installs open, disables :18080 measure, arms active 5m timer"
   else
     bad "nginx-open-arm assertions failed"
     cat "${TMP}/arm.out" "${TMP}/arm.err" "${CTLLOG}" >&2 || true
@@ -600,12 +680,12 @@ else
   cat "${TMP}/arm.err" "${TMP}/arm.out" >&2 || true
 fi
 
-# confirm cancels timer
+# confirm writes confirmed before cancelling timer
 : >"${CTLLOG}"
 if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.out" 2>"${TMP}/confirm.err"; then
   if grep -q "nginx_open_confirm_ok sha=${HEAD}" "${TMP}/confirm.out" \
     && grep -q 'stop bwb-fiscal-nginx-open-rollback.timer' "${CTLLOG}" \
-    && grep -q 'state=confirmed' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"; then
+    && grep -q 'state=confirmed' "${NGX_ETC}/nginx-open.state"; then
     ok "nginx-open-confirm cancels rollback timer"
   else
     bad "nginx-open-confirm assertions failed"
@@ -616,13 +696,40 @@ else
   cat "${TMP}/confirm.err" >&2 || true
 fi
 
+# Late timer fire after confirmed is noop
+if run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.confirmed.out" 2>"${TMP}/fire.confirmed.err"; then
+  if grep -q 'nginx_open_rollback_fire=noop reason=state_confirmed' "${TMP}/fire.confirmed.out" \
+    && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox"; then
+    ok "rollback-fire is noop when confirmed"
+  else
+    bad "confirmed rollback-fire noop assertions failed"
+    cat "${TMP}/fire.confirmed.out" "${TMP}/fire.confirmed.err" >&2 || true
+  fi
+else
+  bad "rollback-fire after confirm failed"
+fi
+
+# Boot recovery: confirmed remains open
+if run_ngx_helper nginx-open-boot-recovery >"${TMP}/boot.confirmed.out" 2>"${TMP}/boot.confirmed.err"; then
+  if grep -q 'confirmed_remains_open' "${TMP}/boot.confirmed.out" \
+    && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -q 'state=confirmed' "${NGX_ETC}/nginx-open.state"; then
+    ok "boot-recovery leaves confirmed open"
+  else
+    bad "boot-recovery confirmed assertions failed"
+    cat "${TMP}/boot.confirmed.out" "${TMP}/boot.confirmed.err" >&2 || true
+  fi
+else
+  bad "boot-recovery confirmed failed"
+fi
+
 # Re-arm then fire timer rollback
 : >"${CTLLOG}"
 run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm2.out" 2>"${TMP}/arm2.err" || true
 if run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.out" 2>"${TMP}/fire.err"; then
   if grep -q 'nginx_deny_all_ok\|nginx_open_rollback_fire=ok' "${TMP}/fire.out" \
     && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
-    && grep -qE 'state=(denied|rolled_back)' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"; then
+    && grep -qE 'state=(denied|rolled_back)' "${NGX_ETC}/nginx-open.state"; then
     ok "nginx-open-rollback-fire restores deny-all"
   else
     bad "rollback-fire assertions failed"
@@ -633,7 +740,25 @@ else
   cat "${TMP}/fire.err" "${TMP}/fire.out" >&2 || true
 fi
 
+# Boot recovery: armed → deny-all
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+if run_ngx_helper nginx-open-boot-recovery >"${TMP}/boot.armed.out" 2>"${TMP}/boot.armed.err"; then
+  if grep -q 'action=deny_all' "${TMP}/boot.armed.out" \
+    && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -q 'state=boot_recovered' "${NGX_ETC}/nginx-open.state"; then
+    ok "boot-recovery restores deny-all when armed"
+  else
+    bad "boot-recovery armed assertions failed"
+    cat "${TMP}/boot.armed.out" "${TMP}/boot.armed.err" >&2 || true
+  fi
+else
+  bad "boot-recovery armed failed"
+  cat "${TMP}/boot.armed.err" >&2 || true
+fi
+
 # Explicit deny-all ok from open
+reset_ngx_site_deny
 run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
 if run_ngx_helper nginx-deny-all "${HEAD}" >"${TMP}/deny.out" 2>"${TMP}/deny.err"; then
   if grep -q "nginx_deny_all_ok sha=${HEAD}" "${TMP}/deny.out" \
@@ -649,7 +774,7 @@ else
 fi
 
 # Negative: confirm without arm
-rm -f "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"
+rm -f "${NGX_ETC}/nginx-open.state"
 if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.bad.out" 2>"${TMP}/confirm.bad.err"; then
   bad "confirm without arm must fail"
 else
@@ -674,11 +799,8 @@ cat >"${TMP}/mockbin/nginx" <<EOF
 set -Eeuo pipefail
 printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
 if [[ "\$*" == *"-t"* ]]; then
-  # Fail only when open config is staged (contains limit_req)
   if grep -q 'limit_req zone=bwb_documents' "${NGX}/sites-available/bwb-fiscal-sandbox" 2>/dev/null \
     || grep -q 'limit_req zone=bwb_documents' "${NGX}/sites-available/bwb-fiscal-sandbox.bwb.new" 2>/dev/null; then
-    # After mv, site is open — fail -t to trigger restore path on first arm attempt.
-    # Use a marker file to fail only once.
     if [[ ! -f "${TMP}/fail-t-once" ]]; then
       touch "${TMP}/fail-t-once"
       exit 1
@@ -688,7 +810,7 @@ fi
 exit 0
 EOF
 chmod 0755 "${TMP}/mockbin/nginx"
-cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${NGX}/sites-available/bwb-fiscal-sandbox"
+reset_ngx_site_deny
 if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.fail.out" 2>"${TMP}/arm.fail.err"; then
   bad "arm must fail when nginx -t fails"
 else
@@ -700,7 +822,7 @@ else
     cat "${TMP}/arm.fail.out" "${TMP}/arm.fail.err" >&2 || true
   fi
 fi
-# restore healthy mock nginx for any later tests
+# restore healthy mock nginx
 cat >"${TMP}/mockbin/nginx" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -708,6 +830,107 @@ printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
 exit 0
 EOF
 chmod 0755 "${TMP}/mockbin/nginx"
+
+# (1) Arm fail-closed when daemon-reload / enable / start fail after open
+for failcmd in daemon-reload enable start; do
+  reset_ngx_site_deny
+  printf '%s\n' "${failcmd}" >"${TMP}/FAIL_SYSTEMCTL_CMD"
+  if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.${failcmd}.out" 2>"${TMP}/arm.${failcmd}.err"; then
+    bad "arm must fail-closed when systemctl ${failcmd} fails"
+  else
+    if grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+      && grep -qi 'fail-closed' "${TMP}/arm.${failcmd}.err" \
+      && grep -qE 'state=denied' "${NGX_ETC}/nginx-open.state"; then
+      ok "arm fail-closed on systemctl ${failcmd} failure"
+    else
+      bad "arm fail-closed assertions failed for ${failcmd}"
+      cat "${TMP}/arm.${failcmd}.out" "${TMP}/arm.${failcmd}.err" >&2 || true
+    fi
+  fi
+done
+rm -f "${TMP}/FAIL_SYSTEMCTL_CMD"
+
+# (2) Confirm: state write failure leaves armed + timer; no cancel
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+mkdir -p "${NGX_ETC}/nginx-open.state.new"
+: >"${CTLLOG}"
+if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.write.out" 2>"${TMP}/confirm.write.err"; then
+  bad "confirm must fail when state write fails"
+else
+  if grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+    && ! grep -q 'stop bwb-fiscal-nginx-open-rollback.timer' "${CTLLOG}" \
+    && [[ -f "${TMP}/mock-systemd-state/rollback.timer" ]]; then
+    ok "confirm state-write failure keeps armed+timer"
+  else
+    bad "confirm state-write failure assertions failed"
+    cat "${TMP}/confirm.write.out" "${TMP}/confirm.write.err" "${CTLLOG}" >&2 || true
+  fi
+fi
+rm -rf "${NGX_ETC}/nginx-open.state.new"
+
+# (2b) Confirm: stop/disable failure after confirmed — remains confirmed/open
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf 'stop\n' >"${TMP}/FAIL_SYSTEMCTL_CMD"
+if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.stop.out" 2>"${TMP}/confirm.stop.err"; then
+  bad "confirm must report error when timer stop fails"
+else
+  if grep -q 'state=confirmed' "${NGX_ETC}/nginx-open.state" \
+    && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -qi 'timer stop/disable failed\|confirmed but timer' "${TMP}/confirm.stop.err"; then
+    ok "confirm stop failure keeps confirmed open"
+  else
+    bad "confirm stop-failure assertions failed"
+    cat "${TMP}/confirm.stop.out" "${TMP}/confirm.stop.err" >&2 || true
+  fi
+fi
+rm -f "${TMP}/FAIL_SYSTEMCTL_CMD"
+# Late fire must still noop on confirmed
+if run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.after.stop.out" 2>/dev/null \
+  && grep -q 'noop reason=state_confirmed' "${TMP}/fire.after.stop.out"; then
+  ok "rollback-fire noop after confirm-with-stop-failure"
+else
+  bad "rollback-fire should noop after confirmed despite stop failure"
+fi
+
+# (3) Concurrency: confirm vs rollback-fire serialized by lock
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/race.confirm.out" 2>"${TMP}/race.confirm.err" &
+c_pid=$!
+run_ngx_helper nginx-open-rollback-fire >"${TMP}/race.fire.out" 2>"${TMP}/race.fire.err" &
+f_pid=$!
+wait "${c_pid}" || true
+wait "${f_pid}" || true
+final_state="$(grep -E '^state=' "${NGX_ETC}/nginx-open.state" | head -1 || true)"
+if [[ "${final_state}" == "state=confirmed" ]]; then
+  if ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -qE 'nginx_open_confirm_ok|noop reason=state_confirmed' \
+      "${TMP}/race.confirm.out" "${TMP}/race.fire.out"; then
+    ok "confirm vs rollback race ends confirmed (serialized)"
+  else
+    bad "confirmed race invariants failed"
+    cat "${TMP}/race.confirm.out" "${TMP}/race.fire.out" >&2 || true
+  fi
+elif [[ "${final_state}" == "state=rolled_back" || "${final_state}" == "state=denied" ]]; then
+  if grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox"; then
+    ok "confirm vs rollback race ends deny-all (serialized)"
+  else
+    bad "rolled_back race missing deny-all"
+  fi
+else
+  bad "confirm vs rollback race left unexpected state=${final_state}"
+  cat "${TMP}/race.confirm.out" "${TMP}/race.fire.out" "${NGX_ETC}/nginx-open.state" >&2 || true
+fi
+# Never leave open+armed without an active timer contract after race
+if grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" 2>/dev/null \
+  && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox"; then
+  bad "race left open+armed (unsafe)"
+else
+  ok "race did not leave unsafe open+armed"
+fi
+
 
 # E2E script: no eval; quoted curl array; no token in argv.
 # Measure is Go binary with closed profiles (sustained/burst/replay) — caps live in code + helper.
@@ -1005,6 +1228,7 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 (
@@ -1018,6 +1242,7 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
@@ -1068,6 +1293,7 @@ printf '%s\n' "${HEAD}" >"${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
@@ -1236,6 +1462,7 @@ seed_sha_release() {
     fixtures/sandbox/create-document.invalid.json \
     nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
     systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
+    systemd/bwb-fiscal-nginx-open-boot-recovery.service \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
   )
 }
