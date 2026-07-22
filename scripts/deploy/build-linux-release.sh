@@ -67,15 +67,22 @@ if [[ -d "${OUT_DIR}" ]]; then
   rm -rf "${OUT_DIR}"
 fi
 
-mkdir -p "${OUT_DIR}/lib"
+mkdir -p "${OUT_DIR}/lib" "${OUT_DIR}/fixtures/sandbox"
 
 echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
 CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
+CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-admin" ./cmd/fiscal-admin
 cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
-chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate"
-chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist"
+cp "${ROOT}/deploy/admin.env.allowlist" "${OUT_DIR}/lib/admin.env.allowlist"
+install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-e2e.sh" "${OUT_DIR}/fiscal-sandbox-e2e"
+install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-measure.sh" "${OUT_DIR}/fiscal-sandbox-measure"
+cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${OUT_DIR}/fixtures/sandbox/"
+chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
+  "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
+chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" \
+  "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
@@ -85,8 +92,15 @@ printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
   deploy_sha256_files \
     fiscal-api \
     fiscal-migrate \
+    fiscal-admin \
+    fiscal-sandbox-e2e \
+    fiscal-sandbox-measure \
     lib/allowlist.sh \
     lib/migrate.env.allowlist \
+    lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
     COMMIT \
     EXPECTED_SCHEMA_VERSION \
     >SHA256SUMS

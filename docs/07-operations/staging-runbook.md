@@ -18,14 +18,18 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live update
 | `.env.local` | Operator SSH paths (ignored, `chmod 600`) |
 | `.env.deploy.local` | Runtime allowlist → `fiscal.env` (ignored, `600`) |
 | `.env.migrate.local` | Migration DSN → `migrate.env` (ignored, `600`) |
+| `.env.admin.local` | Admin DSN → `admin.env` (ignored, `600`; S3A+) |
 | `deploy/env.allowlist` | Allowed runtime keys |
 | `deploy/migrate.env.allowlist` | Allowed migrate keys |
+| `deploy/admin.env.allowlist` | Allowed admin keys (`DRIVER`+`URL` only) |
 | `deploy/systemd/bwb-fiscal-api.service` | API unit; **only** `fiscal.env` |
 | `deploy/nginx/bwb-fiscal-sandbox-http.conf` | HTTP bootstrap (no cert paths; IPv4 only in D1) |
 | `deploy/nginx/bwb-fiscal-sandbox-tls.conf` | TLS site (enable after ACME; IPv4 only in D1) |
 | `/opt/bwb-modulo-fiscal/releases/<sha>/` | Immutable release + `COMMIT` + `SHA256SUMS` |
 | `/etc/bwb-modulo-fiscal/fiscal.env` | Runtime `root:root` `0600` |
 | `/etc/bwb-modulo-fiscal/migrate.env` | Migration `root:root` `0600` |
+| `/etc/bwb-modulo-fiscal/admin.env` | Admin DSN `root:root` `0600` (never systemd; env -i) |
+| `/var/lib/bwb-fiscal-admin/tokens/` | Token files `bwb-fiscal-admin` `0700`/`0600` |
 | `/etc/bwb-modulo-fiscal/backups/` | Config backups only (never under `/opt/releases`) |
 
 ## PostgreSQL roles
@@ -94,6 +98,74 @@ bash scripts/deploy/check-antipatterns.sh
 ## D2 status (2026-07-21)
 
 Bootstrap e primeiro deploy em `sandbox.fiscalmod.bwb.pt` concluídos. Relatório: [d2-staging-bootstrap-report.md](d2-staging-bootstrap-report.md).
+
+## S3A / S3B / S3C — credential_store staging (Nginx)
+
+**S3A (este PR, só repositório):** artefacts de build/helper/`admin.env`/grants/Nginx fechado + candidato + medição + runbook. **Sem SSH, sem deploy, sem alteração DNS/Nginx remoto.**
+
+**S3B (pós-merge S3A, no host):** deploy release S3A; migrate `2→3` se necessário; aplicar `deploy/postgres/grants-schema3-runtime-admin.sql`; auditoria de privilégios; provisionar scopes/credenciais via helper; E2E em `http://127.0.0.1:8080`; medição de `limit_req` **apenas** em `http://127.0.0.1:18080`; HTTPS público mantém `/v1/documents` **deny-all**.
+
+**S3C (PR separado após evidência S3B):** promover `rate`/`burst` medidos para a conf HTTPS canónica aberta; desactivar listener `:18080`; verificar inacessível.
+
+### Topologia
+
+| Superfície | Path/porto | Estado em S3A | Estado em S3B | Estado pós-S3C |
+|---|---|---|---|---|
+| Público TLS | `443` `/v1/documents` | deny-all (instalável) | deny-all | aberto + `limit_req` final |
+| Candidato aberto | `deploy/nginx/candidates/*.open.candidate.conf` | versionado; **não activável** pelo helper/updater | não activar | fundido na canónica |
+| Medição | `127.0.0.1:18080` | ficheiro versionado | activo só loopback | desactivado + verificado |
+| API directa | `127.0.0.1:8080` | N/A | gates E2E (sem medir 429 aqui) | opcional debug |
+
+Zone provisória (S3A/S3B): `deploy/nginx/http.d/bwb-limit-req-documents-provisional.conf` — `10r/s`, `burst=20` (idêntica no candidato e na medição). Health fora do `limit_req`; `X-Request-Id` inbound limpo (`proxy_set_header X-Request-Id ""`).
+
+### admin.env e custódia
+
+| Path | Owner | Mode | Quem lê |
+|---|---|---|---|
+| `/etc/bwb-modulo-fiscal/admin.env` | `root:root` | `0600` | helper (root) apenas |
+| `/var/lib/bwb-fiscal-admin/tokens/` | `bwb-fiscal-admin` | `0700` | só `bwb-fiscal-admin` |
+| ficheiro token | `bwb-fiscal-admin` | `0600` | E2E/admin CLI |
+
+Fluxo: helper root → parser allowlist (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL`) → `env -i` → drop para `bwb-fiscal-admin`. DSN/token **nunca** em argv/stdout/logs. `bwb-deploy` não lê `admin.env` nem tokens. `--output-file` é sempre escolhido pelo helper sob o dir de tokens.
+
+Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure`. Rejeitadas: `install-nginx-open` / activação do candidato.
+
+### Teto de medição (S3B)
+
+- ≤60 requests, ≤5 concorrentes, ≤60 segundos (`fiscal-sandbox-measure`).
+- Base fixa `http://127.0.0.1:18080` (não HTTPS público).
+- Relatório: contagens `ok`/`429`/`other` + duração — sem token/NIF/body.
+
+### Sequência S3B (operador)
+
+1. SSH multiplexado (`ControlMaster`) com key/known_hosts do `.env.local` — fingerprint do painel do provider.
+2. Backup PG + restore de validação (fora deste runbook detalhado).
+3. `update-staging.sh` com `.env.deploy.local` / `.env.migrate.local` / `.env.admin.local` (`chmod 600`).
+4. Confirmar `version=3 dirty=false`; aplicar grants SQL como owner; testes negativos de privilégio.
+5. Bootstrap OS se em falta: user `bwb-fiscal-admin`, dirs tokens, `admin.env.allowlist` em `/usr/local/lib/bwb-fiscal-deploy/`, sudoers só para o helper.
+6. Activar conf de medição loopback + zone `http.d` (não o candidato aberto); `nginx -t` && reload.
+7. Helper: scope ops + scope carga; issue credenciais; E2E casos allowlisted em `:8080`.
+8. Copiar token de carga para `measure.token` (helper/path allowlisted); `admin-sandbox-measure`.
+9. Registar evidência rate/burst/`Retry-After` (sem segredos). Revogar credencial de carga.
+10. Prova A→B: revogar A; E2E com B; A deve falhar auth.
+11. Prova externa: `:18080` inacessível de fora (UFW); `:443` documents ainda 403 deny-all.
+
+### Rollback deny-all (se abertura falhar em S3C)
+
+1. Restaurar `deploy/nginx/bwb-fiscal-sandbox-tls.conf` (documents `deny all`) como site activo.
+2. `nginx -t` && reload.
+3. Desactivar/remover conf `:18080`.
+4. Verificar `/v1/health` OK e `/v1/documents` 403.
+
+### SSH multiplexado
+
+Reutilizar o mux do updater (`ControlMaster` + `ControlPath` + `ControlPersist`). Não abrir tempestade TCP. `deploy_ssh_mux_stop` no EXIT. Proibido `StrictHostKeyChecking=no`.
+
+### Critérios para abrir PR S3C
+
+- Evidência S3B de 429 sob tetos; valores finais de `rate`/`burst` documentados.
+- HTTPS público ainda deny-all até merge+apply S3C.
+- Nenhum token/DSN/NIF completo em logs ou PRs.
 
 ## Incidentes (D1 review)
 

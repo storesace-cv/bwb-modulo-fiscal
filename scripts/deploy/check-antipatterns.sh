@@ -48,7 +48,26 @@ for f in "${scan_files[@]}"; do
     echo "error: generic privileged command via sudo is forbidden in ${f} (use deploy helper)" >&2
     failed=1
   fi
+  if grep -nE 'open\.candidate|tls\.open' "${f}" | grep -nE 'install-env|install-release|scp|nginx.*enable|sites-enabled'; then
+    echo "error: updater/helper must not activate open Nginx candidate in ${f}" >&2
+    failed=1
+  fi
 done
+
+# Closed public TLS must keep deny-all on documents.
+if ! grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf"; then
+  echo "error: public TLS config must deny-all /v1/documents" >&2
+  failed=1
+fi
+if ! grep -q 'listen 127.0.0.1:18080' "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf"; then
+  echo "error: measure listener must be loopback-only" >&2
+  failed=1
+fi
+if grep -nE 'listen[[:space:]]+18080|listen[[:space:]]+\*:18080|listen[[:space:]]+0\.0\.0\.0:18080' \
+  "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf"; then
+  echo "error: measure listener must not bind non-loopback" >&2
+  failed=1
+fi
 
 if [[ "${failed}" -ne 0 ]]; then
   exit 1

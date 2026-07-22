@@ -103,7 +103,7 @@ jobs:
       - name: License check
         run: |
           ALLOWED="$(tr '\n' ',' < licenses/allowlist.txt | sed 's/,$//')"
-          go-licenses check ./cmd/fiscal-api ./cmd/fiscal-migrate \
+          go-licenses check ./cmd/fiscal-api ./cmd/fiscal-migrate ./cmd/fiscal-admin \
             --ignore github.com/storesace-cv/bwb-modulo-fiscal \
             --ignore modernc.org/mathutil \
             --allowed_licenses="$ALLOWED"

@@ -143,13 +143,17 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
   fi
   if ! grep -q 'remote-migrate-run.sh' "${OUT_DIR}/SHA256SUMS" \
     && [[ ! -e "${OUT_DIR}/remote-migrate-run.sh" ]] \
+    && grep -q 'fiscal-admin' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'fiscal-sandbox-e2e' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'lib/admin.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/allowlist.sh' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/migrate.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'EXPECTED_SCHEMA_VERSION' "${OUT_DIR}/SHA256SUMS" \
-    && grep -q 'COMMIT' "${OUT_DIR}/SHA256SUMS"; then
-    ok "SHA256SUMS covers release files and omits migrate runner"
+    && grep -q 'COMMIT' "${OUT_DIR}/SHA256SUMS" \
+    && [[ ! -e "${OUT_DIR}/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" ]]; then
+    ok "SHA256SUMS covers release files and omits migrate runner/open candidate"
   else
-    bad "SHA256SUMS incorrect (runner present or incomplete)"
+    bad "SHA256SUMS incorrect (runner present, open candidate shipped, or incomplete)"
   fi
   if [[ "$(tr -d '[:space:]' <"${OUT_DIR}/EXPECTED_SCHEMA_VERSION")" == "3" ]]; then
     ok "EXPECTED_SCHEMA_VERSION metadata present"
@@ -202,6 +206,7 @@ mkdir -p "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}" \
 cp -a "${OUT_DIR}/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${TMP}/helprefs/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/helprefs/lib/migrate.env.allowlist"
+cp "${ROOT}/deploy/admin.env.allowlist" "${TMP}/helprefs/lib/admin.env.allowlist"
 cat >"${TMP}/helprefs/etc/bwb-modulo-fiscal/migrate.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://u:p@127.0.0.1/db?x=1#keep
@@ -224,7 +229,13 @@ EOF
 chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrate"
 (
   cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
-  deploy_sha256_files fiscal-api fiscal-migrate lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 if SECRET_SHOULD_NOT_LEAK=pwned \
   BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
@@ -264,6 +275,149 @@ if grep -q 'BWB_\* test overrides are forbidden when EUID=0' "${ROOT}/scripts/de
   ok "helper refuses root overrides and drops privileges via runuser/setpriv"
 else
   bad "root override / drop-priv guards missing"
+fi
+
+# --- helper admin: env -i, no DSN leak, token path chosen by helper, open candidate rejected ---
+cat >"${TMP}/helprefs/etc/bwb-modulo-fiscal/admin.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://adm:SECRET_ADM_DSN@127.0.0.1/db
+EOF
+chmod_restrict "${TMP}/helprefs/etc/bwb-modulo-fiscal/admin.env"
+ADMIN_EUID_LOG="${TMP}/admin-euid.log"
+cat >"${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'euid=%s driver=%s url_set=%s path=%s home=%s leak=%s\n' \
+  "\${EUID}" "\${FISCAL_DATABASE_DRIVER:-}" \
+  "\$([ -n "\${FISCAL_DATABASE_URL:-}" ] && echo 1 || echo 0)" \
+  "\${PATH:-}" "\${HOME:-}" "\${SECRET_SHOULD_NOT_LEAK:-}" >"${ADMIN_EUID_LOG}"
+[[ -z "\${SECRET_SHOULD_NOT_LEAK:-}" ]] || exit 1
+[[ "\${FISCAL_DATABASE_DRIVER}" == "postgres" && -n "\${FISCAL_DATABASE_URL}" ]] || exit 1
+# Emulate token write when --output-file is present
+outf=""
+prev=""
+for a in "\$@"; do
+  if [[ "\${prev}" == "--output-file" ]]; then outf="\${a}"; fi
+  prev="\${a}"
+done
+if [[ -n "\${outf}" ]]; then
+  printf 'bwb_sbox_synthetic_token_fixture_only\n' >"\${outf}"
+  chmod 0600 "\${outf}"
+fi
+echo "credential_id=cred-synth-001 status=active"
+EOF
+chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
+(
+  cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+)
+TOKEN_DIR="${TMP}/admin-tokens"
+mkdir -p "${TOKEN_DIR}"
+if SECRET_SHOULD_NOT_LEAK=pwned \
+  BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${TMP}/helprefs/lib" \
+  BWB_ADMIN_TOKEN_DIR="${TOKEN_DIR}" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  admin-credential-issue "${HEAD}" "scope-synth-001" "operator-test" \
+  >"${TMP}/ha.out" 2>"${TMP}/ha.err"; then
+  if grep -q 'admin_credential_issue_ok' "${TMP}/ha.out" \
+    && [[ -f "${ADMIN_EUID_LOG}" ]] \
+    && grep -q 'url_set=1' "${ADMIN_EUID_LOG}" \
+    && grep -q 'driver=postgres' "${ADMIN_EUID_LOG}" \
+    && ! grep -q 'SECRET_ADM_DSN' "${TMP}/ha.out" "${TMP}/ha.err" "${ADMIN_EUID_LOG}" \
+    && ! grep -q 'postgres://' "${TMP}/ha.out" "${TMP}/ha.err" \
+    && [[ -f "${TOKEN_DIR}/current.token" ]] \
+    && ! grep -q 'bwb_sbox_' "${TMP}/ha.out" "${TMP}/ha.err"; then
+    ok "helper admin issue uses env -i (no DSN/token leak); token path helper-chosen"
+  else
+    bad "helper admin issue assertions failed"
+    cat "${TMP}/ha.out" "${TMP}/ha.err" "${ADMIN_EUID_LOG}" >&2 || true
+  fi
+else
+  bad "helper admin-credential-issue failed"
+  cat "${TMP}/ha.err" >&2 || true
+fi
+
+if BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${TMP}/helprefs/lib" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" install-nginx-open \
+  >"${TMP}/ngopen.out" 2>"${TMP}/ngopen.err"; then
+  bad "helper must reject open nginx activation"
+else
+  if grep -qi 'cannot be activated' "${TMP}/ngopen.err"; then
+    ok "helper rejects install-nginx-open / open candidate activation"
+  else
+    bad "open candidate rejection message missing"
+    cat "${TMP}/ngopen.err" >&2 || true
+  fi
+fi
+
+# admin.env allowlist rejects extra keys
+cat >"${TMP}/admin.bad.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://adm:x@127.0.0.1/db
+FISCAL_HTTP_ADDR=127.0.0.1:8080
+EOF
+chmod_restrict "${TMP}/admin.bad.env"
+if deploy_validate_exact_allowlisted_file "${ROOT}/deploy/admin.env.allowlist" "${TMP}/admin.bad.env" \
+  >"${TMP}/admin.bad.out" 2>"${TMP}/admin.bad.err"; then
+  bad "admin allowlist should reject extra keys"
+else
+  ok "admin.env allowlist rejects non-allowlisted keys"
+fi
+cat >"${TMP}/admin.good.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://adm:x@127.0.0.1/db
+EOF
+chmod_restrict "${TMP}/admin.good.env"
+if deploy_validate_exact_allowlisted_file "${ROOT}/deploy/admin.env.allowlist" "${TMP}/admin.good.env"; then
+  ok "admin.env allowlist accepts DRIVER+URL only"
+else
+  bad "admin.env allowlist rejected valid file"
+fi
+
+# Nginx closed / measure / candidate invariants
+if grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" \
+  && grep -q 'listen 127.0.0.1:18080' "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
+  && grep -q 'limit_req zone=bwb_documents burst=20' \
+    "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
+  && grep -q 'limit_req zone=bwb_documents burst=20' \
+    "${ROOT}/deploy/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" \
+  && grep -q 'proxy_set_header X-Request-Id ""' \
+    "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
+  && grep -A4 'location = /v1/health' \
+    "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
+    | grep -qv 'limit_req'; then
+  ok "nginx closed deny-all; measure loopback+limit_req; health outside limiter"
+else
+  bad "nginx closed/measure/candidate invariants failed"
+fi
+if ! grep -qE 'listen[[:space:]]+18080|listen[[:space:]]+\*:18080|0\.0\.0\.0:18080' \
+  "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf"; then
+  ok "measure listener has no non-loopback bind"
+else
+  bad "measure listener binds non-loopback"
+fi
+
+# E2E/measure scripts: no eval; caps; no token argv patterns
+if ! grep -nE '^[^#]*\beval\b' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF '[[ "${TOTAL}" -le 60 ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF '[[ "${CONCURRENCY}" =~ ^[1-5]$ ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF '[[ "${DURATION_SEC}" -le 60 ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && ! grep -nE 'curl[^\n]*Bearer|Authorization: Bearer \$\{' \
+    "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh"; then
+  ok "e2e/measure: no eval; caps; token not in curl argv"
+else
+  bad "e2e/measure safety checks failed"
 fi
 
 # Activate/install require full manifest (not only COMMIT)
@@ -375,7 +529,13 @@ seed_sha_release() {
   printf '%s\n' "${sha}" >"${dest}/COMMIT"
   (
     cd "${dest}"
-    deploy_sha256_files fiscal-api fiscal-migrate lib/allowlist.sh lib/migrate.env.allowlist COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+    deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
   )
 }
 
@@ -402,8 +562,13 @@ cat >"${TMP}/migrate.live.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://mig:CANARY_MIG@127.0.0.1/db?x=1#keep
 EOF
+cat >"${TMP}/admin.live.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://adm:CANARY_ADM@127.0.0.1/db
+EOF
 chmod_restrict "${TMP}/fiscal.live.env"
 chmod_restrict "${TMP}/migrate.live.env"
+chmod_restrict "${TMP}/admin.live.env"
 touch "${TMP}/id_test" "${TMP}/known_hosts"
 chmod 0600 "${TMP}/id_test"
 chmod 0644 "${TMP}/known_hosts"
@@ -431,13 +596,18 @@ cat >"${TMP}/migrate.old.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://mig:OLD_MIG@127.0.0.1/db
 EOF
-chmod_restrict "${TMP}/fiscal.old.env" "${TMP}/migrate.old.env"
+cat >"${TMP}/admin.old.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://adm:OLD_ADM@127.0.0.1/db
+EOF
+chmod_restrict "${TMP}/fiscal.old.env" "${TMP}/migrate.old.env" "${TMP}/admin.old.env"
 
 seed_old_envs() {
   local fs="$1"
   mkdir -p "${fs}/etc/bwb-modulo-fiscal/backups" "${fs}/tmp" "${fs}/opt/bwb-modulo-fiscal/releases"
   cp "${TMP}/fiscal.old.env" "${fs}/etc/bwb-modulo-fiscal/fiscal.env"
   cp "${TMP}/migrate.old.env" "${fs}/etc/bwb-modulo-fiscal/migrate.env"
+  cp "${TMP}/admin.old.env" "${fs}/etc/bwb-modulo-fiscal/admin.env"
   chmod 0600 "${fs}/etc/bwb-modulo-fiscal/"*.env
 }
 
@@ -445,7 +615,9 @@ assert_envs_restored_old() {
   local fs="$1"
   grep -q 'OLD_SECRET_TOKEN' "${fs}/etc/bwb-modulo-fiscal/fiscal.env" \
     && grep -q 'OLD_MIG' "${fs}/etc/bwb-modulo-fiscal/migrate.env" \
-    && ! grep -q 'CANARY_SECRET' "${fs}/etc/bwb-modulo-fiscal/fiscal.env"
+    && grep -q 'OLD_ADM' "${fs}/etc/bwb-modulo-fiscal/admin.env" \
+    && ! grep -q 'CANARY_SECRET' "${fs}/etc/bwb-modulo-fiscal/fiscal.env" \
+    && ! grep -q 'CANARY_ADM' "${fs}/etc/bwb-modulo-fiscal/admin.env"
 }
 
 run_live() {
@@ -477,6 +649,7 @@ EOF
     ENV_LOCAL="${TMP}/operator.live.env" \
     ENV_DEPLOY="${TMP}/fiscal.live.env" \
     ENV_MIGRATE="${TMP}/migrate.live.env" \
+    ENV_ADMIN="${TMP}/admin.live.env" \
     "$@" \
     bash "${ROOT}/scripts/deploy/update-staging.sh" >"${out}" 2>"${err}"
 }
@@ -499,14 +672,18 @@ if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
     && grep -q 'install_release=ok' "${TMP}/live.out" \
     && grep -q 'owner=root' "${TMP}/live.out" \
     && grep -q 'env_backup=ok' "${TMP}/live.out" \
+    && grep -q 'admin_env_allowlist=ok' "${TMP}/live.out" \
+    && grep -q 'install_env=ok mode=0600 owner=root names=fiscal,migrate,admin' "${TMP}/live.out" \
     && [[ -d "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}" ]] \
+    && [[ -f "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin" ]] \
     && [[ ! -e "${MOCK_FS}/opt/bwb-modulo-fiscal/releases/${HEAD}/remote-migrate-run.sh" ]] \
+    && [[ -f "${MOCK_FS}/etc/bwb-modulo-fiscal/admin.env" ]] \
     && grep -q 'bwb-fiscal-deploy-helper' "${MOCK_LOG}" \
     && grep -q 'systemctl restart' "${MOCK_LOG}" \
     && ! grep -E 'sudo -n bash|sudo bash' "${MOCK_LOG}" \
     && ! grep -E '^[^#]*sudo -n bash|^[^#]*sudo bash' "${ROOT}/scripts/deploy/"*.sh \
     && ! grep -q 'CANARY' "${TMP}/live.out" "${TMP}/live.err"; then
-    ok "live path: closed helper, health, promote"
+    ok "live path: closed helper, health, promote, admin.env"
   else
     bad "live happy-path assertions failed"
     cat "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" >&2 || true

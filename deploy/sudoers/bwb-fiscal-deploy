@@ -7,15 +7,21 @@
 # Replace DEPLOY_USER with the dedicated deploy account (never the API user).
 #
 # D2 bootstrap (order matters):
-#   1. Create drop-priv migrate user (no login shell, no password):
+#   1. Create drop-priv users (no login shell, no password):
 #        useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin \
 #          --user-group bwb-fiscal-migrate
+#        useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin \
+#          --user-group bwb-fiscal-admin
+#        install -d -m 0700 -o bwb-fiscal-admin -g bwb-fiscal-admin \
+#          /var/lib/bwb-fiscal-admin /var/lib/bwb-fiscal-admin/tokens
 #   2. Install helper libraries (root-owned, not from a release tree at runtime):
 #        install -d -m 0755 -o root -g root /usr/local/lib/bwb-fiscal-deploy
 #        install -m 0644 -o root -g root scripts/deploy/lib/allowlist.sh \
 #          /usr/local/lib/bwb-fiscal-deploy/allowlist.sh
 #        install -m 0644 -o root -g root deploy/migrate.env.allowlist \
 #          /usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist
+#        install -m 0644 -o root -g root deploy/admin.env.allowlist \
+#          /usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist
 #   3. Install closed helper:
 #        install -m 0755 -o root -g root scripts/deploy/remote-deploy-helper.sh \
 #          /usr/local/sbin/bwb-fiscal-deploy-helper
@@ -23,8 +29,9 @@
 #        install -m 0440 this-file /etc/sudoers.d/bwb-fiscal-deploy
 #        visudo -cf /etc/sudoers.d/bwb-fiscal-deploy
 #
-# The helper reads migrate.env as root, then runs fiscal-migrate via runuser/setpriv
-# as bwb-fiscal-migrate with a cleaned environment (only FISCAL_DATABASE_*).
+# The helper reads migrate.env/admin.env as root, then runs binaries via runuser/setpriv
+# with env -i (only FISCAL_DATABASE_*). fiscal-admin never runs as root.
+# Open Nginx candidate cannot be activated via this helper.
 # Release scripts/binaries are never executed as root.
 
 DEPLOY_USER ALL=(root) NOPASSWD: /usr/local/sbin/bwb-fiscal-deploy-helper

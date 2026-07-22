@@ -1,0 +1,19 @@
+{
+  "external_id": "FIXTURE-SBOX-EXT-MISMATCH",
+  "document_type": "invoice",
+  "currency": "AOA",
+  "issued_at": "2026-07-21T10:00:00+01:00",
+  "seller": {
+    "tax_id": "FIXTURE-NIF-OTHER-9999",
+    "name": "Fixture Seller Other"
+  },
+  "lines": [
+    {
+      "line_id": "L1",
+      "description": "Fixture line",
+      "quantity": "1",
+      "unit_price": "10.50",
+      "tax_code": "NOR"
+    }
+  ]
+}
