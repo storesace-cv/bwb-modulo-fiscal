@@ -758,6 +758,152 @@ else
   fi
 fi
 
+# Activate must replace symlink-to-directory (GNU mv -T / test harness ln -sfn), never nest current.new.
+ACT_OLD="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+ACT_ROOT="${TMP}/act-symlink"
+mkdir -p "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases" \
+  "${ACT_ROOT}/etc/bwb-modulo-fiscal" \
+  "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy"
+cp -a "${OUT_DIR}/." "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}/"
+cp -a "${OUT_DIR}/." "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/"
+printf '%s\n' "${ACT_OLD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}/COMMIT"
+printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COMMIT"
+(
+  cd "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}"
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+)
+(
+  cd "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}"
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+)
+cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
+cp "${ROOT}/deploy/migrate.env.allowlist" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist"
+cp "${ROOT}/deploy/admin.env.allowlist" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist"
+ln -sfn "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}" "${ACT_ROOT}/opt/bwb-modulo-fiscal/current"
+if BWB_DEPLOY_OPT="${ACT_ROOT}/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${ACT_ROOT}/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" activate "${HEAD}" \
+  >"${TMP}/act-symlink.out" 2>"${TMP}/act-symlink.err"; then
+  active_resolved="$(readlink "${ACT_ROOT}/opt/bwb-modulo-fiscal/current")"
+  if [[ "${active_resolved}" == "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}" ]] \
+    && [[ ! -e "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}/current.new" ]] \
+    && [[ ! -e "${ACT_ROOT}/opt/bwb-modulo-fiscal/current.new" ]] \
+    && grep -q "activate_ok sha=${HEAD}" "${TMP}/act-symlink.out" \
+    && BWB_DEPLOY_OPT="${ACT_ROOT}/opt/bwb-modulo-fiscal" \
+      BWB_DEPLOY_ETC="${ACT_ROOT}/etc/bwb-modulo-fiscal" \
+      BWB_HELPER_LIB="${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy" \
+      bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" current-sha \
+      | grep -q "current_sha=${HEAD}"; then
+    ok "activate replaces symlink-to-dir; current-sha matches; no nested current.new"
+  else
+    bad "activate symlink replace assertions failed"
+    ls -la "${ACT_ROOT}/opt/bwb-modulo-fiscal/" "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}/" >&2 || true
+    cat "${TMP}/act-symlink.out" "${TMP}/act-symlink.err" >&2 || true
+  fi
+else
+  bad "activate symlink-to-dir should succeed under test overrides"
+  cat "${TMP}/act-symlink.err" >&2 || true
+fi
+
+# Replacement failure must not print activate_ok (current is a real directory).
+ACT_FAIL="${TMP}/act-fail"
+mkdir -p "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}" \
+  "${ACT_FAIL}/etc/bwb-modulo-fiscal" \
+  "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy"
+cp -a "${OUT_DIR}/." "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/"
+printf '%s\n' "${HEAD}" >"${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/COMMIT"
+(
+  cd "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}"
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+)
+cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
+cp "${ROOT}/deploy/migrate.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist"
+cp "${ROOT}/deploy/admin.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist"
+mkdir -p "${ACT_FAIL}/opt/bwb-modulo-fiscal/current"
+# Marker to detect nested writes into the directory mistaken for a symlink target.
+: >"${ACT_FAIL}/opt/bwb-modulo-fiscal/current/.keep-empty-dir"
+if BWB_DEPLOY_OPT="${ACT_FAIL}/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${ACT_FAIL}/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" activate "${HEAD}" \
+  >"${TMP}/act-fail.out" 2>"${TMP}/act-fail.err"; then
+  bad "activate must fail when current is a directory"
+else
+  nested_in_current="$(find "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" -mindepth 1 ! -name '.keep-empty-dir' 2>/dev/null | wc -l | tr -d ' ')"
+  if ! grep -q 'activate_ok' "${TMP}/act-fail.out" "${TMP}/act-fail.err" \
+    && [[ -d "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" ]] \
+    && [[ ! -L "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" ]] \
+    && [[ "${nested_in_current}" == "0" ]] \
+    && ! find "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" -type l 2>/dev/null | grep -q . \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/current.new" ]] \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/current/current.new" ]] \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/current.new" ]] \
+    && ! find "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases" -name 'current.new' 2>/dev/null | grep -q .; then
+    ok "activate failure does not emit activate_ok nor nest symlink/file/current.new under current/releases"
+  else
+    bad "activate failure still emitted activate_ok or left nested artefacts"
+    find "${ACT_FAIL}/opt/bwb-modulo-fiscal" \( -name 'current.new' -o -type l \) 2>/dev/null | head -20 >&2 || true
+    ls -la "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" >&2 || true
+    cat "${TMP}/act-fail.out" "${TMP}/act-fail.err" >&2 || true
+  fi
+fi
+
+# On GNU/Linux CI, the production activate path must exercise mv -T (not only the portable test fallback).
+if mv --version 2>/dev/null | grep -qi 'GNU coreutils'; then
+  probe="$(mktemp -d "${TMP}/gnu-mvT.XXXXXX")"
+  mkdir -p "${probe}/dir"
+  ln -sfn "${probe}/dir" "${probe}/link"
+  ln -sfn "${probe}/dir" "${probe}/link.new"
+  if mv -Tf "${probe}/link.new" "${probe}/link" 2>/dev/null \
+    && [[ -L "${probe}/link" && ! -e "${probe}/dir/link.new" ]]; then
+    ok "GNU mv -T feature available (Linux/CI production activate path)"
+  else
+    bad "GNU mv -T required on Linux CI but feature probe failed"
+  fi
+  rm -rf -- "${probe}"
+else
+  ok "skip GNU mv -T CI probe on non-GNU host (macOS harness uses portable fallback only)"
+fi
+
+# Document GNU mv -T dependency; macOS must not pretend BSD supports -T.
+if grep -q 'GNU mv -T' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'gnu_mv_supports_T' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'current-sha' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'current-sha' "${ROOT}/scripts/deploy/update-staging.sh"; then
+  ok "GNU mv -T dependency + current-sha closed verification declared"
+else
+  bad "GNU mv -T / current-sha artefacts missing"
+fi
+if ! grep -q 'GRANT UPDATE ON fiscal.scopes TO fiscal_admin' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql" \
+  && grep -q 'GRANT SELECT, INSERT ON fiscal.scopes TO fiscal_admin' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql" \
+  && grep -q 'pg_advisory_xact_lock' "${ROOT}/internal/persistence/credentials.go"; then
+  ok "scopes grants stay SELECT/INSERT; advisory lock replaces FOR UPDATE"
+else
+  bad "scopes UPDATE grant or advisory lock regression"
+fi
+
 # --- healthcheck: status field must be exactly ok ---
 health_accepts() {
   local body="$1"

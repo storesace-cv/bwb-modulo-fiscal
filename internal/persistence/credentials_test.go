@@ -375,10 +375,10 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 
 	t.Run("scope_concurrency", func(t *testing.T) {
 		if !postgres {
-			// SQLite MaxOpenConns=1 serializes writers; still verify sequential rotates.
+			// SQLite MaxOpenConns=1 serializes writers; still verify Issue/Rotate/Revoke under IMMEDIATE.
 			scopeID := "cred-scope-" + uid + "-sqconc"
 			mustCreateScope(t, ctx, store, scopeID)
-			mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+			rec, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 			for i := 0; i < 5; i++ {
 				mustRotate(t, ctx, store, persistence.RotateParams{
 					ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
@@ -396,31 +396,103 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			if active != 1 || grace != 1 {
 				t.Fatalf("active=%d grace=%d", active, grace)
 			}
+			_ = rec
+			var activeID string
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT credential_id FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+				[]any{scopeID}, &activeID,
+			)
+			if _, err := store.Revoke(ctx, persistence.RevokeParams{
+				ScopeID: scopeID, CredentialID: activeID, RequestID: "sq-revoke",
+			}); err != nil {
+				t.Fatalf("revoke: %v", err)
+			}
+			mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+				[]any{scopeID}, &active,
+			)
+			if active != 1 {
+				t.Fatalf("after revoke+reissue active=%d", active)
+			}
 			return
 		}
 
 		scopeID := "cred-scope-" + uid + "-pgconc"
 		mustCreateScope(t, ctx, store, scopeID)
 		mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		var okCount atomic.Int64
+
+		const workers = 8
+		ctxConc, cancelConc := context.WithTimeout(ctx, 20*time.Second)
+		defer cancelConc()
+
+		type classCounts struct {
+			ok, conflict, invalid, other atomic.Int64
+		}
+		var unexpectedMu sync.Mutex
+		var unexpected []string
+		noteUnexpected := func(label string, err error) {
+			unexpectedMu.Lock()
+			unexpected = append(unexpected, fmt.Sprintf("%s: %v", label, err))
+			unexpectedMu.Unlock()
+		}
+		classify := func(label string, err error, c *classCounts) {
+			switch {
+			case err == nil:
+				c.ok.Add(1)
+			case errors.Is(err, persistence.ErrCredentialConflict):
+				c.conflict.Add(1)
+			case errors.Is(err, persistence.ErrInvalidCredentialState):
+				c.invalid.Add(1)
+			case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+				c.other.Add(1)
+				noteUnexpected(label+" timeout/cancel (possible advisory-lock deadlock)", err)
+			default:
+				c.other.Add(1)
+				noteUnexpected(label+" unexpected", err)
+			}
+		}
+		assertClassified := func(t *testing.T, label string, c *classCounts, wantOk, wantConflict, wantInvalid int64) {
+			t.Helper()
+			total := c.ok.Load() + c.conflict.Load() + c.invalid.Load() + c.other.Load()
+			if total != int64(workers) {
+				t.Fatalf("%s classified=%d want=%d", label, total, workers)
+			}
+			unexpectedMu.Lock()
+			errs := append([]string(nil), unexpected...)
+			unexpectedMu.Unlock()
+			if len(errs) > 0 {
+				t.Fatalf("%s unexpected errors: %v", label, errs)
+			}
+			if c.ok.Load() != wantOk || c.conflict.Load() != wantConflict || c.invalid.Load() != wantInvalid || c.other.Load() != 0 {
+				t.Fatalf("%s ok=%d conflict=%d invalid=%d other=%d want ok=%d conflict=%d invalid=%d other=0",
+					label, c.ok.Load(), c.conflict.Load(), c.invalid.Load(), c.other.Load(),
+					wantOk, wantConflict, wantInvalid)
+			}
+			t.Logf("%s classified=%d ok=%d conflict=%d invalid=%d other=%d",
+				label, total, c.ok.Load(), c.conflict.Load(), c.invalid.Load(), c.other.Load())
+		}
+
+		// Concurrent rotates serialize via advisory lock: all 8 must succeed.
+		var rot classCounts
+		unexpected = nil
 		var wg sync.WaitGroup
-		for i := 0; i < 8; i++ {
+		for i := 0; i < workers; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, err := store.Rotate(ctx, persistence.RotateParams{
+				_, err := store.Rotate(ctxConc, persistence.RotateParams{
 					ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
 					Deliver: func(string) error { return nil },
 				})
-				if err == nil {
-					okCount.Add(1)
-				}
+				classify("rotate", err, &rot)
 			}()
 		}
 		wg.Wait()
-		if okCount.Load() < 1 {
-			t.Fatal("expected at least one successful concurrent rotate")
+		if errors.Is(ctxConc.Err(), context.DeadlineExceeded) {
+			t.Fatalf("rotate wave hit context deadline: %v", ctxConc.Err())
 		}
+		assertClassified(t, "rotate", &rot, int64(workers), 0, 0)
 		var active, grace int
 		mustScan(t, ctx, sqlDB, postgres,
 			`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
@@ -431,7 +503,75 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			[]any{scopeID}, &grace,
 		)
 		if active != 1 || grace != 1 {
-			t.Fatalf("after concurrency active=%d grace=%d ok=%d", active, grace, okCount.Load())
+			t.Fatalf("after rotates active=%d grace=%d", active, grace)
+		}
+
+		// Concurrent Issue on a fresh scope: exactly 1 success + 7 ErrCredentialConflict.
+		scopeIssue := "cred-scope-" + uid + "-pgissue"
+		mustCreateScope(t, ctx, store, scopeIssue)
+		ctxIssue, cancelIssue := context.WithTimeout(ctx, 20*time.Second)
+		defer cancelIssue()
+		var iss classCounts
+		unexpected = nil
+		wg = sync.WaitGroup{}
+		for i := 0; i < workers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := store.Issue(ctxIssue, persistence.IssueParams{
+					ScopeID: scopeIssue, CreatedBy: "admin",
+					Deliver: func(string) error { return nil },
+				})
+				classify("issue", err, &iss)
+			}()
+		}
+		wg.Wait()
+		if errors.Is(ctxIssue.Err(), context.DeadlineExceeded) {
+			t.Fatalf("issue wave hit context deadline: %v", ctxIssue.Err())
+		}
+		assertClassified(t, "issue", &iss, 1, 7, 0)
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+			[]any{scopeIssue}, &active,
+		)
+		if active != 1 {
+			t.Fatalf("concurrent issue left active=%d", active)
+		}
+
+		// Concurrent revoke of the same active credential:
+		// 1 success + 7 ErrInvalidCredentialState (already revoked).
+		var activeID string
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT credential_id FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+			[]any{scopeIssue}, &activeID,
+		)
+		ctxRevoke, cancelRevoke := context.WithTimeout(ctx, 20*time.Second)
+		defer cancelRevoke()
+		var rev classCounts
+		unexpected = nil
+		wg = sync.WaitGroup{}
+		for i := 0; i < workers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := store.Revoke(ctxRevoke, persistence.RevokeParams{
+					ScopeID: scopeIssue, CredentialID: activeID, RequestID: "pg-revoke",
+				})
+				classify("revoke", err, &rev)
+			}()
+		}
+		wg.Wait()
+		if errors.Is(ctxRevoke.Err(), context.DeadlineExceeded) {
+			t.Fatalf("revoke wave hit context deadline: %v", ctxRevoke.Err())
+		}
+		assertClassified(t, "revoke", &rev, 1, 0, 7)
+		var status string
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT status FROM `+tblCred(postgres, "api_credentials")+` WHERE credential_id = ?`,
+			[]any{activeID}, &status,
+		)
+		if status != "revoked" {
+			t.Fatalf("after concurrent revoke status=%s", status)
 		}
 	})
 

@@ -675,6 +675,10 @@ func (s *CredentialStore) withScopeTx(ctx context.Context, scopeID string, fn sc
 	return s.withScopeTxSQLite(ctx, scopeID, fn)
 }
 
+// scopeAdvisoryLockClass is a fixed int4 namespace for pg_advisory_xact_lock.
+// Collisions of hashtext(scope_id) only add serialization; they never weaken isolation.
+const scopeAdvisoryLockClass = 872014053
+
 func (s *CredentialStore) withScopeTxPostgres(ctx context.Context, scopeID string, fn scopeTxFn) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -688,16 +692,24 @@ func (s *CredentialStore) withScopeTxPostgres(ctx context.Context, scopeID strin
 	}()
 
 	q := &pgQuerier{tx: tx}
-	var locked string
+	// Transaction-level advisory lock by scope_id — avoids requiring UPDATE on fiscal.scopes.
+	if _, err := q.ExecContext(ctx,
+		`SELECT pg_advisory_xact_lock($1, hashtext($2))`,
+		scopeAdvisoryLockClass, scopeID,
+	); err != nil {
+		return fmt.Errorf("persistence: advisory lock scope: %w", err)
+	}
+
+	var found string
 	err = q.QueryRowContext(ctx,
-		`SELECT scope_id FROM fiscal.scopes WHERE scope_id = $1 FOR UPDATE`,
+		`SELECT scope_id FROM fiscal.scopes WHERE scope_id = $1`,
 		scopeID,
-	).Scan(&locked)
+	).Scan(&found)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrScopeNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("persistence: lock scope: %w", err)
+		return fmt.Errorf("persistence: load scope: %w", err)
 	}
 
 	now := s.stamp().UTC().Truncate(time.Microsecond)

@@ -9,6 +9,7 @@
 #   install-release <sha40> <upload-dir>
 #   install-env fiscal.env|migrate.env|admin.env <temp-file>
 #   activate <sha40>
+#   current-sha
 #   restart
 #   migrate <sha40> up|version
 #   restore-env <backup-id>
@@ -22,6 +23,7 @@
 #   admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>
 #
 # Never installs Nginx open candidate. Never runs fiscal-admin as root.
+# activate requires GNU coreutils `mv -T` (Ubuntu 22.04 staging). BSD mv is not supported.
 #
 # D2 bootstrap also installs:
 #   /usr/local/lib/bwb-fiscal-deploy/{allowlist.sh,migrate.env.allowlist,admin.env.allowlist}
@@ -258,14 +260,130 @@ op_install_env() {
   printf 'install_env_ok name=%s\n' "${name}"
 }
 
+# True when mv supports GNU -T (no-target-directory). Staging hosts are Ubuntu 22.04+.
+gnu_mv_supports_T() {
+  local probe
+  probe="$(mktemp -d "${TMPDIR:-/tmp}/bwb-mvT.XXXXXX")" || return 1
+  mkdir -p "${probe}/dir" || {
+    rm -rf -- "${probe}"
+    return 1
+  }
+  ln -sfn "${probe}/dir" "${probe}/link"
+  ln -sfn "${probe}/dir" "${probe}/link.new"
+  if ! mv -Tf "${probe}/link.new" "${probe}/link" 2>/dev/null; then
+    rm -rf -- "${probe}"
+    return 1
+  fi
+  if [[ -L "${probe}/link" && ! -e "${probe}/dir/link.new" && ! -e "${probe}/link.new" ]]; then
+    rm -rf -- "${probe}"
+    return 0
+  fi
+  rm -rf -- "${probe}"
+  return 1
+}
+
+# Resolve a symlink to an absolute path. Prefer GNU readlink -f / realpath (Ubuntu).
+# Portable fallback is for non-root test harnesses only (e.g. macOS).
+resolve_symlink_path() {
+  local path="$1"
+  local out=""
+  local st=0
+  set +e
+  out="$(readlink -f "${path}" 2>/dev/null)"
+  st=$?
+  set -e
+  if [[ "${st}" -eq 0 && -n "${out}" ]]; then
+    printf '%s\n' "${out}"
+    return 0
+  fi
+  if command -v realpath >/dev/null 2>&1; then
+    set +e
+    out="$(realpath "${path}" 2>/dev/null)"
+    st=$?
+    set -e
+    if [[ "${st}" -eq 0 && -n "${out}" ]]; then
+      printf '%s\n' "${out}"
+      return 0
+    fi
+  fi
+  set +e
+  out="$(readlink "${path}" 2>/dev/null)"
+  st=$?
+  set -e
+  [[ "${st}" -eq 0 && -n "${out}" ]] || return 1
+  if [[ "${out}" == /* ]]; then
+    printf '%s\n' "${out}"
+    return 0
+  fi
+  printf '%s\n' "$(cd "$(dirname "${path}")" && cd "$(dirname "${out}")" && pwd)/$(basename "${out}")"
+}
+
 op_activate() {
   local sha="$1"
   assert_sha1 "sha" "${sha}"
   local dest="${RELEASES}/${sha}"
   verify_release_tree "${dest}" "${sha}"
-  ln -sfn "${dest}" "${OPT_ROOT}/current.new"
-  mv -f "${OPT_ROOT}/current.new" "${OPT_ROOT}/current"
+
+  # Atomic symlink replace. GNU mv without -T follows an existing symlink-to-directory
+  # and moves current.new *into* the old release tree (false activate_ok).
+  # Production dependency: GNU coreutils `mv -T` on Ubuntu 22.04+.
+  # Non-root test harness (BWB_DEPLOY_OPT) may use ln -sfn when GNU mv is absent —
+  # that path must never run as root (overrides are refused when EUID=0).
+  # Refuse a real directory at current before any ln/mv (avoids nesting under BSD ln -sfn).
+  if [[ -e "${OPT_ROOT}/current" && ! -L "${OPT_ROOT}/current" ]]; then
+    die "activate failed: current is not a symlink"
+  fi
+  if gnu_mv_supports_T; then
+    ln -sfn "${dest}" "${OPT_ROOT}/current.new"
+    if ! mv -Tf "${OPT_ROOT}/current.new" "${OPT_ROOT}/current"; then
+      rm -f -- "${OPT_ROOT}/current.new"
+      die "activate failed to replace current symlink"
+    fi
+  elif [[ -n "${BWB_DEPLOY_OPT:-}" ]]; then
+    # Test-only portable replace (does not claim BSD supports mv -T).
+    ln -sfn "${dest}" "${OPT_ROOT}/current"
+    rm -f -- "${OPT_ROOT}/current.new"
+  else
+    die "activate requires GNU mv -T (Ubuntu 22.04+ coreutils); BSD mv is not supported"
+  fi
+  # Fail closed if current does not resolve to the requested release.
+  # Compare by SHA/COMMIT (not raw paths): macOS may prefix /private on resolved paths.
+  local active=""
+  set +e
+  active="$(resolve_symlink_path "${OPT_ROOT}/current")"
+  local resolve_st=$?
+  set -e
+  [[ "${resolve_st}" -eq 0 && -n "${active}" && -d "${active}" ]] || die "activate did not switch current to ${sha}"
+  local active_sha
+  active_sha="$(basename "${active}")"
+  [[ "${active_sha}" == "${sha}" ]] || die "activate did not switch current to ${sha}"
+  [[ -f "${active}/COMMIT" ]] || die "activate target missing COMMIT"
+  local committed
+  committed="$(tr -d '[:space:]' <"${active}/COMMIT")"
+  [[ "${committed}" == "${sha}" ]] || die "activate COMMIT mismatch"
+  # Ensure the two-step did not leave junk inside any release tree.
+  [[ ! -e "${active}/current.new" ]] || die "activate left current.new inside release tree"
   printf 'activate_ok sha=%s\n' "${sha}"
+}
+
+# Closed read of the active release SHA (basename of current). No arbitrary shell on the host.
+op_current_sha() {
+  local cur="${OPT_ROOT}/current"
+  [[ -L "${cur}" ]] || die "current is missing or not a symlink"
+  local active=""
+  set +e
+  active="$(resolve_symlink_path "${cur}")"
+  local resolve_st=$?
+  set -e
+  [[ "${resolve_st}" -eq 0 && -n "${active}" && -d "${active}" ]] || die "current does not resolve"
+  local sha
+  sha="$(basename "${active}")"
+  assert_sha1 "current-sha" "${sha}"
+  [[ -f "${active}/COMMIT" ]] || die "active COMMIT missing"
+  local committed
+  committed="$(tr -d '[:space:]' <"${active}/COMMIT")"
+  [[ "${committed}" == "${sha}" ]] || die "active COMMIT mismatch"
+  printf 'current_sha=%s\n' "${sha}"
 }
 
 op_restart() {
@@ -731,6 +849,10 @@ case "${OP}" in
   activate)
     [[ $# -eq 1 ]] || die "usage: activate <sha40>"
     op_activate "$1"
+    ;;
+  current-sha)
+    [[ $# -eq 0 ]] || die "usage: current-sha"
+    op_current_sha
     ;;
   restart)
     [[ $# -eq 0 ]] || die "usage: restart"
