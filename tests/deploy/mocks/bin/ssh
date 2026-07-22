@@ -7,7 +7,8 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 HELPER_SRC="${ROOT}/scripts/deploy/remote-deploy-helper.sh"
-HELPER_LIB="${ROOT}/scripts/deploy/lib"
+# Closed helper libs (same set as D2 bootstrap). Materialized under the mock FS once.
+HELPER_LIB=""
 
 log() {
   printf 'ssh %s\n' "$*" >>"${DEPLOY_MOCK_LOG}"
@@ -99,6 +100,13 @@ log "target=${target} cmd=${remote_cmd}"
 
 FS="${DEPLOY_MOCK_FS}"
 mkdir -p "${FS}/opt/bwb-modulo-fiscal/releases" "${FS}/etc/bwb-modulo-fiscal/backups" "${FS}/tmp"
+HELPER_LIB="${FS}/usr/local/lib/bwb-fiscal-deploy"
+if [[ ! -f "${HELPER_LIB}/allowlist.sh" ]]; then
+  mkdir -p "${HELPER_LIB}"
+  cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${HELPER_LIB}/allowlist.sh"
+  cp "${ROOT}/deploy/migrate.env.allowlist" "${HELPER_LIB}/migrate.env.allowlist"
+  cp "${ROOT}/deploy/admin.env.allowlist" "${HELPER_LIB}/admin.env.allowlist"
+fi
 
 # Fixed live health probe (literal URL only).
 if [[ "${remote_cmd}" == *"curl -fsS --max-time 5 http://127.0.0.1:8080/v1/health"* ]]; then

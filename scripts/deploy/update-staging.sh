@@ -17,6 +17,7 @@ DEPLOY_N1_COMPAT_PROVEN="${DEPLOY_N1_COMPAT_PROVEN:-0}"
 ENV_LOCAL="${ENV_LOCAL:-${ROOT}/.env.local}"
 ENV_DEPLOY="${ENV_DEPLOY:-${ROOT}/.env.deploy.local}"
 ENV_MIGRATE="${ENV_MIGRATE:-${ROOT}/.env.migrate.local}"
+ENV_ADMIN="${ENV_ADMIN:-${ROOT}/.env.admin.local}"
 REMOTE_HELPER="/usr/local/sbin/bwb-fiscal-deploy-helper"
 REMOTE_UPLOAD=""
 PREV_SHA=""
@@ -228,6 +229,14 @@ if [[ -f "${ENV_MIGRATE}" ]]; then
 else
   [[ "${DEPLOY_DRY_RUN}" == "1" && "${DEPLOY_MOCK_REMOTE}" != "1" ]] || die "missing migrate env file"
 fi
+if [[ -f "${ENV_ADMIN}" ]]; then
+  deploy_validate_exact_allowlisted_file "${ROOT}/deploy/admin.env.allowlist" "${ENV_ADMIN}" \
+    || die "admin env allowlist validation failed"
+  report "admin_env_allowlist=ok"
+else
+  # admin.env required for live/mock remote deploys (credential_store staging).
+  [[ "${DEPLOY_DRY_RUN}" == "1" && "${DEPLOY_MOCK_REMOTE}" != "1" ]] || die "missing admin env file"
+fi
 
 HEAD="$(git rev-parse HEAD)"
 deploy_assert_sha1 "HEAD" "${HEAD}"
@@ -331,10 +340,12 @@ fi
 : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS required}"
 [[ -f "${ENV_DEPLOY}" ]] || die "missing deploy env file"
 [[ -f "${ENV_MIGRATE}" ]] || die "missing migrate env file"
+[[ -f "${ENV_ADMIN}" ]] || die "missing admin env file"
 [[ -z "${HEALTH_URL:-}" ]] || die "HEALTH_URL is forbidden on live path"
 
 deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
+deploy_assert_restricted_file "ENV_ADMIN" "${ENV_ADMIN}"
 
 deploy_ssh_base
 # Invoked only via EXIT trap; preserve the script's original exit status.
@@ -361,10 +372,14 @@ report "upload_dir=ok"
 deploy_scp_run "${SCP_BASE[@]}" -r \
   "${OUT_DIR}/fiscal-api" \
   "${OUT_DIR}/fiscal-migrate" \
+  "${OUT_DIR}/fiscal-admin" \
+  "${OUT_DIR}/fiscal-sandbox-e2e" \
+  "${OUT_DIR}/fiscal-sandbox-measure" \
   "${OUT_DIR}/COMMIT" \
   "${OUT_DIR}/EXPECTED_SCHEMA_VERSION" \
   "${OUT_DIR}/SHA256SUMS" \
   "${OUT_DIR}/lib" \
+  "${OUT_DIR}/fixtures" \
   "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_UPLOAD}/"
 report "upload=ok"
 
@@ -395,6 +410,7 @@ report "env_backup=ok id=${ENV_BACKUP_ID}"
 
 fiscal_tmp="${REMOTE_UPLOAD}/env.fiscal.env.$$"
 migrate_tmp="${REMOTE_UPLOAD}/env.migrate.env.$$"
+admin_tmp="${REMOTE_UPLOAD}/env.admin.env.$$"
 
 set +e
 deploy_scp_run "${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
@@ -409,6 +425,12 @@ set -e
 [[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp migrate.env failed"
 
 set +e
+deploy_scp_run "${SCP_BASE[@]}" "${ENV_ADMIN}" "${DEPLOY_USER}@${DEPLOY_HOST}:${admin_tmp}"
+scp_st=$?
+set -e
+[[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp admin.env failed"
+
+set +e
 remote_helper install-env fiscal.env "${fiscal_tmp}" >/dev/null
 inst_st=$?
 set -e
@@ -420,7 +442,13 @@ inst_st=$?
 set -e
 [[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env migrate.env failed"
 
-report "install_env=ok mode=0600 owner=root"
+set +e
+remote_helper install-env admin.env "${admin_tmp}" >/dev/null
+inst_st=$?
+set -e
+[[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env admin.env failed"
+
+report "install_env=ok mode=0600 owner=root names=fiscal,migrate,admin"
 
 phase="pre_migrate"
 rollback_allowed="true"

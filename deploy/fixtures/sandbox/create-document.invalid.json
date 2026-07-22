@@ -1,0 +1,11 @@
+{
+  "external_id": "",
+  "document_type": "invoice",
+  "currency": "AOA",
+  "issued_at": "not-a-date",
+  "seller": {
+    "tax_id": "FIXTURE-NIF-AO-0001",
+    "name": "Fixture Seller Synthetic AO"
+  },
+  "lines": []
+}

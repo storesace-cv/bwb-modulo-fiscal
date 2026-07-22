@@ -332,9 +332,19 @@ deploy_verify_release_manifest() {
     test -f SHA256SUMS
     test -f fiscal-api
     test -f fiscal-migrate
+    test -f fiscal-admin
+    test -f fiscal-sandbox-e2e
+    test -f fiscal-sandbox-measure
     test ! -e remote-migrate-run.sh
     test -f lib/allowlist.sh
     test -f lib/migrate.env.allowlist
+    test -f lib/admin.env.allowlist
+    test -f fixtures/sandbox/create-document.min.json
+    test -f fixtures/sandbox/create-document.b.json
+    test -f fixtures/sandbox/create-document.nif-mismatch.json
+    test -f fixtures/sandbox/create-document.invalid.json
+    # Open candidate must never be the active install target in a release tree.
+    test ! -e nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf
     deploy_sha256_check SHA256SUMS
     if [[ -n "${expected_commit}" ]]; then
       test "$(tr -d '[:space:]' <COMMIT)" = "${expected_commit}"
