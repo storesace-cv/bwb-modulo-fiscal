@@ -29,6 +29,7 @@ func validDocumentsEnv(t *testing.T) {
 	t.Setenv("FISCAL_AUTH_MODE", "dev_static")
 	t.Setenv("FISCAL_AUTH_DEV_TOKEN", strings.Repeat("a", 32))
 	t.Setenv("FISCAL_AUTH_DEV_SCOPE_ID", "scope-dev")
+	t.Setenv("FISCAL_AUTH_DEV_TAXPAYER_NIF", "5000000000")
 	t.Setenv("FISCAL_SCOPE_TIMEZONE", "Africa/Luanda")
 	t.Setenv("FISCAL_SERIES_MODE", "static")
 	t.Setenv("FISCAL_SERIES_EFFECTIVE_CODE", "A")
@@ -62,9 +63,32 @@ func TestLoadDocumentsRuntimeFailClosedMissingAuth(t *testing.T) {
 func TestLoadDocumentsRuntimeRejectsDevStaticOutsideDevelopment(t *testing.T) {
 	clearDocumentsEnv(t)
 	validDocumentsEnv(t)
-	t.Setenv("FISCAL_ENV", "production")
+	t.Setenv("FISCAL_ENV", "homologation")
 	_, err := config.LoadDocumentsRuntime()
 	if err == nil {
+		t.Fatal("expected rejection")
+	}
+}
+
+func TestLoadDocumentsRuntimeCredentialStoreHomologationOK(t *testing.T) {
+	clearDocumentsEnv(t)
+	t.Setenv("FISCAL_ENV", "homologation")
+	t.Setenv("FISCAL_AUTH_MODE", "credential_store")
+	t.Setenv("FISCAL_DATABASE_DRIVER", "sqlite")
+	t.Setenv("FISCAL_DATABASE_URL", "./tmp/fiscal.db")
+	if _, err := config.LoadDocumentsRuntime(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadDocumentsRuntimeCredentialStoreRejectsDevToken(t *testing.T) {
+	clearDocumentsEnv(t)
+	t.Setenv("FISCAL_ENV", "homologation")
+	t.Setenv("FISCAL_AUTH_MODE", "credential_store")
+	t.Setenv("FISCAL_DATABASE_DRIVER", "sqlite")
+	t.Setenv("FISCAL_DATABASE_URL", "./tmp/fiscal.db")
+	t.Setenv("FISCAL_AUTH_DEV_TOKEN", strings.Repeat("a", 32))
+	if _, err := config.LoadDocumentsRuntime(); err == nil {
 		t.Fatal("expected rejection")
 	}
 }

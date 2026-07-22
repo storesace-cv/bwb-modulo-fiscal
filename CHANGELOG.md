@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.8-draft — 2026-07-22
+
+- Sandbox POS S2: `credential_store` auth com `ScopeBinding` (incl. Environment); `VerifyCredentialTokenHash` + ConstantTimeCompare em persistence; Issue/Rotate com `TokenSink` na mesma tx; `cmd/fiscal-admin`; 403 `FISCAL_SCOPE_MISMATCH`; OpenAPI `0.1.4-draft`. Sem migrations novas; Nginx/deny-all e staging intactos.
+- Hardening S2: token Base64URL ASCII-only; `fiscal-admin` cria `--output-file` só após validação/BD; testes ErrInternal/500/timeout, audit/commit pós-Deliver (falha real diferida nos motores, sem hook de commit), Sync parcial; PostgreSQL de testes em BD temporária isolada (`dbtest`).
+
 ## 0.2.7-draft — 2026-07-21
 
 - Sandbox POS S1: migration `0003` (PG/SQLite) — `scopes`, `api_credentials`, `audit_events`; `ExpectedVersion=3`; repositórios `issue`/`rotate`/`revoke` com audit co-transacional; token `bwb_sbox_` + SHA-256 sem pepper; sem HTTP/auth/CLI/Nginx/deploy.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -16,6 +17,8 @@ const (
 	// CredentialTokenPrefix is the stable public prefix of sandbox API tokens.
 	CredentialTokenPrefix  = "bwb_sbox_"
 	credentialTokenEntropy = 32
+	// CredentialTokenExactLen is len(prefix) + RawURLEncoding(32 bytes) without padding.
+	CredentialTokenExactLen = len(CredentialTokenPrefix) + 43
 
 	credentialStatusActive  = "active"
 	credentialStatusGrace   = "grace"
@@ -27,6 +30,12 @@ const (
 	auditActionRotate = "credential.rotate"
 	auditActionRevoke = "credential.revoke"
 	auditResultOK     = "success"
+
+	// Auth audit actions (best-effort; outside admin mutation tx).
+	AuditActionAuthReject        = "auth.reject"
+	AuditActionAuthAccept        = "auth.accept"
+	AuditActionAuthScopeMismatch = "auth.scope_mismatch"
+	auditResultFailure           = "failure"
 )
 
 var (
@@ -75,18 +84,17 @@ type CredentialRecord struct {
 	CreatedBy    string
 }
 
+// TokenSink receives plaintext once inside the admin transaction.
+// Error causes full rollback of credential mutation and audit.
+type TokenSink func(token string) error
+
 // IssueParams issues a new active credential for a scope.
 type IssueParams struct {
 	ScopeID   string
 	CreatedBy string
 	ExpiresAt *time.Time
 	RequestID string // optional correlation; never a secret
-}
-
-// IssueResult returns the one-time plaintext token; callers must not log it.
-type IssueResult struct {
-	Credential CredentialRecord
-	Token      string
+	Deliver   TokenSink
 }
 
 // RotateParams rotates the active credential; previous active becomes grace.
@@ -96,13 +104,38 @@ type RotateParams struct {
 	GraceUntil time.Time
 	ExpiresAt  *time.Time
 	RequestID  string
+	Deliver    TokenSink
 }
 
-// RotateResult returns the new active credential and one-time token.
-type RotateResult struct {
+// RotateOutcome is metadata after a successful rotate (no plaintext token).
+type RotateOutcome struct {
 	Credential CredentialRecord
-	Token      string
 	PreviousID string
+}
+
+// CredentialAuthRecord is safe metadata for authenticators (no hash/token).
+type CredentialAuthRecord struct {
+	CredentialID        string
+	ScopeID             string
+	Status              string
+	ExpiresAt           *time.Time
+	GraceUntil          *time.Time
+	RevokedAt           *time.Time
+	ScopeStatus         string
+	ScopeEnvironment    string
+	TaxpayerNIF         string
+	IANATimezone        string
+	SeriesEffectiveCode string
+}
+
+// AuthAuditEvent is a best-effort auth audit row (never includes secrets).
+type AuthAuditEvent struct {
+	Action       string
+	Result       string
+	ReasonCode   string
+	RequestID    string
+	CredentialID string
+	ScopeID      string
 }
 
 // RevokeParams revokes a credential in a scope (active or grace).
@@ -204,8 +237,8 @@ func (s *CredentialStore) CreateScope(ctx context.Context, p CreateScopeParams) 
 	}, nil
 }
 
-// Issue creates an active credential for the scope. Token plaintext is returned once.
-func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResult, error) {
+// Issue creates an active credential. Token plaintext is delivered only via Deliver inside the tx.
+func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*CredentialRecord, error) {
 	p.ScopeID = strings.TrimSpace(p.ScopeID)
 	p.CreatedBy = strings.TrimSpace(p.CreatedBy)
 	p.RequestID = strings.TrimSpace(p.RequestID)
@@ -215,17 +248,16 @@ func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResul
 	if p.CreatedBy == "" {
 		return nil, validationErr("created_by", "required", "created_by is required")
 	}
-
-	token, hash, err := generateCredentialToken()
-	if err != nil {
-		return nil, err
+	if p.Deliver == nil {
+		return nil, validationErr("deliver", "required", "token sink is required")
 	}
+
 	credID, err := newID()
 	if err != nil {
 		return nil, fmt.Errorf("persistence: credential id: %w", err)
 	}
 
-	var out *IssueResult
+	var out *CredentialRecord
 	err = s.withScopeTx(ctx, p.ScopeID, func(q querier, postgres bool, now time.Time, nowArg any) error {
 		activeID, err := s.findStatusID(ctx, q, postgres, p.ScopeID, credentialStatusActive)
 		if err != nil {
@@ -235,6 +267,10 @@ func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResul
 			return ErrCredentialConflict
 		}
 
+		token, hash, err := generateCredentialToken()
+		if err != nil {
+			return err
+		}
 		rec, err := s.insertCredential(ctx, q, postgres, insertCredentialArgs{
 			CredentialID: credID,
 			ScopeID:      p.ScopeID,
@@ -248,6 +284,9 @@ func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResul
 		if err != nil {
 			return err
 		}
+		if err := p.Deliver(token); err != nil {
+			return fmt.Errorf("persistence: token deliver: %w", err)
+		}
 		if err := s.writeAudit(ctx, q, postgres, auditEvent{
 			OccurredAt:   now,
 			CredentialID: &credID,
@@ -258,7 +297,7 @@ func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResul
 		}, nowArg); err != nil {
 			return err
 		}
-		out = &IssueResult{Credential: *rec, Token: token}
+		out = rec
 		return nil
 	})
 	if err != nil {
@@ -268,7 +307,8 @@ func (s *CredentialStore) Issue(ctx context.Context, p IssueParams) (*IssueResul
 }
 
 // Rotate issues a new active credential and moves the previous active to grace.
-func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateResult, error) {
+// Token plaintext is delivered only via Deliver inside the tx.
+func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateOutcome, error) {
 	p.ScopeID = strings.TrimSpace(p.ScopeID)
 	p.CreatedBy = strings.TrimSpace(p.CreatedBy)
 	p.RequestID = strings.TrimSpace(p.RequestID)
@@ -277,6 +317,9 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 	}
 	if p.CreatedBy == "" {
 		return nil, validationErr("created_by", "required", "created_by is required")
+	}
+	if p.Deliver == nil {
+		return nil, validationErr("deliver", "required", "token sink is required")
 	}
 	now := s.stamp().UTC().Truncate(time.Microsecond)
 	graceUntil := p.GraceUntil.UTC().Truncate(time.Microsecond)
@@ -287,16 +330,12 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 		return nil, validationErr("grace_until", "not_future", "grace_until must be in the future")
 	}
 
-	token, hash, err := generateCredentialToken()
-	if err != nil {
-		return nil, err
-	}
 	credID, err := newID()
 	if err != nil {
 		return nil, fmt.Errorf("persistence: credential id: %w", err)
 	}
 
-	var out *RotateResult
+	var out *RotateOutcome
 	err = s.withScopeTx(ctx, p.ScopeID, func(q querier, postgres bool, now time.Time, nowArg any) error {
 		t := tablePrefix(postgres)
 		activeID, err := s.findStatusID(ctx, q, postgres, p.ScopeID, credentialStatusActive)
@@ -307,7 +346,6 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 			return ErrNoActiveCredential
 		}
 
-		// At most one grace: revoke existing grace before creating a new one.
 		prevGrace, err := s.findStatusID(ctx, q, postgres, p.ScopeID, credentialStatusGrace)
 		if err != nil {
 			return err
@@ -336,6 +374,10 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 			return fmt.Errorf("persistence: demote active to grace: %w", err)
 		}
 
+		token, hash, err := generateCredentialToken()
+		if err != nil {
+			return err
+		}
 		rec, err := s.insertCredential(ctx, q, postgres, insertCredentialArgs{
 			CredentialID: credID,
 			ScopeID:      p.ScopeID,
@@ -350,6 +392,9 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 		if err != nil {
 			return err
 		}
+		if err := p.Deliver(token); err != nil {
+			return fmt.Errorf("persistence: token deliver: %w", err)
+		}
 		if err := s.writeAudit(ctx, q, postgres, auditEvent{
 			OccurredAt:   now,
 			CredentialID: &credID,
@@ -360,7 +405,7 @@ func (s *CredentialStore) Rotate(ctx context.Context, p RotateParams) (*RotateRe
 		}, nowArg); err != nil {
 			return err
 		}
-		out = &RotateResult{Credential: *rec, Token: token, PreviousID: activeID}
+		out = &RotateOutcome{Credential: *rec, PreviousID: activeID}
 		return nil
 	})
 	if err != nil {
@@ -425,6 +470,184 @@ func (s *CredentialStore) Revoke(ctx context.Context, p RevokeParams) (*Credenti
 func (s *CredentialStore) GetCredential(ctx context.Context, scopeID, credentialID string) (*CredentialRecord, error) {
 	postgres := s.dialect == DialectPostgres
 	return s.getCredential(ctx, &dbQuerier{db: s.db}, postgres, scopeID, credentialID)
+}
+
+// GetScope returns a scope row.
+func (s *CredentialStore) GetScope(ctx context.Context, scopeID string) (*ScopeRecord, error) {
+	scopeID = strings.TrimSpace(scopeID)
+	if scopeID == "" {
+		return nil, ErrScopeNotFound
+	}
+	postgres := s.dialect == DialectPostgres
+	t := tablePrefix(postgres)
+	var (
+		nif, tz, series, env, status string
+		createdAt                    time.Time
+	)
+	if postgres {
+		err := s.db.QueryRowContext(ctx, `
+			SELECT taxpayer_nif, iana_timezone, series_effective_code, environment, status, created_at
+			FROM `+t("scopes")+` WHERE scope_id = $1`, scopeID,
+		).Scan(&nif, &tz, &series, &env, &status, &createdAt)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrScopeNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("persistence: get scope: %w", err)
+		}
+	} else {
+		var createdAtStr string
+		err := s.db.QueryRowContext(ctx, `
+			SELECT taxpayer_nif, iana_timezone, series_effective_code, environment, status, created_at
+			FROM `+t("scopes")+` WHERE scope_id = ?`, scopeID,
+		).Scan(&nif, &tz, &series, &env, &status, &createdAtStr)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrScopeNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("persistence: get scope: %w", err)
+		}
+		createdAt, err = parseUTCMicro(createdAtStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &ScopeRecord{
+		ScopeID:             scopeID,
+		TaxpayerNIF:         nif,
+		IANATimezone:        tz,
+		SeriesEffectiveCode: series,
+		Environment:         env,
+		Status:              status,
+		CreatedAt:           createdAt.UTC(),
+	}, nil
+}
+
+// VerifyCredentialTokenHash looks up by hash equality, compares with subtle.ConstantTimeCompare
+// inside this package, and returns a safe record without hash/token.
+func (s *CredentialStore) VerifyCredentialTokenHash(ctx context.Context, computedHash []byte) (*CredentialAuthRecord, error) {
+	if len(computedHash) != sha256.Size {
+		return nil, ErrCredentialNotFound
+	}
+	postgres := s.dialect == DialectPostgres
+	t := tablePrefix(postgres)
+
+	var (
+		storedHash                                     []byte
+		credID, scopeID, status, scopeStatus, scopeEnv string
+		nif, tz, series                                string
+		expiresAt, graceUntil, revokedAt               sql.NullTime
+	)
+
+	if postgres {
+		err := s.db.QueryRowContext(ctx, `
+			SELECT c.token_hash, c.credential_id, c.scope_id, c.status,
+			       c.expires_at, c.grace_until, c.revoked_at,
+			       s.status, s.environment, s.taxpayer_nif, s.iana_timezone, s.series_effective_code
+			FROM `+t("api_credentials")+` c
+			INNER JOIN `+t("scopes")+` s ON s.scope_id = c.scope_id
+			WHERE c.token_hash = $1`, computedHash,
+		).Scan(&storedHash, &credID, &scopeID, &status,
+			&expiresAt, &graceUntil, &revokedAt,
+			&scopeStatus, &scopeEnv, &nif, &tz, &series)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrCredentialNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("persistence: verify credential: %w", err)
+		}
+	} else {
+		var expiresStr, graceStr, revokedStr sql.NullString
+		err := s.db.QueryRowContext(ctx, `
+			SELECT c.token_hash, c.credential_id, c.scope_id, c.status,
+			       c.expires_at, c.grace_until, c.revoked_at,
+			       s.status, s.environment, s.taxpayer_nif, s.iana_timezone, s.series_effective_code
+			FROM `+t("api_credentials")+` c
+			INNER JOIN `+t("scopes")+` s ON s.scope_id = c.scope_id
+			WHERE c.token_hash = ?`, computedHash,
+		).Scan(&storedHash, &credID, &scopeID, &status,
+			&expiresStr, &graceStr, &revokedStr,
+			&scopeStatus, &scopeEnv, &nif, &tz, &series)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrCredentialNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("persistence: verify credential: %w", err)
+		}
+		if expiresStr.Valid {
+			tm, err := parseUTCMicro(expiresStr.String)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: verify credential: %w", err)
+			}
+			expiresAt = sql.NullTime{Time: tm, Valid: true}
+		}
+		if graceStr.Valid {
+			tm, err := parseUTCMicro(graceStr.String)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: verify credential: %w", err)
+			}
+			graceUntil = sql.NullTime{Time: tm, Valid: true}
+		}
+		if revokedStr.Valid {
+			tm, err := parseUTCMicro(revokedStr.String)
+			if err != nil {
+				return nil, fmt.Errorf("persistence: verify credential: %w", err)
+			}
+			revokedAt = sql.NullTime{Time: tm, Valid: true}
+		}
+	}
+
+	if len(storedHash) != sha256.Size || subtle.ConstantTimeCompare(storedHash, computedHash) != 1 {
+		// Constant-time path after a row was found; treat as not found to callers.
+		return nil, ErrCredentialNotFound
+	}
+
+	rec := &CredentialAuthRecord{
+		CredentialID:        credID,
+		ScopeID:             scopeID,
+		Status:              status,
+		ScopeStatus:         scopeStatus,
+		ScopeEnvironment:    scopeEnv,
+		TaxpayerNIF:         nif,
+		IANATimezone:        tz,
+		SeriesEffectiveCode: series,
+	}
+	if expiresAt.Valid {
+		tm := expiresAt.Time.UTC()
+		rec.ExpiresAt = &tm
+	}
+	if graceUntil.Valid {
+		tm := graceUntil.Time.UTC()
+		rec.GraceUntil = &tm
+	}
+	if revokedAt.Valid {
+		tm := revokedAt.Time.UTC()
+		rec.RevokedAt = &tm
+	}
+	return rec, nil
+}
+
+// RecordAuthAudit inserts an auth audit event best-effort (never logs secrets).
+func (s *CredentialStore) RecordAuthAudit(ctx context.Context, ev AuthAuditEvent) error {
+	postgres := s.dialect == DialectPostgres
+	now := s.stamp().UTC().Truncate(time.Microsecond)
+	var nowArg any = now
+	if !postgres {
+		nowArg = formatUTCMicro(now)
+	}
+	result := strings.TrimSpace(ev.Result)
+	if result == "" {
+		result = auditResultOK
+	}
+	return s.writeAudit(ctx, &dbQuerier{db: s.db}, postgres, auditEvent{
+		OccurredAt:   now,
+		CredentialID: nullStr(strings.TrimSpace(ev.CredentialID)),
+		ScopeID:      nullStr(strings.TrimSpace(ev.ScopeID)),
+		Action:       strings.TrimSpace(ev.Action),
+		Result:       result,
+		ReasonCode:   nullStr(strings.TrimSpace(ev.ReasonCode)),
+		RequestID:    nullStr(strings.TrimSpace(ev.RequestID)),
+	}, nowArg)
 }
 
 type dbQuerier struct {

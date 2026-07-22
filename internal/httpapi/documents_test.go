@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,14 +16,13 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltz"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/series"
 )
 
 const (
@@ -46,10 +46,8 @@ func TestCreateDocumentSQLite(t *testing.T) {
 }
 
 func TestCreateDocumentPostgres(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
 		t.Fatal(err)
@@ -66,26 +64,20 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	t.Helper()
 	scope := fmt.Sprintf("http-scope-%d", time.Now().UnixNano())
 	authenticator, err := auth.NewDevStatic(auth.DevStaticConfig{
-		Token:          devToken,
-		ScopeID:        scope,
-		ForbiddenToken: forbiddenTok,
+		Token:               devToken,
+		ScopeID:             scope,
+		ForbiddenToken:      forbiddenTok,
+		TaxpayerNIF:         "5000000000",
+		IANATimezone:        "Africa/Luanda",
+		SeriesEffectiveCode: effectiveCode,
+		Environment:         "development",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolver, err := series.NewStatic(series.StaticConfig{EffectiveCode: effectiveCode})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tzResolver, err := fiscaltz.NewStaticAfricaLuanda(scope)
-	if err != nil {
-		t.Fatal(err)
-	}
 	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
-		Store:    store,
-		Auth:     authenticator,
-		Series:   resolver,
-		FiscalTZ: tzResolver,
+		Store: store,
+		Auth:  authenticator,
 	})
 
 	t.Run("201_and_replay", func(t *testing.T) {
@@ -188,6 +180,38 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 		}
 	})
 
+	t.Run("403_scope_mismatch_vs_422_empty_tax_id", func(t *testing.T) {
+		empty := strings.Replace(minimalBody("ext-empty-nif", "R"), `"tax_id": "5000000000"`, `"tax_id": ""`, 1)
+		code, raw, _ := doPOST(t, h, "b1b1b1b1-b1b1-41b1-81b1-b1b1b1b1b1b1", empty, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+		if strings.Contains(string(raw), "5000000000") {
+			t.Fatal("NIF leaked")
+		}
+		mismatch := strings.Replace(minimalBody("ext-mismatch", "R"), `"tax_id": "5000000000"`, `"tax_id": "9999999999"`, 1)
+		code, raw, hdr := doPOST(t, h, "b2b2b2b2-b2b2-42b2-82b2-b2b2b2b2b2b2", mismatch, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusForbidden, "FISCAL_SCOPE_MISMATCH")
+		if hdr.Get("WWW-Authenticate") != "" {
+			t.Fatal("403 mismatch must not set WWW-Authenticate")
+		}
+		if strings.Contains(string(raw), "5000000000") || strings.Contains(string(raw), "9999999999") {
+			t.Fatal("NIF leaked in mismatch response")
+		}
+	})
+
+	t.Run("request_id_not_reflected", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/documents", strings.NewReader(minimalBody("ext-reqid", "R")))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "b3b3b3b3-b3b3-43b3-83b3-b3b3b3b3b3b3")
+		req.Header.Set("Authorization", "Bearer "+devToken)
+		req.Header.Set("X-Request-Id", "client-injected-id")
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		got := rr.Header().Get("X-Request-Id")
+		if got == "" || got == "client-injected-id" {
+			t.Fatalf("request id reflected or missing: %q", got)
+		}
+	})
+
 	t.Run("415_content_type", func(t *testing.T) {
 		code, raw, _ := doPOST(t, h, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", minimalBody("ext-415", "R"), devToken, "text/plain")
 		assertProblem(t, code, raw, http.StatusUnsupportedMediaType, "FISCAL_UNSUPPORTED_MEDIA_TYPE")
@@ -195,7 +219,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 
 	t.Run("422_unknown_field_and_trailing", func(t *testing.T) {
 		key := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"
-		code, raw, _ := doPOST(t, h, key, `{"external_id":"x","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}],"extra":1}`,
+		code, raw, _ := doPOST(t, h, key, `{"external_id":"x","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"5000000000","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}],"extra":1}`,
 			devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 
@@ -210,7 +234,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	})
 
 	t.Run("422_scope_id_in_body", func(t *testing.T) {
-		body := `{"scope_id":"evil","external_id":"ext-scope","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
+		body := `{"scope_id":"evil","external_id":"ext-scope","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"5000000000","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
 		code, raw, _ := doPOST(t, h, "dddddddd-dddd-4ddd-8ddd-ddddddddddd1", body, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 		if !strings.Contains(string(raw), "scope_id") {
@@ -220,7 +244,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 
 	t.Run("422_external_id_max_length", func(t *testing.T) {
 		longID := strings.Repeat("e", 101)
-		body := fmt.Sprintf(`{"external_id":%q,"document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`, longID)
+		body := fmt.Sprintf(`{"external_id":%q,"document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"5000000000","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`, longID)
 		code, raw, _ := doPOST(t, h, "ffffffff-ffff-4fff-8fff-fffffffffff1", body, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 		if !strings.Contains(string(raw), "external_id") {
@@ -229,7 +253,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	})
 
 	t.Run("413_body_too_large", func(t *testing.T) {
-		big := `{"external_id":"ext-big","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"` +
+		big := `{"external_id":"ext-big","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"5000000000","name":"N"},"lines":[{"line_id":"L1","description":"` +
 			strings.Repeat("X", 1<<20) + `","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
 		code, raw, _ := doPOST(t, h, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1", big, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusRequestEntityTooLarge, "FISCAL_PAYLOAD_TOO_LARGE")
@@ -251,7 +275,7 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 	})
 
 	t.Run("422_issued_at_no_offset", func(t *testing.T) {
-		body := `{"external_id":"ext-nooff","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00","seller":{"tax_id":"1","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
+		body := `{"external_id":"ext-nooff","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00","seller":{"tax_id":"5000000000","name":"N"},"lines":[{"line_id":"L1","description":"D","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}`
 		code, raw, _ := doPOST(t, h, "a3a3a3a3-a3a3-43a3-83a3-a3a3a3a3a3a3", body, devToken, "application/json")
 		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
 	})
@@ -265,6 +289,78 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 			t.Fatalf("%d %s", code, raw)
 		}
 	})
+}
+
+type errAuth struct{ err error }
+
+func (e errAuth) Authenticate(ctx context.Context, r *http.Request) (auth.ScopeBinding, error) {
+	return auth.ScopeBinding{}, e.err
+}
+
+func TestCreateDocumentAuthInternalMapsTo500(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "docs-500.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+
+	var logBuf strings.Builder
+	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
+		Store: persistence.NewStore(sqlDB, persistence.DialectSQLite),
+		Auth:  errAuth{err: auth.ErrInternal},
+		Log:   slog.New(slog.NewTextHandler(&logBuf, nil)),
+	})
+	token := persistence.CredentialTokenPrefix + strings.Repeat("B", 43)
+	code, raw, _ := doPOST(t, h, "a5a5a5a5-a5a5-45a5-85a5-a5a5a5a5a5a5", minimalBody("ext-500", "R"), token, "application/json")
+	assertProblem(t, code, raw, http.StatusInternalServerError, "FISCAL_INTERNAL_ERROR")
+	if strings.Contains(string(raw), token) || strings.Contains(logBuf.String(), token) {
+		t.Fatal("token leaked in 500 response or logs")
+	}
+}
+
+func TestCreateDocumentAuthCanceledContextMapsTo500(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "docs-cancel.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: time.Second, MaxOpenConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	store := persistence.NewCredentialStore(sqlDB, persistence.DialectSQLite)
+	a, err := auth.NewCredentialStoreAuthenticator(store, "homologation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logBuf strings.Builder
+	h := httpapi.WithRequestID(&httpapi.DocumentsHandler{
+		Store: persistence.NewStore(sqlDB, persistence.DialectSQLite),
+		Auth:  a,
+		Log:   slog.New(slog.NewTextHandler(&logBuf, nil)),
+	})
+
+	token := persistence.CredentialTokenPrefix + strings.Repeat("C", 43)
+	req := httptest.NewRequest(http.MethodPost, "/v1/documents", strings.NewReader(minimalBody("ext-cancel", "R")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "a6a6a6a6-a6a6-46a6-86a6-a6a6a6a6a6a6")
+	req.Header.Set("Authorization", "Bearer "+token)
+	canceled, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(canceled)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	assertProblem(t, rr.Code, rr.Body.Bytes(), http.StatusInternalServerError, "FISCAL_INTERNAL_ERROR")
+	if strings.Contains(rr.Body.String(), token) || strings.Contains(logBuf.String(), token) {
+		t.Fatal("token leaked on canceled auth path")
+	}
 }
 
 func doPOST(t *testing.T, h http.Handler, idem, body, token, contentType string) (int, []byte, http.Header) {
@@ -302,7 +398,7 @@ func minimalBody(externalID, requestedSeries string) string {
   "currency": "AOA",
   "issued_at": "2026-07-21T10:00:00+01:00",
   "requested_series": %q,
-  "seller": {"tax_id": "0000000000", "name": "Seller Demo"},
+  "seller": {"tax_id": "5000000000", "name": "Seller Demo"},
   "lines": [{"line_id": "L1", "description": "Item", "quantity": "1", "unit_price": "10.50", "tax_code": "NOR"}]
 }`, externalID, requestedSeries)
 }
@@ -318,7 +414,7 @@ func sampleIntent(scope, external string) canonical.DocumentIntent {
 		IssuedAtUTC:         "2026-07-21T09:00:00.000000Z",
 		IssuedTimezone:      fiscaltime.AfricaLuanda,
 		IssuedOffsetMinutes: 60,
-		SellerTaxID:         "0000000000",
+		SellerTaxID:         "5000000000",
 		SellerName:          "Seller Demo",
 		Lines: []canonical.Line{{
 			LineID: "L1", Description: "Item", Quantity: qty, UnitPrice: price, TaxCode: "NOR",

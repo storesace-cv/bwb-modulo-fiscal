@@ -14,9 +14,13 @@ func TestDevStaticAuthenticate(t *testing.T) {
 	token := "0123456789abcdef0123456789abcdef"
 	forbidden := "fedcba9876543210fedcba9876543210"
 	a, err := auth.NewDevStatic(auth.DevStaticConfig{
-		Token:          token,
-		ScopeID:        "scope-dev",
-		ForbiddenToken: forbidden,
+		Token:               token,
+		ScopeID:             "scope-dev",
+		ForbiddenToken:      forbidden,
+		TaxpayerNIF:         "5000000000",
+		IANATimezone:        "Africa/Luanda",
+		SeriesEffectiveCode: "A",
+		Environment:         "development",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +30,7 @@ func TestDevStaticAuthenticate(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	p, err := a.Authenticate(ctx, req)
-	if err != nil || p.ScopeID != "scope-dev" {
+	if err != nil || p.ScopeID != "scope-dev" || p.TaxpayerNIF != "5000000000" {
 		t.Fatalf("got %#v %v", p, err)
 	}
 
@@ -51,7 +55,10 @@ func TestDevStaticAuthenticate(t *testing.T) {
 
 func TestDevStaticRejectsWrongTokenDifferentLengths(t *testing.T) {
 	token := strings.Repeat("a", 32)
-	a, err := auth.NewDevStatic(auth.DevStaticConfig{Token: token, ScopeID: "scope-dev"})
+	a, err := auth.NewDevStatic(auth.DevStaticConfig{
+		Token: token, ScopeID: "scope-dev", TaxpayerNIF: "1",
+		IANATimezone: "Africa/Luanda", SeriesEffectiveCode: "A",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +74,7 @@ func TestDevStaticRejectsWrongTokenDifferentLengths(t *testing.T) {
 }
 
 func TestNewDevStaticRejectsShortToken(t *testing.T) {
-	_, err := auth.NewDevStatic(auth.DevStaticConfig{Token: "short", ScopeID: "s"})
+	_, err := auth.NewDevStatic(auth.DevStaticConfig{Token: "short", ScopeID: "s", TaxpayerNIF: "1", IANATimezone: "Africa/Luanda", SeriesEffectiveCode: "A"})
 	if err == nil {
 		t.Fatal("expected error")
 	}

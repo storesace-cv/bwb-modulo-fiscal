@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 )
 
 func TestSQLiteFoundation(t *testing.T) {
@@ -41,10 +41,8 @@ func TestSQLiteFoundation(t *testing.T) {
 }
 
 func TestPostgresFoundation(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {

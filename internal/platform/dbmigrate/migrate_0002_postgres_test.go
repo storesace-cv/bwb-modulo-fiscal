@@ -2,11 +2,8 @@ package dbmigrate_test
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/url"
-	"os"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -15,17 +12,14 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 	"github.com/storesace-cv/bwb-modulo-fiscal/migrations"
 
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// isolatedPostgresTempDBName matches only disposable test databases we create.
-var isolatedPostgresTempDBName = regexp.MustCompile(`^bwb_fiscal_test_[0-9]+$`)
-
 func TestMigration0002PostgresEmptyReachesVersion2(t *testing.T) {
-	dsn, cleanup := createIsolatedPostgresTestDB(t)
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
 	defer cleanup()
 
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
@@ -41,7 +35,7 @@ func TestMigration0002PostgresEmptyReachesVersion2(t *testing.T) {
 }
 
 func TestMigration0002PostgresAbortsOnLegacyDocuments(t *testing.T) {
-	dsn, cleanup := createIsolatedPostgresTestDB(t)
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
 	defer cleanup()
 
 	if err := migratePostgresTo(t, dsn, 1); err != nil {
@@ -86,7 +80,7 @@ func TestMigration0002PostgresAbortsOnLegacyDocuments(t *testing.T) {
 }
 
 func TestMigration0002PostgresAbortsOnLegacyIdempotencyWithoutDocuments(t *testing.T) {
-	dsn, cleanup := createIsolatedPostgresTestDB(t)
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
 	defer cleanup()
 
 	if err := migratePostgresTo(t, dsn, 1); err != nil {
@@ -159,98 +153,4 @@ func migratePostgresTo(t *testing.T, dsn string, version uint) error {
 		return err
 	}
 	return nil
-}
-
-// createIsolatedPostgresTestDB creates a disposable DB named bwb_fiscal_test_<nano>.
-// It never migrates or mutates the original FISCAL_TEST_DATABASE_URL database.
-func createIsolatedPostgresTestDB(t *testing.T) (dsn string, cleanup func()) {
-	t.Helper()
-	base := strings.TrimSpace(os.Getenv("FISCAL_TEST_DATABASE_URL"))
-	if base == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
-	adminDSN, err := postgresAdminDSN(base)
-	if err != nil {
-		t.Fatalf("refusing unsafe test DSN: %v", err)
-	}
-	name := fmt.Sprintf("bwb_fiscal_test_%d", time.Now().UnixNano())
-	if !isolatedPostgresTempDBName.MatchString(name) {
-		t.Fatalf("generated name %q rejected by safety pattern", name)
-	}
-
-	ctx := context.Background()
-	admin, err := sql.Open("pgx", adminDSN)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := admin.PingContext(ctx); err != nil {
-		_ = admin.Close()
-		t.Fatal(err)
-	}
-	if _, err := admin.ExecContext(ctx, `CREATE DATABASE `+pqQuoteIdent(name)); err != nil {
-		_ = admin.Close()
-		t.Fatalf("CREATE DATABASE: %v", err)
-	}
-
-	isolated, err := rewritePostgresDBName(base, name)
-	if err != nil {
-		_, _ = admin.ExecContext(ctx, `DROP DATABASE IF EXISTS `+pqQuoteIdent(name)+` WITH (FORCE)`)
-		_ = admin.Close()
-		t.Fatal(err)
-	}
-
-	cleanup = func() {
-		_, _ = admin.ExecContext(context.Background(), `DROP DATABASE IF EXISTS `+pqQuoteIdent(name)+` WITH (FORCE)`)
-		_ = admin.Close()
-	}
-	return isolated, cleanup
-}
-
-func postgresAdminDSN(base string) (string, error) {
-	u, err := url.Parse(base)
-	if err != nil {
-		return "", err
-	}
-	host := strings.ToLower(u.Hostname())
-	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
-		return "", fmt.Errorf("host %q is not a local test host", host)
-	}
-	dbname := strings.TrimPrefix(u.Path, "/")
-	if i := strings.IndexByte(dbname, '/'); i >= 0 {
-		dbname = dbname[:i]
-	}
-	// Require the bootstrap URL to look like a test harness DB (CI uses "fiscal").
-	if !isIdentifiedPostgresTestDB(dbname) {
-		return "", fmt.Errorf("database %q is not identified as a test database", dbname)
-	}
-	// Connect to maintenance DB only — never issue CREATE/DROP against the shared app DB name.
-	u.Path = "/postgres"
-	return u.String(), nil
-}
-
-func isIdentifiedPostgresTestDB(name string) bool {
-	n := strings.ToLower(strings.TrimSpace(name))
-	if n == "" {
-		return false
-	}
-	if n == "fiscal" { // CI service container default for FISCAL_TEST_DATABASE_URL
-		return true
-	}
-	return strings.Contains(n, "test")
-}
-
-func rewritePostgresDBName(base, name string) (string, error) {
-	if !isolatedPostgresTempDBName.MatchString(name) {
-		return "", fmt.Errorf("refusing non-isolated database name %q", name)
-	}
-	u, err := url.Parse(base)
-	if err != nil {
-		return "", err
-	}
-	u.Path = "/" + name
-	return u.String(), nil
-}
-
-func pqQuoteIdent(ident string) string {
-	return `"` + strings.ReplaceAll(ident, `"`, `""`) + `"`
 }

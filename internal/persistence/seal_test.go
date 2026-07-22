@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/quantity"
 )
 
@@ -36,10 +36,8 @@ func TestSealSQLiteSuite(t *testing.T) {
 }
 
 func TestSealPostgresSuite(t *testing.T) {
-	dsn := os.Getenv("FISCAL_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("FISCAL_TEST_DATABASE_URL not set")
-	}
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
 	ctx := context.Background()
 	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
 		t.Fatalf("migrate: %v", err)
@@ -49,7 +47,6 @@ func TestSealPostgresSuite(t *testing.T) {
 		t.Fatalf("open: %v", err)
 	}
 	defer sqlDB.Close()
-	// Isolate suite data with unique scope prefix per run.
 	store := persistence.NewStore(sqlDB, persistence.DialectPostgres)
 	runSealSuite(t, ctx, store, sqlDB, true)
 }
