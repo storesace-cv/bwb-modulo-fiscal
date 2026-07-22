@@ -59,6 +59,10 @@ func run() int {
 		logger.Error("documents_config_invalid", "error", err.Error())
 		return 1
 	}
+	if err := buildinfo.ValidateForEnv(buildinfo.Revision, docsCfg.Env); err != nil {
+		logger.Error("buildinfo_env_invalid", "error", err.Error())
+		return 1
+	}
 
 	ctx := context.Background()
 	sqlDB, dialect, err := openStoreDB(ctx, docsCfg)

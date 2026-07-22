@@ -14,15 +14,16 @@ import (
 var Revision = "dev"
 
 const (
-	// DevRevision is allowed only for non-release / local development builds.
+	// DevRevision is allowed only when FISCAL_ENV=development.
 	DevRevision = "dev"
 	// UnknownRevision is an explicit invalid sentinel (must never ship).
 	UnknownRevision = "unknown"
+	envDevelopment  = "development"
 )
 
 var sha40Lower = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// Validate checks revision is either "dev" or a lowercase SHA-40.
+// Validate checks revision is either "dev" or a lowercase SHA-40 (format only).
 func Validate(revision string) error {
 	r := strings.TrimSpace(revision)
 	if r == "" {
@@ -40,28 +41,44 @@ func Validate(revision string) error {
 	return nil
 }
 
-// ValidateRelease requires a lowercase SHA-40 that equals commit (also lowercase SHA-40).
-func ValidateRelease(revision, commit string) error {
-	if err := Validate(revision); err != nil {
+// ValidateForEnv applies environment policy: revision=dev only in development;
+// homologation/production require lowercase SHA-40.
+func ValidateForEnv(revision, fiscalEnv string) error {
+	r := strings.TrimSpace(revision)
+	if err := Validate(r); err != nil {
 		return err
 	}
-	if revision == DevRevision {
-		return fmt.Errorf("buildinfo: release revision must not be %q", DevRevision)
+	env := strings.TrimSpace(fiscalEnv)
+	if r == DevRevision {
+		if env != envDevelopment {
+			return fmt.Errorf("buildinfo: revision %q requires FISCAL_ENV=%q", DevRevision, envDevelopment)
+		}
+		return nil
 	}
-	c := strings.TrimSpace(strings.ToLower(commit))
-	if !sha40Lower.MatchString(c) {
-		return fmt.Errorf("buildinfo: commit %q is not lowercase sha40", commit)
-	}
-	if revision != c {
-		return fmt.Errorf("buildinfo: revision does not match commit")
+	if !sha40Lower.MatchString(r) {
+		return fmt.Errorf("buildinfo: revision must be lowercase sha40 outside development")
 	}
 	return nil
 }
 
-// MustRevision returns Revision after Validate, or panics (startup fail-closed).
-func MustRevision() string {
-	if err := Validate(Revision); err != nil {
-		panic(err)
+// ValidateRelease requires lowercase SHA-40 revision equal to commit (exact lowercase match; no case folding).
+func ValidateRelease(revision, commit string) error {
+	r := strings.TrimSpace(revision)
+	c := strings.TrimSpace(commit)
+	if err := Validate(r); err != nil {
+		return err
 	}
-	return Revision
+	if r == DevRevision {
+		return fmt.Errorf("buildinfo: release revision must not be %q", DevRevision)
+	}
+	if !sha40Lower.MatchString(r) {
+		return fmt.Errorf("buildinfo: revision %q is not lowercase sha40", r)
+	}
+	if !sha40Lower.MatchString(c) {
+		return fmt.Errorf("buildinfo: commit %q is not lowercase sha40", c)
+	}
+	if r != c {
+		return fmt.Errorf("buildinfo: revision does not match commit")
+	}
+	return nil
 }

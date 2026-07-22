@@ -531,10 +531,15 @@ if grep -q 'ProfileSustained' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'RatePerSec:   10' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'Total:        60' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'Concurrency:  5' "${ROOT}/internal/sandboxmeasure/measure.go" \
-  && grep -q 'FixedBaseURL = "http://127.0.0.1:18080"' "${ROOT}/internal/sandboxmeasure/measure.go"; then
-  ok "measure Go closed profile caps (sustained 300@10r/s, burst ≤60/5, base :18080)"
+  && grep -q 'FixedBaseURL = "http://127.0.0.1:18080"' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'failure_codes' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'http_responses' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'transport_errors' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'nextAt = clk.Now().Add(interval)' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'ValidateForEnv' "${ROOT}/internal/buildinfo/buildinfo.go"; then
+  ok "measure Go closed caps + thresholds/transport/pacing/revision-env"
 else
-  bad "measure Go profile caps missing"
+  bad "measure Go profile caps / hardening missing"
 fi
 
 # Release build must verify revision == COMMIT.

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -32,12 +33,21 @@ func run(args []string) int {
 		EnforceAcceptance: true,
 	}
 	rep, err := sandboxmeasure.Run(context.Background(), cfg)
+	// Always emit machine-readable report when metrics were collected.
+	if rep.Profile != "" || rep.Attempted > 0 || len(rep.FailureCodes) > 0 {
+		if werr := sandboxmeasure.WriteReport(os.Stdout, rep); werr != nil {
+			fmt.Fprintf(os.Stderr, "error: measure_failed\n")
+			return 1
+		}
+	}
 	if err != nil {
+		if errors.Is(err, sandboxmeasure.ErrThresholds) || errors.Is(err, sandboxmeasure.ErrTransport) {
+			return 1
+		}
 		fmt.Fprintf(os.Stderr, "error: measure_failed\n")
 		return 1
 	}
-	if err := sandboxmeasure.WriteReport(os.Stdout, rep); err != nil {
-		fmt.Fprintf(os.Stderr, "error: measure_failed\n")
+	if !rep.Passed {
 		return 1
 	}
 	return 0

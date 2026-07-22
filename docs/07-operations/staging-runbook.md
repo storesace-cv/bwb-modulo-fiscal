@@ -121,11 +121,13 @@ Base fixa: `http://127.0.0.1:18080`. Helper: `admin-sandbox-measure <sha40> sust
 | `burst` | ≤60 | rajada | ≤5 | curta | ≤60 docs |
 | `replay` | 2 | sequencial; mesma key/body | 1 | N/A | 1 doc |
 
-Thresholds: `5xx=0`; sustained p95≤250 ms / p99≤500 ms **só em 201**; 429 latência separada; request throughput ∈ [9,11] r/s; 429≤1% (≤3/300) em sustained; burst 201 ∈ [20,25] depois 429; replay ambos 201 com payload estável idêntico. Sem `Retry-After` (Nginx não envia por omissão).
+Thresholds: `5xx=0`; `409=0`; `other=0`; sustained p95≤250 ms / p99≤500 ms **só em respostas 201** (nearest-rank); 429 latência reportada em separado; request throughput ∈ [9,11] r/s **apenas sobre `http_responses`** (não conta `transport_errors`); 429≤3/300 em sustained; burst 201 ∈ [20,25] e restantes 429; replay ambos 201 com payload tipado estável idêntico. Sem `Retry-After` (Nginx não envia por omissão).
 
-Token: só `/var/lib/bwb-fiscal-admin/tokens/measure.token` (ficheiro regular). Output: JSON agregado sem token/NIF/body/DSN.
+Contadores do relatório JSON: `attempted` (todas as tentativas), `http_responses` (com status HTTP), `transport_errors` (sem resposta HTTP); `passed` + `failure_codes` sanitizados. Falha de threshold ou transporte emite JSON completo e exit ≠ 0 (não esconde resultados atrás de apenas `measure_failed`). Em falha de transporte o perfil cancela o restante de forma controlada e preserva métricas já recolhidas. Percentis (`p50`/`p95`/`p99`) usam nearest-rank sobre latências µs→ms das classes 201 e 429.
 
-Health público: `version` (rótulo `FISCAL_APP_VERSION`) + `revision` (SHA40 do artefacto em release; `dev` em desenvolvimento). Gate: `health.revision == COMMIT == current-sha`.
+Token: só `/var/lib/bwb-fiscal-admin/tokens/measure.token` — dir real (não symlink), mode sem grupo/outros; ficheiro regular (não symlink), owner euid, `0600`. Output: JSON agregado sem token/NIF/body/DSN/URL/Authorization.
+
+Health público: `version` (rótulo `FISCAL_APP_VERSION`) + `revision` (SHA40 lowercase do artefacto em release; `dev` **apenas** com `FISCAL_ENV=development`). Gate release: `health.revision == COMMIT` (SHA40 exacto, sem normalização de case).
 
 ### Topologia
 
