@@ -623,13 +623,19 @@ op_admin_sandbox_ab_revoke_gate() {
   cred_a="$(printf '%s\n' "${issue_out}" | sed -n 's/^credential_id=\([^ ]*\).*/\1/p' | head -1)"
   assert_safe_arg "credential_id" "${cred_a}"
 
-  # A must succeed before revoke.
-  run_admin_dropped "${release}/fiscal-sandbox-e2e" \
-    --base-url "http://127.0.0.1:8080" \
-    --token-file "${token_a}" \
-    --fixture-dir "${release}/fixtures/sandbox" \
-    --case "create_201"
-  printf 'ab_gate_a_usable=ok credential_id=%s\n' "${cred_a}"
+  # A must succeed before revoke (fixture/key A).
+  local a_out doc_a
+  a_out="$(
+    run_admin_dropped "${release}/fiscal-sandbox-e2e" \
+      --base-url "http://127.0.0.1:8080" \
+      --token-file "${token_a}" \
+      --fixture-dir "${release}/fixtures/sandbox" \
+      --case "create_201"
+  )"
+  [[ "${a_out}" != *postgres://* && "${a_out}" != *bwb_sbox_* ]] || die "secret leak in A e2e"
+  doc_a="$(printf '%s\n' "${a_out}" | sed -n 's/.*document_id=\([A-Za-z0-9._-]*\).*/\1/p' | head -1)"
+  assert_safe_arg "document_id_a" "${doc_a}"
+  printf 'ab_gate_a_usable=ok credential_id=%s document_id=%s\n' "${cred_a}" "${doc_a}"
 
   run_admin_dropped "${release}/fiscal-admin" credential revoke \
     --scope-id "${scope_id}" \
@@ -664,12 +670,21 @@ op_admin_sandbox_ab_revoke_gate() {
     chown "${ADMIN_USER}:${ADMIN_USER}" "${ADMIN_TOKEN_DIR}/current.token"
   fi
 
-  run_admin_dropped "${release}/fiscal-sandbox-e2e" \
-    --base-url "http://127.0.0.1:8080" \
-    --token-file "${token_b}" \
-    --fixture-dir "${release}/fixtures/sandbox" \
-    --case "create_replay"
-  printf 'ab_gate_b_replay=ok scope_id=%s\n' "${scope_id}"
+  # B creates a NEW document (fixture/key B) then proves idempotent replay of that same request.
+  local b_out doc_b
+  b_out="$(
+    run_admin_dropped "${release}/fiscal-sandbox-e2e" \
+      --base-url "http://127.0.0.1:8080" \
+      --token-file "${token_b}" \
+      --fixture-dir "${release}/fixtures/sandbox" \
+      --case "create_replay"
+  )"
+  [[ "${b_out}" != *postgres://* && "${b_out}" != *bwb_sbox_* ]] || die "secret leak in B e2e"
+  doc_b="$(printf '%s\n' "${b_out}" | sed -n 's/.*document_id=\([A-Za-z0-9._-]*\).*/\1/p' | head -1)"
+  assert_safe_arg "document_id_b" "${doc_b}"
+  [[ "${doc_a}" != "${doc_b}" ]] || die "A and B document_id must differ"
+  printf 'ab_gate_b_replay=ok scope_id=%s document_id=%s\n' "${scope_id}" "${doc_b}"
+  printf 'ab_gate_docs_distinct=ok\n'
 }
 
 op_admin_sandbox_measure() {

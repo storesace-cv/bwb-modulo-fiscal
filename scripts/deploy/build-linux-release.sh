@@ -99,6 +99,7 @@ printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
     lib/migrate.env.allowlist \
     lib/admin.env.allowlist \
     fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
     COMMIT \

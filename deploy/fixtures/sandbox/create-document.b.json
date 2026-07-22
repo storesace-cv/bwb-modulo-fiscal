@@ -1,0 +1,20 @@
+{
+  "external_id": "FIXTURE-SBOX-EXT-B-002",
+  "document_type": "invoice",
+  "currency": "AOA",
+  "issued_at": "2026-07-21T11:00:00+01:00",
+  "requested_series": "IGNORED",
+  "seller": {
+    "tax_id": "FIXTURE-NIF-AO-0001",
+    "name": "Fixture Seller Synthetic AO"
+  },
+  "lines": [
+    {
+      "line_id": "L1",
+      "description": "Fixture line B",
+      "quantity": "2",
+      "unit_price": "5.25",
+      "tax_code": "NOR"
+    }
+  ]
+}

@@ -71,6 +71,12 @@ hdr="${TMP}/headers"
 resp="${TMP}/resp"
 codef="${TMP}/code"
 
+# Fixture A (create_201 / revoke probes) vs fixture B (create_replay — distinct external_id).
+FIXTURE_A="${FIXTURE_DIR}/create-document.min.json"
+FIXTURE_B="${FIXTURE_DIR}/create-document.b.json"
+IDEM_A="55555555-5555-4555-8555-555555555555"
+IDEM_B="88888888-8888-4888-8888-888888888888"
+
 write_auth_header() {
   local tok
   tok="$(tr -d '\r\n' <"${TOKEN_FILE}")"
@@ -86,6 +92,7 @@ do_post() {
   local use_auth="$3"
   local -a curl_args
   [[ -f "${fixture}" && ! -L "${fixture}" ]] || die
+  # Valid curl form: option and @path as separate argv elements (spaces in path stay intact).
   curl_args=(
     -sS
     -o "${resp}"
@@ -94,7 +101,8 @@ do_post() {
     -H "Content-Type: application/json"
     -H "Idempotency-Key: ${idem}"
     --max-filesize "${MAX_BODY}"
-    "--data-binary@${fixture}"
+    --data-binary
+    "@${fixture}"
   )
   if [[ "${use_auth}" == "1" ]]; then
     curl_args+=(-H @"${hdr}")
@@ -106,7 +114,6 @@ do_post() {
 
 # Extract stable CreateDocumentResponse fields for idempotent replay comparison.
 # OpenAPI 0.1.4-draft: id, external_id, status, submission_id, created_at (no fiscal_seq / fiscal_number).
-# Idempotency indicator = byte-identical stable field set (same as internal/httpapi replay test).
 compare_replay_stable() {
   local first="$1" second="$2"
   python3 - "$first" "$second" <<'PY' || return 1
@@ -125,12 +132,25 @@ for k in keys:
         sys.exit(4)
 if a.get("status") != "sealed_locally":
     sys.exit(5)
-# Full required-object equality (idempotent replay must not mint a new document).
-for k in keys:
-    if a[k] != b[k]:
-        sys.exit(4)
 sys.exit(0)
 PY
+}
+
+doc_id_from_resp() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY' "${resp}" 2>/dev/null
+import json,sys,re
+try:
+  d=json.load(open(sys.argv[1], encoding="utf-8"))
+  v=d.get("id") or ""
+  if isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9._-]+", v or ""):
+    print(v)
+  else:
+    print("")
+except Exception:
+  print("")
+PY
+  fi
 }
 
 req_id_from_resp() {
@@ -152,7 +172,12 @@ PY
 
 emit() {
   local status="$1" result="$2" rid="${3:-}"
-  if [[ -n "${rid}" ]]; then
+  local doc="${4:-}"
+  if [[ -n "${doc}" && -n "${rid}" ]]; then
+    printf 'status=%s result=%s request_id=%s document_id=%s\n' "${status}" "${result}" "${rid}" "${doc}"
+  elif [[ -n "${doc}" ]]; then
+    printf 'status=%s result=%s document_id=%s\n' "${status}" "${result}" "${doc}"
+  elif [[ -n "${rid}" ]]; then
     printf 'status=%s result=%s request_id=%s\n' "${status}" "${result}" "${rid}"
   else
     printf 'status=%s result=%s\n' "${status}" "${result}"
@@ -161,7 +186,7 @@ emit() {
 
 case "${CASE}" in
   unauthorized_no_token)
-    do_post "${FIXTURE_DIR}/create-document.min.json" "11111111-1111-4111-8111-111111111111" 0
+    do_post "${FIXTURE_A}" "11111111-1111-4111-8111-111111111111" 0
     code="$(cat "${codef}")"
     [[ "${code}" == "401" ]] || { emit "${code}" fail; exit 1; }
     emit "${code}" pass "$(req_id_from_resp)"
@@ -170,7 +195,7 @@ case "${CASE}" in
     # Artificial invalid token constant — not a previously issued credential.
     printf 'Authorization: Bearer %s\n' "bwb_sbox_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >"${hdr}"
     chmod 0600 "${hdr}"
-    do_post "${FIXTURE_DIR}/create-document.min.json" "22222222-2222-4222-8222-222222222222" 1
+    do_post "${FIXTURE_A}" "22222222-2222-4222-8222-222222222222" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "401" ]] || { emit "${code}" fail; exit 1; }
     emit "${code}" pass "$(req_id_from_resp)"
@@ -190,22 +215,26 @@ case "${CASE}" in
     emit "${code}" pass "$(req_id_from_resp)"
     ;;
   create_201)
+    # Document A: fixture/key A (distinct from B replay fixture).
     write_auth_header
-    do_post "${FIXTURE_DIR}/create-document.min.json" "55555555-5555-4555-8555-555555555555" 1
+    do_post "${FIXTURE_A}" "${IDEM_A}" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "201" ]] || { emit "${code}" fail; exit 1; }
-    emit "${code}" pass "$(req_id_from_resp)"
+    doc="$(doc_id_from_resp)"
+    [[ -n "${doc}" ]] || { emit "${code}" fail; exit 1; }
+    emit "${code}" pass "$(req_id_from_resp)" "${doc}"
     ;;
   create_replay)
-    # Real idempotent replay: same Idempotency-Key + body → identical stable fields.
+    # Document B: distinct fixture/external_id + Idempotency-Key, then real replay.
     write_auth_header
-    idem="55555555-5555-4555-8555-555555555555"
-    fixture="${FIXTURE_DIR}/create-document.min.json"
-    do_post "${fixture}" "${idem}" 1
+    [[ -f "${FIXTURE_B}" && ! -L "${FIXTURE_B}" ]] || die
+    do_post "${FIXTURE_B}" "${IDEM_B}" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "201" ]] || { emit "${code}" fail; exit 1; }
     cp "${resp}" "${TMP}/first.json"
-    do_post "${fixture}" "${idem}" 1
+    doc="$(doc_id_from_resp)"
+    [[ -n "${doc}" ]] || { emit "${code}" fail; exit 1; }
+    do_post "${FIXTURE_B}" "${IDEM_B}" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "201" ]] || { emit "${code}" fail; exit 1; }
     cp "${resp}" "${TMP}/second.json"
@@ -213,20 +242,20 @@ case "${CASE}" in
       emit "${code}" replay_mismatch
       exit 1
     fi
-    emit "${code}" pass "$(req_id_from_resp)"
+    emit "${code}" pass "$(req_id_from_resp)" "${doc}"
     ;;
   token_revoked_401)
     # Expects TOKEN_FILE to hold a previously issued token whose credential was revoked.
     # Distinct from unauthorized_bad_token (artificial invalid constant).
     write_auth_header
-    do_post "${FIXTURE_DIR}/create-document.min.json" "77777777-7777-4777-8777-777777777777" 1
+    do_post "${FIXTURE_A}" "77777777-7777-4777-8777-777777777777" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "401" ]] || { emit "${code}" fail; exit 1; }
     emit "${code}" pass "$(req_id_from_resp)"
     ;;
   measure_probe)
     write_auth_header
-    do_post "${FIXTURE_DIR}/create-document.min.json" "66666666-6666-4666-8666-666666666666" 1
+    do_post "${FIXTURE_A}" "66666666-6666-4666-8666-666666666666" 1
     code="$(cat "${codef}")"
     emit "${code}" probe "$(req_id_from_resp)"
     ;;

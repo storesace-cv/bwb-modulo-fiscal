@@ -128,7 +128,7 @@ Zone provisória (S3A/S3B): `deploy/nginx/http.d/bwb-limit-req-documents-provisi
 
 Fluxo: helper root → parser allowlist (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL`) → `env -i` → drop para `bwb-fiscal-admin`. DSN/token **nunca** em argv/stdout/logs. `bwb-deploy` não lê `admin.env` nem tokens. `--output-file` é sempre escolhido pelo helper sob o dir de tokens.
 
-Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure`, `admin-sandbox-ab-revoke-gate` (A utilizável → revogar A → 401 com A → emitir B → 201+replay). Rejeitadas: `install-nginx-open` / activação do candidato.
+Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure`, `admin-sandbox-ab-revoke-gate` (A cria doc com fixture/chave A → revogar A → 401 com token A → B cria doc **novo** com fixture/chave B → replay de B; `document_id` A≠B). Rejeitadas: `install-nginx-open` / activação do candidato.
 
 ### Grants PostgreSQL (S3A artefact / S3B apply)
 

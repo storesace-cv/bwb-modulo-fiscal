@@ -340,6 +340,7 @@ deploy_verify_release_manifest() {
     test -f lib/migrate.env.allowlist
     test -f lib/admin.env.allowlist
     test -f fixtures/sandbox/create-document.min.json
+    test -f fixtures/sandbox/create-document.b.json
     test -f fixtures/sandbox/create-document.nif-mismatch.json
     test -f fixtures/sandbox/create-document.invalid.json
     # Open candidate must never be the active install target in a release tree.

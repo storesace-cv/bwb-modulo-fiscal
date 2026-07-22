@@ -233,6 +233,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrat
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
     lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
     fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
@@ -313,6 +314,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
     lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
     fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
@@ -393,9 +395,9 @@ done
 [[ -f "\${token}" ]] || exit 1
 printf 'case=%s token_set=1\n' "\${case_name}" >>"${GATE_E2E_LOG}"
 case "\${case_name}" in
-  create_201) printf 'status=201 result=pass\n' ;;
+  create_201) printf 'status=201 result=pass document_id=doc-gate-a-synth\n' ;;
   token_revoked_401) printf 'status=401 result=pass\n' ;;
-  create_replay) printf 'status=201 result=pass\n' ;;
+  create_replay) printf 'status=201 result=pass document_id=doc-gate-b-synth\n' ;;
   *) exit 1 ;;
 esac
 EOF
@@ -406,6 +408,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbo
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
     lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
     fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
@@ -423,11 +426,14 @@ if BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
     && grep -q 'ab_gate_a_revoked=ok' "${TMP}/gate.out" \
     && grep -q 'ab_gate_a_rejected=ok' "${TMP}/gate.out" \
     && grep -q 'ab_gate_b_replay=ok' "${TMP}/gate.out" \
+    && grep -q 'ab_gate_docs_distinct=ok' "${TMP}/gate.out" \
+    && grep -q 'document_id=doc-gate-a-synth' "${TMP}/gate.out" \
+    && grep -q 'document_id=doc-gate-b-synth' "${TMP}/gate.out" \
     && grep -q 'case=create_201' "${GATE_E2E_LOG}" \
     && grep -q 'case=token_revoked_401' "${GATE_E2E_LOG}" \
     && grep -q 'case=create_replay' "${GATE_E2E_LOG}" \
     && ! grep -q 'bwb_sbox_\|postgres://\|SECRET_ADM' "${TMP}/gate.out" "${TMP}/gate.err" "${GATE_E2E_LOG}"; then
-    ok "A→B revoke gate: A usable→revoke→401→B replay; no token/DSN leak"
+    ok "A→B revoke gate: A usable→revoke→401→B new doc+replay; ids distinct; no secret leak"
   else
     bad "A→B revoke gate assertions failed"
     cat "${TMP}/gate.out" "${TMP}/gate.err" "${GATE_E2E_LOG}" >&2 || true
@@ -524,7 +530,7 @@ else
   bad "e2e/measure safety checks failed"
 fi
 
-# Curl argv: fixture path with spaces must remain a single argument; never leak token.
+# Curl argv: --data-binary and @<path> as separate args; spaced path intact; never leak token.
 CURL_LOG="${TMP}/curl-argv.log"
 SPACE_ROOT="${TMP}/path with spaces"
 mkdir -p "${SPACE_ROOT}/fixtures/sandbox" "${SPACE_ROOT}/tokens" "${TMP}/curlbin"
@@ -535,9 +541,16 @@ cat >"${TMP}/curlbin/curl" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
 : >"${CURL_LOG}"
+outf=""
+prev=""
 for a in "\$@"; do
   printf '%s\n' "\$a" >>"${CURL_LOG}"
+  if [[ "\${prev}" == "-o" ]]; then outf="\${a}"; fi
+  prev="\${a}"
 done
+if [[ -n "\${outf}" ]]; then
+  printf '%s' '{"id":"doc_space_mock","external_id":"FIXTURE-SBOX-EXT-001","status":"sealed_locally","submission_id":"sub_space_mock","created_at":"2026-07-21T10:00:01.000000000Z"}' >"\${outf}"
+fi
 printf '201'
 EOF
 chmod 0755 "${TMP}/curlbin/curl"
@@ -548,10 +561,11 @@ if PATH="${TMP}/curlbin:/usr/bin:/bin" \
     --fixture-dir "${SPACE_ROOT}/fixtures/sandbox" \
     --case create_201 \
     >"${TMP}/space-e2e.out" 2>"${TMP}/space-e2e.err"; then
-  # Prefer single argv --data-binary@<path> so spaces in fixture path stay intact.
-  if grep -Fqx -- "--data-binary@${SPACE_ROOT}/fixtures/sandbox/create-document.min.json" "${CURL_LOG}" \
+  if grep -Fqx -- "--data-binary" "${CURL_LOG}" \
+    && grep -Fqx -- "@${SPACE_ROOT}/fixtures/sandbox/create-document.min.json" "${CURL_LOG}" \
+    && ! grep -Fq -- "--data-binary@" "${CURL_LOG}" \
     && ! grep -q 'bwb_sbox_\|SYNTHETIC_TOKEN\|postgres://' "${TMP}/space-e2e.out" "${TMP}/space-e2e.err" "${CURL_LOG}"; then
-    ok "curl array preserves spaced fixture path; no token/DSN in outputs"
+    ok "curl mock: separate --data-binary and @path with spaces; no token/DSN"
   else
     bad "curl space-path argv assertion failed"
     cat "${CURL_LOG}" "${TMP}/space-e2e.out" "${TMP}/space-e2e.err" >&2 || true
@@ -559,6 +573,150 @@ if PATH="${TMP}/curlbin:/usr/bin:/bin" \
 else
   bad "e2e with spaced fixture path failed"
   cat "${TMP}/space-e2e.err" "${CURL_LOG}" >&2 || true
+fi
+
+# Real curl must accept the two-arg form with spaces (rejects glued --data-binary@ as used previously).
+REAL_SPACE="${TMP}/real path spaces"
+mkdir -p "${REAL_SPACE}"
+printf '{"ping":true}\n' >"${REAL_SPACE}/body.json"
+# Invalid glued option must fail under real curl.
+set +e
+/usr/bin/curl -sS --data-binary@"${REAL_SPACE}/body.json" "http://127.0.0.1:9/" >"${TMP}/real-bad.out" 2>"${TMP}/real-bad.err"
+bad_rc=$?
+set -e
+if [[ "${bad_rc}" -ne 0 ]] && grep -qiE 'option|unknown|illegal' "${TMP}/real-bad.err"; then
+  ok "real curl rejects invalid --data-binary@glued option"
+else
+  # Some curl builds may treat it differently; still require non-zero or explicit error.
+  if [[ "${bad_rc}" -ne 0 ]]; then
+    ok "real curl rejects invalid --data-binary@glued option"
+  else
+    bad "real curl unexpectedly accepted glued --data-binary@"
+    cat "${TMP}/real-bad.err" >&2
+  fi
+fi
+
+# Valid two-arg form: start loopback stub on :8080 if free, run e2e with real curl + spaced fixture.
+REAL_STUB_LOG="${TMP}/real-stub.log"
+REAL_STUB_PID=""
+port_open_8080=0
+set +e
+(echo >/dev/tcp/127.0.0.1/8080) >/dev/null 2>&1
+port_probe=$?
+set -e
+if [[ "${port_probe}" -eq 0 ]]; then
+  port_open_8080=1
+fi
+if [[ "${port_open_8080}" -eq 0 ]]; then
+  cat >"${TMP}/e2e-stub-8080.py" <<'PY'
+import json, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+log_path = sys.argv[1]
+store = {}
+
+class H(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write((fmt % args) + "\n")
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length)
+        key = self.headers.get("Idempotency-Key", "")
+        if key in store:
+            payload = store[key]
+        else:
+            try:
+                req = json.loads(body.decode("utf-8"))
+            except Exception:
+                self.send_response(400)
+                self.end_headers()
+                return
+            ext = req.get("external_id", "unknown")
+            payload = {
+                "id": "doc_real_" + "".join(c for c in ext if c.isalnum())[-12:],
+                "external_id": ext,
+                "status": "sealed_locally",
+                "submission_id": "sub_real_stub",
+                "created_at": "2026-07-21T10:00:01.000000000Z",
+            }
+            store[key] = payload
+        raw = json.dumps(payload).encode("utf-8")
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+HTTPServer(("127.0.0.1", 8080), H).serve_forever()
+PY
+  : >"${REAL_STUB_LOG}"
+  python3 "${TMP}/e2e-stub-8080.py" "${REAL_STUB_LOG}" &
+  REAL_STUB_PID=$!
+  stub_ready=0
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    set +e
+    (echo >/dev/tcp/127.0.0.1/8080) >/dev/null 2>&1
+    pr=$?
+    set -e
+    if [[ "${pr}" -eq 0 ]]; then
+      stub_ready=1
+      break
+    fi
+    # Fail fast if stub process died.
+    if ! kill -0 "${REAL_STUB_PID}" 2>/dev/null; then
+      break
+    fi
+    sleep 0.25
+  done
+  if [[ "${stub_ready}" -ne 1 ]]; then
+    bad "real curl stub failed to bind 127.0.0.1:8080"
+    cat "${REAL_STUB_LOG}" >&2
+    set +e
+    kill "${REAL_STUB_PID}" >/dev/null 2>&1
+    wait "${REAL_STUB_PID}" 2>/dev/null
+    set -e
+  elif PATH="/usr/bin:/bin" \
+    bash "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+      --base-url "http://127.0.0.1:8080" \
+      --token-file "${SPACE_ROOT}/tokens/current.token" \
+      --fixture-dir "${SPACE_ROOT}/fixtures/sandbox" \
+      --case create_201 \
+      >"${TMP}/real-e2e.out" 2>"${TMP}/real-e2e.err"; then
+    if grep -q 'status=201 result=pass document_id=doc_real_' "${TMP}/real-e2e.out" \
+      && ! grep -q 'bwb_sbox_\|SYNTHETIC_TOKEN\|postgres://' "${TMP}/real-e2e.out" "${TMP}/real-e2e.err"; then
+      ok "real curl e2e with spaced fixture path against loopback stub"
+    else
+      bad "real curl e2e assertions failed"
+      cat "${TMP}/real-e2e.out" "${TMP}/real-e2e.err" >&2
+    fi
+    set +e
+    kill "${REAL_STUB_PID}" >/dev/null 2>&1
+    wait "${REAL_STUB_PID}" 2>/dev/null
+    set -e
+  else
+    bad "real curl e2e failed"
+    cat "${TMP}/real-e2e.err" "${TMP}/real-e2e.out" "${REAL_STUB_LOG}" >&2
+    set +e
+    kill "${REAL_STUB_PID}" >/dev/null 2>&1
+    wait "${REAL_STUB_PID}" 2>/dev/null
+    set -e
+  fi
+else
+  ok "skip real curl e2e stub (127.0.0.1:8080 already in use)"
+fi
+
+# Prove create_replay uses fixture B (distinct external_id), not A's fixture/key.
+if grep -q 'FIXTURE_B=.*create-document.b.json' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  && grep -q 'IDEM_B=' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  && grep -q 'create-document.b.json' "${ROOT}/scripts/deploy/build-linux-release.sh" \
+  && [[ -f "${ROOT}/deploy/fixtures/sandbox/create-document.b.json" ]] \
+  && ! grep -q 'FIXTURE-SBOX-EXT-001' "${ROOT}/deploy/fixtures/sandbox/create-document.b.json" \
+  && grep -q 'FIXTURE-SBOX-EXT-B-002' "${ROOT}/deploy/fixtures/sandbox/create-document.b.json"; then
+  ok "fixture B distinct external_id shipped in release manifesto inputs"
+else
+  bad "fixture B missing or not distinct from A"
 fi
 
 # Grants SQL must not create roles; fail-closed if roles missing
@@ -695,6 +853,7 @@ seed_sha_release() {
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
     lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
     fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
