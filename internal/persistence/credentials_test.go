@@ -375,10 +375,10 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 
 	t.Run("scope_concurrency", func(t *testing.T) {
 		if !postgres {
-			// SQLite MaxOpenConns=1 serializes writers; still verify sequential rotates.
+			// SQLite MaxOpenConns=1 serializes writers; still verify Issue/Rotate/Revoke under IMMEDIATE.
 			scopeID := "cred-scope-" + uid + "-sqconc"
 			mustCreateScope(t, ctx, store, scopeID)
-			mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+			rec, _ := mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
 			for i := 0; i < 5; i++ {
 				mustRotate(t, ctx, store, persistence.RotateParams{
 					ScopeID: scopeID, CreatedBy: "admin", GraceUntil: time.Now().UTC().Add(time.Hour),
@@ -396,13 +396,34 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			if active != 1 || grace != 1 {
 				t.Fatalf("active=%d grace=%d", active, grace)
 			}
+			_ = rec
+			var activeID string
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT credential_id FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+				[]any{scopeID}, &activeID,
+			)
+			if _, err := store.Revoke(ctx, persistence.RevokeParams{
+				ScopeID: scopeID, CredentialID: activeID, RequestID: "sq-revoke",
+			}); err != nil {
+				t.Fatalf("revoke: %v", err)
+			}
+			mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
+			mustScan(t, ctx, sqlDB, postgres,
+				`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+				[]any{scopeID}, &active,
+			)
+			if active != 1 {
+				t.Fatalf("after revoke+reissue active=%d", active)
+			}
 			return
 		}
 
 		scopeID := "cred-scope-" + uid + "-pgconc"
 		mustCreateScope(t, ctx, store, scopeID)
 		mustIssue(t, ctx, store, persistence.IssueParams{ScopeID: scopeID, CreatedBy: "admin"})
-		var okCount atomic.Int64
+
+		// Concurrent rotates: exactly one active and one grace at the end.
+		var okRotate atomic.Int64
 		var wg sync.WaitGroup
 		for i := 0; i < 8; i++ {
 			wg.Add(1)
@@ -413,12 +434,12 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 					Deliver: func(string) error { return nil },
 				})
 				if err == nil {
-					okCount.Add(1)
+					okRotate.Add(1)
 				}
 			}()
 		}
 		wg.Wait()
-		if okCount.Load() < 1 {
+		if okRotate.Load() < 1 {
 			t.Fatal("expected at least one successful concurrent rotate")
 		}
 		var active, grace int
@@ -431,7 +452,74 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 			[]any{scopeID}, &grace,
 		)
 		if active != 1 || grace != 1 {
-			t.Fatalf("after concurrency active=%d grace=%d ok=%d", active, grace, okCount.Load())
+			t.Fatalf("after concurrency active=%d grace=%d ok=%d", active, grace, okRotate.Load())
+		}
+
+		// Concurrent Issue on a fresh scope: only one active may win (unique partial index).
+		scopeIssue := "cred-scope-" + uid + "-pgissue"
+		mustCreateScope(t, ctx, store, scopeIssue)
+		var okIssue atomic.Int64
+		var conflictIssue atomic.Int64
+		wg = sync.WaitGroup{}
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := store.Issue(ctx, persistence.IssueParams{
+					ScopeID: scopeIssue, CreatedBy: "admin",
+					Deliver: func(string) error { return nil },
+				})
+				switch {
+				case err == nil:
+					okIssue.Add(1)
+				case errors.Is(err, persistence.ErrCredentialConflict):
+					conflictIssue.Add(1)
+				}
+			}()
+		}
+		wg.Wait()
+		if okIssue.Load() != 1 {
+			t.Fatalf("concurrent issue winners=%d conflicts=%d", okIssue.Load(), conflictIssue.Load())
+		}
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT COUNT(*) FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+			[]any{scopeIssue}, &active,
+		)
+		if active != 1 {
+			t.Fatalf("concurrent issue left active=%d", active)
+		}
+
+		// Concurrent revoke of the same active credential: at most one success; final status revoked.
+		var activeID string
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT credential_id FROM `+tblCred(postgres, "api_credentials")+` WHERE scope_id = ? AND status = 'active'`,
+			[]any{scopeIssue}, &activeID,
+		)
+		var okRevoke atomic.Int64
+		wg = sync.WaitGroup{}
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := store.Revoke(ctx, persistence.RevokeParams{
+					ScopeID: scopeIssue, CredentialID: activeID, RequestID: "pg-revoke",
+				})
+				if err == nil {
+					okRevoke.Add(1)
+				}
+			}()
+		}
+		wg.Wait()
+		if okRevoke.Load() < 1 {
+			t.Fatal("expected at least one successful concurrent revoke")
+		}
+		var status string
+		mustScan(t, ctx, sqlDB, postgres,
+			`SELECT status FROM `+tblCred(postgres, "api_credentials")+` WHERE credential_id = ?`,
+			[]any{activeID}, &status,
+		)
+		if status != "revoked" {
+			t.Fatalf("after concurrent revoke status=%s ok=%d", status, okRevoke.Load())
 		}
 	})
 

@@ -110,6 +110,17 @@ pre_activate_fail() {
 }
 
 read_active_release() {
+  # Prefer closed helper op (no arbitrary remote shell). Fallback kept for mocks that
+  # only implement a subset of helper operations in unit tests.
+  local out
+  set +e
+  out="$(remote_helper current-sha 2>/dev/null)"
+  local st=$?
+  set -e
+  if [[ "${st}" -eq 0 ]]; then
+    printf '%s\n' "${out}" | sed -n 's/^current_sha=\([0-9a-f]\{40\}\)$/\1/p' | head -1
+    return 0
+  fi
   remote_sh "if [[ -e /opt/bwb-modulo-fiscal/current ]]; then basename \"\$(readlink /opt/bwb-modulo-fiscal/current)\"; else printf 'none'; fi"
 }
 
@@ -515,6 +526,11 @@ if [[ "${act_st}" -ne 0 ]]; then
   ACTIVATED=0
   pre_activate_fail "activate failed"
 fi
+# Closed post-activate verification via helper current-sha (not arbitrary SSH).
+if [[ "${ACTIVE_RELEASE}" != "${HEAD}" ]]; then
+  ACTIVATED=0
+  pre_activate_fail "activate reported ok but current-sha!=${HEAD} (got ${ACTIVE_RELEASE})"
+fi
 ACTIVATED=1
 
 set +e
@@ -531,6 +547,11 @@ fi
 report "restart=ok"
 
 if run_remote_health; then
+  # Re-confirm active SHA through the closed helper before promote.
+  sync_active_release
+  if [[ "${ACTIVE_RELEASE}" != "${HEAD}" ]]; then
+    post_activate_fail "health ok but current-sha!=${HEAD} (got ${ACTIVE_RELEASE})"
+  fi
   report "promote=ok symlink=current->${HEAD}"
   report_active
   cleanup_remote_upload

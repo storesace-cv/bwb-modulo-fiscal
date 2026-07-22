@@ -217,6 +217,32 @@ func TestPostgresSchema3OperationalGrants(t *testing.T) {
 		}
 	})
 
+	t.Run("admin_cannot_update_any_scope_column", func(t *testing.T) {
+		forbidden := []struct {
+			name string
+			sql  string
+			args []any
+		}{
+			{"taxpayer_nif", `UPDATE fiscal.scopes SET taxpayer_nif = $1 WHERE scope_id = $2`, []any{"hijack-nif", "scope-grants-synth"}},
+			{"iana_timezone", `UPDATE fiscal.scopes SET iana_timezone = $1 WHERE scope_id = $2`, []any{"UTC", "scope-grants-synth"}},
+			{"series_effective_code", `UPDATE fiscal.scopes SET series_effective_code = $1 WHERE scope_id = $2`, []any{"Z", "scope-grants-synth"}},
+			{"environment", `UPDATE fiscal.scopes SET environment = $1 WHERE scope_id = $2`, []any{"production", "scope-grants-synth"}},
+			{"status", `UPDATE fiscal.scopes SET status = $1 WHERE scope_id = $2`, []any{"inactive", "scope-grants-synth"}},
+			{"scope_id", `UPDATE fiscal.scopes SET scope_id = $1 WHERE scope_id = $2`, []any{"scope-hijack", "scope-grants-synth"}},
+		}
+		for _, tc := range forbidden {
+			t.Run(tc.name, func(t *testing.T) {
+				err := withRole(t, ctx, owner, "fiscal_admin", func(tx *sql.Tx) error {
+					_, err := tx.ExecContext(ctx, tc.sql, tc.args...)
+					return err
+				})
+				if err == nil || !isPrivilegeDenied(err) {
+					t.Fatalf("want privilege denied for scopes.%s, got %v", tc.name, err)
+				}
+			})
+		}
+	})
+
 	t.Run("runtime_cannot_update_credentials_or_scopes", func(t *testing.T) {
 		err := withRole(t, ctx, owner, "fiscal_runtime", func(tx *sql.Tx) error {
 			_, err := tx.ExecContext(ctx, `
