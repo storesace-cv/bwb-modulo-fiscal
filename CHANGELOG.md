@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.11-draft — 2026-07-22
+
+- S3C-tooling: `internal/buildinfo` + Health `revision` (required, SHA40\|dev); `fiscal-api version`; release ldflags + verificação `revision == COMMIT`; binário Go `fiscal-sandbox-measure` (perfis fechados sustained/burst/replay) substitui o medidor shell; helper `admin-sandbox-measure <sha> <profile>`; OpenAPI `0.1.5-draft`; runbook S3C1. Sem deploy/S3C1/S3C2/abertura pública.
+- Hardening measure (Draft PR): pacing sustained sem catch-up; thresholds completos + `passed`/`failure_codes`; `attempted`/`http_responses`/`transport_errors`; replay tipado estrito; `revision=dev` só em `FISCAL_ENV=development`; token dir/ficheiro 0600 sem symlink; latência via Clock injectado.
+
 ## 0.2.10-draft — 2026-07-22
 
 - Pós-S3B (artefacto / Draft PR): Issue/Rotate/Revoke em PostgreSQL usam `pg_advisory_xact_lock` por `scope_id` + `SELECT` (sem `FOR UPDATE` nem UPDATE em `fiscal.scopes`); activate do helper com GNU `mv -T` + verificação `current-sha`; Nginx measure/candidate com `limit_req_status 429`; testes concorrentes estritos e regressão activate. Sem deploy/Ready/S3C neste incremento.

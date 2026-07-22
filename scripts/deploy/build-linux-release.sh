@@ -70,14 +70,16 @@ fi
 mkdir -p "${OUT_DIR}/lib" "${OUT_DIR}/fixtures/sandbox"
 
 echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
-CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
-CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
-CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/fiscal-admin" ./cmd/fiscal-admin
+REVISION_PKG="github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo.Revision"
+LDFLAGS="-s -w -X ${REVISION_PKG}=${HEAD}"
+CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="${LDFLAGS}" -o "${OUT_DIR}/fiscal-api" ./cmd/fiscal-api
+CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="${LDFLAGS}" -o "${OUT_DIR}/fiscal-migrate" ./cmd/fiscal-migrate
+CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="${LDFLAGS}" -o "${OUT_DIR}/fiscal-admin" ./cmd/fiscal-admin
+CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="${LDFLAGS}" -o "${OUT_DIR}/fiscal-sandbox-measure" ./cmd/fiscal-sandbox-measure
 cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${OUT_DIR}/lib/admin.env.allowlist"
 install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-e2e.sh" "${OUT_DIR}/fiscal-sandbox-e2e"
-install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-measure.sh" "${OUT_DIR}/fiscal-sandbox-measure"
 cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${OUT_DIR}/fixtures/sandbox/"
 chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
   "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
@@ -86,6 +88,46 @@ chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" 
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
+
+# Fail closed: injected revision must equal COMMIT/HEAD (SHA40).
+# On a foreign host OS, do not execute the cross-compiled linux binary; verify via
+# host-native `go run` with the same -X Revision ldflags. On linux CI, execute the artefact.
+set +e
+HOST_GOOS="$(go env GOOS)"
+if [[ "${HOST_GOOS}" == "${GOOS}" ]]; then
+  ver_out="$("${OUT_DIR}/fiscal-api" version 2>"${OUT_DIR}/.version.err")"
+  ver_st=$?
+else
+  ver_out="$(CGO_ENABLED=0 go run -trimpath -ldflags="${LDFLAGS}" ./cmd/fiscal-api version 2>"${OUT_DIR}/.version.err")"
+  ver_st=$?
+fi
+set -e
+if [[ "${ver_st}" -ne 0 ]]; then
+  echo "error: fiscal-api version failed" >&2
+  if [[ -s "${OUT_DIR}/.version.err" ]]; then
+    cat "${OUT_DIR}/.version.err" >&2
+  fi
+  rm -f "${OUT_DIR}/.version.err"
+  exit 1
+fi
+rm -f "${OUT_DIR}/.version.err"
+rev="$(printf '%s\n' "${ver_out}" | sed -n 's/^version=[^ ]* revision=\([0-9a-f]\{40\}\)$/\1/p' | head -1)"
+if [[ -z "${rev}" ]]; then
+  echo "error: fiscal-api version did not report lowercase sha40 revision" >&2
+  echo "error: output=${ver_out}" >&2
+  exit 1
+fi
+if [[ "${rev}" != "${HEAD}" ]]; then
+  echo "error: fiscal-api revision does not match HEAD/COMMIT" >&2
+  echo "error: revision=${rev}" >&2
+  echo "error: HEAD=${HEAD}" >&2
+  exit 1
+fi
+committed="$(tr -d '[:space:]' <"${OUT_DIR}/COMMIT")"
+if [[ "${rev}" != "${committed}" ]]; then
+  echo "error: fiscal-api revision does not match COMMIT file" >&2
+  exit 1
+fi
 
 (
   cd "${OUT_DIR}"

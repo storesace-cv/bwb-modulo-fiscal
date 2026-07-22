@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
@@ -25,9 +26,28 @@ func main() {
 }
 
 func run() int {
+	if len(os.Args) >= 2 && os.Args[1] == "version" {
+		rev := buildinfo.Revision
+		if err := buildinfo.Validate(rev); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		version := os.Getenv("FISCAL_APP_VERSION")
+		if version == "" {
+			version = "0.0.0-dev"
+		}
+		fmt.Printf("version=%s revision=%s\n", version, rev)
+		return 0
+	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
+
+	if err := buildinfo.Validate(buildinfo.Revision); err != nil {
+		logger.Error("buildinfo_invalid", "error", err.Error())
+		return 1
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -37,6 +57,10 @@ func run() int {
 	docsCfg, err := config.LoadDocumentsRuntime()
 	if err != nil {
 		logger.Error("documents_config_invalid", "error", err.Error())
+		return 1
+	}
+	if err := buildinfo.ValidateForEnv(buildinfo.Revision, docsCfg.Env); err != nil {
+		logger.Error("buildinfo_env_invalid", "error", err.Error())
 		return 1
 	}
 
@@ -63,7 +87,7 @@ func run() int {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/v1/health", health.NewHandler(cfg.Version, cfg.FiscalPackage))
+	mux.Handle("/v1/health", health.NewHandler(cfg.Version, buildinfo.Revision, cfg.FiscalPackage))
 	mux.Handle("/v1/documents", httpapi.WithRequestID(docs))
 
 	srv := httpserver.New(httpserver.Config{

@@ -16,20 +16,23 @@ const (
 type Response struct {
 	Status        string `json:"status"`
 	Version       string `json:"version"`
+	Revision      string `json:"revision"`
 	FiscalPackage string `json:"fiscalPackage"`
 }
 
 // Handler serve GET /v1/health sem lógica fiscal.
 type Handler struct {
 	Version       string
+	Revision      string
 	FiscalPackage string
 	Status        string
 }
 
 // NewHandler cria um handler de health com estado ok por omissão.
-func NewHandler(version, fiscalPackage string) *Handler {
+func NewHandler(version, revision, fiscalPackage string) *Handler {
 	return &Handler{
 		Version:       version,
+		Revision:      revision,
 		FiscalPackage: fiscalPackage,
 		Status:        StatusOK,
 	}
@@ -51,6 +54,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body := Response{
 		Status:        status,
 		Version:       h.Version,
+		Revision:      h.Revision,
 		FiscalPackage: h.FiscalPackage,
 	}
 

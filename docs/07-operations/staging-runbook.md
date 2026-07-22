@@ -105,7 +105,29 @@ Bootstrap e primeiro deploy em `sandbox.fiscalmod.bwb.pt` concluídos. Relatóri
 
 **S3B (pós-merge S3A, no host):** deploy release S3A; migrate `2→3` se necessário; aplicar `deploy/postgres/grants-schema3-runtime-admin.sql`; auditoria de privilégios; provisionar scopes/credenciais via helper; E2E em `http://127.0.0.1:8080`; medição de `limit_req` **apenas** em `http://127.0.0.1:18080`; HTTPS público mantém `/v1/documents` **deny-all**.
 
-**S3C (PR separado após evidência S3B):** promover `rate`/`burst` medidos para a conf HTTPS canónica aberta; desactivar listener `:18080`; verificar inacessível.
+**S3C-tooling (repo):** binário Go `fiscal-sandbox-measure` + `Health.revision` (SHA40). **Sem** abertura pública; deny-all intacto.
+
+**S3C1 (ops, pós-deploy tooling):** medição em `:18080` com perfis fechados; 443 documents permanece deny-all; remover `:18080` no fim.
+
+**S3C2 (PR separado após evidência S3C1):** promover `rate`/`burst` medidos para conf HTTPS aberta + deny-all versionado + rollback fail-safe; desactivar `:18080`.
+
+### S3C1 — matriz e thresholds (aprovados)
+
+Base fixa: `http://127.0.0.1:18080`. Helper: `admin-sandbox-measure <sha40> sustained|burst|replay` (operador **não** controla URL/taxa/concorrência/token path).
+
+| Perfil | Pedidos | Pacing | Concorrência | Duração wall | Persistência máx. |
+|---|---:|---|---:|---|---:|
+| `sustained` | 300 | 10 r/s média (±10% request throughput); agenda monotónica sem catch-up | 1 | 28–33 s | ≤300 docs |
+| `burst` | ≤60 | rajada | ≤5 | curta | ≤60 docs |
+| `replay` | 2 | sequencial; mesma key/body | 1 | N/A | 1 doc |
+
+Thresholds: `5xx=0`; `409=0`; `other=0`; sustained p95≤250 ms / p99≤500 ms **só em respostas 201** (nearest-rank); 429 latência reportada em separado; request throughput ∈ [9,11] r/s **apenas sobre `http_responses`** (não conta `transport_errors`); 429≤3/300 em sustained; burst 201 ∈ [20,25] e restantes 429; replay ambos 201 com payload tipado estável idêntico. Sem `Retry-After` (Nginx não envia por omissão).
+
+Contadores do relatório JSON: `attempted` (todas as tentativas), `http_responses` (com status HTTP), `transport_errors` (sem resposta HTTP); `passed` + `failure_codes` sanitizados. Falha de threshold ou transporte emite JSON completo e exit ≠ 0 (não esconde resultados atrás de apenas `measure_failed`). Em falha de transporte o perfil cancela o restante de forma controlada e preserva métricas já recolhidas. Percentis (`p50`/`p95`/`p99`) usam nearest-rank sobre latências µs→ms das classes 201 e 429.
+
+Token: só `/var/lib/bwb-fiscal-admin/tokens/measure.token` — dir real (não symlink), mode sem grupo/outros; ficheiro regular (não symlink), owner euid, `0600`. Output: JSON agregado sem token/NIF/body/DSN/URL/Authorization.
+
+Health público: `version` (rótulo `FISCAL_APP_VERSION`) + `revision` (SHA40 lowercase do artefacto em release; `dev` **apenas** com `FISCAL_ENV=development`). Gate release: `health.revision == COMMIT` (SHA40 exacto, sem normalização de case).
 
 ### Topologia
 
@@ -128,7 +150,7 @@ Zone provisória (S3A/S3B): `deploy/nginx/http.d/bwb-limit-req-documents-provisi
 
 Fluxo: helper root → parser allowlist (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL`) → `env -i` → drop para `bwb-fiscal-admin`. DSN/token **nunca** em argv/stdout/logs. `bwb-deploy` não lê `admin.env` nem tokens. `--output-file` é sempre escolhido pelo helper sob o dir de tokens.
 
-Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure`, `admin-sandbox-ab-revoke-gate` (A cria doc com fixture/chave A → revogar A → 401 com token A → B cria doc **novo** com fixture/chave B → replay de B; `document_id` A≠B). Rejeitadas: `install-nginx-open` / activação do candidato.
+Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure <sha> sustained|burst|replay`, `admin-sandbox-ab-revoke-gate` (A cria doc com fixture/chave A → revogar A → 401 com token A → B cria doc **novo** com fixture/chave B → replay de B; `document_id` A≠B). Rejeitadas: `install-nginx-open` / activação do candidato.
 
 ### Grants PostgreSQL (S3A artefact / S3B apply)
 
@@ -136,11 +158,10 @@ Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `
 - Roles `fiscal_migrate` / `fiscal_runtime` / `fiscal_admin` e respetivas credenciais LOGIN são criadas no **bootstrap S3B** com autoridade apropriada; o script de grants falha se alguma role obrigatória estiver ausente.
 - Sem `CREATE ROLE` e sem DEFAULT PRIVILEGES genéricos para runtime/admin.
 
-### Teto de medição (S3B)
+### Teto de medição (S3B histórico / S3C1 actual)
 
-- ≤60 requests, ≤5 concorrentes, ≤60 segundos (`fiscal-sandbox-measure`).
-- Base fixa `http://127.0.0.1:18080` (não HTTPS público).
-- Relatório: contagens `ok`/`429`/`other` + duração — sem token/NIF/body.
+- **S3B (legado):** ≤60 req / ≤5 conc / ≤60 s (burst curto; não decide rate final).
+- **S3C1:** ver matriz acima (`fiscal-sandbox-measure` Go); base `http://127.0.0.1:18080` apenas.
 
 ### Sequência S3B (operador)
 
