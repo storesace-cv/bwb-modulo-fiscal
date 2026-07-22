@@ -10,7 +10,7 @@ import (
 )
 
 func TestHandlerGETReturnsValidJSON(t *testing.T) {
-	h := health.NewHandler("0.1.0", "AO-PKG-1")
+	h := health.NewHandler("0.1.0", "2f96fe45c0d8ad3cb2e21d8755f2988eb4a43dfd", "AO-PKG-1")
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
 	rec := httptest.NewRecorder()
 
@@ -34,13 +34,16 @@ func TestHandlerGETReturnsValidJSON(t *testing.T) {
 	if body.Version != "0.1.0" {
 		t.Fatalf("version = %q", body.Version)
 	}
+	if body.Revision != "2f96fe45c0d8ad3cb2e21d8755f2988eb4a43dfd" {
+		t.Fatalf("revision = %q", body.Revision)
+	}
 	if body.FiscalPackage != "AO-PKG-1" {
 		t.Fatalf("fiscalPackage = %q", body.FiscalPackage)
 	}
 }
 
 func TestHandlerRejectsNonGET(t *testing.T) {
-	h := health.NewHandler("0.1.0", "AO-PKG-1")
+	h := health.NewHandler("0.1.0", "dev", "AO-PKG-1")
 	req := httptest.NewRequest(http.MethodPost, "/v1/health", nil)
 	rec := httptest.NewRecorder()
 

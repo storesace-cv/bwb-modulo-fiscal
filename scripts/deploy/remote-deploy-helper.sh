@@ -19,7 +19,7 @@
 #   admin-credential-rotate <sha40> <scope-id> <created-by> <grace-until> [expires-at]
 #   admin-credential-revoke <sha40> <scope-id> <credential-id> [reason-code]
 #   admin-sandbox-e2e <sha40> <case> [base-url] [token-basename]
-#   admin-sandbox-measure <sha40>
+#   admin-sandbox-measure <sha40> <sustained|burst|replay>
 #   admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>
 #
 # Never installs Nginx open candidate. Never runs fiscal-admin as root.
@@ -807,18 +807,18 @@ op_admin_sandbox_ab_revoke_gate() {
 
 op_admin_sandbox_measure() {
   local sha="$1"
+  local profile="$2"
   assert_sha1 "sha" "${sha}"
+  case "${profile}" in
+    sustained | burst | replay) ;;
+    *) die "usage: admin-sandbox-measure <sha40> sustained|burst|replay" ;;
+  esac
   local release="${RELEASES}/${sha}"
   verify_release_tree "${release}" "${sha}"
   local token_path="${ADMIN_TOKEN_DIR}/measure.token"
   [[ -f "${token_path}" && ! -L "${token_path}" ]] || die "measure token missing"
-  run_admin_dropped "${release}/fiscal-sandbox-measure" \
-    --token-file "${token_path}" \
-    --fixture-dir "${release}/fixtures/sandbox" \
-    --e2e-bin "${release}/fiscal-sandbox-e2e" \
-    --concurrency 5 \
-    --total 60 \
-    --duration-sec 60
+  # Closed profile only: URL, token path, rate/concurrency are fixed inside the binary.
+  run_admin_dropped "${release}/fiscal-sandbox-measure" --profile "${profile}"
 }
 
 op_cleanup_upload() {
@@ -891,8 +891,8 @@ case "${OP}" in
     op_admin_sandbox_e2e "$1" "$2" "${3:-http://127.0.0.1:8080}" "${4:-current.token}"
     ;;
   admin-sandbox-measure)
-    [[ $# -eq 1 ]] || die "usage: admin-sandbox-measure <sha40>"
-    op_admin_sandbox_measure "$1"
+    [[ $# -eq 2 ]] || die "usage: admin-sandbox-measure <sha40> sustained|burst|replay"
+    op_admin_sandbox_measure "$1" "$2"
     ;;
   admin-sandbox-ab-revoke-gate)
     [[ $# -eq 3 ]] || die "usage: admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>"

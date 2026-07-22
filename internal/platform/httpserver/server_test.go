@@ -23,7 +23,7 @@ func TestHTTPHealthIntegration(t *testing.T) {
 	addr := ln.Addr().String()
 
 	mux := http.NewServeMux()
-	mux.Handle("/v1/health", health.NewHandler("int-1.0.0", "AO-INT"))
+	mux.Handle("/v1/health", health.NewHandler("int-1.0.0", "dev", "AO-INT"))
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httpserver.New(httpserver.Config{

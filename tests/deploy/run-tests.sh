@@ -505,29 +505,45 @@ else
   bad "measure listener binds non-loopback"
 fi
 
-# E2E/measure scripts: no eval; caps; quoted curl array; no token in argv.
-# Literal needles for measure.sh ceilings (must not expand TOTAL/CONCURRENCY/DURATION_SEC here).
-# shellcheck disable=SC2016 # intentional literal for measure.sh TOTAL ceiling
-measure_total_ceiling='[[ "${TOTAL}" -le 60 ]]'
-# shellcheck disable=SC2016 # intentional literal for measure.sh CONCURRENCY ceiling
-measure_conc_ceiling='[[ "${CONCURRENCY}" =~ ^[1-5]$ ]]'
-# shellcheck disable=SC2016 # intentional literal for measure.sh DURATION_SEC ceiling
-measure_dur_ceiling='[[ "${DURATION_SEC}" -le 60 ]]'
+# E2E script: no eval; quoted curl array; no token in argv.
+# Measure is Go binary with closed profiles (sustained/burst/replay) — caps live in code + helper.
 # shellcheck disable=SC2016 # intentional literal for quoted curl expansion in e2e.sh
 e2e_curl_quoted='curl "${curl_args[@]}"'
 if ! grep -nE '^[^#]*\beval\b' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
-  "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF "${measure_total_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF "${measure_conc_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF "${measure_dur_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && [[ ! -f "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" ]] \
+  && grep -q 'cmd/fiscal-sandbox-measure' "${ROOT}/scripts/deploy/build-linux-release.sh" \
+  && grep -q 'buildinfo.Revision' "${ROOT}/scripts/deploy/build-linux-release.sh" \
+  && grep -qE 'admin-sandbox-measure.*sustained\|burst\|replay|sustained \| burst \| replay' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -qF 'fiscal-sandbox-measure" --profile' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
   && grep -qF "${e2e_curl_quoted}" "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
   && ! grep -nE 'curl \$\{curl_args\[@\]\}|curl \$\{curl_args\[\*\]\}' \
     "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
   && ! grep -nE 'curl[^\n]*Bearer|Authorization: Bearer \$\{' \
     "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh"; then
-  ok "e2e/measure: no eval; caps; quoted curl array; token not in curl argv"
+  ok "e2e/measure: Go measure closed profiles; no shell measure; e2e curl safe"
 else
   bad "e2e/measure safety checks failed"
+fi
+
+# Closed measure profiles encoded in Go Spec().
+if grep -q 'ProfileSustained' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'Total:        300' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'RatePerSec:   10' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'Total:        60' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'Concurrency:  5' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'FixedBaseURL = "http://127.0.0.1:18080"' "${ROOT}/internal/sandboxmeasure/measure.go"; then
+  ok "measure Go closed profile caps (sustained 300@10r/s, burst ≤60/5, base :18080)"
+else
+  bad "measure Go profile caps missing"
+fi
+
+# Release build must verify revision == COMMIT.
+if grep -q 'buildinfo.Revision' "${ROOT}/scripts/deploy/build-linux-release.sh" \
+  && grep -q 'revision does not match HEAD/COMMIT' "${ROOT}/scripts/deploy/build-linux-release.sh" \
+  && grep -q 'HOST_GOOS' "${ROOT}/scripts/deploy/build-linux-release.sh"; then
+  ok "release build verifies fiscal-api revision against COMMIT"
+else
+  bad "release revision verification missing"
 fi
 
 # Curl argv: --data-binary and @<path> as separate args; spaced path intact; never leak token.

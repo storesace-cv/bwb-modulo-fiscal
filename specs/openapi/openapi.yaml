@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal API
-  version: 0.1.4-draft
+  version: 0.1.5-draft
   description: >
     Contrato público draft para POS/software houses. createDocument cria e sela
     localmente de forma atómica (201). issued_at deve incluir offset compatível
     com a timezone fiscal do scope (Angola: Africa/Luanda, tipicamente +01:00).
-    Não pronto para produção. Autenticação bearerAuth é do POS/módulo — não são
-    credenciais AGT.
+    Health.revision identifica o artefacto (SHA40 lowercase em release, ou "dev"
+    em builds de desenvolvimento). Não pronto para produção. Autenticação
+    bearerAuth é do POS/módulo — não são credenciais AGT.
   license:
     name: MIT
     identifier: MIT
@@ -239,10 +240,18 @@ components:
     Health:
       type: object
       additionalProperties: false
-      required: [status, version]
+      required: [status, version, revision]
       properties:
         status: { type: string, enum: [ok, degraded] }
-        version: { type: string }
+        version:
+          type: string
+          description: Rótulo explícito de produto (FISCAL_APP_VERSION); não é o SHA do artefacto.
+        revision:
+          type: string
+          description: >
+            Identidade verificável do binário. Em release: SHA-1 completo em hex
+            minúsculas (40 chars). Em desenvolvimento: literal "dev".
+          pattern: "^(?:[0-9a-f]{40}|dev)$"
         fiscalPackage: { type: string }
     Money:
       type: string

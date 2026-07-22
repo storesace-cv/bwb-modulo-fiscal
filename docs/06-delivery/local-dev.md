@@ -11,7 +11,7 @@
 | Variável | Default | Descrição |
 | --- | --- | --- |
 | `FISCAL_HTTP_ADDR` | `127.0.0.1:8080` | Listen (loopback por omissão) |
-| `FISCAL_APP_VERSION` | `0.0.0-dev` | Health `version` |
+| `FISCAL_APP_VERSION` | `0.0.0-dev` | Health `version` (rótulo de produto) |
 | `FISCAL_PACKAGE` | `AO-UNDECLARED` | Health `fiscalPackage` |
 | `FISCAL_HTTP_READ_TIMEOUT` | `5s` | Timeout de leitura |
 | `FISCAL_HTTP_READ_HEADER_TIMEOUT` | `5s` | Timeout de headers |
@@ -110,7 +110,7 @@ Contrato: [api-guidelines.md](../03-api/api-guidelines.md). Sem ficheiros `.env`
 
 Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
 
-Contrato público `0.1.4-draft` + `credential_store` / `FISCAL_SCOPE_MISMATCH` (PR S2) + DEC-TIME-001 (`canonical_v2`, migration `0002`/`0003`).
+Contrato público `0.1.5-draft` (Health `revision` required) + `credential_store` / `FISCAL_SCOPE_MISMATCH` (PR S2) + DEC-TIME-001 (`canonical_v2`, migration `0002`/`0003`). Builds de desenvolvimento expõem `revision=dev`; releases injectam SHA40 via ldflags (`fiscal-api version`).
 
 Staging deploy (artefactos D1): [staging-runbook.md](../07-operations/staging-runbook.md).
 
