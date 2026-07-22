@@ -2,7 +2,7 @@
 
 ## 0.2.9-draft — 2026-07-22
 
-- Sandbox POS S3A (repo only): `fiscal-admin` + E2E/medição no build/manifesto Linux; `admin.env.allowlist` (DRIVER+URL); helper root→parser→`env -i`→`bwb-fiscal-admin`; backup/restore `admin.env`; grants PG explícitos (UPDATE colunar admin); Nginx público deny-all; candidato HTTPS aberto versionado (não activável); medição `127.0.0.1:18080`; runbook S3B/S3C. Sem deploy/SSH; `ExpectedVersion=3` inalterado.
+- Sandbox POS S3A (repo only): `fiscal-admin` + E2E/medição no build/manifesto Linux; `admin.env.allowlist` (DRIVER+URL); helper root→parser→`env -i`→`bwb-fiscal-admin`; backup/restore `admin.env`; grants PG explícitos fail-closed (sem CREATE ROLE; UPDATE colunar admin); Nginx público deny-all; candidato HTTPS aberto versionado (não activável); medição `127.0.0.1:18080`; gate A→B revoke + replay estável; runbook S3B/S3C. Sem deploy/SSH; `ExpectedVersion=3` inalterado.
 
 ## 0.2.8-draft — 2026-07-22
 

@@ -45,18 +45,24 @@ case "${BASE_URL}" in
   *) die ;;
 esac
 
-[[ "${TOKEN_FILE}" =~ ^/var/lib/bwb-fiscal-admin/tokens/[A-Za-z0-9._-]+$ ]] || die
+# Token must live under a directory named tokens/; basename allowlisted (no spaces).
+token_base="$(basename -- "${TOKEN_FILE}")"
+token_dir="$(dirname -- "${TOKEN_FILE}")"
+[[ "${token_base}" =~ ^[A-Za-z0-9._-]+$ ]] || die
+[[ "$(basename -- "${token_dir}")" == "tokens" ]] || die
 [[ -f "${TOKEN_FILE}" && ! -L "${TOKEN_FILE}" ]] || die
+[[ -d "${token_dir}" && ! -L "${token_dir}" ]] || die
+
 [[ "${FIXTURE_DIR}" =~ /fixtures/sandbox$ ]] || die
 [[ -d "${FIXTURE_DIR}" && ! -L "${FIXTURE_DIR}" ]] || die
 
 case "${CASE}" in
-  unauthorized_no_token | unauthorized_bad_token | scope_mismatch | validation_failed | create_201 | create_replay | measure_probe) ;;
+  unauthorized_no_token | unauthorized_bad_token | scope_mismatch | validation_failed \
+  | create_201 | create_replay | token_revoked_401 | measure_probe) ;;
   *) die ;;
 esac
 
-# Reject control chars in paths/values already constrained; double-check CASE.
-[[ "${CASE}" != *$'\n'* && "${CASE}" != *$'\0'* ]] || die
+[[ "${CASE}" != *$'\n'* && "${CASE}" != *$'\r'* ]] || die
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
@@ -79,6 +85,7 @@ do_post() {
   local idem="$2"
   local use_auth="$3"
   local -a curl_args
+  [[ -f "${fixture}" && ! -L "${fixture}" ]] || die
   curl_args=(
     -sS
     -o "${resp}"
@@ -87,25 +94,56 @@ do_post() {
     -H "Content-Type: application/json"
     -H "Idempotency-Key: ${idem}"
     --max-filesize "${MAX_BODY}"
-    --data-binary @"${fixture}"
+    "--data-binary@${fixture}"
   )
   if [[ "${use_auth}" == "1" ]]; then
     curl_args+=(-H @"${hdr}")
   fi
   curl_args+=("${BASE_URL}/v1/documents")
-  # shellcheck disable=SC2068
-  code="$(curl ${curl_args[@]})"
+  code="$(curl "${curl_args[@]}")"
   printf '%s' "${code}" >"${codef}"
 }
 
+# Extract stable CreateDocumentResponse fields for idempotent replay comparison.
+# OpenAPI 0.1.4-draft: id, external_id, status, submission_id, created_at (no fiscal_seq / fiscal_number).
+# Idempotency indicator = byte-identical stable field set (same as internal/httpapi replay test).
+compare_replay_stable() {
+  local first="$1" second="$2"
+  python3 - "$first" "$second" <<'PY' || return 1
+import json, sys
+keys = ("id", "external_id", "status", "submission_id", "created_at")
+forbidden = ("fiscal_number", "authority_request_id", "token", "authorization")
+a = json.load(open(sys.argv[1], encoding="utf-8"))
+b = json.load(open(sys.argv[2], encoding="utf-8"))
+for k in forbidden:
+    if k in a or k in b:
+        sys.exit(2)
+for k in keys:
+    if k not in a or k not in b:
+        sys.exit(3)
+    if a[k] != b[k]:
+        sys.exit(4)
+if a.get("status") != "sealed_locally":
+    sys.exit(5)
+# Full required-object equality (idempotent replay must not mint a new document).
+for k in keys:
+    if a[k] != b[k]:
+        sys.exit(4)
+sys.exit(0)
+PY
+}
+
 req_id_from_resp() {
-  # Best-effort parse request_id without dumping body to stdout on success path.
   if command -v python3 >/dev/null 2>&1; then
     python3 - <<'PY' "${resp}" 2>/dev/null
 import json,sys
 try:
-  d=json.load(open(sys.argv[1]))
-  print(d.get("request_id") or d.get("id") or "")
+  d=json.load(open(sys.argv[1], encoding="utf-8"))
+  v=d.get("request_id") or ""
+  if isinstance(v, str) and all(c.isalnum() or c in "_-" for c in v):
+    print(v)
+  else:
+    print("")
 except Exception:
   print("")
 PY
@@ -129,6 +167,7 @@ case "${CASE}" in
     emit "${code}" pass "$(req_id_from_resp)"
     ;;
   unauthorized_bad_token)
+    # Artificial invalid token constant — not a previously issued credential.
     printf 'Authorization: Bearer %s\n' "bwb_sbox_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >"${hdr}"
     chmod 0600 "${hdr}"
     do_post "${FIXTURE_DIR}/create-document.min.json" "22222222-2222-4222-8222-222222222222" 1
@@ -158,10 +197,31 @@ case "${CASE}" in
     emit "${code}" pass "$(req_id_from_resp)"
     ;;
   create_replay)
+    # Real idempotent replay: same Idempotency-Key + body → identical stable fields.
     write_auth_header
-    do_post "${FIXTURE_DIR}/create-document.min.json" "55555555-5555-4555-8555-555555555555" 1
+    idem="55555555-5555-4555-8555-555555555555"
+    fixture="${FIXTURE_DIR}/create-document.min.json"
+    do_post "${fixture}" "${idem}" 1
     code="$(cat "${codef}")"
     [[ "${code}" == "201" ]] || { emit "${code}" fail; exit 1; }
+    cp "${resp}" "${TMP}/first.json"
+    do_post "${fixture}" "${idem}" 1
+    code="$(cat "${codef}")"
+    [[ "${code}" == "201" ]] || { emit "${code}" fail; exit 1; }
+    cp "${resp}" "${TMP}/second.json"
+    if ! compare_replay_stable "${TMP}/first.json" "${TMP}/second.json"; then
+      emit "${code}" replay_mismatch
+      exit 1
+    fi
+    emit "${code}" pass "$(req_id_from_resp)"
+    ;;
+  token_revoked_401)
+    # Expects TOKEN_FILE to hold a previously issued token whose credential was revoked.
+    # Distinct from unauthorized_bad_token (artificial invalid constant).
+    write_auth_header
+    do_post "${FIXTURE_DIR}/create-document.min.json" "77777777-7777-4777-8777-777777777777" 1
+    code="$(cat "${codef}")"
+    [[ "${code}" == "401" ]] || { emit "${code}" fail; exit 1; }
     emit "${code}" pass "$(req_id_from_resp)"
     ;;
   measure_probe)

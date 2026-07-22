@@ -3,6 +3,7 @@ package persistence_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,119 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbtest"
 )
+
+func ensureSchema3Roles(t *testing.T, ctx context.Context, owner *sql.DB) {
+	t.Helper()
+	// S3B bootstrap responsibility — tests create NOLOGIN roles without passwords.
+	for _, role := range []string{"fiscal_migrate", "fiscal_runtime", "fiscal_admin"} {
+		_, err := owner.ExecContext(ctx, `DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '`+role+`') THEN
+				EXECUTE 'CREATE ROLE `+role+` NOLOGIN';
+			END IF;
+		END $$`)
+		if err != nil {
+			t.Fatalf("bootstrap role %s: %v", role, err)
+		}
+	}
+}
+
+func applyGrantsSchema3(t *testing.T, ctx context.Context, owner *sql.DB) {
+	t.Helper()
+	grantsPath := filepath.Join(repoRootFromPersistenceTest(t), "deploy", "postgres", "grants-schema3-runtime-admin.sql")
+	raw, err := os.ReadFile(grantsPath)
+	if err != nil {
+		t.Fatalf("read grants sql: %v", err)
+	}
+	if strings.Contains(string(raw), "CREATE ROLE") {
+		for _, line := range strings.Split(string(raw), "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "--") {
+				continue
+			}
+			if strings.Contains(strings.ToUpper(trim), "CREATE ROLE") {
+				t.Fatal("grants script must not CREATE ROLE")
+			}
+		}
+	}
+	if _, err := owner.ExecContext(ctx, string(raw)); err != nil {
+		t.Fatalf("apply grants: %v", err)
+	}
+}
+
+// TestPostgresSchema3GrantsFailWhenRoleMissing proves the grants script does not
+// create roles and fails closed when a required role is absent.
+func TestPostgresSchema3GrantsFailWhenRoleMissing(t *testing.T) {
+	dsn, cleanup := dbtest.OpenIsolatedPostgres(t)
+	defer cleanup()
+	ctx := context.Background()
+	if err := dbmigrate.Up(dbmigrate.DialectPostgres, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+	owner, err := db.OpenPostgres(ctx, db.PostgresConfig{URL: dsn})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer owner.Close()
+
+	grantsPath := filepath.Join(repoRootFromPersistenceTest(t), "deploy", "postgres", "grants-schema3-runtime-admin.sql")
+	rawBytes, err := os.ReadFile(grantsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := string(rawBytes)
+	if strings.Contains(strings.ToUpper(raw), "CREATE ROLE") {
+		// Ignore SQL comments: only fail on executable CREATE ROLE.
+		for _, line := range strings.Split(raw, "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "--") {
+				continue
+			}
+			if strings.Contains(strings.ToUpper(trim), "CREATE ROLE") {
+				t.Fatal("grants-schema3-runtime-admin.sql must not contain CREATE ROLE")
+			}
+		}
+	}
+
+	// Substitute fiscal_admin for a unique absent role so we do not mutate cluster roles.
+	absent := fmt.Sprintf("fiscal_admin_absent_%d", time.Now().UnixNano())
+	mutated := strings.ReplaceAll(raw, "fiscal_admin", absent)
+	if mutated == raw {
+		t.Fatal("failed to substitute fiscal_admin in grants script")
+	}
+	var exists bool
+	if err := owner.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)`, absent).Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatalf("probe role %s unexpectedly exists", absent)
+	}
+
+	// migrate + runtime must exist so the failure is specifically the absent admin role.
+	for _, role := range []string{"fiscal_migrate", "fiscal_runtime"} {
+		_, err := owner.ExecContext(ctx, `DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '`+role+`') THEN
+				EXECUTE 'CREATE ROLE `+role+` NOLOGIN';
+			END IF;
+		END $$`)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err = owner.ExecContext(ctx, mutated)
+	if err == nil {
+		t.Fatal("expected grants script to fail when required admin role is missing")
+	}
+	if !strings.Contains(err.Error(), absent) && !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("want missing-role error mentioning %s, got %v", absent, err)
+	}
+	if err := owner.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)`, absent).Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatalf("grants script created missing role %s", absent)
+	}
+}
 
 // TestPostgresSchema3OperationalGrants applies deploy/postgres/grants-schema3-runtime-admin.sql
 // and asserts positive/negative privileges for fiscal_admin and fiscal_runtime.
@@ -31,14 +145,8 @@ func TestPostgresSchema3OperationalGrants(t *testing.T) {
 	}
 	defer owner.Close()
 
-	grantsPath := filepath.Join(repoRootFromPersistenceTest(t), "deploy", "postgres", "grants-schema3-runtime-admin.sql")
-	raw, err := os.ReadFile(grantsPath)
-	if err != nil {
-		t.Fatalf("read grants sql: %v", err)
-	}
-	if _, err := owner.ExecContext(ctx, string(raw)); err != nil {
-		t.Fatalf("apply grants: %v", err)
-	}
+	ensureSchema3Roles(t, ctx, owner)
+	applyGrantsSchema3(t, ctx, owner)
 
 	if _, err := owner.ExecContext(ctx, `GRANT fiscal_admin TO CURRENT_USER`); err != nil {
 		t.Fatalf("grant fiscal_admin to test user: %v", err)
@@ -102,10 +210,7 @@ func TestPostgresSchema3OperationalGrants(t *testing.T) {
 					_, err := tx.ExecContext(ctx, tc.sql, tc.args...)
 					return err
 				})
-				if err == nil {
-					t.Fatalf("expected permission denied updating %s", tc.name)
-				}
-				if !isPrivilegeDenied(err) {
+				if err == nil || !isPrivilegeDenied(err) {
 					t.Fatalf("want privilege denied for %s, got %v", tc.name, err)
 				}
 			})
@@ -152,6 +257,39 @@ func TestPostgresSchema3OperationalGrants(t *testing.T) {
 			})
 			if err == nil || !isPrivilegeDenied(err) {
 				t.Fatalf("%s delete audit: want privilege denied, got %v", role, err)
+			}
+		}
+	})
+
+	t.Run("admin_and_runtime_cannot_delete_credentials_or_ddl", func(t *testing.T) {
+		for _, role := range []string{"fiscal_admin", "fiscal_runtime"} {
+			err := withRole(t, ctx, owner, role, func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(ctx, `DELETE FROM fiscal.api_credentials WHERE credential_id = $1`, "cred-grants-synth")
+				return err
+			})
+			if err == nil || !isPrivilegeDenied(err) {
+				t.Fatalf("%s delete credentials: want privilege denied, got %v", role, err)
+			}
+			err = withRole(t, ctx, owner, role, func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(ctx, `CREATE TABLE fiscal.pwned_grants (id int)`)
+				return err
+			})
+			if err == nil {
+				t.Fatalf("%s CREATE TABLE unexpectedly succeeded", role)
+			}
+			err = withRole(t, ctx, owner, role, func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(ctx, `ALTER TABLE fiscal.scopes ADD COLUMN pwned text`)
+				return err
+			})
+			if err == nil {
+				t.Fatalf("%s ALTER TABLE unexpectedly succeeded", role)
+			}
+			err = withRole(t, ctx, owner, role, func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(ctx, `DROP TABLE fiscal.audit_events`)
+				return err
+			})
+			if err == nil {
+				t.Fatalf("%s DROP TABLE unexpectedly succeeded", role)
 			}
 		}
 	})
@@ -216,7 +354,9 @@ func isPrivilegeDenied(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "permission denied") || strings.Contains(msg, "insufficient privilege")
+	return strings.Contains(msg, "permission denied") ||
+		strings.Contains(msg, "insufficient privilege") ||
+		strings.Contains(msg, "must be owner")
 }
 
 func repoRootFromPersistenceTest(t *testing.T) string {

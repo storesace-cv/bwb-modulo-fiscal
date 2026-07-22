@@ -1,22 +1,26 @@
 -- Operational grants after migration 0003 (NOT a golang-migrate file).
--- Apply as DB owner / fiscal_migrate. Explicit per-object grants only.
+-- Apply as DB owner / a role with GRANT privilege (typically fiscal_migrate).
+-- Explicit per-object grants only.
 -- No generic ALTER DEFAULT PRIVILEGES granting SELECT/INSERT/UPDATE to runtime/admin.
+--
+-- Roles fiscal_migrate, fiscal_runtime and fiscal_admin MUST already exist (S3B bootstrap).
+-- This script never creates database roles and never invents LOGIN credentials.
 --
 -- Origin: S3A plan. Re-run after each future migration with an updated explicit script.
 
 BEGIN;
 
--- Ensure roles exist (cluster-level; idempotent).
+-- Fail closed if required roles are absent (do not create them here).
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'fiscal_migrate') THEN
-    CREATE ROLE fiscal_migrate NOLOGIN;
+    RAISE EXCEPTION 'grants-schema3: required role fiscal_migrate does not exist (create in S3B bootstrap)';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'fiscal_runtime') THEN
-    CREATE ROLE fiscal_runtime LOGIN;
+    RAISE EXCEPTION 'grants-schema3: required role fiscal_runtime does not exist (create in S3B bootstrap)';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'fiscal_admin') THEN
-    CREATE ROLE fiscal_admin LOGIN;
+    RAISE EXCEPTION 'grants-schema3: required role fiscal_admin does not exist (create in S3B bootstrap)';
   END IF;
 END
 $$;

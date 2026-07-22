@@ -17,8 +17,9 @@
 #   admin-credential-issue <sha40> <scope-id> <created-by> [expires-at]
 #   admin-credential-rotate <sha40> <scope-id> <created-by> <grace-until> [expires-at]
 #   admin-credential-revoke <sha40> <scope-id> <credential-id> [reason-code]
-#   admin-sandbox-e2e <sha40> <case> [base-url]
+#   admin-sandbox-e2e <sha40> <case> [base-url] [token-basename]
 #   admin-sandbox-measure <sha40>
+#   admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>
 #
 # Never installs Nginx open candidate. Never runs fiscal-admin as root.
 #
@@ -573,21 +574,102 @@ op_admin_credential_revoke() {
 op_admin_sandbox_e2e() {
   local sha="$1" case_name="$2"
   local base_url="${3:-http://127.0.0.1:8080}"
+  local token_base="${4:-current.token}"
   assert_sha1 "sha" "${sha}"
   assert_safe_arg "case" "${case_name}"
   case "${base_url}" in
     http://127.0.0.1:8080 | http://127.0.0.1:18080 | https://sandbox.fiscalmod.bwb.pt) ;;
     *) die "base-url not allowlisted" ;;
   esac
+  assert_token_name "${token_base%.token}"
+  [[ "${token_base}" =~ ^[A-Za-z0-9._-]+$ ]] || die "token basename rejected"
   local release="${RELEASES}/${sha}"
   verify_release_tree "${release}" "${sha}"
-  local token_path="${ADMIN_TOKEN_DIR}/current.token"
-  [[ -f "${token_path}" && ! -L "${token_path}" ]] || die "current token missing"
+  local token_path="${ADMIN_TOKEN_DIR}/${token_base}"
+  [[ -f "${token_path}" && ! -L "${token_path}" ]] || die "token missing"
   run_admin_dropped "${release}/fiscal-sandbox-e2e" \
     --base-url "${base_url}" \
     --token-file "${token_path}" \
     --fixture-dir "${release}/fixtures/sandbox" \
     --case "${case_name}"
+}
+
+# A→B revoke gate: A usable → revoke A → A 401 → issue B → 201 + real replay.
+# Tokens never appear in argv/stdout/stderr/logs; only credential_id/scope_id/status.
+op_admin_sandbox_ab_revoke_gate() {
+  local sha="$1" scope_id="$2" created_by="$3"
+  assert_sha1 "sha" "${sha}"
+  assert_safe_arg "scope_id" "${scope_id}"
+  assert_safe_arg "created_by" "${created_by}"
+  local release="${RELEASES}/${sha}"
+  verify_release_tree "${release}" "${sha}"
+
+  local token_a cred_a issue_out
+  token_a="$(choose_token_path "gate-a-${scope_id}-$(date -u +%Y%m%dT%H%M%SZ)")"
+  issue_out="$(
+    run_admin_dropped "${release}/fiscal-admin" credential issue \
+      --scope-id "${scope_id}" \
+      --created-by "${created_by}" \
+      --output-file "${token_a}"
+  )"
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown "${ADMIN_USER}:${ADMIN_USER}" "${token_a}"
+    chmod 0600 "${token_a}"
+  else
+    chmod 0600 "${token_a}"
+  fi
+  [[ "${issue_out}" != *postgres://* ]] || die "DSN leak in issue output"
+  [[ "${issue_out}" != *bwb_sbox_* ]] || die "token leak in issue output"
+  cred_a="$(printf '%s\n' "${issue_out}" | sed -n 's/^credential_id=\([^ ]*\).*/\1/p' | head -1)"
+  assert_safe_arg "credential_id" "${cred_a}"
+
+  # A must succeed before revoke.
+  run_admin_dropped "${release}/fiscal-sandbox-e2e" \
+    --base-url "http://127.0.0.1:8080" \
+    --token-file "${token_a}" \
+    --fixture-dir "${release}/fixtures/sandbox" \
+    --case "create_201"
+  printf 'ab_gate_a_usable=ok credential_id=%s\n' "${cred_a}"
+
+  run_admin_dropped "${release}/fiscal-admin" credential revoke \
+    --scope-id "${scope_id}" \
+    --credential-id "${cred_a}"
+  printf 'ab_gate_a_revoked=ok credential_id=%s\n' "${cred_a}"
+
+  # Same token A file must now yield 401 (real revoked credential, not artificial bad token).
+  run_admin_dropped "${release}/fiscal-sandbox-e2e" \
+    --base-url "http://127.0.0.1:8080" \
+    --token-file "${token_a}" \
+    --fixture-dir "${release}/fixtures/sandbox" \
+    --case "token_revoked_401"
+  printf 'ab_gate_a_rejected=ok credential_id=%s\n' "${cred_a}"
+
+  local token_b
+  token_b="$(choose_token_path "gate-b-${scope_id}-$(date -u +%Y%m%dT%H%M%SZ)")"
+  issue_out="$(
+    run_admin_dropped "${release}/fiscal-admin" credential issue \
+      --scope-id "${scope_id}" \
+      --created-by "${created_by}" \
+      --output-file "${token_b}"
+  )"
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown "${ADMIN_USER}:${ADMIN_USER}" "${token_b}"
+    chmod 0600 "${token_b}"
+  else
+    chmod 0600 "${token_b}"
+  fi
+  [[ "${issue_out}" != *postgres://* && "${issue_out}" != *bwb_sbox_* ]] || die "secret leak in B issue"
+  install -m 0600 "${token_b}" "${ADMIN_TOKEN_DIR}/current.token"
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown "${ADMIN_USER}:${ADMIN_USER}" "${ADMIN_TOKEN_DIR}/current.token"
+  fi
+
+  run_admin_dropped "${release}/fiscal-sandbox-e2e" \
+    --base-url "http://127.0.0.1:8080" \
+    --token-file "${token_b}" \
+    --fixture-dir "${release}/fixtures/sandbox" \
+    --case "create_replay"
+  printf 'ab_gate_b_replay=ok scope_id=%s\n' "${scope_id}"
 }
 
 op_admin_sandbox_measure() {
@@ -668,12 +750,16 @@ case "${OP}" in
     op_admin_credential_revoke "$1" "$2" "$3" "${4:-}"
     ;;
   admin-sandbox-e2e)
-    [[ $# -eq 2 || $# -eq 3 ]] || die "usage: admin-sandbox-e2e <sha40> <case> [base-url]"
-    op_admin_sandbox_e2e "$1" "$2" "${3:-http://127.0.0.1:8080}"
+    [[ $# -eq 2 || $# -eq 3 || $# -eq 4 ]] || die "usage: admin-sandbox-e2e <sha40> <case> [base-url] [token-basename]"
+    op_admin_sandbox_e2e "$1" "$2" "${3:-http://127.0.0.1:8080}" "${4:-current.token}"
     ;;
   admin-sandbox-measure)
     [[ $# -eq 1 ]] || die "usage: admin-sandbox-measure <sha40>"
     op_admin_sandbox_measure "$1"
+    ;;
+  admin-sandbox-ab-revoke-gate)
+    [[ $# -eq 3 ]] || die "usage: admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>"
+    op_admin_sandbox_ab_revoke_gate "$1" "$2" "$3"
     ;;
   install-nginx-open | activate-open-candidate | nginx-open)
     die "open HTTPS candidate cannot be activated by this helper"

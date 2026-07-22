@@ -345,6 +345,98 @@ else
   cat "${TMP}/ha.err" >&2 || true
 fi
 
+# A→B revoke gate orchestration (mocked fiscal-admin + e2e; no token/DSN in outputs)
+GATE_E2E_LOG="${TMP}/gate-e2e.log"
+: >"${GATE_E2E_LOG}"
+echo 0 >"${TMP}/gate-cred-seq"
+cat >"${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cmd=""
+prev=""
+outf=""
+cred=""
+for a in "\$@"; do
+  if [[ "\${prev}" == "--output-file" ]]; then outf="\${a}"; fi
+  if [[ "\${prev}" == "--credential-id" ]]; then cred="\${a}"; fi
+  prev="\${a}"
+  if [[ "\$a" == "issue" || "\$a" == "revoke" ]]; then cmd="\$a"; fi
+done
+case "\${cmd}" in
+  issue)
+    [[ -n "\${outf}" ]] || exit 1
+    printf 'bwb_sbox_gate_token_synthetic_only\n' >"\${outf}"
+    chmod 0600 "\${outf}"
+    n=\$((\$(cat "${TMP}/gate-cred-seq") + 1))
+    printf '%s\n' "\$n" >"${TMP}/gate-cred-seq"
+    printf 'credential_id=cred-gate-%s scope_id=scope-synth-001 status=active\n' "\$n"
+    ;;
+  revoke)
+    [[ -n "\${cred}" ]] || exit 1
+    printf 'credential_id=%s scope_id=scope-synth-001 status=revoked\n' "\${cred}"
+    ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
+cat >"${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbox-e2e" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+case_name=""
+token=""
+prev=""
+for a in "\$@"; do
+  if [[ "\${prev}" == "--case" ]]; then case_name="\${a}"; fi
+  if [[ "\${prev}" == "--token-file" ]]; then token="\${a}"; fi
+  prev="\${a}"
+done
+[[ -f "\${token}" ]] || exit 1
+printf 'case=%s token_set=1\n' "\${case_name}" >>"${GATE_E2E_LOG}"
+case "\${case_name}" in
+  create_201) printf 'status=201 result=pass\n' ;;
+  token_revoked_401) printf 'status=401 result=pass\n' ;;
+  create_replay) printf 'status=201 result=pass\n' ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbox-e2e"
+(
+  cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
+  deploy_sha256_files \
+    fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    fixtures/sandbox/create-document.min.json \
+    fixtures/sandbox/create-document.nif-mismatch.json \
+    fixtures/sandbox/create-document.invalid.json \
+    COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
+)
+GATE_TOKENS="${TMP}/gate-tokens"
+mkdir -p "${GATE_TOKENS}"
+if BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
+  BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+  BWB_HELPER_LIB="${TMP}/helprefs/lib" \
+  BWB_ADMIN_TOKEN_DIR="${GATE_TOKENS}" \
+  bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  admin-sandbox-ab-revoke-gate "${HEAD}" "scope-synth-001" "operator-test" \
+  >"${TMP}/gate.out" 2>"${TMP}/gate.err"; then
+  if grep -q 'ab_gate_a_usable=ok' "${TMP}/gate.out" \
+    && grep -q 'ab_gate_a_revoked=ok' "${TMP}/gate.out" \
+    && grep -q 'ab_gate_a_rejected=ok' "${TMP}/gate.out" \
+    && grep -q 'ab_gate_b_replay=ok' "${TMP}/gate.out" \
+    && grep -q 'case=create_201' "${GATE_E2E_LOG}" \
+    && grep -q 'case=token_revoked_401' "${GATE_E2E_LOG}" \
+    && grep -q 'case=create_replay' "${GATE_E2E_LOG}" \
+    && ! grep -q 'bwb_sbox_\|postgres://\|SECRET_ADM' "${TMP}/gate.out" "${TMP}/gate.err" "${GATE_E2E_LOG}"; then
+    ok "A→B revoke gate: A usable→revoke→401→B replay; no token/DSN leak"
+  else
+    bad "A→B revoke gate assertions failed"
+    cat "${TMP}/gate.out" "${TMP}/gate.err" "${GATE_E2E_LOG}" >&2 || true
+  fi
+else
+  bad "admin-sandbox-ab-revoke-gate failed"
+  cat "${TMP}/gate.err" "${TMP}/gate.out" >&2 || true
+fi
+
 if BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
   BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
   BWB_HELPER_LIB="${TMP}/helprefs/lib" \
@@ -407,17 +499,87 @@ else
   bad "measure listener binds non-loopback"
 fi
 
-# E2E/measure scripts: no eval; caps; no token argv patterns
+# E2E/measure scripts: no eval; caps; quoted curl array; no token in argv.
+# Literal needles for measure.sh ceilings (must not expand TOTAL/CONCURRENCY/DURATION_SEC here).
+# shellcheck disable=SC2016 # intentional literal for measure.sh TOTAL ceiling
+measure_total_ceiling='[[ "${TOTAL}" -le 60 ]]'
+# shellcheck disable=SC2016 # intentional literal for measure.sh CONCURRENCY ceiling
+measure_conc_ceiling='[[ "${CONCURRENCY}" =~ ^[1-5]$ ]]'
+# shellcheck disable=SC2016 # intentional literal for measure.sh DURATION_SEC ceiling
+measure_dur_ceiling='[[ "${DURATION_SEC}" -le 60 ]]'
+# shellcheck disable=SC2016 # intentional literal for quoted curl expansion in e2e.sh
+e2e_curl_quoted='curl "${curl_args[@]}"'
 if ! grep -nE '^[^#]*\beval\b' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
   "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF '[[ "${TOTAL}" -le 60 ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF '[[ "${CONCURRENCY}" =~ ^[1-5]$ ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
-  && grep -qF '[[ "${DURATION_SEC}" -le 60 ]]' "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF "${measure_total_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF "${measure_conc_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF "${measure_dur_ceiling}" "${ROOT}/scripts/deploy/fiscal-sandbox-measure.sh" \
+  && grep -qF "${e2e_curl_quoted}" "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  && ! grep -nE 'curl \$\{curl_args\[@\]\}|curl \$\{curl_args\[\*\]\}' \
+    "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
   && ! grep -nE 'curl[^\n]*Bearer|Authorization: Bearer \$\{' \
     "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh"; then
-  ok "e2e/measure: no eval; caps; token not in curl argv"
+  ok "e2e/measure: no eval; caps; quoted curl array; token not in curl argv"
 else
   bad "e2e/measure safety checks failed"
+fi
+
+# Curl argv: fixture path with spaces must remain a single argument; never leak token.
+CURL_LOG="${TMP}/curl-argv.log"
+SPACE_ROOT="${TMP}/path with spaces"
+mkdir -p "${SPACE_ROOT}/fixtures/sandbox" "${SPACE_ROOT}/tokens" "${TMP}/curlbin"
+cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${SPACE_ROOT}/fixtures/sandbox/"
+printf 'bwb_sbox_SYNTHETIC_TOKEN_FOR_ARGV_TEST_ONLY_XXXX\n' >"${SPACE_ROOT}/tokens/current.token"
+chmod 0600 "${SPACE_ROOT}/tokens/current.token"
+cat >"${TMP}/curlbin/curl" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: >"${CURL_LOG}"
+for a in "\$@"; do
+  printf '%s\n' "\$a" >>"${CURL_LOG}"
+done
+printf '201'
+EOF
+chmod 0755 "${TMP}/curlbin/curl"
+if PATH="${TMP}/curlbin:/usr/bin:/bin" \
+  bash "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+    --base-url "http://127.0.0.1:8080" \
+    --token-file "${SPACE_ROOT}/tokens/current.token" \
+    --fixture-dir "${SPACE_ROOT}/fixtures/sandbox" \
+    --case create_201 \
+    >"${TMP}/space-e2e.out" 2>"${TMP}/space-e2e.err"; then
+  # Prefer single argv --data-binary@<path> so spaces in fixture path stay intact.
+  if grep -Fqx -- "--data-binary@${SPACE_ROOT}/fixtures/sandbox/create-document.min.json" "${CURL_LOG}" \
+    && ! grep -q 'bwb_sbox_\|SYNTHETIC_TOKEN\|postgres://' "${TMP}/space-e2e.out" "${TMP}/space-e2e.err" "${CURL_LOG}"; then
+    ok "curl array preserves spaced fixture path; no token/DSN in outputs"
+  else
+    bad "curl space-path argv assertion failed"
+    cat "${CURL_LOG}" "${TMP}/space-e2e.out" "${TMP}/space-e2e.err" >&2 || true
+  fi
+else
+  bad "e2e with spaced fixture path failed"
+  cat "${TMP}/space-e2e.err" "${CURL_LOG}" >&2 || true
+fi
+
+# Grants SQL must not create roles; fail-closed if roles missing
+if ! grep -vE '^[[:space:]]*--' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql" \
+    | grep -qiE 'CREATE[[:space:]]+ROLE' \
+  && grep -q 'required role fiscal_migrate does not exist' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql" \
+  && grep -q 'required role fiscal_runtime does not exist' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql" \
+  && grep -q 'required role fiscal_admin does not exist' "${ROOT}/deploy/postgres/grants-schema3-runtime-admin.sql"; then
+  ok "grants SQL fail-closed without CREATE ROLE"
+else
+  bad "grants SQL still creates roles or lacks fail-closed checks"
+fi
+
+# A→B revoke gate + real replay (distinct from artificial unauthorized_bad_token)
+if grep -q 'admin-sandbox-ab-revoke-gate' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'token_revoked_401' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  && grep -q 'compare_replay_stable' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh" \
+  && grep -q 'Artificial invalid token' "${ROOT}/scripts/deploy/fiscal-sandbox-e2e.sh"; then
+  ok "A→B revoke gate + real replay + distinct bad-token case present"
+else
+  bad "revoke gate / replay artefacts missing"
 fi
 
 # Activate/install require full manifest (not only COMMIT)
