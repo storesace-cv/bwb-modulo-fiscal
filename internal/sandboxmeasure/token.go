@@ -3,29 +3,54 @@ package sandboxmeasure
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
 )
 
-func readTokenFile(path string, production bool, skipOwner bool) ([]byte, error) {
+func readTokenFile(path string, production bool) ([]byte, error) {
 	if strings.Contains(path, "..") {
 		return nil, fmt.Errorf("sandboxmeasure: token path invalid")
 	}
 	if production {
-		if err := validateProductionTokenTree(path, skipOwner); err != nil {
+		if path != FixedTokenFile {
+			return nil, fmt.Errorf("sandboxmeasure: token path invalid")
+		}
+		// Production always validates directory ownership — no skip seam.
+		if err := validateTokenDir(FixedTokenDir, true); err != nil {
 			return nil, err
 		}
-	} else {
-		st, err := os.Lstat(path)
-		if err != nil {
-			return nil, fmt.Errorf("sandboxmeasure: token unavailable")
-		}
-		if st.Mode()&os.ModeSymlink != 0 || !st.Mode().IsRegular() {
-			return nil, fmt.Errorf("sandboxmeasure: token must be a regular file")
+		return readTokenOpenFstat(path, true)
+	}
+	// Test / non-fixed path: same open+Fstat seam; owner required (temp files are euid-owned).
+	return readTokenOpenFstat(path, true)
+}
+
+// readTokenOpenFstat opens the path with O_NOFOLLOW, validates the same FD via Fstat, then reads it.
+func readTokenOpenFstat(path string, requireOwner bool) ([]byte, error) {
+	f, err := openTokenNoFollow(path)
+	if err != nil {
+		return nil, fmt.Errorf("sandboxmeasure: token unavailable")
+	}
+	defer f.Close()
+
+	st, err := f.Stat() // Fstat on the open descriptor (not a path re-lookup).
+	if err != nil {
+		return nil, fmt.Errorf("sandboxmeasure: token unavailable")
+	}
+	if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("sandboxmeasure: token must be a regular file")
+	}
+	if st.Mode().Perm() != 0o600 {
+		return nil, fmt.Errorf("sandboxmeasure: token permissions invalid")
+	}
+	if requireOwner {
+		if err := assertOwnedByEUID(st); err != nil {
+			return nil, err
 		}
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("sandboxmeasure: token unavailable")
 	}
@@ -36,14 +61,7 @@ func readTokenFile(path string, production bool, skipOwner bool) ([]byte, error)
 	return tok, nil
 }
 
-func validateProductionTokenTree(path string, skipOwner bool) error {
-	if path != FixedTokenFile {
-		return fmt.Errorf("sandboxmeasure: token path invalid")
-	}
-	return validateTokenTree(FixedTokenDir, path, skipOwner)
-}
-
-func validateTokenTree(tokenDir, tokenPath string, skipOwner bool) error {
+func validateTokenDir(tokenDir string, requireOwner bool) error {
 	dirInfo, err := os.Lstat(tokenDir)
 	if err != nil {
 		return fmt.Errorf("sandboxmeasure: token unavailable")
@@ -54,21 +72,8 @@ func validateTokenTree(tokenDir, tokenPath string, skipOwner bool) error {
 	if dirInfo.Mode().Perm()&0o077 != 0 {
 		return fmt.Errorf("sandboxmeasure: token dir permissions invalid")
 	}
-	fileInfo, err := os.Lstat(tokenPath)
-	if err != nil {
-		return fmt.Errorf("sandboxmeasure: token unavailable")
-	}
-	if fileInfo.Mode()&os.ModeSymlink != 0 || !fileInfo.Mode().IsRegular() {
-		return fmt.Errorf("sandboxmeasure: token must be a regular file")
-	}
-	if fileInfo.Mode().Perm() != 0o600 {
-		return fmt.Errorf("sandboxmeasure: token permissions invalid")
-	}
-	if !skipOwner {
+	if requireOwner {
 		if err := assertOwnedByEUID(dirInfo); err != nil {
-			return err
-		}
-		if err := assertOwnedByEUID(fileInfo); err != nil {
 			return err
 		}
 	}
@@ -86,7 +91,13 @@ func assertOwnedByEUID(info os.FileInfo) error {
 	return nil
 }
 
-// ValidateTokenFileForTest exercises production checks against an arbitrary path tree (tests only).
+// ValidateTokenFileForTest exercises directory policy + open/Fstat token checks (tests only).
+// skipOwner applies only to the directory check; the file is always validated on the open FD
+// with owner=euid (temp-tree files are owned by the test process).
 func ValidateTokenFileForTest(tokenDir, tokenPath string, skipOwner bool) error {
-	return validateTokenTree(tokenDir, tokenPath, skipOwner)
+	if err := validateTokenDir(tokenDir, !skipOwner); err != nil {
+		return err
+	}
+	_, err := readTokenOpenFstat(tokenPath, true)
+	return err
 }

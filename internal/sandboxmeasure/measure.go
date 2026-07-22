@@ -134,8 +134,6 @@ type Config struct {
 	HTTPClient         *http.Client
 	AllowNonFixedPaths bool
 	EnforceAcceptance  bool
-	// SkipTokenOwnerChecks is test-only (cannot chown in unit tests).
-	SkipTokenOwnerChecks bool
 }
 
 // Report is the sanitised machine-readable result (no secrets).
@@ -209,7 +207,7 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 		client = &http.Client{Timeout: httpTimeout}
 	}
 
-	token, err := readTokenFile(cfg.TokenPath, !cfg.AllowNonFixedPaths, cfg.SkipTokenOwnerChecks)
+	token, err := readTokenFile(cfg.TokenPath, !cfg.AllowNonFixedPaths)
 	if err != nil {
 		return Report{}, err
 	}
@@ -351,7 +349,10 @@ func (c Config) validate() error {
 	return nil
 }
 
-// runSustained paces with nextAt := now+interval after each send (no catch-up of missed slots).
+// runSustained paces by request start time: nextAt = sendAt+interval.
+// If the response finishes early, the next loop waits only the remaining slot time.
+// If the slot was already passed (slow response), the next send starts immediately
+// and is rescheduled from that start — no catch-up burst of overdue slots.
 func runSustained(ctx context.Context, clk Clock, client *http.Client, base string, token, fixture []byte, spec ProfileSpec, seq *atomic.Uint64) ([]sample, error) {
 	out := make([]sample, 0, spec.Total)
 	interval := time.Duration(float64(time.Second) / spec.RatePerSec)
@@ -370,14 +371,14 @@ func runSustained(ctx context.Context, clk Clock, client *http.Client, base stri
 			case <-tm.C():
 			}
 		}
+		sendAt := clk.Now()
 		s, err := doOne(ctx, clk, client, base, token, fixture, seq.Add(1), false)
 		if err != nil {
 			out = append(out, s)
 			return out, err
 		}
 		out = append(out, s)
-		// Recalculate from current time — never compress overdue slots into a burst.
-		nextAt = clk.Now().Add(interval)
+		nextAt = sendAt.Add(interval)
 	}
 	return out, nil
 }

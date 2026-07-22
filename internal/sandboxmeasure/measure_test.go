@@ -231,6 +231,64 @@ func TestSustainedPacingOnSchedule(t *testing.T) {
 	}
 }
 
+func TestSustained20msLatencyKeepsStartInterval(t *testing.T) {
+	dir := t.TempDir()
+	tokenPath := writeToken(t, dir, "measure.token", "tok")
+	fix := writeFixture(t, dir)
+	clk := newFakeClock(time.Unix(0, 0).UTC())
+
+	var starts []time.Time
+	var mu sync.Mutex
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		mu.Lock()
+		starts = append(starts, clk.Now())
+		mu.Unlock()
+		clk.Advance(20 * time.Millisecond)
+		return ok201(validReplayBody), nil
+	})}
+
+	cfg := sandboxmeasure.Config{
+		Profile:            sandboxmeasure.ProfileSustained,
+		BaseURL:            "http://127.0.0.1:9",
+		TokenPath:          tokenPath,
+		FixturePath:        fix,
+		AllowNonFixedPaths: true,
+		EnforceAcceptance:  false,
+		Clock:              clk,
+		HTTPClient:         client,
+	}
+	rep, err := sandboxmeasure.Run(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Attempted != 300 {
+		t.Fatalf("attempted=%d", rep.Attempted)
+	}
+	if len(starts) != 300 {
+		t.Fatalf("starts=%d", len(starts))
+	}
+	for i := 1; i < len(starts); i++ {
+		gap := starts[i].Sub(starts[i-1])
+		if gap < 90*time.Millisecond || gap > 110*time.Millisecond {
+			t.Fatalf("start gap[%d]=%v (want ~100ms; latency must not stretch interval)", i, gap)
+		}
+	}
+	// Remaining wait after 20ms latency should be ~80ms (not full 100ms added after response).
+	for i, w := range clk.wait {
+		if w < 70*time.Millisecond || w > 90*time.Millisecond {
+			t.Fatalf("wait[%d]=%v (want ~80ms remaining to next start slot)", i, w)
+		}
+	}
+	dur := starts[len(starts)-1].Sub(starts[0]) + 20*time.Millisecond
+	if dur < 28*time.Second || dur > 33*time.Second {
+		t.Fatalf("simulated wall %v out of 28–33s", dur)
+	}
+	rps := float64(300) / dur.Seconds()
+	if rps < 9.0 || rps > 11.0 {
+		t.Fatalf("simulated rate %.3f out of 9–11", rps)
+	}
+}
+
 func TestSustainedNoCatchUpAfterArtificialDelay(t *testing.T) {
 	dir := t.TempDir()
 	tokenPath := writeToken(t, dir, "measure.token", "tok")
@@ -245,7 +303,6 @@ func TestSustainedNoCatchUpAfterArtificialDelay(t *testing.T) {
 		starts = append(starts, clk.Now())
 		mu.Unlock()
 		if n.Add(1) == 1 {
-			// Artificial delay longer than one interval — must not compress overdue slots.
 			clk.Advance(250 * time.Millisecond)
 		}
 		return ok201(validReplayBody), nil
@@ -271,29 +328,61 @@ func TestSustainedNoCatchUpAfterArtificialDelay(t *testing.T) {
 	if len(starts) < 3 {
 		t.Fatal("need starts")
 	}
-	// After delayed first request, gap to second must be >= interval (no recovery burst).
+	// Missed slot: second start is immediate at end of delay (250ms), not a compressed multi-burst.
 	gap01 := starts[1].Sub(starts[0])
-	if gap01 < 90*time.Millisecond {
-		t.Fatalf("catch-up burst detected: gap01=%v", gap01)
+	if gap01 < 240*time.Millisecond || gap01 > 260*time.Millisecond {
+		t.Fatalf("expected ~250ms gap (immediate reschedule from now), got %v", gap01)
 	}
-	if gap01 < 340*time.Millisecond || gap01 > 360*time.Millisecond {
-		// 250ms delay + 100ms interval from "now"
-		t.Fatalf("expected ~350ms gap after delay, got %v", gap01)
+	gap12 := starts[2].Sub(starts[1])
+	if gap12 < 90*time.Millisecond || gap12 > 110*time.Millisecond {
+		t.Fatalf("expected ~100ms after reschedule, got %v", gap12)
 	}
-	zeroWaits := 0
-	for _, w := range clk.wait {
-		if w == 0 {
-			zeroWaits++
+	// No recovery burst: never more than one near-zero inter-start after the overdue slot.
+	closeGaps := 0
+	for i := 1; i < len(starts); i++ {
+		if starts[i].Sub(starts[i-1]) < 50*time.Millisecond {
+			closeGaps++
 		}
 	}
-	if zeroWaits != 0 {
-		t.Fatalf("compressed waits (catch-up): zeroWaits=%d waits=%v", zeroWaits, clk.wait[:min(5, len(clk.wait))])
+	if closeGaps != 0 {
+		t.Fatalf("catch-up burst: %d sub-50ms start gaps", closeGaps)
 	}
-	// Subsequent waits remain full intervals (no compressed recovery).
-	for i, w := range clk.wait {
-		if w < 90*time.Millisecond || w > 110*time.Millisecond {
-			t.Fatalf("wait[%d]=%v after delay (expected ~100ms)", i, w)
-		}
+}
+
+func TestSustained300SimulatedRateAndDuration(t *testing.T) {
+	dir := t.TempDir()
+	tokenPath := writeToken(t, dir, "measure.token", "tok")
+	fix := writeFixture(t, dir)
+	clk := newFakeClock(time.Unix(0, 0).UTC())
+	t0 := clk.Now()
+
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		clk.Advance(15 * time.Millisecond)
+		return ok201(validReplayBody), nil
+	})}
+	cfg := sandboxmeasure.Config{
+		Profile:            sandboxmeasure.ProfileSustained,
+		BaseURL:            "http://127.0.0.1:9",
+		TokenPath:          tokenPath,
+		FixturePath:        fix,
+		AllowNonFixedPaths: true,
+		EnforceAcceptance:  false,
+		Clock:              clk,
+		HTTPClient:         client,
+	}
+	rep, err := sandboxmeasure.Run(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Attempted != 300 || rep.HTTPResponses != 300 {
+		t.Fatalf("%+v", rep)
+	}
+	dur := clk.Since(t0)
+	if dur < 28*time.Second || dur > 33*time.Second {
+		t.Fatalf("duration %v not in 28–33s", dur)
+	}
+	if rep.RequestThroughput < 9.0 || rep.RequestThroughput > 11.0 {
+		t.Fatalf("throughput %.3f", rep.RequestThroughput)
 	}
 }
 
@@ -757,11 +846,4 @@ func contains(codes []string, c string) bool {
 		}
 	}
 	return false
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

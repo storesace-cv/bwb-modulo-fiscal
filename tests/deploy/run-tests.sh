@@ -535,7 +535,8 @@ if grep -q 'ProfileSustained' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'failure_codes' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'http_responses' "${ROOT}/internal/sandboxmeasure/measure.go" \
   && grep -q 'transport_errors' "${ROOT}/internal/sandboxmeasure/measure.go" \
-  && grep -q 'nextAt = clk.Now().Add(interval)' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'nextAt = sendAt.Add(interval)' "${ROOT}/internal/sandboxmeasure/measure.go" \
+  && grep -q 'O_NOFOLLOW' "${ROOT}/internal/sandboxmeasure/token_linux.go" \
   && grep -q 'ValidateForEnv' "${ROOT}/internal/buildinfo/buildinfo.go"; then
   ok "measure Go closed caps + thresholds/transport/pacing/revision-env"
 else
