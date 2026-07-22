@@ -343,8 +343,16 @@ deploy_verify_release_manifest() {
     test -f fixtures/sandbox/create-document.b.json
     test -f fixtures/sandbox/create-document.nif-mismatch.json
     test -f fixtures/sandbox/create-document.invalid.json
-    # Open candidate must never be the active install target in a release tree.
+    test -f nginx/tls.open.conf
+    test -f nginx/tls.deny.conf
+    test -f nginx/limit-req-documents.conf
+    test -f systemd/bwb-fiscal-nginx-open-rollback.service
+    test -f systemd/bwb-fiscal-nginx-open-rollback.timer
+    # Legacy open.candidate must never ship inside the release tree.
     test ! -e nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf
+    grep -q 'deny all' nginx/tls.deny.conf
+    grep -q 'limit_req zone=bwb_documents burst=20' nginx/tls.open.conf
+    grep -q 'rate=10r/s' nginx/limit-req-documents.conf
     deploy_sha256_check SHA256SUMS
     if [[ -n "${expected_commit}" ]]; then
       test "$(tr -d '[:space:]' <COMMIT)" = "${expected_commit}"

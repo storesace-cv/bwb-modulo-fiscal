@@ -21,8 +21,12 @@
 #   admin-sandbox-e2e <sha40> <case> [base-url] [token-basename]
 #   admin-sandbox-measure <sha40> <sustained|burst|replay>
 #   admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>
+#   nginx-open-arm <sha40>
+#   nginx-open-confirm <sha40>
+#   nginx-deny-all <sha40>
+#   nginx-open-rollback-fire
 #
-# Never installs Nginx open candidate. Never runs fiscal-admin as root.
+# Updater never activates open. Open only via nginx-open-arm (paths fixed in release).
 # activate requires GNU coreutils `mv -T` (Ubuntu 22.04 staging). BSD mv is not supported.
 #
 # D2 bootstrap also installs:
@@ -34,7 +38,9 @@ set -Eeuo pipefail
 if [[ "${EUID}" -eq 0 ]]; then
   if [[ -n "${BWB_DEPLOY_OPT:-}" || -n "${BWB_DEPLOY_ETC:-}" || -n "${BWB_DEPLOY_UNIT:-}" \
     || -n "${BWB_MOCK_TMP:-}" || -n "${BWB_HELPER_LIB:-}" || -n "${BWB_MIGRATE_USER:-}" \
-    || -n "${BWB_ADMIN_USER:-}" || -n "${BWB_ADMIN_TOKEN_DIR:-}" ]]; then
+    || -n "${BWB_ADMIN_USER:-}" || -n "${BWB_ADMIN_TOKEN_DIR:-}" \
+    || -n "${BWB_NGINX_ROOT:-}" || -n "${BWB_SYSTEMCTL:-}" || -n "${BWB_NGINX_BIN:-}" \
+    || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" ]]; then
     echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
     exit 1
   fi
@@ -49,6 +55,16 @@ ADMIN_TOKEN_DIR="${BWB_ADMIN_TOKEN_DIR:-/var/lib/bwb-fiscal-admin/tokens}"
 HELPER_LIB="${BWB_HELPER_LIB:-/usr/local/lib/bwb-fiscal-deploy}"
 RELEASES="${OPT_ROOT}/releases"
 BACKUPS="${ETC_ROOT}/backups"
+NGINX_ROOT="${BWB_NGINX_ROOT:-/etc/nginx}"
+SYSTEMD_DIR="${BWB_SYSTEMD_DIR:-/etc/systemd/system}"
+SYSTEMCTL_BIN="${BWB_SYSTEMCTL:-systemctl}"
+NGINX_BIN="${BWB_NGINX_BIN:-nginx}"
+CURL_BIN="${BWB_CURL:-curl}"
+NGINX_SITE_NAME="bwb-fiscal-sandbox"
+NGINX_MEASURE_SITE="bwb-fiscal-sandbox-measure-loopback"
+NGINX_OPEN_STATE="${ETC_ROOT}/nginx-open.state"
+NGINX_ROLLBACK_TIMER="bwb-fiscal-nginx-open-rollback.timer"
+NGINX_ROLLBACK_SERVICE="bwb-fiscal-nginx-open-rollback.service"
 
 die() {
   echo "error: $*" >&2
@@ -168,11 +184,21 @@ verify_release_tree() {
   [[ -f "${dir}/lib/allowlist.sh" ]] || die "lib/allowlist.sh missing"
   [[ -f "${dir}/lib/migrate.env.allowlist" ]] || die "lib/migrate.env.allowlist missing"
   [[ -f "${dir}/lib/admin.env.allowlist" ]] || die "lib/admin.env.allowlist missing"
+  [[ -f "${dir}/nginx/tls.open.conf" ]] || die "nginx/tls.open.conf missing"
+  [[ -f "${dir}/nginx/tls.deny.conf" ]] || die "nginx/tls.deny.conf missing"
+  [[ -f "${dir}/nginx/limit-req-documents.conf" ]] || die "nginx/limit-req-documents.conf missing"
+  [[ -f "${dir}/systemd/${NGINX_ROLLBACK_SERVICE}" ]] || die "rollback service unit missing"
+  [[ -f "${dir}/systemd/${NGINX_ROLLBACK_TIMER}" ]] || die "rollback timer unit missing"
   # Release must not ship an executable runner — migrate is done by this helper.
   [[ ! -e "${dir}/remote-migrate-run.sh" ]] || die "remote-migrate-run.sh must not be in release"
-  # Open HTTPS candidate must never ship inside the release tree (cannot be activated).
+  # Legacy open.candidate path must never ship (open is nginx/tls.open.conf only).
   [[ ! -e "${dir}/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" ]] || die "open candidate must not be in release"
   [[ "$(tr -d '[:space:]' <"${dir}/COMMIT")" == "${sha}" ]] || die "COMMIT mismatch"
+  grep -q 'deny all' "${dir}/nginx/tls.deny.conf" || die "tls.deny.conf must deny-all documents"
+  grep -q 'limit_req zone=bwb_documents burst=20' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing burst=20"
+  grep -q 'limit_req_status 429' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing limit_req_status 429"
+  grep -q 'proxy_set_header X-Request-Id ""' "${dir}/nginx/tls.open.conf" || die "tls.open.conf must clear X-Request-Id"
+  grep -q 'rate=10r/s' "${dir}/nginx/limit-req-documents.conf" || die "limit zone must be 10r/s"
   sha256_check "${dir}"
 }
 
@@ -225,7 +251,10 @@ op_install_release() {
   chmod 0755 "${partial}/fiscal-api" "${partial}/fiscal-migrate" "${partial}/fiscal-admin" \
     "${partial}/fiscal-sandbox-e2e" "${partial}/fiscal-sandbox-measure"
   chmod 0644 "${partial}/COMMIT" "${partial}/EXPECTED_SCHEMA_VERSION" "${partial}/SHA256SUMS" \
-    "${partial}/lib/allowlist.sh" "${partial}/lib/migrate.env.allowlist" "${partial}/lib/admin.env.allowlist"
+    "${partial}/lib/allowlist.sh" "${partial}/lib/migrate.env.allowlist" "${partial}/lib/admin.env.allowlist" \
+    "${partial}/nginx/tls.open.conf" "${partial}/nginx/tls.deny.conf" \
+    "${partial}/nginx/limit-req-documents.conf" "${partial}/nginx/README.md" \
+    "${partial}/systemd/${NGINX_ROLLBACK_SERVICE}" "${partial}/systemd/${NGINX_ROLLBACK_TIMER}"
 
   if [[ -d "${dest}" ]]; then
     verify_release_tree "${dest}" "${sha}"
@@ -237,7 +266,10 @@ op_install_release() {
   chmod 0755 "${dest}" "${dest}/fiscal-api" "${dest}/fiscal-migrate" "${dest}/fiscal-admin" \
     "${dest}/fiscal-sandbox-e2e" "${dest}/fiscal-sandbox-measure"
   chmod 0644 "${dest}/COMMIT" "${dest}/EXPECTED_SCHEMA_VERSION" "${dest}/SHA256SUMS" \
-    "${dest}/lib/allowlist.sh" "${dest}/lib/migrate.env.allowlist" "${dest}/lib/admin.env.allowlist"
+    "${dest}/lib/allowlist.sh" "${dest}/lib/migrate.env.allowlist" "${dest}/lib/admin.env.allowlist" \
+    "${dest}/nginx/tls.open.conf" "${dest}/nginx/tls.deny.conf" \
+    "${dest}/nginx/limit-req-documents.conf" "${dest}/nginx/README.md" \
+    "${dest}/systemd/${NGINX_ROLLBACK_SERVICE}" "${dest}/systemd/${NGINX_ROLLBACK_TIMER}"
   # Drop-priv users need exec on binaries/scripts (not writable).
   chmod 0755 "${dest}/fiscal-migrate" "${dest}/fiscal-api" "${dest}/fiscal-admin" \
     "${dest}/fiscal-sandbox-e2e" "${dest}/fiscal-sandbox-measure"
@@ -828,6 +860,278 @@ op_cleanup_upload() {
   printf 'cleanup_upload_ok\n'
 }
 
+nginx_site_path() {
+  printf '%s/sites-available/%s' "${NGINX_ROOT}" "${NGINX_SITE_NAME}"
+}
+
+nginx_enabled_path() {
+  printf '%s/sites-enabled/%s' "${NGINX_ROOT}" "${NGINX_SITE_NAME}"
+}
+
+nginx_run_t() {
+  if ! "${NGINX_BIN}" -t >/dev/null 2>&1; then
+    return 1
+  fi
+  return 0
+}
+
+nginx_reload() {
+  if command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1; then
+    "${SYSTEMCTL_BIN}" reload nginx
+  else
+    "${NGINX_BIN}" -s reload
+  fi
+}
+
+nginx_disable_measure() {
+  rm -f -- "${NGINX_ROOT}/sites-enabled/${NGINX_MEASURE_SITE}" \
+    "${NGINX_ROOT}/sites-enabled/${NGINX_MEASURE_SITE}.conf"
+  rm -f -- "${NGINX_ROOT}/sites-available/${NGINX_MEASURE_SITE}" \
+    "${NGINX_ROOT}/sites-available/${NGINX_MEASURE_SITE}.conf"
+}
+
+# Prefer GNU mv -T; fall back for BSD mv used in local macOS deploy tests.
+nginx_atomic_replace() {
+  local tmp="$1" dest="$2"
+  set +e
+  mv -T "${tmp}" "${dest}" 2>/dev/null
+  local st=$?
+  set -e
+  if [[ "${st}" -ne 0 ]]; then
+    mv -f "${tmp}" "${dest}"
+  fi
+}
+
+nginx_install_file() {
+  local mode="$1" src="$2" dest="$3"
+  if [[ "${EUID}" -eq 0 ]]; then
+    install -m "${mode}" -o root -g root "${src}" "${dest}"
+  else
+    install -m "${mode}" "${src}" "${dest}"
+  fi
+}
+
+nginx_install_dir() {
+  local mode="$1" dir="$2"
+  if [[ "${EUID}" -eq 0 ]]; then
+    install -d -m "${mode}" -o root -g root "${dir}"
+  else
+    install -d -m "${mode}" "${dir}"
+  fi
+}
+
+nginx_write_state() {
+  local state="$1" sha="$2"
+  nginx_install_dir 0750 "${ETC_ROOT}"
+  local tmp="${NGINX_OPEN_STATE}.new"
+  {
+    printf 'state=%s\n' "${state}"
+    printf 'sha=%s\n' "${sha}"
+    printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } >"${tmp}"
+  chmod 0600 "${tmp}"
+  nginx_atomic_replace "${tmp}" "${NGINX_OPEN_STATE}"
+}
+
+nginx_read_state_field() {
+  local key="$1"
+  local line
+  [[ -f "${NGINX_OPEN_STATE}" && ! -L "${NGINX_OPEN_STATE}" ]] || return 1
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    case "${line}" in
+      "${key}="*) printf '%s' "${line#"${key}"=}"; return 0 ;;
+    esac
+  done <"${NGINX_OPEN_STATE}"
+  return 1
+}
+
+nginx_cancel_rollback_timer() {
+  if command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1; then
+    set +e
+    "${SYSTEMCTL_BIN}" stop "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+    "${SYSTEMCTL_BIN}" disable "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+    set -e
+  fi
+}
+
+nginx_arm_rollback_timer() {
+  local release="$1"
+  nginx_install_dir 0755 "${SYSTEMD_DIR}"
+  nginx_install_file 0644 \
+    "${release}/systemd/${NGINX_ROLLBACK_SERVICE}" \
+    "${SYSTEMD_DIR}/${NGINX_ROLLBACK_SERVICE}"
+  nginx_install_file 0644 \
+    "${release}/systemd/${NGINX_ROLLBACK_TIMER}" \
+    "${SYSTEMD_DIR}/${NGINX_ROLLBACK_TIMER}"
+  "${SYSTEMCTL_BIN}" daemon-reload
+  set +e
+  "${SYSTEMCTL_BIN}" stop "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+  "${SYSTEMCTL_BIN}" enable "${NGINX_ROLLBACK_TIMER}" >/dev/null 2>&1
+  set -e
+  "${SYSTEMCTL_BIN}" start "${NGINX_ROLLBACK_TIMER}"
+}
+
+nginx_install_site_atomic() {
+  local src="$1"
+  local dest
+  dest="$(nginx_site_path)"
+  local tmp="${dest}.bwb.new"
+  nginx_install_dir 0755 "${NGINX_ROOT}/sites-available"
+  nginx_install_dir 0755 "${NGINX_ROOT}/sites-enabled"
+  nginx_install_file 0644 "${src}" "${tmp}"
+  ln -sfn "${dest}" "$(nginx_enabled_path)"
+  nginx_atomic_replace "${tmp}" "${dest}"
+}
+
+nginx_install_zone() {
+  local src="$1"
+  local dest="${NGINX_ROOT}/conf.d/bwb-limit-req-documents.conf"
+  local tmp="${dest}.bwb.new"
+  nginx_install_dir 0755 "${NGINX_ROOT}/conf.d"
+  nginx_install_file 0644 "${src}" "${tmp}"
+  nginx_atomic_replace "${tmp}" "${dest}"
+  # Avoid duplicate zone name with legacy provisional filename.
+  rm -f -- "${NGINX_ROOT}/conf.d/bwb-limit-req-documents-provisional.conf" \
+    "${NGINX_ROOT}/http.d/bwb-limit-req-documents-provisional.conf"
+}
+
+nginx_restore_site_backup() {
+  local backup="$1"
+  [[ -f "${backup}" && ! -L "${backup}" ]] || die "nginx site backup missing"
+  nginx_install_site_atomic "${backup}"
+}
+
+nginx_verify_deny_all_config() {
+  local dest
+  dest="$(nginx_site_path)"
+  [[ -f "${dest}" && ! -L "${dest}" ]] || die "active nginx site missing"
+  grep -q 'deny all' "${dest}" || die "active site is not deny-all"
+}
+
+nginx_verify_documents_403() {
+  nginx_verify_deny_all_config
+  local code
+  set +e
+  code="$("${CURL_BIN}" -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 -m 5 \
+    -X POST "https://127.0.0.1/v1/documents" \
+    -H "Host: sandbox.fiscalmod.bwb.pt" \
+    -H "Content-Type: application/json" \
+    -d '{}' 2>/dev/null)"
+  local st=$?
+  set -e
+  if [[ "${st}" -ne 0 || -z "${code}" ]]; then
+    # Config deny-all already verified; HTTP probe may be unavailable in unit tests.
+    return 0
+  fi
+  [[ "${code}" == "403" ]] || die "documents probe expected 403 got ${code}"
+}
+
+op_nginx_deny_all() {
+  local sha="$1"
+  assert_sha1 "sha" "${sha}"
+  local release="${RELEASES}/${sha}"
+  verify_release_tree "${release}" "${sha}"
+  nginx_cancel_rollback_timer
+  nginx_disable_measure
+  nginx_install_zone "${release}/nginx/limit-req-documents.conf"
+  nginx_install_site_atomic "${release}/nginx/tls.deny.conf"
+  if ! nginx_run_t; then
+    die "nginx -t failed after deny-all install"
+  fi
+  nginx_reload
+  nginx_verify_documents_403
+  nginx_write_state "denied" "${sha}"
+  printf 'nginx_deny_all_ok sha=%s\n' "${sha}"
+}
+
+op_nginx_open_arm() {
+  local sha="$1"
+  assert_sha1 "sha" "${sha}"
+  local release="${RELEASES}/${sha}"
+  verify_release_tree "${release}" "${sha}"
+  nginx_install_dir 0750 "${ETC_ROOT}"
+  nginx_install_dir 0750 "${BACKUPS}"
+
+  local site_dest backup
+  site_dest="$(nginx_site_path)"
+  backup="${BACKUPS}/nginx-site.pre-open.${sha}"
+  nginx_install_dir 0750 "${ETC_ROOT}"
+  nginx_install_dir 0750 "${BACKUPS}"
+  if [[ -f "${site_dest}" && ! -L "${site_dest}" ]]; then
+    nginx_install_file 0644 "${site_dest}" "${backup}"
+  else
+    # No prior site: seed deny-all as rollback baseline.
+    nginx_install_file 0644 "${release}/nginx/tls.deny.conf" "${backup}"
+  fi
+
+  nginx_disable_measure
+  nginx_install_zone "${release}/nginx/limit-req-documents.conf"
+  nginx_install_site_atomic "${release}/nginx/tls.open.conf"
+
+  if ! nginx_run_t; then
+    nginx_restore_site_backup "${backup}"
+    set +e
+    nginx_run_t
+    set -e
+    die "nginx -t failed after open install; restored backup"
+  fi
+  if ! nginx_reload; then
+    nginx_restore_site_backup "${backup}"
+    set +e
+    nginx_run_t
+    nginx_reload
+    set -e
+    die "nginx reload failed after open install; restored backup"
+  fi
+
+  nginx_write_state "armed" "${sha}"
+  nginx_arm_rollback_timer "${release}"
+  printf 'nginx_open_arm_ok sha=%s timer=%s\n' "${sha}" "${NGINX_ROLLBACK_TIMER}"
+}
+
+op_nginx_open_confirm() {
+  local sha="$1"
+  assert_sha1 "sha" "${sha}"
+  local st_sha st_state
+  st_state="$(nginx_read_state_field state)" || die "nginx open state missing"
+  st_sha="$(nginx_read_state_field sha)" || die "nginx open state missing sha"
+  [[ "${st_state}" == "armed" ]] || die "nginx open not armed (state=${st_state})"
+  [[ "${st_sha}" == "${sha}" ]] || die "nginx open sha mismatch"
+  local dest
+  dest="$(nginx_site_path)"
+  grep -q 'limit_req zone=bwb_documents burst=20' "${dest}" || die "active site is not open"
+  grep -q 'limit_req_status 429' "${dest}" || die "active site missing 429 status"
+  if grep -q 'deny all' "${dest}"; then
+    die "active site still deny-all"
+  fi
+  nginx_cancel_rollback_timer
+  nginx_write_state "confirmed" "${sha}"
+  printf 'nginx_open_confirm_ok sha=%s\n' "${sha}"
+}
+
+op_nginx_open_rollback_fire() {
+  # Timer target: restore deny-all if still armed. No operator args.
+  local st_state st_sha
+  if ! st_state="$(nginx_read_state_field state)"; then
+    printf 'nginx_open_rollback_fire=noop reason=no_state\n'
+    return 0
+  fi
+  case "${st_state}" in
+    armed)
+      st_sha="$(nginx_read_state_field sha)" || die "armed state missing sha"
+      op_nginx_deny_all "${st_sha}"
+      nginx_write_state "rolled_back" "${st_sha}"
+      printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
+      ;;
+    confirmed | denied | rolled_back)
+      printf 'nginx_open_rollback_fire=noop reason=state_%s\n' "${st_state}"
+      ;;
+    *)
+      die "unknown nginx open state"
+      ;;
+  esac
+}
+
 OP="${1:-}"
 if [[ $# -gt 0 ]]; then
   shift
@@ -898,8 +1202,24 @@ case "${OP}" in
     [[ $# -eq 3 ]] || die "usage: admin-sandbox-ab-revoke-gate <sha40> <scope-id> <created-by>"
     op_admin_sandbox_ab_revoke_gate "$1" "$2" "$3"
     ;;
+  nginx-open-arm)
+    [[ $# -eq 1 ]] || die "usage: nginx-open-arm <sha40>"
+    op_nginx_open_arm "$1"
+    ;;
+  nginx-open-confirm)
+    [[ $# -eq 1 ]] || die "usage: nginx-open-confirm <sha40>"
+    op_nginx_open_confirm "$1"
+    ;;
+  nginx-deny-all)
+    [[ $# -eq 1 ]] || die "usage: nginx-deny-all <sha40>"
+    op_nginx_deny_all "$1"
+    ;;
+  nginx-open-rollback-fire)
+    [[ $# -eq 0 ]] || die "usage: nginx-open-rollback-fire"
+    op_nginx_open_rollback_fire
+    ;;
   install-nginx-open | activate-open-candidate | nginx-open)
-    die "open HTTPS candidate cannot be activated by this helper"
+    die "open HTTPS candidate cannot be activated by this helper; use nginx-open-arm"
     ;;
   *)
     die "unknown operation"

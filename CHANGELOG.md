@@ -1,9 +1,14 @@
 # Changelog
 
+## 0.2.12-draft — 2026-07-22
+
+- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`), deny-all imutável no release, zone final, helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer systemd 5 min fail-safe; relatório S3C1; testes arm/confirm/timeout/rollback. Sem deploy/promoção/abertura no host.
+
 ## 0.2.11-draft — 2026-07-22
 
 - S3C-tooling: `internal/buildinfo` + Health `revision` (required, SHA40\|dev); `fiscal-api version`; release ldflags + verificação `revision == COMMIT`; binário Go `fiscal-sandbox-measure` (perfis fechados sustained/burst/replay) substitui o medidor shell; helper `admin-sandbox-measure <sha> <profile>`; OpenAPI `0.1.5-draft`; runbook S3C1. Sem deploy/S3C1/S3C2/abertura pública.
 - Hardening measure (Draft PR): pacing sustained sem catch-up; thresholds completos + `passed`/`failure_codes`; `attempted`/`http_responses`/`transport_errors`; replay tipado estrito; `revision=dev` só em `FISCAL_ENV=development`; token dir/ficheiro 0600 sem symlink; latência via Clock injectado.
+- Fix sustained start-slot pacing e token open TOCTOU (`O_NOFOLLOW` + Fstat).
 
 ## 0.2.10-draft — 2026-07-22
 

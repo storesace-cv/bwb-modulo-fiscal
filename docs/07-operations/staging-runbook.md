@@ -109,7 +109,22 @@ Bootstrap e primeiro deploy em `sandbox.fiscalmod.bwb.pt` concluídos. Relatóri
 
 **S3C1 (ops, pós-deploy tooling):** medição em `:18080` com perfis fechados; 443 documents permanece deny-all; remover `:18080` no fim.
 
-**S3C2 (PR separado após evidência S3C1):** promover `rate`/`burst` medidos para conf HTTPS aberta + deny-all versionado + rollback fail-safe; desactivar `:18080`.
+**S3C2 (PR repo, pós-S3C1):** valores finais `rate=10r/s` / `burst=20`; site open + deny-all versionados no release; helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer systemd 5 min fail-safe; `:18080` desactivado no arm. **Promoção no host só após merge.**
+
+### S3C2 — abertura controlada (fail-safe)
+
+Artefactos no release (`nginx/tls.open.conf`, `nginx/tls.deny.conf`, `nginx/limit-req-documents.conf`, units systemd):
+
+| Op fechada | Comportamento |
+|---|---|
+| `nginx-open-arm <sha40>` | Instala open (paths fixos), zone 10r/s, remove measure `:18080`, `nginx -t`, reload; arma timer **5 min** de rollback |
+| `nginx-open-confirm <sha40>` | Cancela timer após gates (host+externo na ops de promoção) |
+| `nginx-deny-all <sha40>` | Restaura deny-all, `nginx -t`, reload, verifica 403; cancela timer |
+| `nginx-open-rollback-fire` | Alvo do timer: se ainda `armed`, executa deny-all |
+
+Sem paths/URLs/comandos arbitrários do operador. Updater **não** activa open. Legacy `install-nginx-open` continua rejeitado.
+
+Open: `limit_req` burst=20 + `limit_req_status 429`; health fora do limiter; `X-Request-Id` inbound limpo.
 
 ### S3C1 — matriz e thresholds (aprovados)
 
@@ -150,7 +165,7 @@ Zone provisória (S3A/S3B): `deploy/nginx/http.d/bwb-limit-req-documents-provisi
 
 Fluxo: helper root → parser allowlist (`FISCAL_DATABASE_DRIVER`, `FISCAL_DATABASE_URL`) → `env -i` → drop para `bwb-fiscal-admin`. DSN/token **nunca** em argv/stdout/logs. `bwb-deploy` não lê `admin.env` nem tokens. `--output-file` é sempre escolhido pelo helper sob o dir de tokens.
 
-Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure <sha> sustained|burst|replay`, `admin-sandbox-ab-revoke-gate` (A cria doc com fixture/chave A → revogar A → 401 com token A → B cria doc **novo** com fixture/chave B → replay de B; `document_id` A≠B). Rejeitadas: `install-nginx-open` / activação do candidato.
+Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `admin-sandbox-e2e`, `admin-sandbox-measure <sha> sustained|burst|replay`, `admin-sandbox-ab-revoke-gate`, `nginx-open-arm|nginx-open-confirm|nginx-deny-all` (só pós-merge S3C2). Rejeitadas: `install-nginx-open` / `activate-open-candidate`.
 
 ### Grants PostgreSQL (S3A artefact / S3B apply)
 

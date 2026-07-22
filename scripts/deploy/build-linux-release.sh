@@ -67,7 +67,7 @@ if [[ -d "${OUT_DIR}" ]]; then
   rm -rf "${OUT_DIR}"
 fi
 
-mkdir -p "${OUT_DIR}/lib" "${OUT_DIR}/fixtures/sandbox"
+mkdir -p "${OUT_DIR}/lib" "${OUT_DIR}/fixtures/sandbox" "${OUT_DIR}/nginx" "${OUT_DIR}/systemd"
 
 echo "building GOOS=${GOOS} GOARCH=${GOARCH} commit=${HEAD} schema=${EXPECTED_SCHEMA_VERSION}"
 REVISION_PKG="github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo.Revision"
@@ -81,10 +81,19 @@ cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${OUT_DIR}/lib/admin.env.allowlist"
 install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-e2e.sh" "${OUT_DIR}/fiscal-sandbox-e2e"
 cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${OUT_DIR}/fixtures/sandbox/"
+# S3C2 nginx + fail-safe units (open only activatable via closed helper ops).
+cp "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" "${OUT_DIR}/nginx/tls.open.conf"
+cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${OUT_DIR}/nginx/tls.deny.conf"
+cp "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" "${OUT_DIR}/nginx/limit-req-documents.conf"
+cp "${ROOT}/deploy/nginx/README.md" "${OUT_DIR}/nginx/README.md"
+cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.service" "${OUT_DIR}/systemd/"
+cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer" "${OUT_DIR}/systemd/"
 chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
   "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
 chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" \
-  "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json
+  "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json \
+  "${OUT_DIR}/nginx/"*.conf "${OUT_DIR}/nginx/README.md" \
+  "${OUT_DIR}/systemd/"*.service "${OUT_DIR}/systemd/"*.timer
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
@@ -144,6 +153,12 @@ fi
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf \
+    nginx/tls.deny.conf \
+    nginx/limit-req-documents.conf \
+    nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service \
+    systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT \
     EXPECTED_SCHEMA_VERSION \
     >SHA256SUMS

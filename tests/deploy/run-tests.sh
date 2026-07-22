@@ -150,6 +150,9 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
     && grep -q 'lib/migrate.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'EXPECTED_SCHEMA_VERSION' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'COMMIT' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'nginx/tls.open.conf' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'nginx/tls.deny.conf' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'systemd/bwb-fiscal-nginx-open-rollback.timer' "${OUT_DIR}/SHA256SUMS" \
     && [[ ! -e "${OUT_DIR}/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" ]]; then
     ok "SHA256SUMS covers release files and omits migrate runner/open candidate"
   else
@@ -236,6 +239,8 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrat
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 if SECRET_SHOULD_NOT_LEAK=pwned \
@@ -317,6 +322,8 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 TOKEN_DIR="${TMP}/admin-tokens"
@@ -411,6 +418,8 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbo
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 GATE_TOKENS="${TMP}/gate-tokens"
@@ -482,21 +491,27 @@ else
   bad "admin.env allowlist rejected valid file"
 fi
 
-# Nginx closed / measure / candidate invariants
+# Nginx deny-all / open / measure invariants (S3C2)
 if grep -q 'deny all' "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" \
   && grep -q 'listen 127.0.0.1:18080' "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
   && grep -q 'limit_req zone=bwb_documents burst=20' \
     "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
   && grep -q 'limit_req zone=bwb_documents burst=20' \
-    "${ROOT}/deploy/nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf" \
+    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
+  && grep -q 'limit_req_status 429' \
+    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
+  && grep -q 'rate=10r/s' \
+    "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" \
   && grep -q 'proxy_set_header X-Request-Id ""' \
-    "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
+    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
   && grep -A4 'location = /v1/health' \
-    "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
-    | grep -qv 'limit_req'; then
-  ok "nginx closed deny-all; measure loopback+limit_req; health outside limiter"
+    "${ROOT}/deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf" \
+    | grep -qv 'limit_req' \
+  && grep -q 'nginx-open-arm' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
+  && grep -q 'OnActiveSec=5min' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer"; then
+  ok "nginx deny-all + open(10r/s,burst=20,429) + measure + fail-safe timer"
 else
-  bad "nginx closed/measure/candidate invariants failed"
+  bad "nginx open/deny/measure/timer invariants failed"
 fi
 if ! grep -qE 'listen[[:space:]]+18080|listen[[:space:]]+\*:18080|0\.0\.0\.0:18080' \
   "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf"; then
@@ -504,6 +519,195 @@ if ! grep -qE 'listen[[:space:]]+18080|listen[[:space:]]+\*:18080|0\.0\.0\.0:180
 else
   bad "measure listener binds non-loopback"
 fi
+
+# --- S3C2 nginx-open-arm / confirm / deny-all / timer rollback (mocked nginx+systemctl) ---
+NGX="${TMP}/nginx-root"
+SYS="${TMP}/systemd-dir"
+CTLLOG="${TMP}/systemctl.log"
+: >"${CTLLOG}"
+mkdir -p "${NGX}/sites-available" "${NGX}/sites-enabled" "${NGX}/conf.d" "${SYS}" \
+  "${TMP}/mockbin"
+# Seed deny-all as currently active public site + stale measure listener.
+cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${NGX}/sites-available/bwb-fiscal-sandbox"
+ln -sfn "${NGX}/sites-available/bwb-fiscal-sandbox" "${NGX}/sites-enabled/bwb-fiscal-sandbox"
+printf 'measure\n' >"${NGX}/sites-available/bwb-fiscal-sandbox-measure-loopback.conf"
+ln -sfn "${NGX}/sites-available/bwb-fiscal-sandbox-measure-loopback.conf" \
+  "${NGX}/sites-enabled/bwb-fiscal-sandbox-measure-loopback.conf"
+cp "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents-provisional.conf" \
+  "${NGX}/conf.d/bwb-limit-req-documents-provisional.conf"
+cat >"${TMP}/mockbin/nginx" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
+exit 0
+EOF
+cat >"${TMP}/mockbin/systemctl" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "\$*" >>"${CTLLOG}"
+exit 0
+EOF
+cat >"${TMP}/mockbin/curl" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+# Emit 403 for documents probe without touching the network.
+if [[ "\$*" == *"/v1/documents"* ]]; then
+  printf '403'
+  exit 0
+fi
+printf '000'
+exit 1
+EOF
+chmod 0755 "${TMP}/mockbin/nginx" "${TMP}/mockbin/systemctl" "${TMP}/mockbin/curl"
+: >"${TMP}/nginx-invocations.log"
+
+# Ensure helprefs release has nginx artefacts from OUT_DIR build
+if [[ ! -f "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/nginx/tls.open.conf" ]]; then
+  cp -a "${OUT_DIR}/nginx" "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
+  cp -a "${OUT_DIR}/systemd" "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
+fi
+
+run_ngx_helper() {
+  PATH="${TMP}/mockbin:/usr/bin:/bin" \
+    BWB_DEPLOY_OPT="${TMP}/helprefs/opt/bwb-modulo-fiscal" \
+    BWB_DEPLOY_ETC="${TMP}/helprefs/etc/bwb-modulo-fiscal" \
+    BWB_HELPER_LIB="${TMP}/helprefs/lib" \
+    BWB_NGINX_ROOT="${NGX}" \
+    BWB_SYSTEMD_DIR="${SYS}" \
+    BWB_SYSTEMCTL=systemctl \
+    BWB_NGINX_BIN=nginx \
+    BWB_CURL=curl \
+    bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" "$@"
+}
+
+if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.out" 2>"${TMP}/arm.err"; then
+  if grep -q "nginx_open_arm_ok sha=${HEAD}" "${TMP}/arm.out" \
+    && grep -q 'limit_req zone=bwb_documents burst=20' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && [[ ! -e "${NGX}/sites-enabled/bwb-fiscal-sandbox-measure-loopback.conf" ]] \
+    && [[ -f "${NGX}/conf.d/bwb-limit-req-documents.conf" ]] \
+    && [[ ! -e "${NGX}/conf.d/bwb-limit-req-documents-provisional.conf" ]] \
+    && grep -q 'start bwb-fiscal-nginx-open-rollback.timer' "${CTLLOG}" \
+    && grep -q 'state=armed' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state" \
+    && [[ -f "${SYS}/bwb-fiscal-nginx-open-rollback.timer" ]]; then
+    ok "nginx-open-arm installs open, disables :18080 measure, arms 5m timer"
+  else
+    bad "nginx-open-arm assertions failed"
+    cat "${TMP}/arm.out" "${TMP}/arm.err" "${CTLLOG}" >&2 || true
+  fi
+else
+  bad "nginx-open-arm failed"
+  cat "${TMP}/arm.err" "${TMP}/arm.out" >&2 || true
+fi
+
+# confirm cancels timer
+: >"${CTLLOG}"
+if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.out" 2>"${TMP}/confirm.err"; then
+  if grep -q "nginx_open_confirm_ok sha=${HEAD}" "${TMP}/confirm.out" \
+    && grep -q 'stop bwb-fiscal-nginx-open-rollback.timer' "${CTLLOG}" \
+    && grep -q 'state=confirmed' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"; then
+    ok "nginx-open-confirm cancels rollback timer"
+  else
+    bad "nginx-open-confirm assertions failed"
+    cat "${TMP}/confirm.out" "${TMP}/confirm.err" "${CTLLOG}" >&2 || true
+  fi
+else
+  bad "nginx-open-confirm failed"
+  cat "${TMP}/confirm.err" >&2 || true
+fi
+
+# Re-arm then fire timer rollback
+: >"${CTLLOG}"
+run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm2.out" 2>"${TMP}/arm2.err" || true
+if run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.out" 2>"${TMP}/fire.err"; then
+  if grep -q 'nginx_deny_all_ok\|nginx_open_rollback_fire=ok' "${TMP}/fire.out" \
+    && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -qE 'state=(denied|rolled_back)' "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"; then
+    ok "nginx-open-rollback-fire restores deny-all"
+  else
+    bad "rollback-fire assertions failed"
+    cat "${TMP}/fire.out" "${TMP}/fire.err" >&2 || true
+  fi
+else
+  bad "nginx-open-rollback-fire failed"
+  cat "${TMP}/fire.err" "${TMP}/fire.out" >&2 || true
+fi
+
+# Explicit deny-all ok from open
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+if run_ngx_helper nginx-deny-all "${HEAD}" >"${TMP}/deny.out" 2>"${TMP}/deny.err"; then
+  if grep -q "nginx_deny_all_ok sha=${HEAD}" "${TMP}/deny.out" \
+    && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox"; then
+    ok "nginx-deny-all restores deny-all explicitly"
+  else
+    bad "nginx-deny-all assertions failed"
+    cat "${TMP}/deny.out" "${TMP}/deny.err" >&2 || true
+  fi
+else
+  bad "nginx-deny-all failed"
+  cat "${TMP}/deny.err" >&2 || true
+fi
+
+# Negative: confirm without arm
+rm -f "${TMP}/helprefs/etc/bwb-modulo-fiscal/nginx-open.state"
+if run_ngx_helper nginx-open-confirm "${HEAD}" >"${TMP}/confirm.bad.out" 2>"${TMP}/confirm.bad.err"; then
+  bad "confirm without arm must fail"
+else
+  ok "nginx-open-confirm rejects missing/unarmed state"
+fi
+
+# Negative: legacy install-nginx-open still rejected
+if run_ngx_helper install-nginx-open >"${TMP}/ngopen.out" 2>"${TMP}/ngopen.err"; then
+  bad "helper must reject install-nginx-open"
+else
+  if grep -qi 'cannot be activated\|nginx-open-arm' "${TMP}/ngopen.err"; then
+    ok "helper rejects install-nginx-open / open candidate activation"
+  else
+    bad "open candidate rejection message missing"
+    cat "${TMP}/ngopen.err" >&2 || true
+  fi
+fi
+
+# Negative: nginx -t failure rolls back
+cat >"${TMP}/mockbin/nginx" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
+if [[ "\$*" == *"-t"* ]]; then
+  # Fail only when open config is staged (contains limit_req)
+  if grep -q 'limit_req zone=bwb_documents' "${NGX}/sites-available/bwb-fiscal-sandbox" 2>/dev/null \
+    || grep -q 'limit_req zone=bwb_documents' "${NGX}/sites-available/bwb-fiscal-sandbox.bwb.new" 2>/dev/null; then
+    # After mv, site is open — fail -t to trigger restore path on first arm attempt.
+    # Use a marker file to fail only once.
+    if [[ ! -f "${TMP}/fail-t-once" ]]; then
+      touch "${TMP}/fail-t-once"
+      exit 1
+    fi
+  fi
+fi
+exit 0
+EOF
+chmod 0755 "${TMP}/mockbin/nginx"
+cp "${ROOT}/deploy/nginx/bwb-fiscal-sandbox-tls.conf" "${NGX}/sites-available/bwb-fiscal-sandbox"
+if run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.fail.out" 2>"${TMP}/arm.fail.err"; then
+  bad "arm must fail when nginx -t fails"
+else
+  if grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -qi 'nginx -t failed' "${TMP}/arm.fail.err"; then
+    ok "nginx-open-arm rolls back site when nginx -t fails"
+  else
+    bad "arm failure rollback assertions failed"
+    cat "${TMP}/arm.fail.out" "${TMP}/arm.fail.err" >&2 || true
+  fi
+fi
+# restore healthy mock nginx for any later tests
+cat >"${TMP}/mockbin/nginx" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "\$*" >>"${TMP}/nginx-invocations.log"
+exit 0
+EOF
+chmod 0755 "${TMP}/mockbin/nginx"
 
 # E2E script: no eval; quoted curl array; no token in argv.
 # Measure is Go binary with closed profiles (sustained/burst/replay) — caps live in code + helper.
@@ -799,6 +1003,8 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 (
@@ -810,6 +1016,8 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
@@ -858,6 +1066,8 @@ printf '%s\n' "${HEAD}" >"${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
 )
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
@@ -1024,6 +1234,8 @@ seed_sha_release() {
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
     fixtures/sandbox/create-document.invalid.json \
+    nginx/tls.open.conf nginx/tls.deny.conf nginx/limit-req-documents.conf nginx/README.md \
+    systemd/bwb-fiscal-nginx-open-rollback.service systemd/bwb-fiscal-nginx-open-rollback.timer \
     COMMIT EXPECTED_SCHEMA_VERSION >SHA256SUMS
   )
 }

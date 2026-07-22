@@ -1,0 +1,13 @@
+# Oneshoot rollback after nginx-open-arm if nginx-open-confirm is not issued.
+# Deadline is fixed at 5 minutes (OnActiveSec on the companion timer).
+# ExecStart is the closed helper only — no operator paths/args.
+
+[Unit]
+Description=BWB fiscal Nginx open rollback (deny-all fail-safe)
+Documentation=file:///opt/bwb-modulo-fiscal/current/nginx/README.md
+After=network.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bwb-fiscal-deploy-helper nginx-open-rollback-fire
+Nice=0
