@@ -329,6 +329,10 @@ op_activate() {
   # Production dependency: GNU coreutils `mv -T` on Ubuntu 22.04+.
   # Non-root test harness (BWB_DEPLOY_OPT) may use ln -sfn when GNU mv is absent —
   # that path must never run as root (overrides are refused when EUID=0).
+  # Refuse a real directory at current before any ln/mv (avoids nesting under BSD ln -sfn).
+  if [[ -e "${OPT_ROOT}/current" && ! -L "${OPT_ROOT}/current" ]]; then
+    die "activate failed: current is not a symlink"
+  fi
   if gnu_mv_supports_T; then
     ln -sfn "${dest}" "${OPT_ROOT}/current.new"
     if ! mv -Tf "${OPT_ROOT}/current.new" "${OPT_ROOT}/current"; then

@@ -44,6 +44,8 @@ Positivos (após `grants-schema3-runtime-admin.sql` no plano aprovado):
 
 Serialização de Issue/Rotate/Revoke em PostgreSQL: `pg_advisory_xact_lock(namespace, hashtext(scope_id))` + `SELECT` normal do scope (sem `SELECT … FOR UPDATE`). Colisões de chave advisory só aumentam serialização. SQLite mantém `BEGIN IMMEDIATE`.
 
+O advisory lock vive no **binário/API** (`internal/persistence`), não no helper de deploy. O helper só gere activate/releases; não implementa serialização de credenciais.
+
 Negativos:
 
 - runtime sem DDL (`CREATE TABLE` denied)
@@ -101,8 +103,14 @@ Candidato aberto deve manter `limit_req_status 429`. Burst auxiliar (40 req para
 ## Ajustes pós-execução (esta branch)
 
 1. **Crítico — activate symlink:** `mv -f` sem `-T` aninhava `current.new` na release antiga. Produção exige GNU `mv -T` (Ubuntu 22.04); verificação `current-sha` fechada no helper/updater; teste de regressão no harness.
-2. **Alto — privilégio scopes:** remover UPDATE amplo; lock via `pg_advisory_xact_lock` + SELECT; testes negativos de colunas de scopes; concorrência Issue/Rotate/Revoke reforçada (PG + SQLite).
+2. **Alto — privilégio scopes:** remover UPDATE amplo; lock via `pg_advisory_xact_lock` + SELECT no binário/API; testes negativos de colunas de scopes; concorrência Issue/Rotate/Revoke estrita (PG + SQLite).
 3. **Médio — medição:** `limit_req_status 429`; relatório classifica corrida como burst measurement (sem recomendar rate final).
+
+## CI do artefacto (Draft PR #14)
+
+- HEAD verificado antes deste reforço: `97f53a6f50d9c001b64ad917c7df0c044624c673`
+- Workflow CI desse HEAD: **SUCCESS** (`go-checks` + GitGuardian)
+- Este documento e os testes estritos/activate reforçados são incrementos posteriores no mesmo Draft PR (sem Ready/merge).
 
 ## Incidentes
 
@@ -110,7 +118,7 @@ Candidato aberto deve manter `limit_req_status 429`. Burst auxiliar (40 req para
 |---|---|---|---|---|---|---|
 | Crítico | Deploy activate | GNU `mv` sem `-T` + symlink dir | SHA novo instalado/migrado mas `current` ficou em N-1; `promote=ok` falso-positivo | `mv -Tf` + assert + `current-sha` no updater; helper reinstalado no host | Corrigido (artefacto; host já activado) | Host ainda corre helper com patch operacional; PR sincroniza artefactos |
 | Alto | API pós-activate | `dev_static` sem NIF no novo binário | Crash-loop até `credential_store` | `fiscal.env` → homologation + credential_store | Corrigido | — |
-| Alto | Admin Issue (temporário) | `FOR UPDATE` exigia UPDATE em scopes | Issue falhava; mitigação incorrecta com UPDATE de tabela | Advisory lock; grants voltam a SELECT/INSERT | Corrigido no artefacto (aplicar grants no host em manutenção futura autorizada) | Host pode ainda ter UPDATE em scopes da mitigação S3B até re-apply do SQL |
+| Alto | Admin Issue (temporário) | `FOR UPDATE` exigia UPDATE em scopes | Issue falhava; mitigação incorrecta com UPDATE de tabela | Advisory lock no binário/API; grants voltam a SELECT/INSERT | Corrigido no artefacto (aplicar grants + **novo binário** no host só em manutenção futura autorizada) | Host ainda tem **temporariamente UPDATE em scopes** e o **binário anterior** (sem advisory lock). **Não** revogar esse grant antes do novo binário ser mergeado e instalado |
 | Médio | Medição | `limit_req`→503 vs script→429 | Gate falhava com throttling real | `limit_req_status 429` | Corrigido | S3C: medir sustentado ≠ burst |
 | Baixo | Backup restore smoke | Dump `0600` + nome `bwb_schema_migrations` | Validação inicial falhou | Cópia temporária + DROP DB; schema 2 esperado | Contornado | — |
 | Baixo | Scopes iniciais | NIF ≠ fixture | `nif_mismatch` | Scopes `*-002` | Contornado | Runbook: NIF da fixture |
@@ -118,17 +126,19 @@ Candidato aberto deve manter `limit_req_status 429`. Burst auxiliar (40 req para
 ## Não feito (conforme mandato)
 
 - S3C / abertura pública de `/v1/documents`
-- Aplicar neste passo novas alterações ao servidor (grants/helper no host ficam para janela autorizada)
+- Aplicar neste passo novas alterações ao servidor (grants/helper/binário no host ficam para janela autorizada)
+- Revogar o UPDATE temporário em scopes no host **antes** do merge+install do binário com advisory lock
 - Medição sustentada de 60 s a 10 r/s
 
 ## Ficheiros desta branch
 
-- `internal/persistence/credentials.go` — advisory lock
-- `internal/persistence/credentials_test.go` — concorrência Issue/Rotate/Revoke
+- `internal/persistence/credentials.go` — advisory lock (API/binário)
+- `internal/persistence/credentials_test.go` — concorrência Issue/Rotate/Revoke estrita
 - `internal/persistence/grants_schema3_postgres_test.go` — admin sem UPDATE em scopes
 - `deploy/postgres/grants-schema3-runtime-admin.sql` — SELECT/INSERT scopes apenas
-- `scripts/deploy/remote-deploy-helper.sh` — `mv -T`, `current-sha`, GNU dependency
+- `scripts/deploy/remote-deploy-helper.sh` — `mv -T`, `current-sha`, GNU dependency (activate; sem advisory lock)
 - `scripts/deploy/update-staging.sh` — verificação pós-activate via `current-sha`
 - `tests/deploy/run-tests.sh` — regressão activate + grants/advisory
 - `deploy/nginx/measure/…` e `candidates/…` — `limit_req_status 429`
+- `CHANGELOG.md` — secção `0.2.10-draft`
 - `docs/07-operations/s3b-staging-report.md` — este relatório

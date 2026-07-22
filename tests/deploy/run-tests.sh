@@ -842,6 +842,8 @@ cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_FAIL}/usr/local/lib/bwb-fisc
 cp "${ROOT}/deploy/migrate.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist"
 mkdir -p "${ACT_FAIL}/opt/bwb-modulo-fiscal/current"
+# Marker to detect nested writes into the directory mistaken for a symlink target.
+: >"${ACT_FAIL}/opt/bwb-modulo-fiscal/current/.keep-empty-dir"
 if BWB_DEPLOY_OPT="${ACT_FAIL}/opt/bwb-modulo-fiscal" \
   BWB_DEPLOY_ETC="${ACT_FAIL}/etc/bwb-modulo-fiscal" \
   BWB_HELPER_LIB="${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy" \
@@ -849,13 +851,40 @@ if BWB_DEPLOY_OPT="${ACT_FAIL}/opt/bwb-modulo-fiscal" \
   >"${TMP}/act-fail.out" 2>"${TMP}/act-fail.err"; then
   bad "activate must fail when current is a directory"
 else
+  nested_in_current="$(find "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" -mindepth 1 ! -name '.keep-empty-dir' 2>/dev/null | wc -l | tr -d ' ')"
   if ! grep -q 'activate_ok' "${TMP}/act-fail.out" "${TMP}/act-fail.err" \
-    && [[ -d "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" ]]; then
-    ok "activate failure does not emit activate_ok"
+    && [[ -d "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" ]] \
+    && [[ ! -L "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" ]] \
+    && [[ "${nested_in_current}" == "0" ]] \
+    && ! find "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" -type l 2>/dev/null | grep -q . \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/current.new" ]] \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/current/current.new" ]] \
+    && [[ ! -e "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/current.new" ]] \
+    && ! find "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases" -name 'current.new' 2>/dev/null | grep -q .; then
+    ok "activate failure does not emit activate_ok nor nest symlink/file/current.new under current/releases"
   else
-    bad "activate failure still emitted activate_ok or mutated current"
+    bad "activate failure still emitted activate_ok or left nested artefacts"
+    find "${ACT_FAIL}/opt/bwb-modulo-fiscal" \( -name 'current.new' -o -type l \) 2>/dev/null | head -20 >&2 || true
+    ls -la "${ACT_FAIL}/opt/bwb-modulo-fiscal/current" >&2 || true
     cat "${TMP}/act-fail.out" "${TMP}/act-fail.err" >&2 || true
   fi
+fi
+
+# On GNU/Linux CI, the production activate path must exercise mv -T (not only the portable test fallback).
+if mv --version 2>/dev/null | grep -qi 'GNU coreutils'; then
+  probe="$(mktemp -d "${TMP}/gnu-mvT.XXXXXX")"
+  mkdir -p "${probe}/dir"
+  ln -sfn "${probe}/dir" "${probe}/link"
+  ln -sfn "${probe}/dir" "${probe}/link.new"
+  if mv -Tf "${probe}/link.new" "${probe}/link" 2>/dev/null \
+    && [[ -L "${probe}/link" && ! -e "${probe}/dir/link.new" ]]; then
+    ok "GNU mv -T feature available (Linux/CI production activate path)"
+  else
+    bad "GNU mv -T required on Linux CI but feature probe failed"
+  fi
+  rm -rf -- "${probe}"
+else
+  ok "skip GNU mv -T CI probe on non-GNU host (macOS harness uses portable fallback only)"
 fi
 
 # Document GNU mv -T dependency; macOS must not pretend BSD supports -T.
