@@ -43,7 +43,8 @@ if [[ "${EUID}" -eq 0 ]]; then
     || -n "${BWB_ADMIN_USER:-}" || -n "${BWB_ADMIN_TOKEN_DIR:-}" \
     || -n "${BWB_NGINX_ROOT:-}" || -n "${BWB_SYSTEMCTL:-}" || -n "${BWB_NGINX_BIN:-}" \
     || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" || -n "${BWB_NGINX_LOCK:-}" \
-    || -n "${BWB_NGINX_FAIL_RESTORE:-}" ]]; then
+    || -n "${BWB_NGINX_FAIL_RESTORE:-}" \
+    || -n "${BWB_NGINX_PROBE_DEADLINE_SEC:-}" || -n "${BWB_NGINX_PROBE_INTERVAL_SEC:-}" ]]; then
     echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
     exit 1
   fi
@@ -1094,38 +1095,101 @@ nginx_verify_deny_all_config() {
   return 0
 }
 
-# Strict HTTP probe: requires 403. Used when Nginx is expected to be serving.
-nginx_probe_documents_403_strict() {
-  nginx_verify_deny_all_config || return 1
-  local code
+# Post-reload documents probe: short fixed deadline; 401 is transient worker lag only.
+# Logs HTTP codes + attempt count only (never body/token/DSN/NIF).
+nginx_probe_deadline_sec() {
+  if [[ "${EUID}" -ne 0 && -n "${BWB_NGINX_PROBE_DEADLINE_SEC:-}" ]]; then
+    printf '%s\n' "${BWB_NGINX_PROBE_DEADLINE_SEC}"
+    return 0
+  fi
+  printf '3\n'
+}
+
+nginx_probe_interval_sec() {
+  if [[ "${EUID}" -ne 0 && -n "${BWB_NGINX_PROBE_INTERVAL_SEC:-}" ]]; then
+    printf '%s\n' "${BWB_NGINX_PROBE_INTERVAL_SEC}"
+    return 0
+  fi
+  printf '0.2\n'
+}
+
+# Single probe attempt. Prints http_code (or 000). Returns 0 only when curl got an HTTP code.
+nginx_probe_documents_once() {
+  local code st
   set +e
   code="$("${CURL_BIN}" -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 -m 5 \
     -X POST "https://127.0.0.1/v1/documents" \
     -H "Host: sandbox.fiscalmod.bwb.pt" \
     -H "Content-Type: application/json" \
     -d '{}' 2>/dev/null)"
-  local st=$?
+  st=$?
   set -e
-  [[ "${st}" -eq 0 && "${code}" == "403" ]] || return 1
+  if [[ "${st}" -ne 0 || -z "${code}" ]]; then
+    printf '000\n'
+    return 1
+  fi
+  printf '%s\n' "${code}"
   return 0
 }
 
-# Lenient probe for routine deny-all when curl may be unavailable in unit tests.
-nginx_verify_documents_403() {
-  nginx_verify_deny_all_config || die "active site is not deny-all"
-  local code
-  set +e
-  code="$("${CURL_BIN}" -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 -m 5 \
-    -X POST "https://127.0.0.1/v1/documents" \
-    -H "Host: sandbox.fiscalmod.bwb.pt" \
-    -H "Content-Type: application/json" \
-    -d '{}' 2>/dev/null)"
-  local st=$?
-  set -e
-  if [[ "${st}" -ne 0 || -z "${code}" ]]; then
-    return 0
-  fi
-  [[ "${code}" == "403" ]] || die "documents probe expected 403 got ${code}"
+# Strict retry until 403, deadline, or hard failure (5xx / TLS / connection).
+nginx_probe_documents_403_strict() {
+  nginx_verify_deny_all_config || return 1
+  local deadline interval start_ts now attempts code st codes
+  deadline="$(nginx_probe_deadline_sec)"
+  interval="$(nginx_probe_interval_sec)"
+  start_ts="$(date +%s)"
+  attempts=0
+  codes=""
+  while true; do
+    attempts=$((attempts + 1))
+    set +e
+    code="$(nginx_probe_documents_once)"
+    st=$?
+    set -e
+    code="$(printf '%s' "${code}" | tr -d '[:space:]')"
+    [[ -z "${code}" ]] && code="000"
+    if [[ -z "${codes}" ]]; then
+      codes="${code}"
+    else
+      codes="${codes},${code}"
+    fi
+    printf 'nginx_documents_probe attempt=%s code=%s\n' "${attempts}" "${code}" >&2
+
+    if [[ "${st}" -ne 0 || "${code}" == "000" ]]; then
+      printf 'nginx_documents_probe_done attempts=%s codes=%s result=transport_error\n' \
+        "${attempts}" "${codes}" >&2
+      return 1
+    fi
+    case "${code}" in
+      403)
+        printf 'nginx_documents_probe_done attempts=%s codes=%s result=ok\n' \
+          "${attempts}" "${codes}" >&2
+        return 0
+        ;;
+      401)
+        # Transient: old workers may still proxy to the API during reload convergence.
+        ;;
+      5[0-9][0-9])
+        printf 'nginx_documents_probe_done attempts=%s codes=%s result=http_5xx\n' \
+          "${attempts}" "${codes}" >&2
+        return 1
+        ;;
+      *)
+        printf 'nginx_documents_probe_done attempts=%s codes=%s result=unexpected_http\n' \
+          "${attempts}" "${codes}" >&2
+        return 1
+        ;;
+    esac
+
+    now="$(date +%s)"
+    if (( now - start_ts >= deadline )); then
+      printf 'nginx_documents_probe_done attempts=%s codes=%s result=deadline\n' \
+        "${attempts}" "${codes}" >&2
+      return 1
+    fi
+    sleep "${interval}"
+  done
 }
 
 nginx_should_inject_restore_failure() {
@@ -1208,19 +1272,19 @@ nginx_emergency_stop_nginx() {
   return 1
 }
 
-# After open is live / reload ambiguous: proven deny_restored, proven emergency_nginx_stop,
-# or CRITICAL emergency_stop_failed (never arm_ok; never claim stop without proof).
+# After open is live / deny-all ambiguous: proven deny_restored, proven emergency_nginx_stop,
+# or CRITICAL emergency_stop_failed (never claim success; never claim stop without proof).
 nginx_fail_closed_deny() {
   local sha="$1" release="$2" reason="$3"
   if nginx_try_restore_deny_live "${sha}" "${release}"; then
-    echo "error: nginx open arm fail-closed deny_restored reason=${reason}" >&2
+    echo "error: nginx open fail-closed deny_restored reason=${reason}" >&2
     exit 1
   fi
   if nginx_emergency_stop_nginx "${sha}"; then
-    echo "error: nginx open arm fail-closed emergency_nginx_stop reason=${reason}" >&2
+    echo "error: nginx open fail-closed emergency_nginx_stop reason=${reason}" >&2
     exit 1
   fi
-  echo "error: CRITICAL nginx open arm fail-closed emergency_stop_failed reason=${reason}" >&2
+  echo "error: CRITICAL nginx open fail-closed emergency_stop_failed reason=${reason}" >&2
   exit 1
 }
 
@@ -1235,11 +1299,17 @@ op_nginx_deny_all() {
   nginx_disable_measure
   nginx_install_zone "${release}/nginx/limit-req-documents.conf"
   nginx_install_site_atomic "${release}/nginx/tls.deny.conf"
+  # Timer is already cancelled: any failure from here must leave a terminal fail-closed state
+  # (never armed + timer inactive).
   if ! nginx_run_t; then
-    die "nginx -t failed after deny-all install"
+    nginx_fail_closed_deny "${sha}" "${release}" "nginx -t failed after deny-all install"
   fi
-  nginx_reload
-  nginx_verify_documents_403
+  if ! nginx_reload; then
+    nginx_fail_closed_deny "${sha}" "${release}" "reload failed after deny-all install"
+  fi
+  if ! nginx_probe_documents_403_strict; then
+    nginx_fail_closed_deny "${sha}" "${release}" "documents 403 not proven after deny-all"
+  fi
   nginx_write_state "denied" "${sha}"
   printf 'nginx_deny_all_ok sha=%s\n' "${sha}"
 }
@@ -1318,7 +1388,8 @@ op_nginx_open_confirm() {
 
 op_nginx_open_rollback_fire() {
   # Timer target: restore deny-all if still armed. No operator args.
-  local st_state st_sha
+  # Must never leave state=armed with timer inactive after this op returns/exits.
+  local st_state st_sha release cur
   if ! st_state="$(nginx_read_state_field state)"; then
     printf 'nginx_open_rollback_fire=noop reason=no_state\n'
     return 0
@@ -1326,9 +1397,31 @@ op_nginx_open_rollback_fire() {
   case "${st_state}" in
     armed)
       st_sha="$(nginx_read_state_field sha)" || die "armed state missing sha"
+      release="${RELEASES}/${st_sha}"
+      verify_release_tree "${release}" "${st_sha}"
+      local deny_st=1
+      set +e
       op_nginx_deny_all "${st_sha}"
-      nginx_write_state "rolled_back" "${st_sha}"
-      printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
+      deny_st=$?
+      set -e
+      if [[ "${deny_st}" -eq 0 ]]; then
+        nginx_write_state "rolled_back" "${st_sha}"
+        printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
+        return 0
+      fi
+      # deny-all already ran fail-closed (denied / emergency_*). Refuse armed residue.
+      if ! cur="$(nginx_read_state_field state)"; then
+        nginx_fail_closed_deny "${st_sha}" "${release}" "rollback-fire residual state=missing"
+      fi
+      case "${cur}" in
+        denied | rolled_back | emergency_stopped | emergency_stop_failed)
+          printf 'nginx_open_rollback_fire=fail_closed state=%s sha=%s\n' "${cur}" "${st_sha}"
+          exit 1
+          ;;
+        *)
+          nginx_fail_closed_deny "${st_sha}" "${release}" "rollback-fire residual state=${cur}"
+          ;;
+      esac
       ;;
     confirmed | denied | rolled_back | boot_recovered | emergency_stopped | emergency_stop_failed)
       printf 'nginx_open_rollback_fire=noop reason=state_%s\n' "${st_state}"

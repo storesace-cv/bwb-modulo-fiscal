@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.13-draft — 2026-07-23
+
+- S3C2 follow-up (I1): probe pós-reload com retry/deadline curto (401 só transitório; exige 403; 5xx/TLS/timeout → falha); `nginx-deny-all` e `nginx-open-rollback-fire` usam fail-closed rigoroso (`deny_restored` / `emergency_nginx_stop` comprovado / `emergency_stop_failed` CRITICAL); nunca `state=armed` com timer inactive após o fire. Relatório promoção sandbox ROLLED_BACK. Sem deploy/confirm/nova promoção no host.
+
 ## 0.2.12-draft — 2026-07-22
 
 - S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`, `location = /v1/documents`), HSTS, ACME-safe redirect, deny-all rollback, helper arm/confirm/deny + timer 5 min + boot-recovery `Before=nginx` + drop-in `nginx.service` `Requires=`/`After=` boot-recovery; flock; fail-closed com `deny_restored`, `emergency_nginx_stop` (só após `is-active != active`) ou `emergency_stop_failed` (CRITICAL); reload falhado no arm usa o mesmo fail-closed; confirm grava `confirmed` antes de cancelar o timer. Sem deploy/promoção no host.
