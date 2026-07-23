@@ -1,8 +1,8 @@
 # Relatório S3C2 — promoção controlada sandbox (Ubuntu)
 
-**Data (UTC):** 2026-07-23 (preflight ~11:51Z → cleanup ~12:03Z)  
-**Squash / release alvo:** `11c58841dea76de4c252457151ff4fd2d0ae741d`  
-**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`  
+**Data (UTC):** 2026-07-23 (preflight ~11:51Z → cleanup ~12:03Z)
+**Squash / release alvo:** `11c58841dea76de4c252457151ff4fd2d0ae741d`
+**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`
 **Resultado da promoção:** **ROLLED_BACK** (não CONFIRMADA)
 
 Este relatório **não** contém passwords, tokens, DSN, hashes, NIF nem corpos de pedido/resposta.

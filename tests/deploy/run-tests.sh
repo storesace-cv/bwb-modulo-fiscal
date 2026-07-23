@@ -681,8 +681,29 @@ EOF
 cat >"${TMP}/mockbin/curl" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# Emit 403 for documents probe without touching the network.
+# Documents probe mock: optional queue/always file; default 403. No network.
+# Queue lines: HTTP code, or ERR (transport/TLS failure).
 if [[ "\$*" == *"/v1/documents"* ]]; then
+  if [[ -f "${TMP}/PROBE_ALWAYS" ]]; then
+    printf '%s' "\$(tr -d '[:space:]' <"${TMP}/PROBE_ALWAYS")"
+    exit 0
+  fi
+  q="${TMP}/PROBE_HTTP_CODES"
+  if [[ -f "\$q" ]]; then
+    code="\$(head -n1 "\$q" | tr -d '[:space:]' || true)"
+    if [[ -n "\$code" ]]; then
+      tail -n +2 "\$q" >"\${q}.new" || : >"\${q}.new"
+      mv "\${q}.new" "\$q"
+    fi
+    if [[ "\$code" == "ERR" ]]; then
+      printf '000'
+      exit 7
+    fi
+    if [[ -n "\$code" ]]; then
+      printf '%s' "\$code"
+      exit 0
+    fi
+  fi
   printf '403'
   exit 0
 fi
@@ -716,6 +737,8 @@ run_ngx_helper() {
     BWB_NGINX_BIN=nginx \
     BWB_CURL=curl \
     BWB_NGINX_FAIL_RESTORE="${BWB_NGINX_FAIL_RESTORE:-}" \
+    BWB_NGINX_PROBE_DEADLINE_SEC="${BWB_NGINX_PROBE_DEADLINE_SEC:-}" \
+    BWB_NGINX_PROBE_INTERVAL_SEC="${BWB_NGINX_PROBE_INTERVAL_SEC:-}" \
     bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" "$@"
 }
 
@@ -725,6 +748,7 @@ reset_ngx_site_deny() {
   rm -rf "${NGX_LOCK}.mkdir"
   rm -f "${TMP}/FAIL_SYSTEMCTL_CMD" "${TMP}/FAIL_STOP_NGINX" "${TMP}/FAIL_STOP_STILL_ACTIVE" \
     "${TMP}/FAIL_RELOAD_NGINX" "${TMP}/FAIL_RELOAD_FIRST" "${TMP}/FAIL_RELOAD_FIRST.done"
+  rm -f "${TMP}/PROBE_HTTP_CODES" "${TMP}/PROBE_HTTP_CODES.new" "${TMP}/PROBE_ALWAYS"
   rm -rf "${TMP}/mock-systemd-state"
   mkdir -p "${TMP}/mock-systemd-state"
   # Successful prior boot recovery allows nginx start under Requires= drop-in.
@@ -828,6 +852,129 @@ if run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.out" 2>"${TMP}/fire.err
 else
   bad "nginx-open-rollback-fire failed"
   cat "${TMP}/fire.err" "${TMP}/fire.out" >&2 || true
+fi
+
+# --- S3C2 I1: post-reload probe retry + deny-all/rollback-fire fail-closed ---
+assert_no_secret_leak() {
+  local f="$1"
+  if grep -Eiq 'bwb_sbox_|Authorization:|postgres://|TOKEN=|DSN=|FIXTURE-NIF|taxpayer.nif|"lines"|Bearer [A-Za-z0-9]' "${f}" 2>/dev/null; then
+    bad "secret/payload leak in ${f}"
+    grep -Eiq 'bwb_sbox_|Authorization:|postgres://|TOKEN=|DSN=|FIXTURE-NIF' "${f}" >&2 || true
+    return 1
+  fi
+  return 0
+}
+
+# 401,401,403 → rollback SUCCESS (timer unit would exit 0)
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf '401\n401\n403\n' >"${TMP}/PROBE_HTTP_CODES"
+: >"${CTLLOG}"
+if BWB_NGINX_PROBE_DEADLINE_SEC=2 BWB_NGINX_PROBE_INTERVAL_SEC=0.05 \
+  run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.conv.out" 2>"${TMP}/fire.conv.err"; then
+  if grep -q 'nginx_open_rollback_fire=ok' "${TMP}/fire.conv.out" \
+    && grep -q 'state=rolled_back' "${NGX_ETC}/nginx-open.state" \
+    && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
+    && grep -q 'nginx_documents_probe attempt=1 code=401' "${TMP}/fire.conv.err" \
+    && grep -q 'nginx_documents_probe attempt=2 code=401' "${TMP}/fire.conv.err" \
+    && grep -q 'nginx_documents_probe attempt=3 code=403' "${TMP}/fire.conv.err" \
+    && grep -q 'nginx_documents_probe_done attempts=3 codes=401,401,403 result=ok' "${TMP}/fire.conv.err" \
+    && [[ ! -f "${TMP}/mock-systemd-state/rollback.timer" ]] \
+    && assert_no_secret_leak "${TMP}/fire.conv.out" \
+    && assert_no_secret_leak "${TMP}/fire.conv.err"; then
+    ok "rollback-fire SUCCESS after 401,401,403 probe convergence"
+  else
+    bad "401→403 convergence assertions failed"
+    cat "${TMP}/fire.conv.out" "${TMP}/fire.conv.err" "${NGX_ETC}/nginx-open.state" >&2 || true
+  fi
+else
+  bad "rollback-fire must succeed when probe converges to 403"
+  cat "${TMP}/fire.conv.out" "${TMP}/fire.conv.err" >&2 || true
+fi
+
+# Persistent 401 until deadline → emergency stop; never armed + timer inactive
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf '401' >"${TMP}/PROBE_ALWAYS"
+: >"${CTLLOG}"
+if BWB_NGINX_PROBE_DEADLINE_SEC=1 BWB_NGINX_PROBE_INTERVAL_SEC=0.05 \
+  BWB_NGINX_FAIL_RESTORE=probe \
+  run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.401.out" 2>"${TMP}/fire.401.err"; then
+  bad "persistent 401 must fail-closed (not SUCCESS)"
+else
+  if grep -qi 'fail-closed emergency_nginx_stop' "${TMP}/fire.401.err" \
+    && grep -q 'state=emergency_stopped' "${NGX_ETC}/nginx-open.state" \
+    && [[ -f "${TMP}/mock-systemd-state/nginx.stopped" ]] \
+    && [[ ! -f "${TMP}/mock-systemd-state/rollback.timer" ]] \
+    && ! grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+    && grep -q 'result=deadline' "${TMP}/fire.401.err" \
+    && assert_no_secret_leak "${TMP}/fire.401.out" \
+    && assert_no_secret_leak "${TMP}/fire.401.err"; then
+    ok "persistent 401 deadline triggers emergency nginx stop"
+  else
+    bad "persistent 401 fail-closed assertions failed"
+    cat "${TMP}/fire.401.out" "${TMP}/fire.401.err" "${NGX_ETC}/nginx-open.state" "${CTLLOG}" >&2 || true
+  fi
+fi
+
+# 5xx → fail-closed (immediate; no SUCCESS)
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf '503\n' >"${TMP}/PROBE_HTTP_CODES"
+: >"${CTLLOG}"
+if BWB_NGINX_PROBE_DEADLINE_SEC=2 BWB_NGINX_PROBE_INTERVAL_SEC=0.05 \
+  BWB_NGINX_FAIL_RESTORE=probe \
+  run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.5xx.out" 2>"${TMP}/fire.5xx.err"; then
+  bad "5xx probe must fail-closed"
+else
+  if grep -qi 'fail-closed emergency_nginx_stop' "${TMP}/fire.5xx.err" \
+    && grep -q 'state=emergency_stopped' "${NGX_ETC}/nginx-open.state" \
+    && grep -q 'result=http_5xx' "${TMP}/fire.5xx.err" \
+    && ! grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+    && assert_no_secret_leak "${TMP}/fire.5xx.err"; then
+    ok "5xx documents probe triggers fail-closed emergency stop"
+  else
+    bad "5xx fail-closed assertions failed"
+    cat "${TMP}/fire.5xx.out" "${TMP}/fire.5xx.err" "${NGX_ETC}/nginx-open.state" >&2 || true
+  fi
+fi
+
+# curl/TLS unavailable → fail-closed
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf 'ERR\n' >"${TMP}/PROBE_HTTP_CODES"
+: >"${CTLLOG}"
+if BWB_NGINX_PROBE_DEADLINE_SEC=2 BWB_NGINX_PROBE_INTERVAL_SEC=0.05 \
+  BWB_NGINX_FAIL_RESTORE=probe \
+  run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.tls.out" 2>"${TMP}/fire.tls.err"; then
+  bad "TLS/transport probe error must fail-closed"
+else
+  if grep -qi 'fail-closed emergency_nginx_stop' "${TMP}/fire.tls.err" \
+    && grep -q 'state=emergency_stopped' "${NGX_ETC}/nginx-open.state" \
+    && grep -q 'result=transport_error' "${TMP}/fire.tls.err" \
+    && ! grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+    && assert_no_secret_leak "${TMP}/fire.tls.err"; then
+    ok "curl/TLS probe failure triggers fail-closed emergency stop"
+  else
+    bad "TLS fail-closed assertions failed"
+    cat "${TMP}/fire.tls.out" "${TMP}/fire.tls.err" "${NGX_ETC}/nginx-open.state" >&2 || true
+  fi
+fi
+
+# rollback-fire never ends armed (even when deny path fails closed)
+reset_ngx_site_deny
+run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+printf '401' >"${TMP}/PROBE_ALWAYS"
+BWB_NGINX_PROBE_DEADLINE_SEC=1 BWB_NGINX_PROBE_INTERVAL_SEC=0.05 \
+  BWB_NGINX_FAIL_RESTORE=probe \
+  run_ngx_helper nginx-open-rollback-fire >"${TMP}/fire.noarmed.out" 2>"${TMP}/fire.noarmed.err" || true
+if ! grep -q 'state=armed' "${NGX_ETC}/nginx-open.state" \
+  && grep -qE 'state=(emergency_stopped|emergency_stop_failed|denied|rolled_back)' "${NGX_ETC}/nginx-open.state" \
+  && [[ ! -f "${TMP}/mock-systemd-state/rollback.timer" ]]; then
+  ok "rollback-fire never leaves state=armed with timer inactive"
+else
+  bad "rollback-fire left armed or timer still active"
+  cat "${NGX_ETC}/nginx-open.state" "${TMP}/fire.noarmed.err" >&2 || true
 fi
 
 # Boot recovery: armed → deny on disk + nginx -t only (Before=nginx; no reload/curl)

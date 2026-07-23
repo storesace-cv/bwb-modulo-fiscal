@@ -119,8 +119,8 @@ Artefactos no release (`nginx/tls.open.conf`, `nginx/tls.deny.conf`, `nginx/limi
 |---|---|
 | `nginx-open-arm <sha40>` | Instala open; exige timer `is-active`; falha → `deny_restored` ou `emergency_nginx_stop` (só se Nginx **comprovadamente** inactivo) ou `emergency_stop_failed` (CRITICAL); reload falhado usa o mesmo fail-closed; **nunca** `arm_ok` sem timer |
 | `nginx-open-confirm <sha40>` | Grava `state=confirmed` **antes** de `stop`/`disable` do timer; falha de stop reporta erro mas mantém `confirmed` (fire = noop) |
-| `nginx-deny-all <sha40>` | Restaura deny-all, `nginx -t`, reload, verifica 403; cancela timer |
-| `nginx-open-rollback-fire` | Alvo do timer: se ainda `armed`, executa deny-all; se `confirmed`, noop |
+| `nginx-deny-all <sha40>` | Instala deny-all, `nginx -t`, reload, **probe 403 com retry** (401 transitório até deadline curto); falha → mesmo fail-closed do arm (`deny_restored` / `emergency_nginx_stop` / `emergency_stop_failed`); cancela timer |
+| `nginx-open-rollback-fire` | Alvo do timer: se `armed`, deny-all + `state=rolled_back` se 403; senão estado terminal `denied`/`emergency_stopped`/`emergency_stop_failed` — **nunca** `armed` com timer inactive; se `confirmed`, noop |
 | `nginx-open-boot-recovery` | Unit `Before=nginx.service`: se `armed`, deny on disk + `nginx -t`; `confirmed` noop. Drop-in `nginx.service.d/*`: `Requires=`/`After=` recovery — falha armed **impede** `nginx.service` |
 
 Todas as ops `nginx-open-*` / `nginx-deny-all` tomam **flock exclusivo** em path fixo root-owned. Sem paths/URLs/comandos arbitrários do operador. Updater **não** activa open. Legacy `install-nginx-open` continua rejeitado.
@@ -141,6 +141,11 @@ Open/deny: `location = /v1/documents`; HSTS `max-age=31536000` sem `includeSubDo
 | 8 | `fail_closed` com `set +e` ignorava restore | Podia reportar fail-closed com Nginx ainda aberto | Validar cada passo; fallback stop |
 | 9 | `emergency_stopped` sem prova | Anunciava stop sem `is-active` | Só após inactivo; senão `emergency_stop_failed` |
 | 10 | Reload arm com restore fraco | Exposição após reload ambíguo | Mesmo `nginx_fail_closed_deny` |
+| 11 | Probe deny-all único; 401 pós-reload → unit failed + `armed` (I1 sandbox) | Aberto/inconsistente sem fail-closed | Retry 403 (401 transitório); deny-all/rollback-fire fail-closed; nunca `armed`+timer inactive |
+
+### S3C2 — promoção sandbox (resultado)
+
+Relatório: `docs/07-operations/s3c2-sandbox-promotion-report.md`. Resultado: **ROLLED_BACK** (não confirmada). Re-tentar timer real no Ubuntu só após merge deste fail-closed; **sem** `confirm` até o timer comprovar 403.
 
 ### S3C1 — matriz e thresholds (aprovados)
 
