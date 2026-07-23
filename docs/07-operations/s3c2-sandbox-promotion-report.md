@@ -162,7 +162,7 @@ O primeiro `systemctl reboot` após o arm foi cortado (SIGPIPE/SSH); reboot efec
 | confirm | **não** executado |
 | rate-limit 429 / NIF 403 / TLS externo completo pós-confirm | **não** executados (promoção abortada) |
 
-## Estado final do host
+## Estado final do host (após promoção inicial 2026-07-23 ~12:03Z)
 
 - **Promoção:** `ROLLED_BACK` (não `CONFIRMED`)
 - **Nginx open state:** `boot_recovered`
@@ -171,8 +171,56 @@ O primeiro `systemctl reboot` após o arm foi cortado (SIGPIPE/SSH); reboot efec
 - **Serviços:** nginx / postgresql / bwb-fiscal-api active
 - **Timer:** inactive; sem exposição residual open
 
-## Próximos passos (fora deste commit)
+## Reteste timer pós-fix (2026-07-23)
 
-1. Corrigir probe/fail-closed de `nginx-open-rollback-fire` / `op_nginx_deny_all`.
-2. Re-executar promoção S3C2 só após fix + testes de regressão do timer.
-3. Não abrir/confirm em produção/sandbox até o rollback automático estar comprovado.
+**Resultado:** **TIMER_ROLLBACK_APPROVED**
+**Release:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815` (squash merge PR #17)
+**Confirm / promoção final:** **não** executados (aguarda nova autorização)
+
+### Preflight e deploy fechado
+
+| Item | Valor |
+|---|---|
+| Preflight release | `11c5884…`; documents=403; health ok; schema `3`/`dirty=false`; serviços active; timer inactive; `:18080` ABSENT |
+| Backup bundle | `/root/bwb-s3c2-timer-retest-preflight-20260723T124837Z` (0600; PG dump `pg_restore -l` ok) |
+| Env backup-id | `20260723T124837Z-10141af3…` |
+| Deploy | `update-staging.sh` → promote ok; helper/sudoers/units/drop-in sincronizados; `visudo -cf`, `systemd-analyze verify`, `daemon-reload`, `nginx -t` OK |
+| Pós-deploy | `current-sha=COMMIT=health.revision=10141af3…`; schema 3/dirty=false; documents local+ext=403; deny-all; timer inactive |
+
+### Arm → espera real 5 min → rollback
+
+| Evento | UTC |
+|---|---|
+| `nginx-open-arm` | 2026-07-23T12:49:41Z |
+| Timer NEXT | 2026-07-23T12:54:42Z |
+| Rollback fire / state | 2026-07-23T12:54:43Z |
+
+| Gate | Resultado |
+|---|---|
+| `state` após arm | `armed`; timer **active**; Nginx active; documents sem token=**401**; `:18080` ABSENT |
+| `nginx-open-confirm` | **não** executado |
+| Unit rollback | `Result=success` (Finished / Deactivated successfully) |
+| `state` final | **`rolled_back`** (nunca `armed`) |
+| Timer final | inactive |
+| `/v1/documents` local | **403** |
+| `/v1/documents` externo | **403** |
+| Nginx | active (sem emergency stop) |
+| Probe (journal, só códigos) | `attempt=1 code=401` → `attempt=2 code=403`; `attempts=2 codes=401,403 result=ok` |
+| `nginx_deny_all_ok` / `rollback_fire=ok` | sim |
+| Emergência | nenhuma (`emergency_*=0`) |
+
+### Estado do host após reteste
+
+- Release: `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
+- `state=rolled_back`; site deny-all; documents 403; timer inactive; serviços active; `:18080` ABSENT
+- Promoção pública continua **não confirmada**
+
+### Incidentes neste reteste
+
+Nenhum incidente crítico. O retry 401→403 comportou-se como desenhado (I1 corrigido).
+
+## Próximos passos
+
+1. ~~Corrigir probe/fail-closed~~ — feito em PR #17 (`10141af3…`); reteste timer **APPROVED**.
+2. Promoção final + `nginx-open-confirm` **só** com nova autorização explícita.
+3. Não abrir `/v1/documents` publicamente até essa autorização.
