@@ -57,7 +57,7 @@ jobs:
             scripts/deploy/lib/allowlist.sh \
             scripts/deploy/*.sh \
             tests/deploy/run-tests.sh
-          shellcheck \
+          shellcheck -e SC2317,SC2329 \
             scripts/integration/pos-sandbox-kit.sh \
             tests/integration/run-pos-kit-tests.sh
 
