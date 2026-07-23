@@ -117,11 +117,11 @@ Artefactos no release (`nginx/tls.open.conf`, `nginx/tls.deny.conf`, `nginx/limi
 
 | Op fechada | Comportamento |
 |---|---|
-| `nginx-open-arm <sha40>` | Instala open (paths fixos), zone 10r/s, remove measure `:18080`, `nginx -t`, reload; grava `armed`; arma timer **5 min** e exige `is-active`; se o timer falhar → restore deny-all + `-t` + reload + 403 |
-| `nginx-open-confirm <sha40>` | Grava `confirmed` **antes** de `stop`/`disable` do timer; falha de stop reporta erro mas mantém `confirmed` (fire = noop) |
+| `nginx-open-arm <sha40>` | Instala open (paths fixos), zone 10r/s, remove measure `:18080`, `nginx -t`, reload; grava `armed`; arma timer **5 min** e exige `is-active`; se o timer falhar → restore deny-all comprovado (`deny_restored`) ou `systemctl stop nginx` (`emergency_nginx_stop`); **nunca** `arm_ok` sem timer active |
+| `nginx-open-confirm <sha40>` | Grava `state=confirmed` **antes** de `stop`/`disable` do timer; falha de stop reporta erro mas mantém `confirmed` (fire = noop) |
 | `nginx-deny-all <sha40>` | Restaura deny-all, `nginx -t`, reload, verifica 403; cancela timer |
 | `nginx-open-rollback-fire` | Alvo do timer: se ainda `armed`, executa deny-all; se `confirmed`, noop |
-| `nginx-open-boot-recovery` | No boot: se `armed`, deny-all imediato (OnActiveSec pode reiniciar após reboot); `confirmed` permanece aberto |
+| `nginx-open-boot-recovery` | Unit `Before=nginx.service`: se `armed`, grava deny-all + `nginx -t` (sem reload/curl); `confirmed` permanece aberto |
 
 Todas as ops `nginx-open-*` / `nginx-deny-all` tomam **flock exclusivo** em path fixo root-owned. Sem paths/URLs/comandos arbitrários do operador. Updater **não** activa open. Legacy `install-nginx-open` continua rejeitado.
 
@@ -131,13 +131,14 @@ Open/deny: `location = /v1/documents`; HSTS `max-age=31536000` sem `includeSubDo
 
 | # | Achado | Risco | Correcção |
 |---|---|---|---|
-| 1 | Open aplicado antes do timer active | Nginx aberto sem fail-safe | Fail-closed deny-all + exigir `is-active` |
+| 1 | Open aplicado antes do timer active | Nginx aberto sem fail-safe | Fail-closed `deny_restored` ou `emergency_nginx_stop`; exigir `is-active` |
 | 2 | Confirm cancelava timer antes de `confirmed` | Aberto + `armed` sem timer | State `confirmed` antes de stop |
 | 3 | Sem serialização arm/confirm/rollback | Corrida confirm vs fire | `flock` exclusivo |
-| 4 | Reboot reinicia `OnActiveSec` | Janela aberta prolongada | `nginx-open-boot-recovery` |
+| 4 | Reboot reinicia `OnActiveSec`; recovery After=nginx | Janela pública no boot | `Before=nginx.service` + deny on disk + `-t` |
 | 5 | `return 301` server-level | ACME quebrado (D2) | Redirect sob `location /` |
 | 6 | HSTS comentado nos templates | Live perderia HSTS | HSTS nos dois artefactos |
 | 7 | `location /v1/documents` prefix | Paths semelhantes à API | `location = /v1/documents` |
+| 8 | `fail_closed` com `set +e` ignorava restore | Podia reportar fail-closed com Nginx ainda aberto | Validar cada passo; fallback `stop nginx` |
 
 ### S3C1 — matriz e thresholds (aprovados)
 

@@ -526,6 +526,8 @@ if grep -q 'deny all' "${DENY_CONF}" \
   && grep -q 'nginx-open-boot-recovery' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
   && grep -q 'flock' "${ROOT}/scripts/deploy/remote-deploy-helper.sh" \
   && grep -q 'OnActiveSec=5min' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer" \
+  && grep -q 'Before=nginx.service' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" \
+  && ! grep -q 'After=nginx.service' "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" \
   && [[ -f "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" ]]; then
   ok "nginx deny-all + open(10r/s,burst=20,429,HSTS,ACME,exact path) + fail-safe"
 else
@@ -575,6 +577,11 @@ if [[ -f "${TMP}/FAIL_SYSTEMCTL_CMD" ]]; then
     exit 1
   fi
 fi
+# Optional: fail reload nginx only (fail-closed restore path).
+if [[ "\${cmd}" == "reload" && "\${unit}" == "nginx" && -f "${TMP}/FAIL_RELOAD_NGINX" ]]; then
+  echo "error: mock systemctl reload nginx fail" >&2
+  exit 1
+fi
 case "\${cmd}" in
   start)
     if [[ "\${unit}" == "bwb-fiscal-nginx-open-rollback.timer" ]]; then
@@ -582,10 +589,21 @@ case "\${cmd}" in
       echo active >"${TMP}/mock-systemd-state/rollback.timer"
     fi
     ;;
-  stop|disable)
+  stop)
     if [[ "\${unit}" == "bwb-fiscal-nginx-open-rollback.timer" ]]; then
       rm -f "${TMP}/mock-systemd-state/rollback.timer"
     fi
+    if [[ "\${unit}" == "nginx" ]]; then
+      mkdir -p "${TMP}/mock-systemd-state"
+      echo stopped >"${TMP}/mock-systemd-state/nginx.stopped"
+    fi
+    ;;
+  disable)
+    if [[ "\${unit}" == "bwb-fiscal-nginx-open-rollback.timer" ]]; then
+      rm -f "${TMP}/mock-systemd-state/rollback.timer"
+    fi
+    ;;
+  reload)
     ;;
   is-active)
     # systemctl is-active --quiet UNIT
@@ -644,6 +662,7 @@ run_ngx_helper() {
     BWB_SYSTEMCTL=systemctl \
     BWB_NGINX_BIN=nginx \
     BWB_CURL=curl \
+    BWB_NGINX_FAIL_RESTORE="${BWB_NGINX_FAIL_RESTORE:-}" \
     bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" "$@"
 }
 
@@ -709,15 +728,19 @@ else
   bad "rollback-fire after confirm failed"
 fi
 
-# Boot recovery: confirmed remains open
+# Boot recovery: confirmed remains open (no deny rewrite; no reload required)
+: >"${CTLLOG}"
+: >"${TMP}/nginx-invocations.log"
 if run_ngx_helper nginx-open-boot-recovery >"${TMP}/boot.confirmed.out" 2>"${TMP}/boot.confirmed.err"; then
   if grep -q 'confirmed_remains_open' "${TMP}/boot.confirmed.out" \
     && ! grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
-    && grep -q 'state=confirmed' "${NGX_ETC}/nginx-open.state"; then
+    && grep -q 'state=confirmed' "${NGX_ETC}/nginx-open.state" \
+    && ! grep -q 'reload nginx' "${CTLLOG}" \
+    && ! grep -q 'stop nginx' "${CTLLOG}"; then
     ok "boot-recovery leaves confirmed open"
   else
     bad "boot-recovery confirmed assertions failed"
-    cat "${TMP}/boot.confirmed.out" "${TMP}/boot.confirmed.err" >&2 || true
+    cat "${TMP}/boot.confirmed.out" "${TMP}/boot.confirmed.err" "${CTLLOG}" >&2 || true
   fi
 else
   bad "boot-recovery confirmed failed"
@@ -740,17 +763,21 @@ else
   cat "${TMP}/fire.err" "${TMP}/fire.out" >&2 || true
 fi
 
-# Boot recovery: armed → deny-all
+# Boot recovery: armed → deny on disk + nginx -t only (Before=nginx; no reload/curl)
 reset_ngx_site_deny
 run_ngx_helper nginx-open-arm "${HEAD}" >/dev/null 2>&1 || true
+: >"${CTLLOG}"
+: >"${TMP}/nginx-invocations.log"
 if run_ngx_helper nginx-open-boot-recovery >"${TMP}/boot.armed.out" 2>"${TMP}/boot.armed.err"; then
-  if grep -q 'action=deny_all' "${TMP}/boot.armed.out" \
+  if grep -q 'action=deny_config_pre_nginx' "${TMP}/boot.armed.out" \
     && grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
-    && grep -q 'state=boot_recovered' "${NGX_ETC}/nginx-open.state"; then
+    && grep -q 'state=boot_recovered' "${NGX_ETC}/nginx-open.state" \
+    && grep -q -- '-t' "${TMP}/nginx-invocations.log" \
+    && ! grep -q 'reload nginx' "${CTLLOG}"; then
     ok "boot-recovery restores deny-all when armed"
   else
     bad "boot-recovery armed assertions failed"
-    cat "${TMP}/boot.armed.out" "${TMP}/boot.armed.err" >&2 || true
+    cat "${TMP}/boot.armed.out" "${TMP}/boot.armed.err" "${CTLLOG}" "${TMP}/nginx-invocations.log" >&2 || true
   fi
 else
   bad "boot-recovery armed failed"
@@ -839,12 +866,35 @@ for failcmd in daemon-reload enable start; do
     bad "arm must fail-closed when systemctl ${failcmd} fails"
   else
     if grep -q 'deny all' "${NGX}/sites-available/bwb-fiscal-sandbox" \
-      && grep -qi 'fail-closed' "${TMP}/arm.${failcmd}.err" \
-      && grep -qE 'state=denied' "${NGX_ETC}/nginx-open.state"; then
+      && grep -qi 'fail-closed deny_restored' "${TMP}/arm.${failcmd}.err" \
+      && grep -qE 'state=denied' "${NGX_ETC}/nginx-open.state" \
+      && ! grep -q 'nginx_open_arm_ok' "${TMP}/arm.${failcmd}.out"; then
       ok "arm fail-closed on systemctl ${failcmd} failure"
     else
       bad "arm fail-closed assertions failed for ${failcmd}"
       cat "${TMP}/arm.${failcmd}.out" "${TMP}/arm.${failcmd}.err" >&2 || true
+    fi
+  fi
+done
+rm -f "${TMP}/FAIL_SYSTEMCTL_CMD"
+
+# (1b) Fail-closed restore failures → emergency nginx stop (never arm_ok / never open without closure)
+for restore_step in install t reload probe; do
+  reset_ngx_site_deny
+  printf 'start\n' >"${TMP}/FAIL_SYSTEMCTL_CMD"
+  if BWB_NGINX_FAIL_RESTORE="${restore_step}" \
+    run_ngx_helper nginx-open-arm "${HEAD}" >"${TMP}/arm.em.${restore_step}.out" 2>"${TMP}/arm.em.${restore_step}.err"; then
+    bad "arm must not succeed when fail-closed restore ${restore_step} fails"
+  else
+    if grep -qi 'fail-closed emergency_nginx_stop' "${TMP}/arm.em.${restore_step}.err" \
+      && grep -q 'stop nginx' "${CTLLOG}" \
+      && grep -q 'state=emergency_stopped' "${NGX_ETC}/nginx-open.state" \
+      && [[ -f "${TMP}/mock-systemd-state/nginx.stopped" ]] \
+      && ! grep -q 'nginx_open_arm_ok' "${TMP}/arm.em.${restore_step}.out"; then
+      ok "fail-closed restore ${restore_step} failure triggers emergency nginx stop"
+    else
+      bad "emergency stop assertions failed for restore=${restore_step}"
+      cat "${TMP}/arm.em.${restore_step}.out" "${TMP}/arm.em.${restore_step}.err" "${CTLLOG}" >&2 || true
     fi
   fi
 done

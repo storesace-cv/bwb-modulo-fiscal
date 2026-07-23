@@ -1,12 +1,14 @@
-# Runs on every boot. If nginx-open.state is still armed (timer window may have
-# reset via OnActiveSec after reboot), restore deny-all immediately.
-# confirmed remains open. No operator args.
+# Runs BEFORE nginx.service so an armed reboot cannot accept public traffic
+# while still open. Restores deny-all on disk and validates nginx -t only
+# (no reload/curl — nginx is not up yet). confirmed leaves open config intact.
 
 [Unit]
 Description=BWB fiscal Nginx open boot recovery (fail-closed if armed)
 Documentation=file:///opt/bwb-modulo-fiscal/current/nginx/README.md
-After=network-online.target nginx.service
-Wants=network-online.target
+DefaultDependencies=no
+Requires=local-fs.target
+After=local-fs.target
+Before=nginx.service
 
 [Service]
 Type=oneshot
@@ -14,4 +16,5 @@ ExecStart=/usr/local/sbin/bwb-fiscal-deploy-helper nginx-open-boot-recovery
 RemainAfterExit=yes
 
 [Install]
+WantedBy=nginx.service
 WantedBy=multi-user.target

@@ -42,7 +42,8 @@ if [[ "${EUID}" -eq 0 ]]; then
     || -n "${BWB_MOCK_TMP:-}" || -n "${BWB_HELPER_LIB:-}" || -n "${BWB_MIGRATE_USER:-}" \
     || -n "${BWB_ADMIN_USER:-}" || -n "${BWB_ADMIN_TOKEN_DIR:-}" \
     || -n "${BWB_NGINX_ROOT:-}" || -n "${BWB_SYSTEMCTL:-}" || -n "${BWB_NGINX_BIN:-}" \
-    || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" || -n "${BWB_NGINX_LOCK:-}" ]]; then
+    || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" || -n "${BWB_NGINX_LOCK:-}" \
+    || -n "${BWB_NGINX_FAIL_RESTORE:-}" ]]; then
     echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
     exit 1
   fi
@@ -1079,12 +1080,30 @@ nginx_restore_site_backup() {
 nginx_verify_deny_all_config() {
   local dest
   dest="$(nginx_site_path)"
-  [[ -f "${dest}" && ! -L "${dest}" ]] || die "active nginx site missing"
-  grep -q 'deny all' "${dest}" || die "active site is not deny-all"
+  [[ -f "${dest}" && ! -L "${dest}" ]] || return 1
+  grep -q 'deny all' "${dest}" || return 1
+  return 0
 }
 
+# Strict HTTP probe: requires 403. Used when Nginx is expected to be serving.
+nginx_probe_documents_403_strict() {
+  nginx_verify_deny_all_config || return 1
+  local code
+  set +e
+  code="$("${CURL_BIN}" -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 -m 5 \
+    -X POST "https://127.0.0.1/v1/documents" \
+    -H "Host: sandbox.fiscalmod.bwb.pt" \
+    -H "Content-Type: application/json" \
+    -d '{}' 2>/dev/null)"
+  local st=$?
+  set -e
+  [[ "${st}" -eq 0 && "${code}" == "403" ]] || return 1
+  return 0
+}
+
+# Lenient probe for routine deny-all when curl may be unavailable in unit tests.
 nginx_verify_documents_403() {
-  nginx_verify_deny_all_config
+  nginx_verify_deny_all_config || die "active site is not deny-all"
   local code
   set +e
   code="$("${CURL_BIN}" -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 -m 5 \
@@ -1095,26 +1114,95 @@ nginx_verify_documents_403() {
   local st=$?
   set -e
   if [[ "${st}" -ne 0 || -z "${code}" ]]; then
-    # Config deny-all already verified; HTTP probe may be unavailable in unit tests.
     return 0
   fi
   [[ "${code}" == "403" ]] || die "documents probe expected 403 got ${code}"
 }
 
-# Restore deny-all after a failed arm (open already applied). Always attempt -t/reload/403.
-nginx_fail_closed_deny() {
-  local sha="$1" release="$2" reason="$3"
-  set +e
+nginx_should_inject_restore_failure() {
+  # Test-only (non-root). Forbidden when EUID=0 via startup guard.
+  [[ "${EUID}" -ne 0 && "${BWB_NGINX_FAIL_RESTORE:-}" == "$1" ]]
+}
+
+# Config-only deny restore for boot (nginx not listening yet): file + nginx -t.
+nginx_restore_deny_config_pre_nginx() {
+  local sha="$1" release="$2"
   nginx_disable_measure
-  nginx_install_zone "${release}/nginx/limit-req-documents.conf"
-  nginx_install_site_atomic "${release}/nginx/tls.deny.conf"
-  nginx_run_t
-  nginx_reload
-  nginx_verify_documents_403
-  nginx_write_state "denied" "${sha}"
+  if nginx_should_inject_restore_failure "install"; then
+    return 1
+  fi
+  nginx_install_zone "${release}/nginx/limit-req-documents.conf" || return 1
+  nginx_install_site_atomic "${release}/nginx/tls.deny.conf" || return 1
+  nginx_verify_deny_all_config || return 1
+  if nginx_should_inject_restore_failure "t"; then
+    return 1
+  fi
+  nginx_run_t || return 1
+  nginx_write_state "boot_recovered" "${sha}" || return 1
+  set +e
   nginx_cancel_rollback_timer
   set -e
-  die "nginx open arm fail-closed: ${reason}"
+  return 0
+}
+
+# Live deny restore after a failed arm: install + -t + reload + strict 403.
+nginx_try_restore_deny_live() {
+  local sha="$1" release="$2"
+  nginx_disable_measure
+  if nginx_should_inject_restore_failure "install"; then
+    return 1
+  fi
+  nginx_install_zone "${release}/nginx/limit-req-documents.conf" || return 1
+  nginx_install_site_atomic "${release}/nginx/tls.deny.conf" || return 1
+  nginx_verify_deny_all_config || return 1
+  if nginx_should_inject_restore_failure "t"; then
+    return 1
+  fi
+  nginx_run_t || return 1
+  if nginx_should_inject_restore_failure "reload"; then
+    return 1
+  fi
+  nginx_reload || return 1
+  if nginx_should_inject_restore_failure "probe"; then
+    return 1
+  fi
+  nginx_probe_documents_403_strict || return 1
+  nginx_write_state "denied" "${sha}" || return 1
+  set +e
+  nginx_cancel_rollback_timer
+  set -e
+  return 0
+}
+
+nginx_emergency_stop_nginx() {
+  local sha="$1"
+  local st=1
+  set +e
+  if command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1; then
+    "${SYSTEMCTL_BIN}" stop nginx
+    st=$?
+  else
+    "${NGINX_BIN}" -s stop
+    st=$?
+  fi
+  nginx_write_state "emergency_stopped" "${sha}"
+  set -e
+  return "${st}"
+}
+
+# After open is live, any failure before an active timer must close exposure.
+# Outcome is always one of: deny_restored | emergency_nginx_stop (never arm_ok).
+nginx_fail_closed_deny() {
+  local sha="$1" release="$2" reason="$3"
+  if nginx_try_restore_deny_live "${sha}" "${release}"; then
+    echo "error: nginx open arm fail-closed deny_restored reason=${reason}" >&2
+    exit 1
+  fi
+  set +e
+  nginx_emergency_stop_nginx "${sha}"
+  set -e
+  echo "error: nginx open arm fail-closed emergency_nginx_stop reason=${reason}" >&2
+  exit 1
 }
 
 op_nginx_deny_all() {
@@ -1175,12 +1263,16 @@ op_nginx_open_arm() {
     die "nginx reload failed after open install; restored backup"
   fi
 
-  # Open is live. Any failure before an active timer must fail-closed to deny-all.
+  # Open is live. Any failure before an active timer must fail-closed (never arm_ok).
   if ! nginx_write_state "armed" "${sha}"; then
     nginx_fail_closed_deny "${sha}" "${release}" "armed state write failed"
   fi
   if ! nginx_arm_rollback_timer "${release}"; then
     nginx_fail_closed_deny "${sha}" "${release}" "rollback timer not active"
+  fi
+  # Final gate: never report success without an active timer.
+  if ! "${SYSTEMCTL_BIN}" is-active --quiet "${NGINX_ROLLBACK_TIMER}"; then
+    nginx_fail_closed_deny "${sha}" "${release}" "rollback timer inactive before arm_ok"
   fi
   printf 'nginx_open_arm_ok sha=%s timer=%s\n' "${sha}" "${NGINX_ROLLBACK_TIMER}"
 }
@@ -1223,7 +1315,7 @@ op_nginx_open_rollback_fire() {
       nginx_write_state "rolled_back" "${st_sha}"
       printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
       ;;
-    confirmed | denied | rolled_back | boot_recovered)
+    confirmed | denied | rolled_back | boot_recovered | emergency_stopped)
       printf 'nginx_open_rollback_fire=noop reason=state_%s\n' "${st_state}"
       ;;
     *)
@@ -1233,8 +1325,8 @@ op_nginx_open_rollback_fire() {
 }
 
 op_nginx_open_boot_recovery() {
-  # Boot/helper recovery: armed must not survive reboot (OnActiveSec may reset).
-  local st_state st_sha
+  # Runs Before=nginx.service: restore deny on disk + nginx -t only (no reload/curl).
+  local st_state st_sha release
   if ! st_state="$(nginx_read_state_field state)"; then
     printf 'nginx_open_boot_recovery=noop reason=no_state\n'
     return 0
@@ -1242,14 +1334,18 @@ op_nginx_open_boot_recovery() {
   case "${st_state}" in
     armed)
       st_sha="$(nginx_read_state_field sha)" || die "armed state missing sha"
-      op_nginx_deny_all "${st_sha}"
-      nginx_write_state "boot_recovered" "${st_sha}"
-      printf 'nginx_open_boot_recovery=ok sha=%s action=deny_all\n' "${st_sha}"
+      release="${RELEASES}/${st_sha}"
+      verify_release_tree "${release}" "${st_sha}"
+      if ! nginx_restore_deny_config_pre_nginx "${st_sha}" "${release}"; then
+        die "nginx open boot recovery failed to install/validate deny-all before nginx start"
+      fi
+      printf 'nginx_open_boot_recovery=ok sha=%s action=deny_config_pre_nginx\n' "${st_sha}"
       ;;
     confirmed)
+      # Intentional open after confirm — allow nginx to start with open site.
       printf 'nginx_open_boot_recovery=noop reason=confirmed_remains_open\n'
       ;;
-    denied | rolled_back | boot_recovered)
+    denied | rolled_back | boot_recovered | emergency_stopped)
       printf 'nginx_open_boot_recovery=noop reason=state_%s\n' "${st_state}"
       ;;
     *)
