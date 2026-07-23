@@ -78,7 +78,7 @@ for a in "$@"; do
   prev="$a"
 done
 if [ -n "$out" ]; then
-  printf '%s' '{"id":"doc_mock","external_id":"x","status":"sealed_locally","submission_id":"sub_mock","created_at":"2026-07-21T10:00:01.000000Z","request_id":"req_mock"}' >"$out"
+  printf '%s' '{"id":"doc_mock","external_id":"x","status":"sealed_locally","submission_id":"sub_mock","created_at":"2026-07-21T10:00:01.000000Z"}' >"$out"
 fi
 printf '201'
 exit 0
@@ -177,7 +177,6 @@ class H(BaseHTTPRequestHandler):
             "status": "sealed_locally",
             "submission_id": "sub_mock",
             "created_at": "2026-07-21T10:00:01.000000Z",
-            "request_id": "req_" + idem.replace("-", "")[:16],
         }
         store["by_idem"][idem] = {"raw": raw, "resp": resp}
         store["by_ext"][ext] = True
@@ -327,19 +326,43 @@ fi
 
 # Semantic outcomes in report
 if jq -e '
-    (.cases|map(select(.case=="create_201" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="replay" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="idempotency_conflict" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="external_id_conflict" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="scope_mismatch" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="validation_422" and .status=="PASS"))|length==1)
-    and (.cases|map(select(.case=="unauthorized_bad_token" and .status=="PASS"))|length==1)
+    (.cases|map(select(.case=="create_201" and .status=="PASS" and .request_id==null))|length==1)
+    and (.cases|map(select(.case=="replay" and .status=="PASS" and .request_id==null))|length==1)
+    and (.cases|map(select(.case=="idempotency_conflict" and .status=="PASS" and (.request_id|type=="string")))|length==1)
+    and (.cases|map(select(.case=="external_id_conflict" and .status=="PASS" and (.request_id|type=="string")))|length==1)
+    and (.cases|map(select(.case=="scope_mismatch" and .status=="PASS" and (.request_id|type=="string")))|length==1)
+    and (.cases|map(select(.case=="validation_422" and .status=="PASS" and (.request_id|type=="string")))|length==1)
+    and (.cases|map(select(.case=="unauthorized_bad_token" and .status=="PASS" and (.request_id|type=="string")))|length==1)
     and (.cases|map(select(.case=="rate_429" and .status=="PASS" and (.result|test("other=0"))))|length==1)
   ' "$REP1" >/dev/null; then
   ok "semantic case outcomes in report"
 else
   bad "semantic case outcomes missing"
   jq . "$REP1" 2>/dev/null || true
+fi
+
+# OpenAPI CreateDocumentResponse: exact body without request_id must validate;
+# body with additional request_id must fail additionalProperties:false check.
+validate_201_jq='
+  type=="object"
+  and (.id|type=="string" and length>0)
+  and (.external_id|type=="string" and length>0)
+  and .status=="sealed_locally"
+  and (.submission_id|type=="string" and length>0)
+  and (.created_at|type=="string" and length>0)
+  and ((keys | map(select(. != "id" and . != "external_id" and . != "status" and . != "submission_id" and . != "created_at")) | length) == 0)
+'
+printf '%s' '{"id":"doc_a","external_id":"e","status":"sealed_locally","submission_id":"s","created_at":"2026-07-21T10:00:01.000000Z"}' >"$TMP/ok201.json"
+if jq -e "$validate_201_jq" "$TMP/ok201.json" >/dev/null; then
+  ok "OpenAPI-exact 201 without request_id validates"
+else
+  bad "OpenAPI-exact 201 should validate"
+fi
+printf '%s' '{"id":"doc_a","external_id":"e","status":"sealed_locally","submission_id":"s","created_at":"2026-07-21T10:00:01.000000Z","request_id":"req_extra"}' >"$TMP/bad201.json"
+if jq -e "$validate_201_jq" "$TMP/bad201.json" >/dev/null; then
+  bad "201 with extra request_id should fail additionalProperties check"
+else
+  ok "201 with extra request_id rejected by additionalProperties check"
 fi
 
 if [ -f "$TMP/curl1.log" ]; then
@@ -441,16 +464,16 @@ else
   ok "report omits fiscal/document identifiers"
 fi
 
-# --- INT/TERM: isolated TMPDIR, known kit tmp path, process group, no KILL, no global find ---
-cat >"$TMP/block-curl" <<'EOF'
+# --- INT/TERM: isolated TMPDIR; child ignores TERM so kit must escalate to KILL on tracked PIDs only ---
+cat >"$TMP/ignore-term-curl" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# Block until killed by kit cleanup / process-group signal.
-sleep 120
-printf '201'
-exit 0
+# Ignore TERM/INT; exec so the tracked PID is sleep itself (no orphaned sleep child).
+trap '' TERM
+trap '' INT
+exec sleep 120
 EOF
-chmod 0700 "$TMP/block-curl"
+chmod 0700 "$TMP/ignore-term-curl"
 
 run_signal_case() {
   local sig="$1" expect_ec="$2" label="$3"
@@ -464,7 +487,7 @@ run_signal_case() {
   rm -f "$ready_file"
 
   set +e
-  python3 - "$KIT" "$TOKEN" "$BASE" "$iso" "$path_file" "$ready_file" "$TMP/block-curl" "$iso/kit.pid" "$sig" "$expect_ec" <<'PY'
+  python3 - "$KIT" "$TOKEN" "$BASE" "$iso" "$path_file" "$ready_file" "$TMP/ignore-term-curl" "$iso/kit.pid" "$sig" "$expect_ec" <<'PY'
 import os, sys, subprocess, signal, time
 kit, token, base, tmpdir, path_file, ready_file, curl, pid_file, sig_name, expect_s = sys.argv[1:11]
 expect = int(expect_s)
@@ -493,8 +516,9 @@ while time.time() < deadline:
     time.sleep(0.05)
 time.sleep(0.1)
 os.kill(p.pid, sig)
+# Kit grace for children is 2s + KILL; allow a little margin.
 try:
-    rc = p.wait(timeout=8)
+    rc = p.wait(timeout=6)
 except subprocess.TimeoutExpired:
     sys.stderr.write("timeout waiting for kit exit\n")
     try:
@@ -503,9 +527,29 @@ except subprocess.TimeoutExpired:
     except Exception:
         pass
     sys.exit(99)
-# Normalize signal-style negative wait codes
 if rc < 0:
     rc = 128 + (-rc)
+# Descendants in the kit session must be gone.
+alive = []
+try:
+    # Best-effort: any process still in the session/group of the kit leader.
+    import subprocess as sp
+    out = sp.check_output(["ps", "-ax", "-o", "pid=,pgid=,command="], text=True)
+    for line in out.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) < 2:
+            continue
+        pid_s, pgid_s = parts[0], parts[1]
+        try:
+            if int(pgid_s) == p.pid and int(pid_s) != p.pid:
+                alive.append(pid_s)
+        except ValueError:
+            continue
+except Exception:
+    pass
+if alive:
+    sys.stderr.write("descendants still alive: %s\n" % ",".join(alive))
+    sys.exit(98)
 sys.exit(rc)
 PY
   ec=$?
@@ -520,7 +564,11 @@ PY
   fi
 
   if [ "$ec" -eq 99 ]; then
-    bad "$label: kit did not exit within deadline (KILL forbidden — FAIL)"
+    bad "$label: kit did not exit within deadline"
+    return 0
+  fi
+  if [ "$ec" -eq 98 ]; then
+    bad "$label: kit left descendant processes alive"
     return 0
   fi
   if [ "$ec" -ne "$expect_ec" ]; then
@@ -539,7 +587,7 @@ PY
     bad "$label: kit pid still alive"
     return 0
   fi
-  ok "$label: exit $ec, tmpdir removed, no KILL"
+  ok "$label: exit $ec, tmpdir removed, children reaped (TERM-ignore child)"
 }
 
 run_signal_case TERM 143 "TERM cleanup"

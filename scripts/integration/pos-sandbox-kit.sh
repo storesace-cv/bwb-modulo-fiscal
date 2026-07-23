@@ -296,18 +296,38 @@ CHILD_PIDS=""
 CLEANED=0
 
 # shellcheck disable=SC2317,SC2329 # invoked via trap / cleanup
+# TERM tracked children, wait briefly, then KILL only still-alive tracked PIDs (never unbounded).
+CHILD_TERM_GRACE_SEC=2
+# shellcheck disable=SC2329
 kill_children() {
-  local pid
+  local pid i max_iters any
   for pid in $CHILD_PIDS; do
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
+      kill -TERM "$pid" 2>/dev/null || true
+    fi
+  done
+  max_iters=$((CHILD_TERM_GRACE_SEC * 20))
+  i=0
+  any=0
+  while [ "$i" -lt "$max_iters" ]; do
+    any=0
+    for pid in $CHILD_PIDS; do
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        any=1
+        break
+      fi
+    done
+    [ "$any" -eq 0 ] && break
+    sleep 0.05
+    i=$((i + 1))
+  done
+  for pid in $CHILD_PIDS; do
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      kill -KILL "$pid" 2>/dev/null || true
     fi
   done
   for pid in $CHILD_PIDS; do
     if [ -n "$pid" ]; then
-      while kill -0 "$pid" 2>/dev/null; do
-        sleep 0.05
-      done
       wait "$pid" 2>/dev/null || true
     fi
   done
@@ -459,6 +479,19 @@ stable_doc_fields() {
   jq -c '{id, external_id, status, submission_id, created_at}' "$1"
 }
 
+# CreateDocumentResponse: required fields + types; additionalProperties:false (no request_id).
+validate_create_201_body() {
+  jq -e '
+      type=="object"
+      and (.id|type=="string" and length>0)
+      and (.external_id|type=="string" and length>0)
+      and .status=="sealed_locally"
+      and (.submission_id|type=="string" and length>0)
+      and (.created_at|type=="string" and length>0)
+      and ((keys | map(select(. != "id" and . != "external_id" and . != "status" and . != "submission_id" and . != "created_at")) | length) == 0)
+    ' "$1" >/dev/null 2>&1
+}
+
 LAST_HTTP_CODE="000"
 
 # --- cases ---
@@ -466,18 +499,10 @@ curl_post "$DOCS/base.json" "$IDEM_A" 1
 rid="$(request_id_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record create_201 FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "201" ] \
-  && jq -e '
-      type=="object"
-      and (.id|type=="string" and length>0)
-      and (.external_id|type=="string" and length>0)
-      and .status=="sealed_locally"
-      and (.submission_id|type=="string" and length>0)
-      and (.created_at|type=="string" and length>0)
-      and (.request_id|type=="string" and length>0)
-    ' "$RESP" >/dev/null 2>&1; then
+elif [ "$LAST_HTTP_CODE" = "201" ] && validate_create_201_body "$RESP"; then
   cp "$RESP" "$TMP/create_resp.json"
-  record create_201 PASS "$LAST_HTTP_CODE" pass "$rid"
+  # 201 has no request_id in OpenAPI — report null
+  record create_201 PASS "$LAST_HTTP_CODE" pass ""
 else
   record create_201 FAIL "$LAST_HTTP_CODE" semantic_or_status "$rid"
 fi
@@ -486,10 +511,10 @@ curl_post "$DOCS/base.json" "$IDEM_A" 1
 rid="$(request_id_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record replay FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "201" ] && [ -f "$TMP/create_resp.json" ]; then
+elif [ "$LAST_HTTP_CODE" = "201" ] && [ -f "$TMP/create_resp.json" ] && validate_create_201_body "$RESP"; then
   cp "$RESP" "$TMP/replay_resp.json"
   if [ "$(stable_doc_fields "$TMP/create_resp.json")" = "$(stable_doc_fields "$TMP/replay_resp.json")" ]; then
-    record replay PASS "$LAST_HTTP_CODE" pass "$rid"
+    record replay PASS "$LAST_HTTP_CODE" pass ""
   else
     record replay FAIL "$LAST_HTTP_CODE" stable_fields_mismatch "$rid"
   fi
@@ -502,7 +527,7 @@ rid="$(request_id_from_resp)"
 pc="$(problem_code_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record idempotency_conflict FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "409" ] && [ "$pc" = "FISCAL_IDEMPOTENCY_CONFLICT" ]; then
+elif [ "$LAST_HTTP_CODE" = "409" ] && [ "$pc" = "FISCAL_IDEMPOTENCY_CONFLICT" ] && [ -n "$rid" ]; then
   record idempotency_conflict PASS "$LAST_HTTP_CODE" pass "$rid"
 else
   record idempotency_conflict FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
@@ -513,7 +538,7 @@ rid="$(request_id_from_resp)"
 pc="$(problem_code_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record external_id_conflict FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "409" ] && [ "$pc" = "FISCAL_EXTERNAL_ID_CONFLICT" ]; then
+elif [ "$LAST_HTTP_CODE" = "409" ] && [ "$pc" = "FISCAL_EXTERNAL_ID_CONFLICT" ] && [ -n "$rid" ]; then
   record external_id_conflict PASS "$LAST_HTTP_CODE" pass "$rid"
 else
   record external_id_conflict FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
@@ -524,7 +549,7 @@ rid="$(request_id_from_resp)"
 pc="$(problem_code_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record scope_mismatch FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "403" ] && [ "$pc" = "FISCAL_SCOPE_MISMATCH" ]; then
+elif [ "$LAST_HTTP_CODE" = "403" ] && [ "$pc" = "FISCAL_SCOPE_MISMATCH" ] && [ -n "$rid" ]; then
   record scope_mismatch PASS "$LAST_HTTP_CODE" pass "$rid"
 else
   record scope_mismatch FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
@@ -535,7 +560,7 @@ rid="$(request_id_from_resp)"
 pc="$(problem_code_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record validation_422 FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "422" ] && [ "$pc" = "FISCAL_VALIDATION_FAILED" ]; then
+elif [ "$LAST_HTTP_CODE" = "422" ] && [ "$pc" = "FISCAL_VALIDATION_FAILED" ] && [ -n "$rid" ]; then
   record validation_422 PASS "$LAST_HTTP_CODE" pass "$rid"
 else
   record validation_422 FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
@@ -549,7 +574,7 @@ rid="$(request_id_from_resp)"
 pc="$(problem_code_from_resp)"
 if [ "$(curl_ec)" -ne 0 ]; then
   record unauthorized_bad_token FAIL "000" transport "$rid"
-elif [ "$LAST_HTTP_CODE" = "401" ] && [ "$pc" = "FISCAL_UNAUTHORIZED" ]; then
+elif [ "$LAST_HTTP_CODE" = "401" ] && [ "$pc" = "FISCAL_UNAUTHORIZED" ] && [ -n "$rid" ]; then
   record unauthorized_bad_token PASS "$LAST_HTTP_CODE" pass "$rid"
 else
   record unauthorized_bad_token FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
@@ -568,7 +593,7 @@ else
   pc="$(problem_code_from_resp)"
   if [ "$(curl_ec)" -ne 0 ]; then
     record token_revoked_401 FAIL "000" transport "$rid"
-  elif [ "$LAST_HTTP_CODE" = "401" ] && [ "$pc" = "FISCAL_UNAUTHORIZED" ]; then
+  elif [ "$LAST_HTTP_CODE" = "401" ] && [ "$pc" = "FISCAL_UNAUTHORIZED" ] && [ -n "$rid" ]; then
     record token_revoked_401 PASS "$LAST_HTTP_CODE" pass "$rid"
   else
     record token_revoked_401 FAIL "$LAST_HTTP_CODE" "code=${pc}" "$rid"
