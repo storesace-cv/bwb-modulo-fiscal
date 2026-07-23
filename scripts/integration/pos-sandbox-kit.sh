@@ -196,7 +196,8 @@ parse_loopback_base() {
   case "$port" in
     ''|*[!0-9]*) die "invalid loopback port" ;;
   esac
-  [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || die "loopback port out of range"
+  [ "$port" -ge 1 ] || die "loopback port out of range"
+  [ "$port" -le 65535 ] || die "loopback port out of range"
   case "$u" in
     *@*|*\?*|*\#*) die "loopback URL rejects userinfo/query/fragment" ;;
   esac
@@ -294,7 +295,7 @@ chmod 0700 "$TMP"
 CHILD_PIDS=""
 CLEANED=0
 
-# shellcheck disable=SC2329 # invoked via trap
+# shellcheck disable=SC2317,SC2329 # invoked via trap / cleanup
 kill_children() {
   local pid
   for pid in $CHILD_PIDS; do
@@ -313,7 +314,7 @@ kill_children() {
   CHILD_PIDS=""
 }
 
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329 # invoked via trap
 cleanup() {
   [ "$CLEANED" = "1" ] && return 0
   CLEANED=1
