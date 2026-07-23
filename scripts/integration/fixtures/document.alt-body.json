@@ -1,0 +1,20 @@
+{
+  "external_id": "PLACEHOLDER",
+  "document_type": "invoice",
+  "currency": "AOA",
+  "issued_at": "2026-07-21T10:00:00+01:00",
+  "requested_series": "IGNORED",
+  "seller": {
+    "tax_id": "FIXTURE-NIF-AO-0001",
+    "name": "Fixture Seller Synthetic AO (non-official sandbox identity)"
+  },
+  "lines": [
+    {
+      "line_id": "L1",
+      "description": "Fixture alternate body for idempotency conflict",
+      "quantity": "2",
+      "unit_price": "11.00",
+      "tax_code": "NOR"
+    }
+  ]
+}

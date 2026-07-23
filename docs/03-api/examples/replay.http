@@ -1,8 +1,5 @@
-### createDocument — dados sintéticos; sem token/NIF reais
-### Contrato: specs/openapi/openapi.yaml (0.1.6-draft)
-### Sandbox: https://sandbox.fiscalmod.bwb.pt/v1
-### Substituir Bearer por credencial sandbox BWB (nunca AGT; nunca commitar)
-### sealed_locally ≠ emissão/aceitação AGT
+### Replay — mesma Idempotency-Key + mesmo body → 201 estável
+### Não gerar chave nova em retries
 
 POST https://sandbox.fiscalmod.bwb.pt/v1/documents
 Content-Type: application/json
@@ -14,7 +11,6 @@ Authorization: Bearer REPLACE_WITH_MODULE_SANDBOX_TOKEN
   "document_type": "invoice",
   "currency": "AOA",
   "issued_at": "2026-07-21T10:00:00+01:00",
-  "requested_series": "REF-A",
   "seller": {
     "tax_id": "FIXTURE-NIF-AO-0001",
     "name": "Fixture Seller Synthetic AO (non-official sandbox identity)"

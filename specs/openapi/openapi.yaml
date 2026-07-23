@@ -1,22 +1,24 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal API
-  version: 0.1.5-draft
+  version: 0.1.6-draft
   description: >
     Contrato público draft para POS/software houses. createDocument cria e sela
     localmente de forma atómica (201). issued_at deve incluir offset compatível
     com a timezone fiscal do scope (Angola: Africa/Luanda, tipicamente +01:00).
     Health.revision identifica o artefacto (SHA40 lowercase em release, ou "dev"
     em builds de desenvolvimento). Não pronto para produção. Autenticação
-    bearerAuth é do POS/módulo — não são credenciais AGT.
+    bearerAuth é do POS/módulo — Bearer credential issued by BWB for the sandbox;
+    não são credenciais AGT. sealed_locally não significa emissão nem aceitação
+    pela AGT. Integração: docs/03-api/quickstart.md.
   license:
     name: MIT
     identifier: MIT
 servers:
   - url: https://sandbox.fiscalmod.bwb.pt/v1
-    description: Staging sandbox (dev_static; not production)
+    description: Staging sandbox (Bearer credential issued by BWB; not production)
   - url: http://127.0.0.1:8080/v1
-    description: Fiscal Edge local
+    description: Fiscal Edge local (development / tests)
 security:
   - bearerAuth: []
 paths:
@@ -202,6 +204,14 @@ paths:
                       - field: "currency"
                         code: "INVALID_ENUM"
                         message: "Valor não permitido"
+        "429":
+          description: >
+            Demasiados pedidos (rate limit no edge/Nginx do sandbox). O status
+            HTTP é a única garantia contratual neste draft: o corpo pode não ser
+            application/problem+json, request_id pode estar ausente, e
+            Retry-After não é garantido. O cliente deve aplicar backoff e, ao
+            repetir o mesmo pedido, reutilizar a mesma Idempotency-Key.
+          # No content schema on purpose: edge may return a plain HTML/Nginx body.
         "500":
           description: Erro interno; sem exposição de dados fiscais
           content:
@@ -222,10 +232,8 @@ components:
       type: http
       scheme: bearer
       description: >
-        Autenticação da máquina POS / software house perante o módulo fiscal.
-        Não são credenciais AGT nem tokens da autoridade tributária. O modo de
-        validação concreto é configurado no serviço (produção fail-closed sem
-        validador real).
+        Bearer credential issued by BWB for the sandbox (POS / software house
+        authentication to the fiscal module). Not AGT credentials.
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

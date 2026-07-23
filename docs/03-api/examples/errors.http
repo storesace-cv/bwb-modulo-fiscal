@@ -1,0 +1,28 @@
+### Erros ilustrativos (token placeholder; sem credenciais reais)
+### 401 sem Authorization / 403 mismatch / 422 currency inválida
+### 429: ver quickstart — sem body Problem garantido
+
+### 401
+POST https://sandbox.fiscalmod.bwb.pt/v1/documents
+Content-Type: application/json
+Idempotency-Key: 22222222-2222-4222-8222-222222222222
+
+{"external_id":"x","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"FIXTURE-NIF-AO-0001","name":"S"},"lines":[{"line_id":"L1","description":"d","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}
+
+###
+### 403 FISCAL_SCOPE_MISMATCH (seller sintético diferente do scope)
+POST https://sandbox.fiscalmod.bwb.pt/v1/documents
+Content-Type: application/json
+Idempotency-Key: 33333333-3333-4333-8333-333333333333
+Authorization: Bearer REPLACE_WITH_MODULE_SANDBOX_TOKEN
+
+{"external_id":"mismatch-demo","document_type":"invoice","currency":"AOA","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"FIXTURE-NIF-OTHER-9999","name":"Other"},"lines":[{"line_id":"L1","description":"d","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}
+
+###
+### 422
+POST https://sandbox.fiscalmod.bwb.pt/v1/documents
+Content-Type: application/json
+Idempotency-Key: 44444444-4444-4444-8444-444444444444
+Authorization: Bearer REPLACE_WITH_MODULE_SANDBOX_TOKEN
+
+{"external_id":"invalid-demo","document_type":"invoice","currency":"INVALID","issued_at":"2026-07-21T10:00:00+01:00","seller":{"tax_id":"FIXTURE-NIF-AO-0001","name":"S"},"lines":[{"line_id":"L1","description":"d","quantity":"1","unit_price":"1.00","tax_code":"NOR"}]}
