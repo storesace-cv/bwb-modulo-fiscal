@@ -16,7 +16,7 @@ Esta é uma premissa de produto (`ASM-REG-001`), não uma conclusão jurídica. 
 4. [docs/01-compliance/sources.md](docs/01-compliance/sources.md)
 5. [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md)
 6. [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md)
-7. [docs/03-api/api-guidelines.md](docs/03-api/api-guidelines.md)
+7. [docs/03-api/api-guidelines.md](docs/03-api/api-guidelines.md) · [quickstart S4](docs/03-api/quickstart.md)
 8. [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md)
 9. [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md)
 10. [docs/06-delivery/implementation-roadmap.md](docs/06-delivery/implementation-roadmap.md)
@@ -30,10 +30,11 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 
 ## Estado
 
-- Etapa: fundação de persistência (PR A) + API health.
+- Etapa: sandbox S3C2 confirmado + kit de integração S4 (docs/tooling).
 - País ativo: Angola.
 - País futuro: Cabo Verde.
-- Código: Go com health, schema/migrations, SealInTx e `POST /v1/documents` (auth/series de desenvolvimento fail-closed).
-- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.3-draft`).
+- Código: Go com health, schema/migrations, SealInTx e `POST /v1/documents`.
+- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
+- Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
-- Staging (D1 artefactos): [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).
+- Staging: [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).

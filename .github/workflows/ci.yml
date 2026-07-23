@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
 
-      - name: Shellcheck deploy scripts
+      - name: Shellcheck scripts
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
@@ -57,18 +57,25 @@ jobs:
             scripts/deploy/lib/allowlist.sh \
             scripts/deploy/*.sh \
             tests/deploy/run-tests.sh
+          shellcheck -e SC2317,SC2329 \
+            scripts/integration/pos-sandbox-kit.sh \
+            tests/integration/run-pos-kit-tests.sh
 
       - name: Deploy D1 script tests
         run: |
           bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh tests/deploy/mocks/bin/*
+          bash -n scripts/integration/pos-sandbox-kit.sh tests/integration/run-pos-kit-tests.sh
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
+          # Must run and fail the job on whitespace/conflict markers (no masking || fallback).
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
           else
-            git diff --check "HEAD~1...HEAD" || git diff --check
+            git diff --check "HEAD~1...HEAD"
           fi
-          git diff --check origin/main...HEAD || git diff --check "$(git merge-base origin/main HEAD)...HEAD"
+
+      - name: POS sandbox kit tests (S4 mocks)
+        run: bash tests/integration/run-pos-kit-tests.sh
 
       - name: OpenAPI lint
         run: |

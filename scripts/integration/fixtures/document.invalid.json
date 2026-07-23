@@ -1,0 +1,19 @@
+{
+  "external_id": "PLACEHOLDER",
+  "document_type": "invoice",
+  "currency": "INVALID",
+  "issued_at": "2026-07-21T10:00:00+01:00",
+  "seller": {
+    "tax_id": "FIXTURE-NIF-AO-0001",
+    "name": "Fixture Seller Synthetic AO (non-official sandbox identity)"
+  },
+  "lines": [
+    {
+      "line_id": "L1",
+      "description": "Invalid currency fixture",
+      "quantity": "1",
+      "unit_price": "10.50",
+      "tax_code": "NOR"
+    }
+  ]
+}

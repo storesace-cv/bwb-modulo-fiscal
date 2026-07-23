@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.14-draft — 2026-07-23
+
+- S4 (repo only): kit e documentação de integração POS/software houses — quickstart, contrato, onboarding, checklist, publicação; OpenAPI `0.1.6-draft` (429 sem Problem/`Retry-After` garantidos; auth pública “Bearer credential issued by BWB for the sandbox”); `scripts/integration/pos-sandbox-kit.sh` com token fora de argv, URL sandbox exacta, fixtures sintéticas por run CSPRNG, testes mock HTTP+curl na CI. Sem SSH/deploy/runtime/Nginx/BD; sandbox real fica para validação operacional pós-merge.
+- S4 hardening (Draft PR): validação semântica de respostas; rate_429 com exit/http_code separados; token Base64URL exacto com limite de leitura; env de teste só com loopback; harness INT/TERM com TMPDIR isolado (sem KILL/find global); guard OpenAPI 429 via bundle Redocly+jq; `git diff --check` sem mascarar falhas.
+- S4 follow-up: CreateDocumentResponse sem `request_id` (additionalProperties:false); cleanup de filhos com prazo + KILL só nos PIDs tracked; teste com filho que ignora TERM.
+
 ## 0.2.13-draft — 2026-07-23
 
 - S3C2 follow-up (I1): probe pós-reload com retry/deadline curto (401 só transitório; exige 403; 5xx/TLS/timeout → falha); `nginx-deny-all` e `nginx-open-rollback-fire` usam fail-closed rigoroso (`deny_restored` / `emergency_nginx_stop` comprovado / `emergency_stop_failed` CRITICAL); nunca `state=armed` com timer inactive após o fire. Relatório promoção sandbox ROLLED_BACK. Sem deploy/confirm/nova promoção no host.
