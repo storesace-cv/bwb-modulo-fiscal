@@ -391,6 +391,8 @@ deploy_scp_run "${SCP_BASE[@]}" -r \
   "${OUT_DIR}/SHA256SUMS" \
   "${OUT_DIR}/lib" \
   "${OUT_DIR}/fixtures" \
+  "${OUT_DIR}/nginx" \
+  "${OUT_DIR}/systemd" \
   "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_UPLOAD}/"
 report "upload=ok"
 

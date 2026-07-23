@@ -1,0 +1,14 @@
+# Armed by nginx-open-arm. Fires once after 5 minutes unless cancelled by nginx-open-confirm.
+
+[Unit]
+Description=BWB fiscal Nginx open rollback timer (5 minutes)
+Documentation=file:///opt/bwb-modulo-fiscal/current/nginx/README.md
+
+[Timer]
+OnActiveSec=5min
+AccuracySec=1s
+Unit=bwb-fiscal-nginx-open-rollback.service
+RemainAfterElapse=false
+
+[Install]
+WantedBy=timers.target

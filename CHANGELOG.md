@@ -1,9 +1,15 @@
 # Changelog
 
+## 0.2.12-draft — 2026-07-22
+
+- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`, `location = /v1/documents`), HSTS, ACME-safe redirect, deny-all rollback, helper arm/confirm/deny + timer 5 min + boot-recovery `Before=nginx` + drop-in `nginx.service` `Requires=`/`After=` boot-recovery; flock; fail-closed com `deny_restored`, `emergency_nginx_stop` (só após `is-active != active`) ou `emergency_stop_failed` (CRITICAL); reload falhado no arm usa o mesmo fail-closed; confirm grava `confirmed` antes de cancelar o timer. Sem deploy/promoção no host.
+- Hardening pré-merge (#16): prova de emergency stop; drop-in obrigatório bloqueia nginx se recovery armed falhar; reload ambíguo → fail-closed rigoroso.
+
 ## 0.2.11-draft — 2026-07-22
 
 - S3C-tooling: `internal/buildinfo` + Health `revision` (required, SHA40\|dev); `fiscal-api version`; release ldflags + verificação `revision == COMMIT`; binário Go `fiscal-sandbox-measure` (perfis fechados sustained/burst/replay) substitui o medidor shell; helper `admin-sandbox-measure <sha> <profile>`; OpenAPI `0.1.5-draft`; runbook S3C1. Sem deploy/S3C1/S3C2/abertura pública.
 - Hardening measure (Draft PR): pacing sustained sem catch-up; thresholds completos + `passed`/`failure_codes`; `attempted`/`http_responses`/`transport_errors`; replay tipado estrito; `revision=dev` só em `FISCAL_ENV=development`; token dir/ficheiro 0600 sem symlink; latência via Clock injectado.
+- Fix sustained start-slot pacing e token open TOCTOU (`O_NOFOLLOW` + Fstat).
 
 ## 0.2.10-draft — 2026-07-22
 
