@@ -1,0 +1,35 @@
+# Snippet para ~/.ssh/config (fiscalmod sandbox)
+# Copiar os blocos em falta. Chave operativa = ~/.ssh/digitalocean
+# (mesma fingerprint documentada nos relatórios D2 / SSH remediação).
+# Não versionar chaves privadas. IdentitiesOnly evita "Too many authentication failures".
+
+Host fiscalmod-sandbox
+  HostName 194.9.62.239
+  User ubuntu
+  IdentityFile ~/.ssh/digitalocean
+  IdentitiesOnly yes
+  PreferredAuthentications publickey
+  PasswordAuthentication no
+  ConnectTimeout 15
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+
+Host fiscalmod-root
+  HostName 194.9.62.239
+  User root
+  IdentityFile ~/.ssh/digitalocean
+  IdentitiesOnly yes
+  PreferredAuthentications publickey
+  PasswordAuthentication no
+  ConnectTimeout 15
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+
+Host sandbox.fiscalmod.bwb.pt 194.9.62.239
+  IdentityFile ~/.ssh/digitalocean
+  IdentitiesOnly yes
+  PreferredAuthentications publickey
+  PasswordAuthentication no
+  ConnectTimeout 15
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
