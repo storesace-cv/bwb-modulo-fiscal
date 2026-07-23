@@ -89,12 +89,16 @@ cp "${ROOT}/deploy/nginx/README.md" "${OUT_DIR}/nginx/README.md"
 cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.service" "${OUT_DIR}/systemd/"
 cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-rollback.timer" "${OUT_DIR}/systemd/"
 cp "${ROOT}/deploy/systemd/bwb-fiscal-nginx-open-boot-recovery.service" "${OUT_DIR}/systemd/"
+mkdir -p "${OUT_DIR}/systemd/nginx.service.d"
+cp "${ROOT}/deploy/systemd/nginx.service.d/bwb-fiscal-open-boot-recovery.conf" \
+  "${OUT_DIR}/systemd/nginx.service.d/"
 chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
   "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
 chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" \
   "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json \
   "${OUT_DIR}/nginx/"*.conf "${OUT_DIR}/nginx/README.md" \
-  "${OUT_DIR}/systemd/"*.service "${OUT_DIR}/systemd/"*.timer
+  "${OUT_DIR}/systemd/"*.service "${OUT_DIR}/systemd/"*.timer \
+  "${OUT_DIR}/systemd/nginx.service.d/"*.conf
 
 printf '%s\n' "${HEAD}" >"${OUT_DIR}/COMMIT"
 printf '%s\n' "${EXPECTED_SCHEMA_VERSION}" >"${OUT_DIR}/EXPECTED_SCHEMA_VERSION"
@@ -161,6 +165,7 @@ fi
     systemd/bwb-fiscal-nginx-open-rollback.service \
     systemd/bwb-fiscal-nginx-open-rollback.timer \
     systemd/bwb-fiscal-nginx-open-boot-recovery.service \
+    systemd/nginx.service.d/bwb-fiscal-open-boot-recovery.conf \
     COMMIT \
     EXPECTED_SCHEMA_VERSION \
     >SHA256SUMS

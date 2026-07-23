@@ -2,8 +2,8 @@
 
 ## 0.2.12-draft — 2026-07-22
 
-- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`, `location = /v1/documents`), HSTS `max-age=31536000` (sem subdomain policy), redirect HTTP→HTTPS sob `location /` (ACME intacto), deny-all imutável no release, zone final, helper `nginx-open-arm` / `nginx-open-confirm` / `nginx-deny-all` + timer 5 min + boot-recovery `Before=nginx.service`; flock exclusivo; arm exige timer active e fail-closed com `deny_restored` ou `emergency_nginx_stop`; confirm grava `confirmed` antes de cancelar o timer; relatório S3C1; testes arm/confirm/timeout/rollback/boot/concorrência/emergency-stop. Sem deploy/promoção/abertura no host.
-- Hardening pré-merge (#16): fail-closed se timer não ficar active; ordem confirm→state antes de stop; serialização flock; boot-recovery para `armed` antes do Nginx; ACME/HSTS/exact location alinhados com D2 live; restore fail-closed validado passo a passo com fallback `systemctl stop nginx`.
+- S3C2 (repo only): Nginx open canónico (`rate=10r/s`, `burst=20`, `limit_req_status 429`, `location = /v1/documents`), HSTS, ACME-safe redirect, deny-all rollback, helper arm/confirm/deny + timer 5 min + boot-recovery `Before=nginx` + drop-in `nginx.service` `Requires=`/`After=` boot-recovery; flock; fail-closed com `deny_restored`, `emergency_nginx_stop` (só após `is-active != active`) ou `emergency_stop_failed` (CRITICAL); reload falhado no arm usa o mesmo fail-closed; confirm grava `confirmed` antes de cancelar o timer. Sem deploy/promoção no host.
+- Hardening pré-merge (#16): prova de emergency stop; drop-in obrigatório bloqueia nginx se recovery armed falhar; reload ambíguo → fail-closed rigoroso.
 
 ## 0.2.11-draft — 2026-07-22
 

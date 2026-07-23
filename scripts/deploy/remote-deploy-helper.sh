@@ -70,6 +70,7 @@ NGINX_OPEN_LOCK="${BWB_NGINX_LOCK:-/var/lock/bwb-fiscal-nginx-open.lock}"
 NGINX_ROLLBACK_TIMER="bwb-fiscal-nginx-open-rollback.timer"
 NGINX_ROLLBACK_SERVICE="bwb-fiscal-nginx-open-rollback.service"
 NGINX_BOOT_RECOVERY_SERVICE="bwb-fiscal-nginx-open-boot-recovery.service"
+NGINX_BOOT_RECOVERY_DROPIN_REL="nginx.service.d/bwb-fiscal-open-boot-recovery.conf"
 
 die() {
   echo "error: $*" >&2
@@ -195,6 +196,7 @@ verify_release_tree() {
   [[ -f "${dir}/systemd/${NGINX_ROLLBACK_SERVICE}" ]] || die "rollback service unit missing"
   [[ -f "${dir}/systemd/${NGINX_ROLLBACK_TIMER}" ]] || die "rollback timer unit missing"
   [[ -f "${dir}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" ]] || die "boot recovery unit missing"
+  [[ -f "${dir}/systemd/${NGINX_BOOT_RECOVERY_DROPIN_REL}" ]] || die "nginx boot-recovery drop-in missing"
   # Release must not ship an executable runner — migrate is done by this helper.
   [[ ! -e "${dir}/remote-migrate-run.sh" ]] || die "remote-migrate-run.sh must not be in release"
   # Legacy open.candidate path must never ship (open is nginx/tls.open.conf only).
@@ -279,7 +281,8 @@ op_install_release() {
     "${partial}/nginx/tls.open.conf" "${partial}/nginx/tls.deny.conf" \
     "${partial}/nginx/limit-req-documents.conf" "${partial}/nginx/README.md" \
     "${partial}/systemd/${NGINX_ROLLBACK_SERVICE}" "${partial}/systemd/${NGINX_ROLLBACK_TIMER}" \
-    "${partial}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}"
+    "${partial}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" \
+    "${partial}/systemd/${NGINX_BOOT_RECOVERY_DROPIN_REL}"
 
   if [[ -d "${dest}" ]]; then
     verify_release_tree "${dest}" "${sha}"
@@ -295,7 +298,8 @@ op_install_release() {
     "${dest}/nginx/tls.open.conf" "${dest}/nginx/tls.deny.conf" \
     "${dest}/nginx/limit-req-documents.conf" "${dest}/nginx/README.md" \
     "${dest}/systemd/${NGINX_ROLLBACK_SERVICE}" "${dest}/systemd/${NGINX_ROLLBACK_TIMER}" \
-    "${dest}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}"
+    "${dest}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" \
+    "${dest}/systemd/${NGINX_BOOT_RECOVERY_DROPIN_REL}"
   # Drop-priv users need exec on binaries/scripts (not writable).
   chmod 0755 "${dest}/fiscal-migrate" "${dest}/fiscal-api" "${dest}/fiscal-admin" \
     "${dest}/fiscal-sandbox-e2e" "${dest}/fiscal-sandbox-measure"
@@ -997,6 +1001,11 @@ nginx_install_failsafe_units() {
   nginx_install_file 0644 \
     "${release}/systemd/${NGINX_BOOT_RECOVERY_SERVICE}" \
     "${SYSTEMD_DIR}/${NGINX_BOOT_RECOVERY_SERVICE}"
+  # Drop-in: nginx.service Requires= boot recovery (failure blocks nginx start).
+  nginx_install_dir 0755 "${SYSTEMD_DIR}/nginx.service.d"
+  nginx_install_file 0644 \
+    "${release}/systemd/${NGINX_BOOT_RECOVERY_DROPIN_REL}" \
+    "${SYSTEMD_DIR}/${NGINX_BOOT_RECOVERY_DROPIN_REL}"
 }
 
 nginx_arm_rollback_timer() {
@@ -1176,32 +1185,42 @@ nginx_try_restore_deny_live() {
 
 nginx_emergency_stop_nginx() {
   local sha="$1"
-  local st=1
+  local stop_st=1
   set +e
   if command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1; then
     "${SYSTEMCTL_BIN}" stop nginx
-    st=$?
+    stop_st=$?
   else
     "${NGINX_BIN}" -s stop
-    st=$?
+    stop_st=$?
   fi
-  nginx_write_state "emergency_stopped" "${sha}"
+  # Only claim emergency_stopped after proving nginx is not active.
+  if [[ "${stop_st}" -eq 0 ]] \
+    && command -v "${SYSTEMCTL_BIN}" >/dev/null 2>&1 \
+    && ! "${SYSTEMCTL_BIN}" is-active --quiet nginx; then
+    nginx_write_state "emergency_stopped" "${sha}"
+    set -e
+    return 0
+  fi
+  # stop non-zero, or still active, or no systemctl to verify → do not claim fail-closed stop.
+  nginx_write_state "emergency_stop_failed" "${sha}"
   set -e
-  return "${st}"
+  return 1
 }
 
-# After open is live, any failure before an active timer must close exposure.
-# Outcome is always one of: deny_restored | emergency_nginx_stop (never arm_ok).
+# After open is live / reload ambiguous: proven deny_restored, proven emergency_nginx_stop,
+# or CRITICAL emergency_stop_failed (never arm_ok; never claim stop without proof).
 nginx_fail_closed_deny() {
   local sha="$1" release="$2" reason="$3"
   if nginx_try_restore_deny_live "${sha}" "${release}"; then
     echo "error: nginx open arm fail-closed deny_restored reason=${reason}" >&2
     exit 1
   fi
-  set +e
-  nginx_emergency_stop_nginx "${sha}"
-  set -e
-  echo "error: nginx open arm fail-closed emergency_nginx_stop reason=${reason}" >&2
+  if nginx_emergency_stop_nginx "${sha}"; then
+    echo "error: nginx open arm fail-closed emergency_nginx_stop reason=${reason}" >&2
+    exit 1
+  fi
+  echo "error: CRITICAL nginx open arm fail-closed emergency_stop_failed reason=${reason}" >&2
   exit 1
 }
 
@@ -1254,13 +1273,9 @@ op_nginx_open_arm() {
     set -e
     die "nginx -t failed after open install; restored backup"
   fi
+  # Reload may partially apply open even when the command returns error → fail-closed.
   if ! nginx_reload; then
-    nginx_restore_site_backup "${backup}"
-    set +e
-    nginx_run_t
-    nginx_reload
-    set -e
-    die "nginx reload failed after open install; restored backup"
+    nginx_fail_closed_deny "${sha}" "${release}" "reload failed after open install"
   fi
 
   # Open is live. Any failure before an active timer must fail-closed (never arm_ok).
@@ -1315,7 +1330,7 @@ op_nginx_open_rollback_fire() {
       nginx_write_state "rolled_back" "${st_sha}"
       printf 'nginx_open_rollback_fire=ok sha=%s\n' "${st_sha}"
       ;;
-    confirmed | denied | rolled_back | boot_recovered | emergency_stopped)
+    confirmed | denied | rolled_back | boot_recovered | emergency_stopped | emergency_stop_failed)
       printf 'nginx_open_rollback_fire=noop reason=state_%s\n' "${st_state}"
       ;;
     *)
@@ -1345,7 +1360,7 @@ op_nginx_open_boot_recovery() {
       # Intentional open after confirm — allow nginx to start with open site.
       printf 'nginx_open_boot_recovery=noop reason=confirmed_remains_open\n'
       ;;
-    denied | rolled_back | boot_recovered | emergency_stopped)
+    denied | rolled_back | boot_recovered | emergency_stopped | emergency_stop_failed)
       printf 'nginx_open_boot_recovery=noop reason=state_%s\n' "${st_state}"
       ;;
     *)

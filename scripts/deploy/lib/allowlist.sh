@@ -349,6 +349,9 @@ deploy_verify_release_manifest() {
     test -f systemd/bwb-fiscal-nginx-open-rollback.service
     test -f systemd/bwb-fiscal-nginx-open-rollback.timer
     test -f systemd/bwb-fiscal-nginx-open-boot-recovery.service
+    test -f systemd/nginx.service.d/bwb-fiscal-open-boot-recovery.conf
+    grep -q 'Requires=bwb-fiscal-nginx-open-boot-recovery.service' \
+      systemd/nginx.service.d/bwb-fiscal-open-boot-recovery.conf
     # Legacy open.candidate must never ship inside the release tree.
     test ! -e nginx/candidates/bwb-fiscal-sandbox-tls.open.candidate.conf
     grep -q 'deny all' nginx/tls.deny.conf
