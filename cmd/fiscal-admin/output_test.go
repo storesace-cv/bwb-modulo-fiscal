@@ -36,8 +36,80 @@ func TestWriteAndSyncTokenPartialSyncKeepsBytes(t *testing.T) {
 		t.Fatal("expected sync failure")
 	}
 	got := w.buf.String()
-	if !strings.Contains(got, token) {
-		t.Fatal("partial write must retain token bytes in writer buffer")
+	if got != token {
+		t.Fatalf("partial write must retain exact token bytes, got len=%d", len(got))
+	}
+	if strings.ContainsAny(got, "\r\n") {
+		t.Fatal("output-file bytes must not contain CR/LF")
+	}
+}
+
+func TestWriteAndSyncTokenFileExactFiftyTwoBytesNoNewline(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "token.out")
+	f, err := openExclusiveFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := "bwb_sbox_" + strings.Repeat("A", 43)
+	if len(token) != 52 {
+		t.Fatalf("fixture token len=%d", len(token))
+	}
+	if err := writeAndSyncToken(f, token); err != nil {
+		_ = f.Close()
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("perm=%o", st.Mode().Perm())
+	}
+	if st.Size() != 52 {
+		t.Fatalf("size=%d want 52 (no trailing newline)", st.Size())
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != token {
+		t.Fatal("file content must equal token exactly")
+	}
+	if bytes.ContainsAny(raw, "\r\n") {
+		t.Fatal("file must not contain CR/LF")
+	}
+}
+
+func TestWriteAndSyncTokenCompatibleWithKitReaderRules(t *testing.T) {
+	// Mirrors scripts/integration/pos-sandbox-kit.sh validate_token_value / no CR/LF.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kit.token")
+	f, err := openExclusiveFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := "bwb_sbox_" + strings.Repeat("B", 43)
+	if err := writeAndSyncToken(f, token); err != nil {
+		_ = f.Close()
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) != 52 {
+		t.Fatalf("kit requires exactly 52 bytes, got %d", len(raw))
+	}
+	if bytes.ContainsAny(raw, "\r\n \t") {
+		t.Fatal("kit rejects CR/LF/whitespace; admin output must be clean")
+	}
+	if !strings.HasPrefix(string(raw), "bwb_sbox_") {
+		t.Fatal("prefix")
 	}
 }
 

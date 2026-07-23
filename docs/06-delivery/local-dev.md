@@ -104,7 +104,7 @@ go run ./cmd/fiscal-migrate up
 go run ./cmd/fiscal-api
 ```
 
-Admin de credenciais (`credential_store`): `go run ./cmd/fiscal-admin …` com as mesmas variáveis de BD. Token só em TTY ou `--output-file` (`O_EXCL`, `0600`).
+Admin de credenciais (`credential_store`): `go run ./cmd/fiscal-admin …` com as mesmas variáveis de BD. Token só em TTY ou `--output-file` (`O_EXCL`, `0600`, **exactamente** os bytes do token sem CR/LF — compatível com o kit POS).
 
 Contrato: [api-guidelines.md](../03-api/api-guidelines.md). Sem ficheiros `.env` versionados.
 

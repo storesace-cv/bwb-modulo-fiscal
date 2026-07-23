@@ -311,7 +311,7 @@ for a in "\$@"; do
   prev="\${a}"
 done
 if [[ -n "\${outf}" ]]; then
-  printf 'bwb_sbox_synthetic_token_fixture_only\n' >"\${outf}"
+  printf '%s' 'bwb_sbox_synthetic_token_fixture_only' >"\${outf}"
   chmod 0600 "\${outf}"
 fi
 echo "credential_id=cred-synth-001 status=active"
@@ -380,7 +380,7 @@ done
 case "\${cmd}" in
   issue)
     [[ -n "\${outf}" ]] || exit 1
-    printf 'bwb_sbox_gate_token_synthetic_only\n' >"\${outf}"
+    printf '%s' 'bwb_sbox_gate_token_synthetic_only' >"\${outf}"
     chmod 0600 "\${outf}"
     n=\$((\$(cat "${TMP}/gate-cred-seq") + 1))
     printf '%s\n' "\$n" >"${TMP}/gate-cred-seq"
@@ -1349,7 +1349,7 @@ CURL_LOG="${TMP}/curl-argv.log"
 SPACE_ROOT="${TMP}/path with spaces"
 mkdir -p "${SPACE_ROOT}/fixtures/sandbox" "${SPACE_ROOT}/tokens" "${TMP}/curlbin"
 cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${SPACE_ROOT}/fixtures/sandbox/"
-printf 'bwb_sbox_SYNTHETIC_TOKEN_FOR_ARGV_TEST_ONLY_XXXX\n' >"${SPACE_ROOT}/tokens/current.token"
+printf '%s' 'bwb_sbox_SYNTHETIC_TOKEN_FOR_ARGV_TEST_ONLY_XXXX' >"${SPACE_ROOT}/tokens/current.token"
 chmod 0600 "${SPACE_ROOT}/tokens/current.token"
 cat >"${TMP}/curlbin/curl" <<EOF
 #!/usr/bin/env bash

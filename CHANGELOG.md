@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.16-draft — 2026-07-23
+
+- S4 follow-up (repo only): `rate_429` do kit POS passa de ondas de cinco para **burst sincronizado de 30** (ready + gate local); `fiscal-admin --output-file` grava token raw de 52 bytes **sem** newline; mocks de deploy alinhados. Sem alteração de Nginx (`10r/s`/`burst=20`), OpenAPI, runtime `fiscal-api` ou schema. Validação real do sandbox permanece pendente pós-merge.
+
 ## 0.2.15-draft — 2026-07-23
 
 - SSH ops (docs/snippet only): remoção definitiva do UFW LIMIT em TCP/22 → ALLOW 22; autenticação exclusivamente por chave; root só por chave (`PermitRootLogin prohibit-password`); `PasswordAuthentication` e `KbdInteractiveAuthentication` desativadas; `IdentitiesOnly` no snippet cliente; multiplexing apenas como otimização. Release/runtime/Nginx/API inalterados. Incidente S4 `rate_429` permanece aberto e fora deste PR.
