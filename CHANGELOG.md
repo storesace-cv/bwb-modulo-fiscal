@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.15-draft — 2026-07-23
+
+- SSH ops (docs/snippet only): remoção definitiva do UFW LIMIT em TCP/22 → ALLOW 22; autenticação exclusivamente por chave; root só por chave (`PermitRootLogin prohibit-password`); `PasswordAuthentication` e `KbdInteractiveAuthentication` desativadas; `IdentitiesOnly` no snippet cliente; multiplexing apenas como otimização. Release/runtime/Nginx/API inalterados. Incidente S4 `rate_429` permanece aberto e fora deste PR.
+
 ## 0.2.14-draft — 2026-07-23
 
 - S4 (repo only): kit e documentação de integração POS/software houses — quickstart, contrato, onboarding, checklist, publicação; OpenAPI `0.1.6-draft` (429 sem Problem/`Retry-After` garantidos; auth pública “Bearer credential issued by BWB for the sandbox”); `scripts/integration/pos-sandbox-kit.sh` com token fora de argv, URL sandbox exacta, fixtures sintéticas por run CSPRNG, testes mock HTTP+curl na CI. Sem SSH/deploy/runtime/Nginx/BD; sandbox real fica para validação operacional pós-merge.
