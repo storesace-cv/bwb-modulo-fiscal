@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deterministic S4 kit tests: HTTP mock server + curl argv mock.
 # Runs on macOS bash 3.2+ and Ubuntu 22.04. No sandbox/SSH.
+# Each kit run uses an isolated TMPDIR; no global find/rm of bwb-pos-kit.*.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -8,38 +9,39 @@ KIT="${ROOT}/scripts/integration/pos-sandbox-kit.sh"
 OPENAPI="${ROOT}/specs/openapi/openapi.yaml"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/bwb-s4-tests.XXXXXX")"
 chmod 0700 "$TMP"
-trap 'rm -rf "$TMP"; if [ -n "${MOCK_PID:-}" ]; then kill "$MOCK_PID" 2>/dev/null || true; fi' EXIT
+trap 'rm -rf "$TMP"; if [ -n "${MOCK_PID:-}" ]; then kill "$MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" 2>/dev/null || true; fi' EXIT
 
 pass=0
 fail=0
 ok() { echo "PASS: $*"; pass=$((pass + 1)); }
 bad() { echo "FAIL: $*"; fail=$((fail + 1)); }
 
-# Speed up kit rate cooldown under the harness (production default remains 5s).
-export BWB_POS_KIT_RATE_COOLDOWN=0
+# Synthetic tokens matching module format (prefix + 43 Base64URL chars).
+TOK_VALID="bwb_sbox_$(python3 -c 'print("A"*43)')"
+TOK_REVOKED="bwb_sbox_$(python3 -c 'print("B"*43)')"
+[ "${#TOK_VALID}" -eq 52 ] || { echo "internal: TOK_VALID len"; exit 2; }
+[ "${#TOK_REVOKED}" -eq 52 ] || { echo "internal: TOK_REVOKED len"; exit 2; }
 
-# --- OpenAPI: 429 must not claim Problem (schema/content only; description may warn) ---
-if python3 - "$OPENAPI" <<'PY'
-import re, sys
-text = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r'"429":\s*\n(.*?)(?=\n\s*"500":)', text, re.S)
-if not m:
-    print("429 block missing", file=sys.stderr)
-    sys.exit(2)
-block = m.group(1)
-# Fail only if a content schema is declared for 429 (edge may return plain HTML).
-if re.search(r'(?m)^\s+content:\s*$', block):
-    print("429 declares content schema", file=sys.stderr)
-    sys.exit(1)
-if "#/components/schemas/Problem" in block:
-    print("Problem schema referenced under 429", file=sys.stderr)
-    sys.exit(1)
-sys.exit(0)
-PY
-then
-  ok "OpenAPI 429 has no Problem schema"
+# --- OpenAPI structural guard via Redocly bundle + jq (no YAML order regex) ---
+BUNDLE="$TMP/openapi.bundle.json"
+if npx --yes @redocly/cli@1.34.3 bundle "$OPENAPI" -o "$BUNDLE" >/dev/null 2>"$TMP/redocly-bundle.err"; then
+  if jq -e '
+      .paths["/documents"].post.responses["429"] as $r
+      | ($r != null)
+      and (($r | has("content")) | not)
+      and (
+        [ $r | .. | objects | .["$ref"]? // empty | select(tostring | test("Problem")) ]
+        | length == 0
+      )
+    ' "$BUNDLE" >/dev/null; then
+    ok "OpenAPI 429 has no content/Problem (bundled JSON)"
+  else
+    bad "OpenAPI 429 structural guard failed"
+    jq '.paths["/documents"].post.responses["429"]' "$BUNDLE" 2>/dev/null || true
+  fi
 else
-  bad "OpenAPI 429 must not declare Problem JSON"
+  bad "Redocly bundle failed"
+  cat "$TMP/redocly-bundle.err" 2>/dev/null || true
 fi
 if grep -q '0.1.6-draft' "$OPENAPI"; then
   ok "OpenAPI version 0.1.6-draft"
@@ -60,18 +62,15 @@ for a in "$@"; do
   i=$((i + 1))
 done
 printf 'ARGV_END\n' >>"$LOG"
-# Detect forbidden patterns in argv
 for a in "$@"; do
   case "$a" in
     -L|--location) echo "FORBIDDEN_REDIRECT" >>"$LOG"; exit 97 ;;
     Authorization:*|Bearer\ *) echo "FORBIDDEN_AUTH_ARGV" >>"$LOG"; exit 96 ;;
   esac
 done
-# If next real curl requested via env, exec it; else return canned 201 JSON
 if [ "${BWB_MOCK_CURL_PASSTHROUGH:-0}" = "1" ]; then
   exec curl "$@"
 fi
-# Write body for -o file if present
 out=""
 prev=""
 for a in "$@"; do
@@ -81,18 +80,19 @@ done
 if [ -n "$out" ]; then
   printf '%s' '{"id":"doc_mock","external_id":"x","status":"sealed_locally","submission_id":"sub_mock","created_at":"2026-07-21T10:00:01.000000Z","request_id":"req_mock"}' >"$out"
 fi
-# http_code via -w
 printf '201'
 exit 0
 EOF
 chmod 0700 "$TMP/mock-curl"
 
-# --- HTTP mock server (python) ---
+# --- HTTP mock server ---
 cat >"$TMP/mock_http.py" <<'PY'
 #!/usr/bin/env python3
-import json, threading
+import json, os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+VALID = os.environ["BWB_MOCK_VALID_TOKEN"]
+REVOKED = os.environ["BWB_MOCK_REVOKED_TOKEN"]
 store = {"by_idem": {}, "by_ext": {}, "posts": 0}
 
 class H(BaseHTTPRequestHandler):
@@ -136,7 +136,6 @@ class H(BaseHTTPRequestHandler):
         auth = self.headers.get("Authorization", "")
         idem = self.headers.get("Idempotency-Key", "")
         store["posts"] += 1
-        # rate: after 20 posts return 429 without JSON problem
         if store["posts"] > 20:
             self.send_response(429)
             self.send_header("Content-Type", "text/html")
@@ -148,10 +147,10 @@ class H(BaseHTTPRequestHandler):
         if auth == "Bearer INVALID_TOKEN_NOT_A_SECRET":
             self._problem(401, "FISCAL_UNAUTHORIZED")
             return
-        if auth.startswith("Bearer REVOKED_"):
+        if auth == "Bearer " + REVOKED:
             self._problem(401, "FISCAL_UNAUTHORIZED")
             return
-        if not auth.startswith("Bearer "):
+        if auth != "Bearer " + VALID:
             self._problem(401, "FISCAL_UNAUTHORIZED")
             return
         seller = (doc.get("seller") or {}).get("tax_id", "")
@@ -197,7 +196,6 @@ class H(BaseHTTPRequestHandler):
         self._json(code, obj)
 
 def main():
-    import os
     port_file = os.environ.get("BWB_MOCK_PORT_FILE", "__PORT__")
     httpd = HTTPServer(("127.0.0.1", 0), H)
     port = httpd.server_address[1]
@@ -209,8 +207,10 @@ if __name__ == "__main__":
     main()
 PY
 
-# Start mock HTTP
-BWB_MOCK_PORT_FILE="$TMP/__PORT__" python3 "$TMP/mock_http.py" &
+BWB_MOCK_PORT_FILE="$TMP/__PORT__" \
+BWB_MOCK_VALID_TOKEN="$TOK_VALID" \
+BWB_MOCK_REVOKED_TOKEN="$TOK_REVOKED" \
+  python3 "$TMP/mock_http.py" &
 MOCK_PID=$!
 for _ in $(seq 1 100); do
   [ -f "$TMP/__PORT__" ] && break
@@ -220,12 +220,11 @@ done
 PORT="$(cat "$TMP/__PORT__")"
 BASE="http://127.0.0.1:${PORT}/v1"
 
-# Token file 0600
 TOKEN="$TMP/token"
-printf 'sandbox-test-token-value-not-a-secret\n' >"$TOKEN"
+printf '%s' "$TOK_VALID" >"$TOKEN"
 chmod 0600 "$TOKEN"
 
-# --- URL allow/deny unit checks via kit ---
+# --- URL allow/deny ---
 if bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "http://localhost:${PORT}/v1" >/dev/null 2>&1; then
   bad "should reject localhost"
 else
@@ -242,7 +241,6 @@ else
   ok "rejects port 65536"
 fi
 
-# permissive token mode
 chmod 0644 "$TOKEN"
 if bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
   bad "should reject mode 0644"
@@ -251,7 +249,6 @@ else
 fi
 chmod 0600 "$TOKEN"
 
-# symlink reject
 ln -s "$TOKEN" "$TMP/token.link"
 if bash "$KIT" --token-file "$TMP/token.link" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
   bad "should reject symlink token"
@@ -259,7 +256,6 @@ else
   ok "rejects symlink token"
 fi
 
-# empty token
 : >"$TMP/empty"
 chmod 0600 "$TMP/empty"
 if bash "$KIT" --token-file "$TMP/empty" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
@@ -268,9 +264,60 @@ else
   ok "rejects empty token"
 fi
 
-# --- functional run against HTTP mock ---
+# Token format rejects
+printf 'bwb_sbox_%s' "$(python3 -c 'print("A"*200)')" >"$TMP/oversize"
+chmod 0600 "$TMP/oversize"
+if bash "$KIT" --token-file "$TMP/oversize" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
+  bad "should reject oversized token"
+else
+  ok "rejects oversized token"
+fi
+
+printf 'bwb_sbox_%s\n' "$(python3 -c 'print("A"*43)')" >"$TMP/nl.token"
+chmod 0600 "$TMP/nl.token"
+if bash "$KIT" --token-file "$TMP/nl.token" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
+  bad "should reject newline in token file"
+else
+  ok "rejects newline in token file"
+fi
+
+printf 'bwb_sbox_%s' "$(python3 -c 'print("A"*42 + "ç")')" >"$TMP/uni.token"
+chmod 0600 "$TMP/uni.token"
+if bash "$KIT" --token-file "$TMP/uni.token" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
+  bad "should reject Unicode token"
+else
+  ok "rejects Unicode token"
+fi
+
+printf 'bwb_sbox_%s' "$(python3 -c 'print("A"*42 + "+")')" >"$TMP/badchar.token"
+chmod 0600 "$TMP/badchar.token"
+if bash "$KIT" --token-file "$TMP/badchar.token" --allow-loopback-test "$BASE" >/dev/null 2>&1; then
+  bad "should reject invalid Base64URL char"
+else
+  ok "rejects invalid Base64URL char"
+fi
+
+# Test env overrides rejected without loopback (sandbox URL path)
+if BWB_POS_KIT_CURL=/bin/true bash "$KIT" --token-file "$TOKEN" >/dev/null 2>&1; then
+  bad "BWB_POS_KIT_CURL should be rejected without loopback"
+else
+  ok "rejects BWB_POS_KIT_CURL without loopback"
+fi
+if BWB_POS_KIT_RATE_COOLDOWN=0 bash "$KIT" --token-file "$TOKEN" >/dev/null 2>&1; then
+  bad "BWB_POS_KIT_RATE_COOLDOWN should be rejected without loopback"
+else
+  ok "rejects BWB_POS_KIT_RATE_COOLDOWN without loopback"
+fi
+
+# --- functional run ---
+curl -sS -o /dev/null "http://127.0.0.1:${PORT}/__reset" || true
 REP1="$TMP/rep1.json"
-if BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl1.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+ISO1="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO1"
+PATH_FILE1="$ISO1/kit.tmp.path"
+if TMPDIR="$ISO1" BWB_POS_KIT_TMP_PATH_FILE="$PATH_FILE1" \
+  BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl1.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+  BWB_POS_KIT_RATE_COOLDOWN=0 \
   bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" --report-file "$REP1"; then
   ok "kit functional run against HTTP mock"
 else
@@ -278,28 +325,45 @@ else
   cat "$REP1" 2>/dev/null || true
 fi
 
-# argv: no Bearer in args, no -L; has -H @file
+# Semantic outcomes in report
+if jq -e '
+    (.cases|map(select(.case=="create_201" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="replay" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="idempotency_conflict" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="external_id_conflict" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="scope_mismatch" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="validation_422" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="unauthorized_bad_token" and .status=="PASS"))|length==1)
+    and (.cases|map(select(.case=="rate_429" and .status=="PASS" and (.result|test("other=0"))))|length==1)
+  ' "$REP1" >/dev/null; then
+  ok "semantic case outcomes in report"
+else
+  bad "semantic case outcomes missing"
+  jq . "$REP1" 2>/dev/null || true
+fi
+
 if [ -f "$TMP/curl1.log" ]; then
   if grep -q 'FORBIDDEN_REDIRECT\|FORBIDDEN_AUTH_ARGV' "$TMP/curl1.log"; then
     bad "curl argv contained redirect or Authorization"
   else
     ok "curl argv free of token and redirects"
   fi
-  if grep -q 'arg\[[0-9]*\]=-H' "$TMP/curl1.log" && grep -q '@' "$TMP/curl1.log"; then
+  if grep -q '@' "$TMP/curl1.log"; then
     ok "curl uses -H @headerfile form"
   else
-    # passthrough real curl — check kit invoked -H @ by grepping a dry mock-only invocation
     ok "curl log captured (passthrough mode)"
   fi
 else
   bad "mock curl log missing"
 fi
 
-# Dedicated argv-only probe (no passthrough)
 : >"$TMP/curl2.log"
-BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl2.log" BWB_MOCK_CURL_PASSTHROUGH=0 \
+ISO2="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO2"
+TMPDIR="$ISO2" BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl2.log" BWB_MOCK_CURL_PASSTHROUGH=0 \
+  BWB_POS_KIT_RATE_COOLDOWN=0 \
   bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" --report-file "$TMP/rep-argv.json" >/dev/null 2>&1 || true
-if grep -q 'FORBIDDEN_AUTH_ARGV\|Bearer sandbox-test' "$TMP/curl2.log"; then
+if grep -q 'FORBIDDEN_AUTH_ARGV\|Bearer bwb_sbox_' "$TMP/curl2.log"; then
   bad "token leaked into curl argv"
 else
   ok "token absent from mock-curl argv"
@@ -315,17 +379,18 @@ else
   ok "Authorization only via @file pattern"
 fi
 
-# NOT_RUN revoked
 if jq -e '.cases[]|select(.case=="token_revoked_401" and .status=="NOT_RUN")' "$REP1" >/dev/null 2>&1; then
   ok "token_revoked_401 is NOT_RUN without revoked file"
 else
   bad "token_revoked_401 should be NOT_RUN"
 fi
 
-# Two runs — different run_id / no collision of external keys in report run_id
 curl -sS -o /dev/null "http://127.0.0.1:${PORT}/__reset" || true
 REP2="$TMP/rep2.json"
-if BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl3.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+ISO3="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO3"
+if TMPDIR="$ISO3" BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl3.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+  BWB_POS_KIT_RATE_COOLDOWN=0 \
   bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" --report-file "$REP2" >/dev/null; then
   r1="$(jq -r .run_id "$REP1")"
   r2="$(jq -r .run_id "$REP2")"
@@ -338,13 +403,15 @@ else
   bad "second kit run failed"
 fi
 
-# revoked token path
 curl -sS -o /dev/null "http://127.0.0.1:${PORT}/__reset" || true
 REV="$TMP/revoked.token"
-printf 'REVOKED_token_value\n' >"$REV"
+printf '%s' "$TOK_REVOKED" >"$REV"
 chmod 0600 "$REV"
 REP3="$TMP/rep3.json"
-if BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl4.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+ISO4="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO4"
+if TMPDIR="$ISO4" BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl4.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
+  BWB_POS_KIT_RATE_COOLDOWN=0 \
   bash "$KIT" --token-file "$TOKEN" --revoked-token-file "$REV" --allow-loopback-test "$BASE" --report-file "$REP3"; then
   if jq -e '.cases[]|select(.case=="token_revoked_401" and .status=="PASS")' "$REP3" >/dev/null; then
     ok "token_revoked_401 PASS with revoked file"
@@ -355,7 +422,6 @@ else
   bad "kit with revoked file failed"
 fi
 
-# Unicode materialization
 if jq -e '.lines[0].description|test("café|文字")' "$ROOT/scripts/integration/fixtures/document.base.json" >/dev/null; then
   ok "fixture contains Unicode"
 else
@@ -369,146 +435,167 @@ else
   bad "Unicode JSON invalid"
 fi
 
-# report must not contain synthetic fiscal ids
-if jq -r 'tostring' "$REP1" | grep -q 'FIXTURE-NIF'; then
-  bad "report leaked synthetic fiscal id"
+if jq -r 'tostring' "$REP1" | grep -qE 'FIXTURE-NIF|doc_'; then
+  bad "report leaked fiscal or document id"
 else
-  ok "report omits fiscal identifiers"
+  ok "report omits fiscal/document identifiers"
 fi
 
-# Signal cleanup: live TERM (SIGINT is unreliable on non-interactive bash waits);
-# INT covered by trap registration + EXIT paths.
-# Drop stale kit tmpdirs from prior interrupted runs so leftover counts are meaningful.
-find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" -exec rm -rf {} + 2>/dev/null || true
-cat >"$TMP/term-curl" <<EOF
-#!/usr/bin/env bash
-set -Eeuo pipefail
-if [ ! -f "$TMP/term-sent" ]; then
-  touch "$TMP/term-sent"
-  (
-    sleep 0.2
-    target="\$(cat "$TMP/signal-target-pid" 2>/dev/null || true)"
-    if [ -n "\$target" ]; then kill -TERM "\$target" 2>/dev/null || true; fi
-  ) &
-fi
-sleep 20
-printf '201'
-exit 0
-EOF
-chmod 0700 "$TMP/term-curl"
-: >"$TMP/signal-target-pid"
-BWB_POS_KIT_CURL="$TMP/term-curl" bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1 &
-KIT_PID=$!
-printf '%s' "$KIT_PID" >"$TMP/signal-target-pid"
-waited=0
-while kill -0 "$KIT_PID" 2>/dev/null; do
-  sleep 0.2
-  waited=$((waited + 1))
-  if [ "$waited" -gt 40 ]; then
-    kill -TERM "$KIT_PID" 2>/dev/null || true
-    sleep 0.2
-    kill -KILL "$KIT_PID" 2>/dev/null || true
-    break
-  fi
-done
-wait "$KIT_PID" 2>/dev/null || true
-sleep 0.2
-leftover="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" 2>/dev/null | wc -l | tr -d ' ')"
-if [ "$leftover" = "0" ]; then
-  ok "TERM cleanup removes kit tmpdir"
-else
-  find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" -exec rm -rf {} + 2>/dev/null || true
-  if grep -q "trap 'cleanup; exit 143' TERM" "$KIT"; then
-    ok "TERM trap present (leftover cleaned best-effort leftover=$leftover)"
-  else
-    bad "TERM cleanup failed"
-  fi
-fi
-
-if grep -q "trap cleanup EXIT" "$KIT" \
-  && grep -q "trap 'cleanup; exit 130' INT" "$KIT" \
-  && grep -q "trap 'cleanup; exit 143' TERM" "$KIT"; then
-  ok "cleanup traps registered for EXIT/INT/TERM"
-else
-  bad "missing cleanup traps"
-fi
-
-# INT: invoke kit under a controlling script that forwards INT via kill after start
-cat >"$TMP/int-wrapper.sh" <<EOF
-#!/usr/bin/env bash
-set -Eeuo pipefail
-export BWB_POS_KIT_CURL="$TMP/mock-curl"
-export BWB_MOCK_CURL_LOG="$TMP/curl-int.log"
-export BWB_MOCK_CURL_PASSTHROUGH=0
-: >"\$BWB_MOCK_CURL_LOG"
-bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" &
-child=\$!
-printf '%s' "\$child" >"$TMP/int-child.pid"
-sleep 0.5
-kill -INT "\$child" 2>/dev/null || true
-wait "\$child" 2>/dev/null || true
-EOF
-chmod 0700 "$TMP/int-wrapper.sh"
-# Prefer mock-curl that blocks so INT arrives while kit is mid-request
+# --- INT/TERM: isolated TMPDIR, known kit tmp path, process group, no KILL, no global find ---
 cat >"$TMP/block-curl" <<'EOF'
 #!/usr/bin/env bash
-sleep 15
+set -Eeuo pipefail
+# Block until killed by kit cleanup / process-group signal.
+sleep 120
 printf '201'
 exit 0
 EOF
 chmod 0700 "$TMP/block-curl"
-: >"$TMP/signal-target-pid"
-BWB_POS_KIT_CURL="$TMP/block-curl" bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1 &
-KIT_PID=$!
-printf '%s' "$KIT_PID" >"$TMP/signal-target-pid"
-sleep 0.4
-# Deliver INT to the kit; if bash continues, escalate to TERM then KILL
-kill -INT "$KIT_PID" 2>/dev/null || true
-sleep 0.3
-if kill -0 "$KIT_PID" 2>/dev/null; then
-  # Non-interactive bash may ignore SIGINT during wait — escalate (trap INT still verified above)
-  kill -TERM "$KIT_PID" 2>/dev/null || true
-  sleep 0.2
-  kill -KILL "$KIT_PID" 2>/dev/null || true
-  wait "$KIT_PID" 2>/dev/null || true
-  ok "INT delivered (escalated to TERM/KILL; INT trap line verified)"
-else
-  wait "$KIT_PID" 2>/dev/null || true
-  leftover_int="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" 2>/dev/null | wc -l | tr -d ' ')"
-  if [ "$leftover_int" = "0" ]; then
-    ok "INT cleanup removes kit tmpdir"
-  else
-    find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" -exec rm -rf {} + 2>/dev/null || true
-    ok "INT trap exercised (leftover cleaned best-effort)"
-  fi
-fi
 
-before_err="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" 2>/dev/null | wc -l | tr -d ' ')"
+run_signal_case() {
+  local sig="$1" expect_ec="$2" label="$3"
+  local iso path_file ready_file kit_tmp ec kit_pid
+  iso="$(mktemp -d "$TMP/sig.XXXXXX")"
+  chmod 0700 "$iso"
+  path_file="$iso/kit.tmp.path"
+  ready_file="$iso/kit.ready"
+  : >"$path_file"
+  chmod 0600 "$path_file"
+  rm -f "$ready_file"
+
+  set +e
+  python3 - "$KIT" "$TOKEN" "$BASE" "$iso" "$path_file" "$ready_file" "$TMP/block-curl" "$iso/kit.pid" "$sig" "$expect_ec" <<'PY'
+import os, sys, subprocess, signal, time
+kit, token, base, tmpdir, path_file, ready_file, curl, pid_file, sig_name, expect_s = sys.argv[1:11]
+expect = int(expect_s)
+sig = signal.SIGINT if sig_name == "INT" else signal.SIGTERM
+env = os.environ.copy()
+env["TMPDIR"] = tmpdir
+env["BWB_POS_KIT_TMP_PATH_FILE"] = path_file
+env["BWB_POS_KIT_READY_FILE"] = ready_file
+env["BWB_POS_KIT_CURL"] = curl
+env["BWB_POS_KIT_RATE_COOLDOWN"] = "0"
+env.pop("BWB_MOCK_CURL_PASSTHROUGH", None)
+env.pop("BWB_MOCK_CURL_LOG", None)
+p = subprocess.Popen(
+    ["bash", kit, "--token-file", token, "--allow-loopback-test", base],
+    env=env,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+    preexec_fn=os.setsid,
+)
+with open(pid_file, "w", encoding="utf-8") as f:
+    f.write(str(p.pid))
+deadline = time.time() + 8
+while time.time() < deadline:
+    if os.path.exists(ready_file):
+        break
+    time.sleep(0.05)
+time.sleep(0.1)
+os.kill(p.pid, sig)
+try:
+    rc = p.wait(timeout=8)
+except subprocess.TimeoutExpired:
+    sys.stderr.write("timeout waiting for kit exit\n")
+    try:
+        os.kill(p.pid, signal.SIGTERM)
+        p.wait(timeout=2)
+    except Exception:
+        pass
+    sys.exit(99)
+# Normalize signal-style negative wait codes
+if rc < 0:
+    rc = 128 + (-rc)
+sys.exit(rc)
+PY
+  ec=$?
+  set -e
+  kit_tmp=""
+  if [ -s "$path_file" ]; then
+    kit_tmp="$(tr -d '\r\n' <"$path_file")"
+  fi
+  kit_pid=""
+  if [ -f "$iso/kit.pid" ]; then
+    kit_pid="$(tr -d '\r\n' <"$iso/kit.pid")"
+  fi
+
+  if [ "$ec" -eq 99 ]; then
+    bad "$label: kit did not exit within deadline (KILL forbidden — FAIL)"
+    return 0
+  fi
+  if [ "$ec" -ne "$expect_ec" ]; then
+    bad "$label: expected exit $expect_ec got $ec"
+    return 0
+  fi
+  if [ -z "$kit_tmp" ]; then
+    bad "$label: kit tmp path missing"
+    return 0
+  fi
+  if [ -d "$kit_tmp" ]; then
+    bad "$label: kit tmpdir still exists"
+    return 0
+  fi
+  if [ -n "$kit_pid" ] && kill -0 "$kit_pid" 2>/dev/null; then
+    bad "$label: kit pid still alive"
+    return 0
+  fi
+  ok "$label: exit $ec, tmpdir removed, no KILL"
+}
+
+run_signal_case TERM 143 "TERM cleanup"
+run_signal_case INT 130 "INT cleanup"
+
+# EXIT cleanup on error path — isolated TMPDIR, exact path file
+ISO_ERR="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO_ERR"
+PATH_ERR="$ISO_ERR/kit.tmp.path"
 cat >"$TMP/fail-curl" <<'EOF'
 #!/usr/bin/env bash
 exit 22
 EOF
 chmod 0700 "$TMP/fail-curl"
-BWB_POS_KIT_CURL="$TMP/fail-curl" bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1 || true
-after_err="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" 2>/dev/null | wc -l | tr -d ' ')"
-if [ "$after_err" -le "$before_err" ]; then
-  ok "EXIT cleanup on kit error path"
+set +e
+TMPDIR="$ISO_ERR" BWB_POS_KIT_TMP_PATH_FILE="$PATH_ERR" \
+  BWB_POS_KIT_CURL="$TMP/fail-curl" BWB_POS_KIT_RATE_COOLDOWN=0 \
+  bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1
+set -e
+if [ -s "$PATH_ERR" ]; then
+  err_tmp="$(tr -d '\r\n' <"$PATH_ERR")"
+  if [ -n "$err_tmp" ] && [ ! -d "$err_tmp" ]; then
+    ok "EXIT cleanup on kit error path"
+  else
+    bad "EXIT cleanup left tmpdir"
+  fi
 else
-  find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' -user "$(id -u)" -exec rm -rf {} + 2>/dev/null || true
-  ok "EXIT cleanup check completed"
+  # fail-curl may exit before path publish if deps fail first — still require no dir under ISO_ERR matching kit pattern
+  leftover_err="$(find "$ISO_ERR" -maxdepth 1 -name 'bwb-pos-kit.*' 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "$leftover_err" = "0" ]; then
+    ok "EXIT cleanup on kit error path"
+  else
+    bad "EXIT cleanup left tmpdir under iso"
+  fi
 fi
 
-before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' 2>/dev/null | wc -l | tr -d ' ')"
-BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl5.log" BWB_MOCK_CURL_PASSTHROUGH=0 \
+# Success-path cleanup with exact path
+ISO_OK="$(mktemp -d "$TMP/iso.XXXXXX")"
+chmod 0700 "$ISO_OK"
+PATH_OK="$ISO_OK/kit.tmp.path"
+: >"$TMP/curl5.log"
+TMPDIR="$ISO_OK" BWB_POS_KIT_TMP_PATH_FILE="$PATH_OK" \
+  BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$TMP/curl5.log" BWB_MOCK_CURL_PASSTHROUGH=0 \
+  BWB_POS_KIT_RATE_COOLDOWN=0 \
   bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>&1 || true
-after="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'bwb-pos-kit.*' 2>/dev/null | wc -l | tr -d ' ')"
-if [ "$after" -le "$before" ] || [ "$after" -eq 0 ]; then
-  ok "kit tmpdir cleaned after success path"
+if [ -s "$PATH_OK" ]; then
+  ok_tmp="$(tr -d '\r\n' <"$PATH_OK")"
+  if [ -n "$ok_tmp" ] && [ ! -d "$ok_tmp" ]; then
+    ok "kit tmpdir cleaned after success path"
+  else
+    bad "success path left kit tmpdir"
+  fi
 else
-  ok "kit cleanup check completed (after=$after before=$before)"
+  bad "success path did not publish tmp path"
 fi
 
-# stat portability helpers exist
 if grep -q "stat -f" "$KIT" && grep -q "stat -c" "$KIT"; then
   ok "portable stat -f/-c present"
 else

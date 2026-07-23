@@ -28,5 +28,5 @@ O contacto operacional e o canal seguro de credenciais são fornecidos pela BWB 
 
 ## Autenticação (texto público)
 
-Descrever apenas: **Bearer credential issued by BWB for the sandbox**.  
+Descrever apenas: **Bearer credential issued by BWB for the sandbox**.
 Detalhes de implementação interna do validador permanecem na documentação operacional.

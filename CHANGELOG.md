@@ -3,6 +3,7 @@
 ## 0.2.14-draft — 2026-07-23
 
 - S4 (repo only): kit e documentação de integração POS/software houses — quickstart, contrato, onboarding, checklist, publicação; OpenAPI `0.1.6-draft` (429 sem Problem/`Retry-After` garantidos; auth pública “Bearer credential issued by BWB for the sandbox”); `scripts/integration/pos-sandbox-kit.sh` com token fora de argv, URL sandbox exacta, fixtures sintéticas por run CSPRNG, testes mock HTTP+curl na CI. Sem SSH/deploy/runtime/Nginx/BD; sandbox real fica para validação operacional pós-merge.
+- S4 hardening (Draft PR): validação semântica de respostas; rate_429 com exit/http_code separados; token Base64URL exacto com limite de leitura; env de teste só com loopback; harness INT/TERM com TMPDIR isolado (sem KILL/find global); guard OpenAPI 429 via bundle Redocly+jq; `git diff --check` sem mascarar falhas.
 
 ## 0.2.13-draft — 2026-07-23
 

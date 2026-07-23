@@ -1,6 +1,6 @@
 # Checklist de aceitação — integração POS
 
-Usar com o kit `scripts/integration/pos-sandbox-kit.sh` e o OpenAPI `0.1.6-draft`.  
+Usar com o kit `scripts/integration/pos-sandbox-kit.sh` e o OpenAPI `0.1.6-draft`.
 `sealed_locally` **não** certifica emissão AGT.
 
 ## Segurança

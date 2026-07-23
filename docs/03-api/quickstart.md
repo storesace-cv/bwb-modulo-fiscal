@@ -1,6 +1,6 @@
 # Início rápido — integração POS (sandbox)
 
-Contrato: OpenAPI `0.1.6-draft` (`specs/openapi/openapi.yaml`).  
+Contrato: OpenAPI `0.1.6-draft` (`specs/openapi/openapi.yaml`).
 Sandbox: `https://sandbox.fiscalmod.bwb.pt/v1` (host confirmado S3C2; não é produção).
 
 **Isto não é emissão fiscal perante a AGT.** Um `201` com `status: sealed_locally` significa apenas selagem local no módulo. Não existe `fiscal_number` nem `authority_request_id` neste draft.
