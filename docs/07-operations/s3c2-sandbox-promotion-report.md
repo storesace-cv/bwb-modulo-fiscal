@@ -1,17 +1,17 @@
 # Relatório S3C2 — promoção controlada sandbox (Ubuntu)
 
-**Data (UTC):** 2026-07-23 (preflight ~11:51Z → cleanup ~12:03Z)
-**Squash / release alvo:** `11c58841dea76de4c252457151ff4fd2d0ae741d`
+**Data (UTC):** 2026-07-23 (preflight ~11:51Z → cleanup ~12:03Z; reteste timer ~12:49Z; promoção final ~13:15Z)
+**Squash / release actual:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
 **Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`
-**Resultado da promoção:** **ROLLED_BACK** (não CONFIRMADA)
+**Resultado da promoção:** **CONFIRMED** (após ROLLED_BACK inicial + reteste timer APPROVED)
 
 Este relatório **não** contém passwords, tokens, DSN, hashes, NIF nem corpos de pedido/resposta.
 
 ## Veredicto
 
-A promoção pública **não** foi confirmada. O gate do timer real falhou: o serviço de rollback disparou, mas o probe HTTP pós-deny devolveu `401` em vez de `403`, o unit falhou e o `state` ficou `armed` até remediação manual com `nginx-deny-all`. Protocolo de falha aplicado: deny-all comprovado (`403`), **sem** `nginx-open-confirm`.
+A primeira tentativa de promoção falhou no gate do timer (I1) e ficou **ROLLED_BACK** sem confirm. Após o fix em PR #17 e o reteste real do timer (**TIMER_ROLLBACK_APPROVED**), a promoção final nesta sessão concluiu **CONFIRMED**: open autenticado em `/v1/documents`, timer cancelado/disabled, cleanup da credencial efémera concluído.
 
-O teste de **boot recovery** passou. Cleanup (revogação + remoção de tokens S3C2) concluído. Postura final do host: fechada.
+O incidente I1 e o reteste aprovado permanecem documentados abaixo como histórico.
 
 ## Âmbito executado
 
@@ -162,7 +162,7 @@ O primeiro `systemctl reboot` após o arm foi cortado (SIGPIPE/SSH); reboot efec
 | confirm | **não** executado |
 | rate-limit 429 / NIF 403 / TLS externo completo pós-confirm | **não** executados (promoção abortada) |
 
-## Estado final do host
+## Estado final do host (após promoção inicial 2026-07-23 ~12:03Z)
 
 - **Promoção:** `ROLLED_BACK` (não `CONFIRMED`)
 - **Nginx open state:** `boot_recovered`
@@ -171,8 +171,142 @@ O primeiro `systemctl reboot` após o arm foi cortado (SIGPIPE/SSH); reboot efec
 - **Serviços:** nginx / postgresql / bwb-fiscal-api active
 - **Timer:** inactive; sem exposição residual open
 
-## Próximos passos (fora deste commit)
+## Reteste timer pós-fix (2026-07-23)
 
-1. Corrigir probe/fail-closed de `nginx-open-rollback-fire` / `op_nginx_deny_all`.
-2. Re-executar promoção S3C2 só após fix + testes de regressão do timer.
-3. Não abrir/confirm em produção/sandbox até o rollback automático estar comprovado.
+**Resultado:** **TIMER_ROLLBACK_APPROVED**
+**Release:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815` (squash merge PR #17)
+**Confirm / promoção final:** ver secção seguinte (executada após autorização).
+
+### Preflight e deploy fechado
+
+| Item | Valor |
+|---|---|
+| Preflight release | `11c5884…`; documents=403; health ok; schema `3`/`dirty=false`; serviços active; timer inactive; `:18080` ABSENT |
+| Backup bundle | `/root/bwb-s3c2-timer-retest-preflight-20260723T124837Z` (0600; PG dump `pg_restore -l` ok) |
+| Env backup-id | `20260723T124837Z-10141af3…` |
+| Deploy | `update-staging.sh` → promote ok; helper/sudoers/units/drop-in sincronizados; `visudo -cf`, `systemd-analyze verify`, `daemon-reload`, `nginx -t` OK |
+| Pós-deploy | `current-sha=COMMIT=health.revision=10141af3…`; schema 3/dirty=false; documents local+ext=403; deny-all; timer inactive |
+
+### Arm → espera real 5 min → rollback
+
+| Evento | UTC |
+|---|---|
+| `nginx-open-arm` | 2026-07-23T12:49:41Z |
+| Timer NEXT | 2026-07-23T12:54:42Z |
+| Rollback fire / state | 2026-07-23T12:54:43Z |
+
+| Gate | Resultado |
+|---|---|
+| `state` após arm | `armed`; timer **active**; Nginx active; documents sem token=**401**; `:18080` ABSENT |
+| `nginx-open-confirm` | **não** executado |
+| Unit rollback | `Result=success` (Finished / Deactivated successfully) |
+| `state` final | **`rolled_back`** (nunca `armed`) |
+| Timer final | inactive |
+| `/v1/documents` local | **403** |
+| `/v1/documents` externo | **403** |
+| Nginx | active (sem emergency stop) |
+| Probe (journal, só códigos) | `attempt=1 code=401` → `attempt=2 code=403`; `attempts=2 codes=401,403 result=ok` |
+| `nginx_deny_all_ok` / `rollback_fire=ok` | sim |
+| Emergência | nenhuma (`emergency_*=0`) |
+
+### Estado do host após reteste
+
+- Release: `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
+- `state=rolled_back`; site deny-all; documents 403; timer inactive; serviços active; `:18080` ABSENT
+- Promoção pública continua **não confirmada**
+
+### Incidentes neste reteste
+
+Nenhum incidente crítico. O retry 401→403 comportou-se como desenhado (I1 corrigido).
+
+## Promoção final (2026-07-23)
+
+**Resultado:** **CONFIRMED**
+**Release (sem novo deploy):** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
+**Pré-condição:** `state=rolled_back`, documents=403, timer inactive, schema 3/`dirty=false`, serviços active, `:18080` ABSENT
+
+### Credencial efémera
+
+| Tipo | ID |
+|---|---|
+| Scope | `s3c2-final-20260723T131241Z` |
+| Credencial (revogada no cleanup) | `753e82f4c4a04c24377911cce969cc5d` |
+| Motivo revogação | `s3c2_final_promotion_cleanup` |
+| Token | apenas no host, `0600`, nunca copiado para o Mac / logs |
+
+Documentos e auditoria sintéticos: **preservados**.
+
+### Timestamps (UTC)
+
+| Evento | Hora |
+|---|---|
+| Arm | 2026-07-23T13:13:02Z (timer NEXT 13:18:03Z) |
+| Host gates (+ rate + cooldown) | ~13:13:19Z → 13:14:28Z |
+| External gates (Mac) | ~13:14:48Z |
+| `nginx-open-confirm` | 2026-07-23T13:14:48Z |
+| Cleanup revoke | ~13:15Z |
+
+### Gates no host (após arm)
+
+| Gate | Resultado |
+|---|---|
+| Config open | exact `location = /v1/documents`, HSTS, ACME, `rate=10r/s`, `burst=20`; `:18080` ABSENT |
+| health | 200 + revision `10141af3…` |
+| sem token | 401 |
+| token inválido | 401 |
+| create (token efémero) | 201 |
+| replay | 201, payload estável idêntico |
+| NIF incompatível | 403 + `FISCAL_SCOPE_MISMATCH` |
+| rate-limit (30 concorrentes) | `201=25`, `429=5`, `5xx=0` |
+| cooldown ≥5s | ok; pós-cooldown health=200, sem token=401 |
+
+### Gates externos (Mac; sem token válido)
+
+| Gate | Resultado |
+|---|---|
+| DNS | `sandbox.fiscalmod.bwb.pt` → `194.9.62.239` |
+| TLS | válido (verify ok) |
+| HSTS | `max-age=31536000` |
+| health | 200 + revision correcta |
+| sem token / token inválido | 401 / 401 |
+| portas 5432 / 8080 / 18080 | fechadas |
+
+### Confirm
+
+| Item | Valor |
+|---|---|
+| `nginx-open-confirm` | ok |
+| `state` | **`confirmed`** |
+| Timer | inactive + **disabled** |
+| Rollback-fire tardio | `noop reason=state_confirmed` |
+| Nginx | active |
+| `/v1/documents` sem token | **401** (não 403) |
+| health | 200 |
+
+### Cleanup
+
+| Acção | Resultado |
+|---|---|
+| Revoke | `status=revoked` |
+| Prova token revogado | 401 (`token_revoked_401`) |
+| Remoção tokens/meta S3C2 final | ok (`*s3c2-final*` = 0) |
+| Segredos em outputs | omitidos |
+
+### Estado final do host
+
+- **Promoção:** **CONFIRMED**
+- **Nginx open state:** `confirmed`
+- **Público `/v1/documents`:** aberto com autenticação (sem token → 401)
+- **Release:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
+- **Serviços:** nginx / postgresql / bwb-fiscal-api active
+- **Timer:** inactive + disabled; `:18080` ABSENT
+
+### Incidentes nesta promoção final
+
+Nenhum incidente crítico. Nota operacional: o primeiro SSH com heredoc aninhado para rate-limit terminou em SIGPIPE; gates reexecutados via script SCP dentro da mesma janela armed (ainda com ~4 min restantes). Rate sequencial inicial não gerou 429; burst paralelo de 30 pedidos obteve 5×429 sem 5xx.
+
+## Próximos passos
+
+1. ~~Corrigir probe/fail-closed~~ — PR #17; reteste timer **APPROVED**.
+2. ~~Promoção final + confirm~~ — **CONFIRMED** em `10141af3…`.
+3. Manter monitorização operacional; não alterar deny/open sem autorização.
