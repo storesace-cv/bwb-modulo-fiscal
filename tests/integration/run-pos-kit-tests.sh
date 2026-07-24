@@ -815,36 +815,102 @@ else
   fi
 fi
 
-# --- readiness timeout when one worker stalls ---
+# --- readiness timeout when one worker stalls (setsid; no SIGKILL on PASS) ---
 curl -sS -o /dev/null "http://127.0.0.1:${PORT}/__reset" || true
 ISO_STALL="$(mktemp -d "$TMP/iso.XXXXXX")"
 chmod 0700 "$ISO_STALL"
 PATH_STALL="$ISO_STALL/kit.tmp.path"
 set +e
-TMPDIR="$ISO_STALL" BWB_POS_KIT_TMP_PATH_FILE="$PATH_STALL" \
-  BWB_POS_KIT_CURL="$TMP/mock-curl" BWB_MOCK_CURL_LOG="$ISO_STALL/curl.log" BWB_MOCK_CURL_PASSTHROUGH=1 \
-  BWB_POS_KIT_RATE_COOLDOWN=0 \
-  BWB_POS_KIT_RATE_READY_TIMEOUT=2 \
-  BWB_POS_KIT_RATE_STALL_WORKER=7 \
-  bash "$KIT" --token-file "$TOKEN" --allow-loopback-test "$BASE" >/dev/null 2>"$ISO_STALL/err"
+python3 - "$KIT" "$TOKEN" "$BASE" "$ISO_STALL" "$PATH_STALL" "$TMP/mock-curl" <<'PY'
+import os, sys, subprocess, signal, time
+
+kit, token, base, tmpdir, path_file, curl = sys.argv[1:7]
+env = os.environ.copy()
+env["TMPDIR"] = tmpdir
+env["BWB_POS_KIT_TMP_PATH_FILE"] = path_file
+env["BWB_POS_KIT_CURL"] = curl
+env["BWB_POS_KIT_RATE_COOLDOWN"] = "0"
+env["BWB_MOCK_CURL_PASSTHROUGH"] = "1"
+env["BWB_MOCK_CURL_LOG"] = os.path.join(tmpdir, "curl.log")
+env["BWB_POS_KIT_RATE_READY_TIMEOUT"] = "2"
+env["BWB_POS_KIT_RATE_STALL_WORKER"] = "7"
+
+def pg_members(leader_pid):
+    """PIDs in process group still alive (excluding nothing — includes leader if alive)."""
+    alive = []
+    try:
+        out = subprocess.check_output(["ps", "-ax", "-o", "pid=,pgid="], text=True)
+    except Exception:
+        return alive
+    for line in out.splitlines():
+        parts = line.strip().split()
+        if len(parts) < 2:
+            continue
+        try:
+            pid, pgid = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        if pgid == leader_pid:
+            alive.append(pid)
+    return alive
+
+def force_kill_group(leader_pid):
+    try:
+        os.killpg(leader_pid, signal.SIGKILL)
+    except Exception:
+        pass
+
+p = subprocess.Popen(
+    ["bash", kit, "--token-file", token, "--allow-loopback-test", base],
+    env=env,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+    preexec_fn=os.setsid,
+)
+try:
+    rc = p.wait(timeout=30)
+except subprocess.TimeoutExpired:
+    force_kill_group(p.pid)
+    sys.stderr.write("readiness timeout test: kit hung\n")
+    sys.exit(99)
+if rc < 0:
+    rc = 128 + (-rc)
+if rc == 0:
+    force_kill_group(p.pid)
+    sys.stderr.write("readiness timeout should fail the kit\n")
+    sys.exit(96)
+
+# Short margin only — then check; SIGKILL only after FAIL detection.
+time.sleep(0.25)
+members = pg_members(p.pid)
+if members:
+    force_kill_group(p.pid)
+    sys.stderr.write("readiness timeout left process group members: %s\n" % ",".join(map(str, members)))
+    sys.exit(98)
+
+kit_tmp = ""
+if os.path.exists(path_file) and os.path.getsize(path_file) > 0:
+    with open(path_file, encoding="utf-8") as f:
+        kit_tmp = f.read().strip()
+if kit_tmp and os.path.isdir(kit_tmp):
+    sys.stderr.write("readiness timeout left tmpdir\n")
+    sys.exit(97)
+# PASS path: no SIGKILL was used after a clean group.
+sys.exit(0)
+PY
 stall_ec=$?
 set -e
-if [ "$stall_ec" -ne 0 ]; then
-  if [ -s "$PATH_STALL" ]; then
-    stall_tmp="$(tr -d '\r\n' <"$PATH_STALL")"
-    if [ -n "$stall_tmp" ] && [ ! -d "$stall_tmp" ]; then
-      ok "readiness timeout cleans tmpdir (worker stall)"
-    else
-      bad "readiness timeout left tmpdir"
-    fi
-  else
-    ok "readiness timeout failed closed"
-  fi
-else
-  bad "readiness timeout should fail the kit"
-fi
+case "$stall_ec" in
+  0) ok "readiness timeout: kit failed, tmpdir gone, no residual process group (no SIGKILL on PASS)" ;;
+  96) bad "readiness timeout should fail the kit" ;;
+  97) bad "readiness timeout left tmpdir" ;;
+  98) bad "readiness timeout left residual process group / stalled worker" ;;
+  99) bad "readiness timeout test hung (SIGKILL after timeout FAIL)" ;;
+  *) bad "readiness timeout unexpected exit $stall_ec" ;;
+esac
 
 # --- INT/TERM while waiting for before-gate / after-gate hold (process group) ---
+# PASS path must NEVER SIGKILL. SIGKILL only after timeout FAIL or residual FAIL (+ cleanup).
 run_rate_signal() {
   local sig="$1" expect_ec="$2" label="$3" hold_kind="$4"
   local iso path_file hold_file
@@ -857,6 +923,7 @@ run_rate_signal() {
   set +e
   python3 - "$KIT" "$TOKEN" "$BASE" "$iso" "$path_file" "$hold_file" "$TMP/mock-curl" "$sig" "$expect_ec" "$hold_kind" <<'PY'
 import os, sys, subprocess, signal, time
+
 kit, token, base, tmpdir, path_file, hold_file, curl, sig_name, expect_s, hold_kind = sys.argv[1:11]
 expect = int(expect_s)
 sig = signal.SIGINT if sig_name == "INT" else signal.SIGTERM
@@ -873,6 +940,32 @@ if hold_kind == "before":
 else:
     env["BWB_POS_KIT_RATE_HOLD_AFTER_GATE"] = hold_file
     env.pop("BWB_POS_KIT_RATE_HOLD_BEFORE_GATE", None)
+
+def pg_members(leader_pid):
+    alive = []
+    try:
+        out = subprocess.check_output(["ps", "-ax", "-o", "pid=,pgid="], text=True)
+    except Exception:
+        return alive
+    for line in out.splitlines():
+        parts = line.strip().split()
+        if len(parts) < 2:
+            continue
+        try:
+            pid, pgid = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        if pgid == leader_pid:
+            alive.append(pid)
+    return alive
+
+def force_kill_group(leader_pid):
+    """Harness cleanup after a FAILED assertion only — never on PASS."""
+    try:
+        os.killpg(leader_pid, signal.SIGKILL)
+    except Exception:
+        pass
+
 p = subprocess.Popen(
     ["bash", kit, "--token-file", token, "--allow-loopback-test", base],
     env=env,
@@ -893,48 +986,30 @@ while time.time() < deadline:
                 break
     time.sleep(0.05)
 else:
-    try:
-        os.killpg(p.pid, signal.SIGKILL)
-    except Exception:
-        pass
-    sys.stderr.write("timeout waiting for hold point\n")
+    force_kill_group(p.pid)
+    sys.stderr.write("timeout waiting for hold point (SIGKILL after FAIL)\n")
     sys.exit(99)
+
 time.sleep(0.15)
 os.kill(p.pid, sig)
 try:
     rc = p.wait(timeout=8)
 except subprocess.TimeoutExpired:
-    try:
-        os.killpg(p.pid, signal.SIGKILL)
-    except Exception:
-        pass
-    sys.stderr.write("timeout waiting for kit exit after signal\n")
+    force_kill_group(p.pid)
+    sys.stderr.write("timeout waiting for kit exit after signal (SIGKILL after FAIL)\n")
     sys.exit(99)
 if rc < 0:
     rc = 128 + (-rc)
-# Reap any leftover process-group members (TERM path can race with sleep loops).
-try:
-    os.killpg(p.pid, signal.SIGKILL)
-except Exception:
-    pass
+
+# Short limited margin, then CHECK before any SIGKILL.
 time.sleep(0.25)
-alive = []
-try:
-    out = subprocess.check_output(["ps", "-ax", "-o", "pid=,pgid=,command="], text=True)
-    for line in out.splitlines():
-        parts = line.strip().split(None, 2)
-        if len(parts) < 2:
-            continue
-        try:
-            if int(parts[1]) == p.pid and int(parts[0]) != p.pid:
-                alive.append(parts[0])
-        except ValueError:
-            continue
-except Exception:
-    pass
-if alive:
-    sys.stderr.write("descendants still alive\n")
+members = pg_members(p.pid)
+if members:
+    force_kill_group(p.pid)
+    sys.stderr.write("descendants still alive: %s (SIGKILL after FAIL)\n" % ",".join(map(str, members)))
     sys.exit(98)
+
+# PASS path: process group empty — do NOT SIGKILL.
 if kit_tmp and os.path.isdir(kit_tmp):
     sys.stderr.write("tmpdir remains\n")
     sys.exit(97)
@@ -946,11 +1021,11 @@ PY
   ec=$?
   set -e
   if [ "$ec" -eq 99 ]; then
-    bad "$label: timeout"
+    bad "$label: timeout (SIGKILL only after FAIL)"
     return 0
   fi
   if [ "$ec" -eq 98 ]; then
-    bad "$label: descendants alive"
+    bad "$label: descendants alive (SIGKILL only after FAIL)"
     return 0
   fi
   if [ "$ec" -eq 97 ]; then
@@ -961,7 +1036,7 @@ PY
     bad "$label: expected exit $expect_ec got $ec"
     return 0
   fi
-  ok "$label: exit $ec, tmpdir removed"
+  ok "$label: exit $ec, tmpdir removed, no residuals, PASS path without SIGKILL"
 }
 
 run_rate_signal INT 130 "INT during before-gate hold" before

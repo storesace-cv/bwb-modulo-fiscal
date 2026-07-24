@@ -646,9 +646,9 @@ while [ "$i" -le "$RATE_N" ]; do
   ready="$RATE_READY_DIR/$i"
   (
     # Stall one worker before ready (harness only) to prove readiness timeout.
+    # exec so the tracked CHILD_PID is the blocked sleep itself (no orphaned sleep child).
     if [ -n "${BWB_POS_KIT_RATE_STALL_WORKER:-}" ] && [ "${BWB_POS_KIT_RATE_STALL_WORKER}" = "$i" ]; then
-      sleep 120
-      exit 1
+      exec sleep 120
     fi
     : >"$ready"
     while [ ! -f "$RATE_GATE" ]; do
