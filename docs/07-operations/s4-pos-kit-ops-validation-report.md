@@ -1,8 +1,8 @@
 # Relatório S4 — validação operacional do kit POS (sandbox)
 
-**Última actualização (UTC):** 2026-07-24T16:21Z (revalidação + cleanup)  
-**Resultado S4 ops (cumulativo):** **APROVADO** na corrida 2 (após deploy `5d7c14b…`); corrida 1 permanece documentada como **REPROVADO**.  
-**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`  
+**Última actualização (UTC):** 2026-07-24T16:25Z (rastreabilidade ops + backup pós-deploy)
+**Resultado S4 ops (cumulativo):** **APROVADO** na corrida 2 (após deploy `5d7c14b…`); corrida 1 permanece documentada como **REPROVADO**.
+**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`
 **URL canónica:** `https://sandbox.fiscalmod.bwb.pt/v1`
 
 Este relatório **não** contém passwords, tokens, DSN, NIF, hashes de conteúdo, IDs de documentos fiscais, IDs externos de integrador, corpos de pedido/resposta nem correladores internos do kit.
@@ -13,9 +13,9 @@ Documento **cumulativo**: a corrida 1 (falha) não é apagada; a corrida 2 regis
 
 ## Corrida 1 — 2026-07-23 (REPROVADO)
 
-**Data (UTC):** 2026-07-23T15:09Z (kit); cleanup 2026-07-23T15:10Z  
-**Repo `main` (kit/docs):** `2f0339a31a17da08a31226e0e7f84cd61e76e31d`  
-**Release activa no host:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`  
+**Data (UTC):** 2026-07-23T15:09Z (kit); cleanup 2026-07-23T15:10Z
+**Repo `main` (kit/docs):** `2f0339a31a17da08a31226e0e7f84cd61e76e31d`
+**Release activa no host:** `10141af3cdd9cda16cfef46bbe5a4f0c9e522815`
 **Resultado:** **REPROVADO** (`rate_429` FAIL; restantes PASS)
 
 ### Âmbito executado
@@ -120,34 +120,72 @@ Branch local de preservação da corrida 1: `ops/s4-pos-kit-ops-validation-repor
 
 ## Corrida 2 — 2026-07-24 (APROVADO)
 
-**Data (UTC):** deploy ~16:18Z; kit 16:20:50Z–16:20:59Z; cleanup ~16:21Z  
-**Repo `main` (kit + admin):** `5d7c14b01af1f4855a41ee2b4f251af96dd5b726`  
-**Release activa no host (após deploy):** `5d7c14b01af1f4855a41ee2b4f251af96dd5b726`  
+**Data (UTC):** deploy ~16:18Z; kit 16:20:50Z–16:20:59Z; cleanup ~16:21Z
+**Repo `main` (kit + admin):** `5d7c14b01af1f4855a41ee2b4f251af96dd5b726`
+**Release activa no host (após deploy):** `5d7c14b01af1f4855a41ee2b4f251af96dd5b726`
 **Resultado:** **APROVADO** (9/9 PASS, incluindo `rate_429`)
 
 ### Pré-requisito de deploy (sudoers)
 
 O `update-staging.sh` via `bwb-deploy` falhou inicialmente com `sudo: a password is required`. Em `/etc/sudoers.d/bwb-fiscal-deploy` estava o placeholder literal `DEPLOY_USER` (User_Alias indefinido) em vez de `bwb-deploy`.
 
-Correcção no host (via `ubuntu`, backup prévio, `visudo -cf` OK, modo `0440`):
+Correcção no host (via `ubuntu`, backup do fragmento em `/var/backups/bwb-fiscal/sudoers-bwb-fiscal-deploy.bak.20260724T161802Z`, `visudo -cf` OK, modo `0440`):
 
 ```text
 bwb-deploy ALL=(root) NOPASSWD: /usr/local/sbin/bwb-fiscal-deploy-helper
 ```
 
-Sem alargar o sudoers a outros binários. Após a correcção, `update-staging.sh` concluiu com `report done`.
+Sem alargar o sudoers a outros binários. Após a correcção, `update-staging.sh` concluiu com `report done`. O fragmento versionado no repositório foi alinhado na mesma regra canónica (sem placeholder).
 
 ### Deploy controlado
 
 | Item | Valor |
 |---|---|
-| Previous release | `10141af3cdd9cda16cfef46bbe5a4f0c9e522815` |
+| Previous release | `10141af3cdd9cda16cfef46bbe5a4f0c9e522815` (ainda em `/opt/bwb-modulo-fiscal/releases/…`) |
 | Active release | `5d7c14b01af1f4855a41ee2b4f251af96dd5b726` |
 | Schema before/after | `3` / `3` (dirty=false; sem migração) |
 | `health.revision` | `5d7c14b01af1f4855a41ee2b4f251af96dd5b726` |
 | Nginx documentos | inalterado: `rate=10r/s`, `burst=20` |
 
 Motivo do deploy antes da revalidação: provar também o `fiscal-admin --output-file` sem newline; kit novo contra host antigo voltaria a exigir o contorno do LF e deixaria metade da correcção sem prova.
+
+### Backups (evidência verificada por SSH)
+
+#### Presentes no momento do deploy (corrida 2)
+
+| Artefacto | Path / id | Owner/modo | Notas |
+|---|---|---|---|
+| Env backup (helper/updater) | id `20260724T161817Z-5d7c14b01af1f4855a41ee2b4f251af96dd5b726` sob `/etc/bwb-modulo-fiscal/backups/` (`fiscal.env.*`, `migrate.env.*`, `admin.env.*`, `meta.*`) | `root:root` `0600` | Criado pelo fluxo `update-staging` antes de instalar envs da nova release; meta regista presença de fiscal/migrate/admin |
+| Release anterior | `/opt/bwb-modulo-fiscal/releases/10141af3cdd9cda16cfef46bbe5a4f0c9e522815` | root | `COMMIT` = previous; `report previous_release=…` no updater |
+| Backup sudoers (pré-correcção) | `/var/backups/bwb-fiscal/sudoers-bwb-fiscal-deploy.bak.20260724T161802Z` | `root:root` `0440` | Fragmento com placeholder, fora de releases |
+
+#### Ausente (não inventado)
+
+- **Não** existe `pg_dump` pré-deploy datado de 2026-07-24 / associado à corrida 2.
+- Sem dump pré-deploy, **não** há validação de restore pré-deploy a reportar.
+
+#### INC-S4-003 — `pg_dump` pré-deploy omitido
+
+| Campo | Valor |
+|---|---|
+| Severidade | Média (rastreabilidade / recuperação pontual) |
+| Causa | Deploy da corrida 2 executou backup de envs do helper, mas **não** criou `pg_dump` dedicado pré-promote |
+| Impacto | Impossível restaurar exactamente o estado PG imediatamente anterior ao promote `5d7c14b…` a partir de um dump dessa janela |
+| Impossibilidade | Um backup **pré-deploy** **não** pode ser recriado retroactivamente após o promote e a corrida do kit |
+| Mitigação nesta sessão | Dump **pós-deploy** criado e validado (ver abaixo); **não** rotulado como pré-deploy |
+| Estado | Aberto (mitigado parcialmente) |
+| Risco residual | Rollback PG ao instante pré-`5d7c14b` depende de dumps anteriores (ex. S3C1) ou de N-1 de release/envs; gap de evidência pré-promote PG permanece |
+
+#### Backup pós-deploy (criado nesta sessão de rastreabilidade)
+
+| Campo | Valor |
+|---|---|
+| Path | `/var/backups/bwb-fiscal/fiscal-s4-post-deploy-20260724T162517Z-5d7c14b.dump` |
+| Formato | `pg_dump -Fc` |
+| Owner/modo | `root:root` `0600` |
+| Localização | `/var/backups/bwb-fiscal/` (fora de `/opt/.../releases`) |
+| Validação | `pg_restore` em BD temporária `fiscal_s4_post_restore_smoke` → schema `3`, dirty `false`; BD temporária **removida** após smoke |
+| Rotulagem | **pós-deploy** — não é evidência pré-deploy |
 
 ### Âmbito executado (corrida 2)
 
@@ -156,6 +194,7 @@ Motivo do deploy antes da revalidação: provar também o `fiscal-admin --output
 - Credencial A: ficheiro **bruto** do admin = **52 bytes**, `raw_has_lf=0`, `raw_has_cr=0` (sem strip); SCP 0600; revogada → 401.
 - Credencial B: igual prova de 52 bytes raw; kit local sem `--allow-loopback-test` / sem `BWB_POS_KIT_*`.
 - Cleanup: B revogada → 401; tokens/xfer eliminados; scope + auditoria preservados; health 200; portas externas fechadas.
+- Nesta etapa de lacunas: **sem** novo deploy e **sem** nova execução do kit.
 
 ### Casos do kit (sanitizados) — corrida 2
 
@@ -212,12 +251,13 @@ Nota de domínio observada na emissão: `Issue` permite no máximo **uma** crede
 | Health pós-cleanup | 200; revision `5d7c14b…` |
 | Externo 5432 / 8080 / 18080 | closed/timeout |
 
-### Estado dos incidentes após corrida 2
+### Estado dos incidentes após corrida 2 + rastreabilidade
 
 | ID | Estado | Evidência |
 |---|---|---|
 | INC-S4-001 | **Fechado** | `rate_429` PASS: 8×429, 22×201, collected=30, 0×5xx/transporte; Nginx inalterado |
 | INC-S4-002 | **Fechado** | `fiscal-admin --output-file` na release `5d7c14b…` grava 52 bytes sem CR/LF; kit aceita ficheiro bruto |
+| INC-S4-003 | **Aberto (mitigado)** | `pg_dump` pré-deploy omitido; dump pós-deploy validado em 2026-07-24T16:25Z |
 
 ### Decisões (corrida 2)
 
@@ -225,3 +265,29 @@ Nota de domínio observada na emissão: `Issue` permite no máximo **uma** crede
 2. Nginx `10r/s`/`burst=20` **não** alterado.
 3. Relatório actualizado cumulativamente nesta branch; **sem** push/PR até revisão humana.
 4. Scope `scope-s4-val-001` mantido activo para rastreio.
+
+---
+
+## Estado final do sandbox (verificação pontual pós-corrida 2)
+
+| Item | Valor |
+|---|---|
+| `current` / `current-sha` | `5d7c14b01af1f4855a41ee2b4f251af96dd5b726` |
+| `health.revision` (HTTPS + loopback) | `5d7c14b01af1f4855a41ee2b4f251af96dd5b726` |
+| Schema | `3`, dirty=`false` |
+| Nginx state | confirmed (`rate=10r/s`, `burst=20` em `bwb-limit-req-documents`; site TLS activo) |
+| Timer open-confirm | inactive / disabled (ausente ou não enabled) |
+| POST `/v1/documents` sem token | 401 |
+| Health interno `127.0.0.1:8080` | 200 / `status=ok` |
+| Health HTTPS | 200 / `status=ok` |
+| Listener `:18080` | ausente |
+| Externas 5432 / 8080 / 18080 | closed/timeout |
+| `bwb-fiscal-api` | active (enabled) |
+| `nginx` | active |
+| `postgresql@16-main` | active |
+| Scope `scope-s4-val-001` | activo (sintético preservado) |
+| Credenciais do scope | todas revogadas |
+| Tokens temporários S4 | eliminados |
+| Nginx limit | `10r/s` + `burst=20` inalterados |
+| Novo deploy nesta etapa de lacunas | **não** |
+| Nova execução do kit nesta etapa | **não** |
