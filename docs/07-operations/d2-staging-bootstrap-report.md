@@ -120,19 +120,20 @@ Este relatório **não** contém passwords, tokens, chaves privadas nem DSN.
 
 ### Estado do incidente
 
-**Mitigado.** Causa = UFW LIMIT + ausência de multiplexing no cliente. O reboot **não** foi a correção. Fail2ban e MaxStartups **não** foram responsáveis.
+**Histórico D2:** classificado como *Mitigado* com UFW LIMIT **mantido** + multiplexing no cliente.
+**Addendum 2026-07-23:** manter LIMIT foi inadequado para administração real. Remediação definitiva em `docs/07-operations/ssh-ufw-limit-remediation-report.md`: LIMIT removido → ALLOW 22; root por chave (`prohibit-password`); password SSH off; Fail2ban mantido. Estado actual: **RESOLVIDO**.
 
-### Riscos residuais
+### Riscos residuais (actualizados 2026-07-23)
 
-- Clientes **não multiplexados** com ≥6 novas TCP/22 em 30s podem ser rejeitados — comportamento **intencional** do UFW LIMIT, **não** falha do servidor SSH.
+- UFW LIMIT SSH **já não** rejeita rajadas legítimas; brute-force mitigado por chave-only + Fail2ban.
 - `MaxSessions 2` limita mux paralelo; o updater é sequencial (OK).
-- Agent SSH com várias chaves sem `IdentitiesOnly` gera `Failed publickey` extra; o deploy path força `IdentitiesOnly=yes`.
+- Agent SSH com várias chaves sem `IdentitiesOnly` pode gerar `Too many authentication failures`; o deploy path e o snippet `scripts/deploy/ssh-config.snippet` forçam `IdentitiesOnly=yes`.
 
 ## Incidentes
 
 | Severidade | Fase | Causa | Impacto | Resolução | Estado | Risco residual |
 |---|---|---|---|---|---|---|
-| Alta | D2 remoto | UFW LIMIT (6 NEW TCP/22 / 30s → REJECT) + ausência de multiplexing no updater/agente | `Connection refused`; bootstrap/deploy interrompidos | ControlMaster/ControlPersist no cliente; retries só transporte; limpeza ignoreip dinâmico/MaxStartups sem métrica; UFW LIMIT e Fail2ban mantidos | Mitigado | Clientes não multiplexados com ≥6 NEW/30s são rejeitados (LIMIT intencional, não falha do servidor) |
+| Alta | D2 remoto → remediação 2026-07-23 | UFW LIMIT (6 NEW TCP/22 / 30s → REJECT); multiplex só mitigava o updater | `Connection refused` em ligações independentes | Removido LIMIT → ALLOW 22; sshd root por chave; Fail2ban mantido; ver relatório SSH remediação | **RESOLVIDO** | Brute-force: chave-only + Fail2ban (não LIMIT) |
 | Média | D2 TLS | Renew dry-run ACME falhou porque redirect HTTP→HTTPS interceptava challenge | Bloqueava HSTS | Redirect envolvido em `location /`; challenge em `^~ /.well-known` | Resolvido | Overlay Nginx no host diverge ligeiramente do template versionado (challenge) |
 | Info | D2 acesso | Chave dedicada `bwb_fiscal_staging_ed25519` criada localmente mas acesso operacional usa `~/.ssh/digitalocean` | Confusão potencial de chaves | Documentado: chave operativa = digitalocean | Aceite | Manter inventário de chaves |
 
