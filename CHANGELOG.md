@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.17-draft — 2026-07-24
+
+- S4 operacional (sandbox): validação do kit POS **APROVADA** (9/9); `rate_429` com 22×201 + 8×429 e zero 5xx/transporte; `fiscal-admin --output-file` raw 52 bytes sem CR/LF; release activa `5d7c14b…`; Nginx `10r/s`/`burst=20` e schema 3 inalterados; histórico da primeira reprovação preservado no relatório ops.
+- Ops: fragmento versionado `deploy/sudoers/bwb-fiscal-deploy` fixo em `bwb-deploy` → só o helper fechado (sem placeholder `DEPLOY_USER`); runbook instala o ficheiro directamente; testes anti-regressão no suite de deploy.
+
 ## 0.2.16-draft — 2026-07-23
 
 - S4 follow-up (repo only): `rate_429` do kit POS passa de ondas de cinco para **burst sincronizado de 30** (ready + gate local); `fiscal-admin --output-file` grava token raw de 52 bytes **sem** newline; mocks de deploy alinhados. Sem alteração de Nginx (`10r/s`/`burst=20`), OpenAPI, runtime `fiscal-api` ou schema. Validação real do sandbox permanece pendente pós-merge.

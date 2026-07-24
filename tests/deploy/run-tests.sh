@@ -2649,6 +2649,68 @@ else
   bad "space-path fixture missing"
 fi
 
+# --- sudoers fragment: fixed bwb-deploy → helper only (no DEPLOY_USER placeholder) ---
+SUDOERS_SRC="${ROOT}/deploy/sudoers/bwb-fiscal-deploy"
+CANON_RULE='bwb-deploy ALL=(root) NOPASSWD: /usr/local/sbin/bwb-fiscal-deploy-helper'
+if [[ -f "${SUDOERS_SRC}" ]]; then
+  RULE_COUNT=0
+  RULE_LINE=""
+  while IFS= read -r _sudoers_line || [[ -n "${_sudoers_line}" ]]; do
+    case "${_sudoers_line}" in
+      '' | \#*) continue ;;
+    esac
+    RULE_COUNT=$((RULE_COUNT + 1))
+    RULE_LINE="${_sudoers_line}"
+  done <"${SUDOERS_SRC}"
+  if [[ "${RULE_COUNT}" -eq 1 && "${RULE_LINE}" == "${CANON_RULE}" ]]; then
+    ok "sudoers has exactly the canonical bwb-deploy helper rule"
+  else
+    bad "sudoers rule mismatch count=${RULE_COUNT} line='${RULE_LINE}'"
+  fi
+  if grep -E '^[[:space:]]*DEPLOY_USER[[:space:]]+ALL=' "${SUDOERS_SRC}" >/dev/null; then
+    bad "sudoers must not grant an executable rule starting with DEPLOY_USER"
+  else
+    ok "sudoers has no DEPLOY_USER executable rule"
+  fi
+  # Unresolved placeholders only on non-comment lines.
+  PLACEHOLDER_HIT=0
+  while IFS= read -r _sudoers_line || [[ -n "${_sudoers_line}" ]]; do
+    case "${_sudoers_line}" in
+      '' | \#*) continue ;;
+    esac
+    if printf '%s\n' "${_sudoers_line}" | grep -Eq 'DEPLOY_USER|<[A-Za-z_]+>|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?'; then
+      PLACEHOLDER_HIT=1
+    fi
+  done <"${SUDOERS_SRC}"
+  if [[ "${PLACEHOLDER_HIT}" -eq 0 ]]; then
+    ok "sudoers rule lines have no unresolved placeholders"
+  else
+    bad "sudoers rule lines contain unresolved placeholders"
+  fi
+  if [[ "${RULE_COUNT}" -eq 1 && "${RULE_LINE}" == "${CANON_RULE}" ]]; then
+    ok "sudoers does not grant other binaries"
+  else
+    bad "sudoers grants a non-canonical or extra rule"
+  fi
+  if grep -E '^[^#].*\*' "${SUDOERS_SRC}" >/dev/null; then
+    bad "sudoers authorization must not contain wildcards"
+  else
+    ok "sudoers authorization has no wildcards"
+  fi
+  if command -v visudo >/dev/null 2>&1; then
+    if visudo -cf "${SUDOERS_SRC}" >/dev/null 2>"${TMP}/visudo.err"; then
+      ok "visudo -cf accepts deploy/sudoers/bwb-fiscal-deploy"
+    else
+      bad "visudo -cf rejected sudoers fragment"
+      cat "${TMP}/visudo.err" >&2 || true
+    fi
+  else
+    echo "SKIP: visudo not available (structural sudoers checks above remain mandatory)"
+  fi
+else
+  bad "deploy/sudoers/bwb-fiscal-deploy missing"
+fi
+
 # Local git diff --check against main range (same intent as CI)
 if git rev-parse --verify origin/main >/dev/null 2>&1; then
   if git diff --check origin/main...HEAD; then

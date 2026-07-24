@@ -65,7 +65,7 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live update
 6. **After** activate/restart/health failure: re-read `current`; N-1 rollback (symlink + envs + restart + health) **only** if policy allows (`DEPLOY_N1_COMPAT_PROVEN=1` when schema changed). Otherwise roll-forward/manual.
 7. Health accepts only JSON `"status":"ok"` (exact field); does **not** replace `fiscal-migrate version`.
 8. Config install: temp file `0600` → atomic install by root under `/etc/bwb-modulo-fiscal/`. Never copy env into release dirs, logs, or reports.
-9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate` (see `deploy/sudoers/bwb-fiscal-deploy`).
+9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate`. Install the versioned fragment **as-is** (no textual substitution): `install -m 0440 -o root -g root deploy/sudoers/bwb-fiscal-deploy /etc/sudoers.d/bwb-fiscal-deploy` then `visudo -cf /etc/sudoers.d/bwb-fiscal-deploy`. The rule is fixed to user `bwb-deploy` and only `/usr/local/sbin/bwb-fiscal-deploy-helper`.
 
 ## Token rotation (`dev_static`)
 
@@ -205,7 +205,7 @@ Ops allowlisted: `admin-scope-create`, `admin-credential-issue|rotate|revoke`, `
 2. Backup PG + restore de validação (fora deste runbook detalhado).
 3. `update-staging.sh` com `.env.deploy.local` / `.env.migrate.local` / `.env.admin.local` (`chmod 600`).
 4. Confirmar `version=3 dirty=false`; aplicar grants SQL como owner; testes negativos de privilégio.
-5. Bootstrap OS se em falta: user `bwb-fiscal-admin`, dirs tokens, `admin.env.allowlist` em `/usr/local/lib/bwb-fiscal-deploy/`, sudoers só para o helper.
+5. Bootstrap OS se em falta: user `bwb-fiscal-admin`, dirs tokens, `admin.env.allowlist` em `/usr/local/lib/bwb-fiscal-deploy/`, e sudoers instalado directamente a partir de `deploy/sudoers/bwb-fiscal-deploy` (`0440`, `visudo -cf`; utilizador `bwb-deploy` → só o helper fechado).
 6. Activar conf de medição loopback + zone `http.d` (não o candidato aberto); `nginx -t` && reload.
 7. Helper: scope ops + scope carga; issue credenciais; E2E casos allowlisted em `:8080`.
 8. Copiar token de carga para `measure.token` (helper/path allowlisted); `admin-sandbox-measure`.
