@@ -25,7 +25,9 @@ Usage:
 Mutually exclusive: --token-file | --token-stdin
 
 Test-only (rejected unless --allow-loopback-test): BWB_POS_KIT_CURL,
-BWB_POS_KIT_RATE_COOLDOWN, BWB_POS_KIT_TMP_PATH_FILE.
+BWB_POS_KIT_RATE_COOLDOWN, BWB_POS_KIT_TMP_PATH_FILE, BWB_POS_KIT_READY_FILE,
+BWB_POS_KIT_RATE_HOLD_BEFORE_GATE, BWB_POS_KIT_RATE_HOLD_AFTER_GATE,
+BWB_POS_KIT_RATE_READY_TIMEOUT, BWB_POS_KIT_RATE_STALL_WORKER.
 EOF
 }
 
@@ -227,6 +229,18 @@ reject_test_env_outside_loopback() {
   fi
   if [ -n "${BWB_POS_KIT_READY_FILE:-}" ]; then
     die "BWB_POS_KIT_READY_FILE is test-only; requires --allow-loopback-test"
+  fi
+  if [ -n "${BWB_POS_KIT_RATE_HOLD_BEFORE_GATE:-}" ]; then
+    die "BWB_POS_KIT_RATE_HOLD_BEFORE_GATE is test-only; requires --allow-loopback-test"
+  fi
+  if [ -n "${BWB_POS_KIT_RATE_HOLD_AFTER_GATE:-}" ]; then
+    die "BWB_POS_KIT_RATE_HOLD_AFTER_GATE is test-only; requires --allow-loopback-test"
+  fi
+  if [ -n "${BWB_POS_KIT_RATE_READY_TIMEOUT:-}" ]; then
+    die "BWB_POS_KIT_RATE_READY_TIMEOUT is test-only; requires --allow-loopback-test"
+  fi
+  if [ -n "${BWB_POS_KIT_RATE_STALL_WORKER:-}" ]; then
+    die "BWB_POS_KIT_RATE_STALL_WORKER is test-only; requires --allow-loopback-test"
   fi
 }
 
@@ -600,62 +614,110 @@ else
   fi
 fi
 
-# rate_429 last — track each child PID; separate curl exit from http_code.
+# rate_429 last — synchronized burst of exactly 30 (no waves of 5).
+# Workers signal ready, then block until a single local gate file appears; parent
+# opens the gate only after all 30 are ready (or readiness times out → cleanup).
 c201=0
 c429=0
 c5xx=0
 ctransport=0
 cother=0
+RATE_N=30
+RATE_READY_DIR="$TMP/rate-ready"
+RATE_GATE="$TMP/rate-gate"
+RATE_HOLDING="$TMP/rate-holding"
+RATE_PID_MAP="$TMP/rate-pid-map"
 RATE_PIDS=""
+RATE_READY_TIMEOUT=15
+if [ -n "${BWB_POS_KIT_RATE_READY_TIMEOUT:-}" ]; then
+  RATE_READY_TIMEOUT="${BWB_POS_KIT_RATE_READY_TIMEOUT}"
+fi
+mkdir -p "$RATE_READY_DIR"
+rm -f "$RATE_GATE" "$RATE_HOLDING" "$RATE_PID_MAP"
+: >"$RATE_PID_MAP"
+
 i=1
-while [ "$i" -le 30 ]; do
+while [ "$i" -le "$RATE_N" ]; do
   body="$DOCS/rate-$i.json"
   jq --arg ext "FIXTURE-RATE-${RUN_ID}-$i" '.external_id = $ext' "$FIXTURE_DIR/document.base.json" >"$body"
   jq -e . "$body" >/dev/null
   idem="$(uuid_v4)"
+  result="$TMP/rate-result-$i"
+  ready="$RATE_READY_DIR/$i"
   (
-    set +e
-    code="$("$CURL_BIN" -sS --max-time 15 -o /dev/null -w '%{http_code}' -X POST \
+    # Stall one worker before ready (harness only) to prove readiness timeout.
+    # exec so the tracked CHILD_PID is the blocked sleep itself (no orphaned sleep child).
+    if [ -n "${BWB_POS_KIT_RATE_STALL_WORKER:-}" ] && [ "${BWB_POS_KIT_RATE_STALL_WORKER}" = "$i" ]; then
+      exec sleep 120
+    fi
+    : >"$ready"
+    while [ ! -f "$RATE_GATE" ]; do
+      sleep 0.05
+    done
+    if [ -n "${BWB_POS_KIT_RATE_HOLD_AFTER_GATE:-}" ]; then
+      while [ ! -f "$BWB_POS_KIT_RATE_HOLD_AFTER_GATE" ]; do
+        sleep 0.05
+      done
+    fi
+    # exec so the tracked PID becomes curl (no orphaned wrapper).
+    exec "$CURL_BIN" -sS --max-time 15 -o /dev/null -w '%{http_code}' -X POST \
       -H "Content-Type: application/json" \
       -H "Idempotency-Key: ${idem}" \
       -H @"$HDR" \
       --data-binary @"$body" \
-      "${BASE_URL}/documents")"
-    ec=$?
-    set -e
-    if [ "$ec" -ne 0 ]; then
-      printf 'transport\n' >"$TMP/rate-result-$i"
-    else
-      printf '%s\n' "$code" >"$TMP/rate-result-$i"
-    fi
+      "${BASE_URL}/documents" >"$result"
   ) &
   rpid=$!
+  printf '%s %s\n' "$rpid" "$i" >>"$RATE_PID_MAP"
   RATE_PIDS="${RATE_PIDS} ${rpid}"
   CHILD_PIDS="${CHILD_PIDS} ${rpid}"
-  if [ $((i % 5)) -eq 0 ]; then
-    for p in $RATE_PIDS; do
-      while kill -0 "$p" 2>/dev/null; do
-        sleep 0.05
-      done
-      wait "$p" 2>/dev/null || true
-    done
-    for p in $RATE_PIDS; do
-      CHILD_PIDS="$(printf '%s' "$CHILD_PIDS" | sed "s/ ${p}//g")"
-    done
-    RATE_PIDS=""
-  fi
   i=$((i + 1))
 done
-for p in $RATE_PIDS; do
-  while kill -0 "$p" 2>/dev/null; do
+
+ready_start="$(date +%s)"
+while true; do
+  ready_n=0
+  j=1
+  while [ "$j" -le "$RATE_N" ]; do
+    if [ -f "$RATE_READY_DIR/$j" ]; then
+      ready_n=$((ready_n + 1))
+    fi
+    j=$((j + 1))
+  done
+  if [ "$ready_n" -eq "$RATE_N" ]; then
+    break
+  fi
+  now="$(date +%s)"
+  if [ $((now - ready_start)) -ge "$RATE_READY_TIMEOUT" ]; then
+    die "rate_429 readiness timeout (${ready_n}/${RATE_N} ready)"
+  fi
+  sleep 0.05
+done
+
+if [ -n "${BWB_POS_KIT_RATE_HOLD_BEFORE_GATE:-}" ]; then
+  : >"$RATE_HOLDING"
+  while [ ! -f "$BWB_POS_KIT_RATE_HOLD_BEFORE_GATE" ]; do
     sleep 0.05
   done
-  wait "$p" 2>/dev/null || true
-  CHILD_PIDS="$(printf '%s' "$CHILD_PIDS" | sed "s/ ${p}//g")"
-done
+fi
+
+# Release all workers together.
+: >"$RATE_GATE"
+
+while read -r rpid ridx; do
+  [ -n "$rpid" ] || continue
+  set +e
+  wait "$rpid"
+  wec=$?
+  set -e
+  CHILD_PIDS="$(printf '%s' "$CHILD_PIDS" | sed "s/ ${rpid}//g")"
+  if [ "$wec" -ne 0 ] || [ ! -s "$TMP/rate-result-$ridx" ]; then
+    printf 'transport\n' >"$TMP/rate-result-$ridx"
+  fi
+done <"$RATE_PID_MAP"
 RATE_PIDS=""
 
-# All children for rate must be gone; exactly 30 results.
+# All rate children must be gone; exactly 30 results.
 alive=0
 for p in $CHILD_PIDS; do
   if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then
@@ -665,7 +727,7 @@ done
 
 collected=0
 i=1
-while [ "$i" -le 30 ]; do
+while [ "$i" -le "$RATE_N" ]; do
   if [ -f "$TMP/rate-result-$i" ]; then
     collected=$((collected + 1))
     code="$(tr -d '\r\n' <"$TMP/rate-result-$i")"
@@ -684,7 +746,7 @@ sleep "$RATE_COOLDOWN"
 
 rate_result="201=${c201};429=${c429};5xx=${c5xx};transport=${ctransport};other=${cother};collected=${collected};alive=${alive}"
 if [ "$c429" -ge 1 ] && [ "$c5xx" -eq 0 ] && [ "$ctransport" -eq 0 ] && [ "$cother" -eq 0 ] \
-  && [ "$collected" -eq 30 ] && [ "$alive" -eq 0 ]; then
+  && [ "$collected" -eq "$RATE_N" ] && [ "$alive" -eq 0 ]; then
   record rate_429 PASS "429x${c429}" "$rate_result" ""
 else
   record rate_429 FAIL "mixed" "$rate_result" ""

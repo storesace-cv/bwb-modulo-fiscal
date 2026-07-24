@@ -295,11 +295,10 @@ type syncWriter interface {
 	Sync() error
 }
 
+// writeAndSyncToken writes exactly the token bytes (no CR/LF) then Syncs.
+// Interactive TTY sinks use fmt.Fprintln separately and may append a newline for readability.
 func writeAndSyncToken(w syncWriter, token string) error {
 	if _, err := io.WriteString(w, token); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, "\n"); err != nil {
 		return err
 	}
 	return w.Sync()

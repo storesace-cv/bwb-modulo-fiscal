@@ -42,6 +42,7 @@ Em timeout: reenviar com a **mesma** chave; não gerar chave nova.
 - `413` / `415` conforme OpenAPI.
 - Timeouts: o cliente deve definir timeouts HTTP finitos e retries seguros.
 - Sandbox rate-limit (edge): tipicamente `10r/s`, `burst=20` → `429`. Sem garantia de Problem JSON nem `Retry-After`.
+- Kit POS (`pos-sandbox-kit.sh`): caso `rate_429` usa rajada sincronizada de 30 pedidos concorrentes (não ondas de 5) para exercer o limiter.
 
 ## Não afirmado neste contrato
 
