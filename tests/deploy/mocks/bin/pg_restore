@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Mock pg_restore for pre-deploy gate tests.
+set -Eeuo pipefail
+LOG="${DEPLOY_MOCK_PREDEPLOY_LOG:-/dev/null}"
+if [[ "${1:-}" == "--list" ]]; then
+  printf 'pg_restore_list\n' >>"${LOG}"
+  if [[ "${DEPLOY_MOCK_PG_RESTORE_LIST_FAIL:-0}" == "1" ]]; then
+    echo "error: mock pg_restore --list fail" >&2
+    exit 1
+  fi
+  printf '; mock TOC\n'
+  exit 0
+fi
+printf 'pg_restore\n' >>"${LOG}"
+if [[ "${DEPLOY_MOCK_PG_RESTORE_FAIL:-0}" == "1" ]]; then
+  echo "error: mock pg_restore fail" >&2
+  exit 1
+fi
+# Touch marker so validation can assume restore "applied".
+exit 0

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Mock pg_dump for pre-deploy gate tests. Never prints secrets/URLs.
+set -Eeuo pipefail
+LOG="${DEPLOY_MOCK_PREDEPLOY_LOG:-/dev/null}"
+printf 'pg_dump\n' >>"${LOG}"
+out=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -f)
+      out="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+[[ -n "${out}" ]] || { echo "error: mock pg_dump missing -f" >&2; exit 1; }
+# Minimal non-empty custom-format-like payload (not a real dump).
+printf 'BWBMOCKDUMP\n' >"${out}"
+exit 0

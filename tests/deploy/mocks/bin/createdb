@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Mock createdb (OS postgres path in tests).
+set -Eeuo pipefail
+LOG="${DEPLOY_MOCK_PREDEPLOY_LOG:-/dev/null}"
+printf 'createdb\n' >>"${LOG}"
+if [[ "${DEPLOY_MOCK_CREATEDB_FAIL:-0}" == "1" ]]; then
+  echo "error: mock createdb fail" >&2
+  exit 1
+fi
+# Record temp db name (last arg after --)
+db=""
+prev=""
+for a in "$@"; do
+  if [[ "${prev}" == "--" ]]; then
+    db="${a}"
+  fi
+  prev="${a}"
+done
+[[ -n "${db}" ]] || db="${*: -1}"
+marker_dir="${DEPLOY_MOCK_PREDEPLOY_DBS:-}"
+if [[ -n "${marker_dir}" ]]; then
+  mkdir -p "${marker_dir}"
+  : >"${marker_dir}/${db}"
+fi
+exit 0
