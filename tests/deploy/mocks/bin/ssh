@@ -106,7 +106,12 @@ if [[ ! -f "${HELPER_LIB}/allowlist.sh" ]]; then
   cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${HELPER_LIB}/allowlist.sh"
   cp "${ROOT}/deploy/migrate.env.allowlist" "${HELPER_LIB}/migrate.env.allowlist"
   cp "${ROOT}/deploy/admin.env.allowlist" "${HELPER_LIB}/admin.env.allowlist"
+  cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${HELPER_LIB}/parse_migrate_dsn.py"
+  cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${HELPER_LIB}/predeploy_pg.sh"
 fi
+# Refresh predeploy libs when sources change during a test run.
+cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${HELPER_LIB}/parse_migrate_dsn.py"
+cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${HELPER_LIB}/predeploy_pg.sh"
 
 # Fixed live health probe (literal URL only).
 if [[ "${remote_cmd}" == *"curl -fsS --max-time 5 http://127.0.0.1:8080/v1/health"* ]]; then
@@ -161,6 +166,23 @@ if [[ "${remote_cmd}" == *"sudo -n /usr/local/sbin/bwb-fiscal-deploy-helper"* ]]
   export BWB_MOCK_TMP="${FS}/tmp"
   export BWB_DEPLOY_UNIT="bwb-fiscal-api.service"
   export BWB_HELPER_LIB="${HELPER_LIB}"
+  export BWB_DEPLOY_RUN="${FS}/run/bwb-fiscal-deploy"
+  export BWB_PG_BACKUP_ROOT="${FS}/var/backups/bwb-fiscal/pre-deploy"
+  mkdir -p "${BWB_DEPLOY_RUN}" "${BWB_PG_BACKUP_ROOT}"
+  export DEPLOY_MOCK_PREDEPLOY_LOG="${FS}/.predeploy.order.log"
+  export DEPLOY_MOCK_PREDEPLOY_DBS="${FS}/.predeploy.dbs"
+  touch "${DEPLOY_MOCK_PREDEPLOY_LOG}"
+  mkdir -p "${DEPLOY_MOCK_PREDEPLOY_DBS}"
+  # File markers under mock FS (reliable across env -i boundaries in tests).
+  if [[ -f "${FS}/.fail-pg-restore-list" ]]; then
+    export DEPLOY_MOCK_PG_RESTORE_LIST_FAIL=1
+  fi
+  if [[ -f "${FS}/.fail-pg-restore" ]]; then
+    export DEPLOY_MOCK_PG_RESTORE_FAIL=1
+  fi
+  if [[ -f "${FS}/.fail-dropdb" ]]; then
+    export DEPLOY_MOCK_DROPDB_FAIL=1
+  fi
 
   op="${cleaned[0]:-}"
   if [[ "${op}" == "migrate" ]]; then

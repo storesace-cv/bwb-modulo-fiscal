@@ -26,13 +26,17 @@
 #   nginx-deny-all <sha40>
 #   nginx-open-rollback-fire
 #   nginx-open-boot-recovery
+#   deploy-lock-acquire <backup-id>
+#   deploy-lock-release <backup-id>
+#   pre-deploy-pg-backup <sha40> <backup-id>
 #
 # Updater never activates open. Open only via nginx-open-arm (paths fixed in release).
 # nginx-open-* / nginx-deny-all take an exclusive flock on a fixed root-owned lock path.
 # activate requires GNU coreutils `mv -T` (Ubuntu 22.04 staging). BSD mv is not supported.
 #
 # D2 bootstrap also installs:
-#   /usr/local/lib/bwb-fiscal-deploy/{allowlist.sh,migrate.env.allowlist,admin.env.allowlist}
+#   /usr/local/lib/bwb-fiscal-deploy/{allowlist.sh,migrate.env.allowlist,admin.env.allowlist,
+#     parse_migrate_dsn.py,predeploy_pg.sh}
 #   users bwb-fiscal-migrate and bwb-fiscal-admin (nologin)
 set -Eeuo pipefail
 
@@ -44,7 +48,11 @@ if [[ "${EUID}" -eq 0 ]]; then
     || -n "${BWB_NGINX_ROOT:-}" || -n "${BWB_SYSTEMCTL:-}" || -n "${BWB_NGINX_BIN:-}" \
     || -n "${BWB_CURL:-}" || -n "${BWB_SYSTEMD_DIR:-}" || -n "${BWB_NGINX_LOCK:-}" \
     || -n "${BWB_NGINX_FAIL_RESTORE:-}" \
-    || -n "${BWB_NGINX_PROBE_DEADLINE_SEC:-}" || -n "${BWB_NGINX_PROBE_INTERVAL_SEC:-}" ]]; then
+    || -n "${BWB_NGINX_PROBE_DEADLINE_SEC:-}" || -n "${BWB_NGINX_PROBE_INTERVAL_SEC:-}" \
+    || -n "${BWB_DEPLOY_RUN:-}" || -n "${BWB_PG_BACKUP_ROOT:-}" \
+    || -n "${BWB_PREDEPLOY_OS_POSTGRES_WRAP:-}" \
+    || -n "${BWB_PREDEPLOY_PG_SOCKET:-}" || -n "${BWB_PREDEPLOY_PG_PORT:-}" \
+    || -n "${BWB_PREDEPLOY_PG_USER:-}" ]]; then
     echo "error: BWB_* test overrides are forbidden when EUID=0" >&2
     exit 1
   fi
@@ -80,6 +88,8 @@ die() {
 
 # shellcheck source=/dev/null
 source "${HELPER_LIB}/allowlist.sh"
+# shellcheck source=/dev/null
+source "${HELPER_LIB}/predeploy_pg.sh"
 
 assert_sha1() {
   local name="$1" val="$2"
@@ -1559,6 +1569,18 @@ case "${OP}" in
     ;;
   install-nginx-open | activate-open-candidate | nginx-open)
     die "open HTTPS candidate cannot be activated by this helper; use nginx-open-arm"
+    ;;
+  deploy-lock-acquire)
+    [[ $# -eq 1 ]] || die "usage: deploy-lock-acquire <backup-id>"
+    op_deploy_lock_acquire "$1"
+    ;;
+  deploy-lock-release)
+    [[ $# -eq 1 ]] || die "usage: deploy-lock-release <backup-id>"
+    op_deploy_lock_release "$1"
+    ;;
+  pre-deploy-pg-backup)
+    [[ $# -eq 2 ]] || die "usage: pre-deploy-pg-backup <sha40> <backup-id>"
+    op_pre_deploy_pg_backup "$1" "$2"
     ;;
   *)
     die "unknown operation"

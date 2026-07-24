@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.18-draft — 2026-07-24
+
+- Pre-deploy `pg_dump` gate (B1, repo only): helper `deploy-lock-acquire`/`deploy-lock-release`/`pre-deploy-pg-backup`; parser URI fechado + `pg_service.conf`/`PGPASSFILE`; instalação durável anti-TOCTOU; updater live com lock antes de upload e mutações só após `deploy_allowed=true`; `createdb`/`dropdb` via OS `postgres` sem `CREATEDB`/`SUPERUSER` em `fiscal_migrate`; mocks + CI PostgreSQL 16 real; runbook. Sem acesso ao servidor, sem B2/B3, sem Ready/merge.
+
 ## 0.2.17-draft — 2026-07-24
 
 - S4 operacional (sandbox): validação do kit POS **APROVADA** (9/9); `rate_429` com 22×201 + 8×429 e zero 5xx/transporte; `fiscal-admin --output-file` raw 52 bytes sem CR/LF; release activa `5d7c14b…`; Nginx `10r/s`/`burst=20` e schema 3 inalterados; histórico da primeira reprovação preservado no relatório ops.

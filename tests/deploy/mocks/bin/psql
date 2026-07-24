@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Mock psql for pre-deploy schema checks. Ignores inherited PG* except via env -i re-set.
+set -Eeuo pipefail
+LOG="${DEPLOY_MOCK_PREDEPLOY_LOG:-/dev/null}"
+printf 'psql service=%s\n' "${PGSERVICE:-none}" >>"${LOG}"
+
+# Prove inherited parent PG* are not visible when helper uses env -i correctly:
+# if a test sets DEPLOY_MOCK_REQUIRE_CLEAN_PG=1, fail when unexpected PG* remain.
+if [[ "${DEPLOY_MOCK_REQUIRE_CLEAN_PG:-0}" == "1" ]]; then
+  if [[ -n "${PGPASSWORD:-}" || -n "${DATABASE_URL:-}" || -n "${FISCAL_DATABASE_URL:-}" ]]; then
+    echo "error: mock psql saw forbidden env" >&2
+    exit 1
+  fi
+fi
+
+sql=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -c | -Atc)
+      sql="${2:-}"
+      shift 2
+      ;;
+    -v)
+      shift 2
+      ;;
+    -A | -t)
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+mode="${DEPLOY_MOCK_PSQL_SCHEMA_MODE:-ok}"
+case "${mode}" in
+  ok)
+    printf '%s\n' "${DEPLOY_MOCK_PSQL_SCHEMA_ROW:-3|f}"
+    ;;
+  empty)
+    ;;
+  multi)
+    printf '3|f\n4|f\n'
+    ;;
+  dirty)
+    printf '3|t\n'
+    ;;
+  mismatch)
+    printf '9|f\n'
+    ;;
+  fail)
+    echo "error: mock psql fail" >&2
+    exit 1
+    ;;
+  *)
+    echo "error: unknown mock psql mode" >&2
+    exit 1
+    ;;
+esac
+exit 0

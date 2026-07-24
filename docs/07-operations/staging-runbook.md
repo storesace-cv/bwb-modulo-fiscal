@@ -58,14 +58,14 @@ D1 delivers scripts, systemd, Nginx templates, allowlists, and docs. Live update
 ## Deploy / rollback
 
 1. Build with `scripts/deploy/build-linux-release.sh` (`GOOS=linux` forced, `CGO_ENABLED=0`, `DEPLOY_GOARCH` amd64|arm64). Refuses dirty worktree; `SHA256SUMS` covers binaries, `lib/*`, `COMMIT`, `EXPECTED_SCHEMA_VERSION` (no release migrate runner).
-2. Upload to remote temp → verify full manifest → immutable `releases/<sha>` (full manifest again on `install-release`/`activate`) → env backup then install `0600` (restorable immediately after backup).
+2. `deploy-lock-acquire` → upload to remote temp → verify full manifest → immutable `releases/<sha>` (lateral) → **pre-deploy pg_dump gate** → env backup then install `0600` (restorable immediately after backup).
 3. `migration_before` / `up` / `migration_after` use **`fiscal-migrate` from the new release** via the closed helper (drop-priv), never `current`, never as root.
 4. Dirty migration **blocks** promotion.
 5. **Before** activation: env restore on failure; binary not switched.
 6. **After** activate/restart/health failure: re-read `current`; N-1 rollback (symlink + envs + restart + health) **only** if policy allows (`DEPLOY_N1_COMPAT_PROVEN=1` when schema changed). Otherwise roll-forward/manual.
 7. Health accepts only JSON `"status":"ok"` (exact field); does **not** replace `fiscal-migrate version`.
 8. Config install: temp file `0600` → atomic install by root under `/etc/bwb-modulo-fiscal/`. Never copy env into release dirs, logs, or reports.
-9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate`. Install the versioned fragment **as-is** (no textual substitution): `install -m 0440 -o root -g root deploy/sudoers/bwb-fiscal-deploy /etc/sudoers.d/bwb-fiscal-deploy` then `visudo -cf /etc/sudoers.d/bwb-fiscal-deploy`. The rule is fixed to user `bwb-deploy` and only `/usr/local/sbin/bwb-fiscal-deploy-helper`.
+9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate`. Libs em `/usr/local/lib/bwb-fiscal-deploy/`: `allowlist.sh`, `migrate.env.allowlist`, `admin.env.allowlist`, `parse_migrate_dsn.py`, `predeploy_pg.sh`. Install the versioned fragment **as-is** (no textual substitution): `install -m 0440 -o root -g root deploy/sudoers/bwb-fiscal-deploy /etc/sudoers.d/bwb-fiscal-deploy` then `visudo -cf /etc/sudoers.d/bwb-fiscal-deploy`. The rule is fixed to user `bwb-deploy` and only `/usr/local/sbin/bwb-fiscal-deploy-helper`.
 
 ## Token rotation (`dev_static`)
 
@@ -80,6 +80,31 @@ Rotate `FISCAL_AUTH_DEV_TOKEN` when compromised, when operators leave, or on a s
 ## Backups
 
 Document and rehearse PostgreSQL backup + restore in D2. Config backups live under `/etc/bwb-modulo-fiscal/backups/`.
+
+### Pre-deploy `pg_dump` gate (obrigatório no live path)
+
+Antes de `backup-envs` / `install-env` / `migrate` / `activate` / `restart`, o updater:
+
+1. `deploy-lock-acquire` (`/run/bwb-fiscal-deploy/deploy.lockdir`, meta `owner`/`acquired_at_utc`/`state`; stale >1800s sem auto-remove; corrupt/poisoned bloqueiam).
+2. Upload + `install-release` **lateral** apenas (`releases/<sha>`; não altera `current`/envs/serviços).
+3. `pre-deploy-pg-backup <sha> <backup_id>` — ordem canónica:
+   - schema check origem (`SELECT version, dirty FROM public.bwb_schema_migrations;` — exactamente 1 linha, `dirty=false`);
+   - `pg_dump -Fc` → workdir;
+   - size > 0;
+   - `pg_restore --list`;
+   - instalação durável atómica em `/var/backups/bwb-fiscal/pre-deploy/<backup_id>.dump` (`O_EXCL` + fsync + `link` NOREPLACE; sem overwrite);
+   - `createdb` como OS `postgres` (`-O fiscal_migrate`, `template0`, socket `/var/run/postgresql`, port `5432`);
+   - `pg_restore` na BD temp;
+   - validar schema temp == `schema_before`;
+   - `dropdb` temp.
+4. Só com `deploy_allowed=true` seguem mutações activas.
+5. `deploy-lock-release` só se `DEPLOY_LOCK_ACQUIRED=1` e `DEPLOY_LOCK_POISONED=0`; falha de release ⇒ exit ≠ 0.
+
+Identidades: dump/restore/psql = `bwb-fiscal-migrate` / `fiscal_migrate` via `PGSERVICEFILE`+`PGSERVICE`+`PGPASSFILE` (parser fechado; host só `127.0.0.1`, user `fiscal_migrate`, `sslmode=require`). **Sem** `CREATEDB`/`SUPERUSER` em `fiscal_migrate`. `createdb`/`dropdb` = OS `postgres` apenas.
+
+Falhas: dump/`--list` ⇒ sem dump durável; restore após install ⇒ dump durável permanece; `dropdb` falhado ⇒ lock `poisoned` (sem release automático). Timeouts: dump/restore 900s; list/createdb/dropdb 60s; psql 30s; TERM→KILL 5s.
+
+Libs do helper (instalar fora do deploy protegido, B2): `parse_migrate_dsn.py`, `predeploy_pg.sh` em `/usr/local/lib/bwb-fiscal-deploy/` junto com as allowlists.
 
 ## Scripts
 

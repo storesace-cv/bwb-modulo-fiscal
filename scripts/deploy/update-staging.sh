@@ -26,6 +26,10 @@ ENV_BACKUP_ID=""
 ENVS_RESTORABLE=0
 ENV_RESTORED=0
 ACTIVATED=0
+DEPLOY_LOCK_ACQUIRED=0
+DEPLOY_LOCK_POISONED=0
+DEPLOY_LOCK_ID=""
+phase=""
 EXPECTED_SCHEMA_VERSION="${EXPECTED_SCHEMA_VERSION:-${DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT}}"
 
 report() {
@@ -359,22 +363,39 @@ deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 deploy_assert_restricted_file "ENV_ADMIN" "${ENV_ADMIN}"
 
 deploy_ssh_base
-# Invoked only via EXIT trap; preserve the script's original exit status.
+# Invoked only via EXIT trap; preserve/override the script's exit status.
 # shellcheck disable=SC2317,SC2329
 cleanup_live() {
-  local ec=$?
   set +e
   cleanup_remote_upload
+  if [[ "${DEPLOY_LOCK_ACQUIRED}" -eq 1 && "${DEPLOY_LOCK_POISONED}" -eq 0 && -n "${DEPLOY_LOCK_ID}" ]]; then
+    if remote_helper deploy-lock-release "${DEPLOY_LOCK_ID}" >/dev/null; then
+      report "lock_release=ok id=${DEPLOY_LOCK_ID}"
+      DEPLOY_LOCK_ACQUIRED=0
+    else
+      report "lock_release=fail id=${DEPLOY_LOCK_ID}"
+      DEPLOY_CLEANUP_EC=1
+    fi
+  elif [[ "${DEPLOY_LOCK_POISONED}" -eq 1 ]]; then
+    report "lock_release=skipped reason=poisoned id=${DEPLOY_LOCK_ID}"
+  fi
   deploy_ssh_mux_stop
   if [[ "${DEPLOY_SSH_INVOCATION_COUNT:-0}" -gt 0 ]]; then
     report "ssh_invocations=${DEPLOY_SSH_INVOCATION_COUNT} mux=ControlMaster"
   fi
   set -e
-  return "${ec}"
 }
-trap cleanup_live EXIT
+# Capture status before any trap command touches $?; never use `local ec=$?`.
+trap 'DEPLOY_CLEANUP_EC=$?; cleanup_live; exit "${DEPLOY_CLEANUP_EC}"' EXIT
 
 report "mode=live mock_remote=${DEPLOY_MOCK_REMOTE}"
+
+ENV_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-${HEAD}"
+DEPLOY_LOCK_ID="${ENV_BACKUP_ID}"
+remote_helper deploy-lock-acquire "${DEPLOY_LOCK_ID}" >/dev/null
+DEPLOY_LOCK_ACQUIRED=1
+DEPLOY_LOCK_POISONED=0
+report "deploy_lock=acquired id=${DEPLOY_LOCK_ID}"
 
 REMOTE_UPLOAD="$(remote_sh "d=\$(mktemp -d /tmp/bwb-upload.XXXXXX); chmod 0700 \"\$d\"; printf '%s' \"\$d\"")"
 [[ "${REMOTE_UPLOAD}" =~ ^/tmp/bwb-upload\.[A-Za-z0-9._-]+$ ]] || die "invalid remote upload path"
@@ -413,7 +434,20 @@ else
   ACTIVE_RELEASE="${PREV_SHA}"
 fi
 
-ENV_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-${HEAD}"
+# Gate: pg_dump + restore smoke. No env/migrate/activate/restart until deploy_allowed=true.
+set +e
+GATE_OUT="$(remote_helper pre-deploy-pg-backup "${HEAD}" "${DEPLOY_LOCK_ID}")"
+GATE_ST=$?
+set -e
+if printf '%s' "${GATE_OUT}" | grep -q 'lock_state=poisoned'; then
+  DEPLOY_LOCK_POISONED=1
+fi
+if [[ "${GATE_ST}" -ne 0 ]] || ! printf '%s' "${GATE_OUT}" | grep -q 'deploy_allowed=true'; then
+  report "pre_deploy_pg_backup=fail"
+  pre_activate_fail "pre-deploy pg backup gate refused deploy"
+fi
+report "pre_deploy_pg_backup=ok"
+
 remote_helper backup-envs "${ENV_BACKUP_ID}" >/dev/null
 # Mark restorable immediately after backup, before any install attempt.
 ENVS_RESTORABLE=1

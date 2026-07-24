@@ -212,6 +212,8 @@ cp -a "${OUT_DIR}/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${TMP}/helprefs/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/helprefs/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${TMP}/helprefs/lib/admin.env.allowlist"
+cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${TMP}/helprefs/lib/parse_migrate_dsn.py"
+cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${TMP}/helprefs/lib/predeploy_pg.sh"
 cat >"${TMP}/helprefs/etc/bwb-modulo-fiscal/migrate.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
 FISCAL_DATABASE_URL=postgres://u:p@127.0.0.1/db?x=1#keep
@@ -1615,6 +1617,8 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist"
+cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/parse_migrate_dsn.py"
+cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${ACT_ROOT}/usr/local/lib/bwb-fiscal-deploy/predeploy_pg.sh"
 ln -sfn "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}" "${ACT_ROOT}/opt/bwb-modulo-fiscal/current"
 if BWB_DEPLOY_OPT="${ACT_ROOT}/opt/bwb-modulo-fiscal" \
   BWB_DEPLOY_ETC="${ACT_ROOT}/etc/bwb-modulo-fiscal" \
@@ -1667,6 +1671,8 @@ printf '%s\n' "${HEAD}" >"${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/admin.env.allowlist"
+cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/parse_migrate_dsn.py"
+cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${ACT_FAIL}/usr/local/lib/bwb-fiscal-deploy/predeploy_pg.sh"
 mkdir -p "${ACT_FAIL}/opt/bwb-modulo-fiscal/current"
 # Marker to detect nested writes into the directory mistaken for a symlink target.
 : >"${ACT_FAIL}/opt/bwb-modulo-fiscal/current/.keep-empty-dir"
@@ -1857,7 +1863,7 @@ FISCAL_DATABASE_URL=postgres://u:CANARY_DSN_SECRET@127.0.0.1/db
 EOF
 cat >"${TMP}/migrate.live.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
-FISCAL_DATABASE_URL=postgres://mig:CANARY_MIG@127.0.0.1/db?x=1#keep
+FISCAL_DATABASE_URL=postgres://fiscal_migrate:CANARY_MIG_SECRET@127.0.0.1:5432/fiscal?sslmode=require
 EOF
 cat >"${TMP}/admin.live.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
@@ -1891,7 +1897,7 @@ FISCAL_DATABASE_URL=postgres://u:OLD_DSN@127.0.0.1/db
 EOF
 cat >"${TMP}/migrate.old.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
-FISCAL_DATABASE_URL=postgres://mig:OLD_MIG@127.0.0.1/db
+FISCAL_DATABASE_URL=postgres://fiscal_migrate:OLD_MIG_SECRET@127.0.0.1:5432/fiscal?sslmode=require
 EOF
 cat >"${TMP}/admin.old.env" <<'EOF'
 FISCAL_DATABASE_DRIVER=postgres
@@ -1911,9 +1917,10 @@ seed_old_envs() {
 assert_envs_restored_old() {
   local fs="$1"
   grep -q 'OLD_SECRET_TOKEN' "${fs}/etc/bwb-modulo-fiscal/fiscal.env" \
-    && grep -q 'OLD_MIG' "${fs}/etc/bwb-modulo-fiscal/migrate.env" \
+    && grep -q 'OLD_MIG_SECRET' "${fs}/etc/bwb-modulo-fiscal/migrate.env" \
     && grep -q 'OLD_ADM' "${fs}/etc/bwb-modulo-fiscal/admin.env" \
     && ! grep -q 'CANARY_SECRET' "${fs}/etc/bwb-modulo-fiscal/fiscal.env" \
+    && ! grep -q 'CANARY_MIG_SECRET' "${fs}/etc/bwb-modulo-fiscal/migrate.env" \
     && ! grep -q 'CANARY_ADM' "${fs}/etc/bwb-modulo-fiscal/admin.env"
 }
 
@@ -1963,6 +1970,9 @@ if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
   DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
   DEPLOY_MOCK_MIGRATE_DIRTY=false; then
   if grep -q 'mode=live' "${TMP}/live.out" \
+    && grep -q 'deploy_lock=acquired' "${TMP}/live.out" \
+    && grep -q 'pre_deploy_pg_backup=ok' "${TMP}/live.out" \
+    && grep -q 'lock_release=ok' "${TMP}/live.out" \
     && grep -q 'binary=new_release' "${TMP}/live.out" \
     && grep -q 'promote=ok' "${TMP}/live.out" \
     && grep -q 'health=ok' "${TMP}/live.out" \
@@ -1979,11 +1989,58 @@ if run_live "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" "${MOCK_FS}" \
     && grep -q 'systemctl restart' "${MOCK_LOG}" \
     && ! grep -E 'sudo -n bash|sudo bash' "${MOCK_LOG}" \
     && ! grep -E '^[^#]*sudo -n bash|^[^#]*sudo bash' "${ROOT}/scripts/deploy/"*.sh \
-    && ! grep -q 'CANARY' "${TMP}/live.out" "${TMP}/live.err"; then
+    && ! grep -q 'CANARY' "${TMP}/live.out" "${TMP}/live.err" \
+    && ! grep -qiE 'postgres://|PGPASSWORD|MIG_SECRET|OLD_MIG' "${TMP}/live.out" "${TMP}/live.err"; then
     ok "live path: closed helper, health, promote, admin.env"
   else
     bad "live happy-path assertions failed"
     cat "${TMP}/live.out" "${TMP}/live.err" "${MOCK_LOG}" >&2 || true
+  fi
+  # Order: lock → install-release → pre-deploy → backup-envs (no mutate before gate)
+  lock_n="$(grep -n 'deploy-lock-acquire' "${MOCK_LOG}" | head -1 | cut -d: -f1)"
+  install_n="$(grep -n 'install-release' "${MOCK_LOG}" | head -1 | cut -d: -f1)"
+  gate_n="$(grep -n 'pre-deploy-pg-backup' "${MOCK_LOG}" | head -1 | cut -d: -f1)"
+  envbak_n="$(grep -n 'backup-envs' "${MOCK_LOG}" | head -1 | cut -d: -f1)"
+  if [[ -n "${lock_n}" && -n "${install_n}" && -n "${gate_n}" && -n "${envbak_n}" \
+    && "${lock_n}" -lt "${install_n}" && "${install_n}" -lt "${gate_n}" && "${gate_n}" -lt "${envbak_n}" ]]; then
+    ok "live path order: lock → install-release → pre-deploy gate → backup-envs"
+  else
+    bad "live path helper order incorrect"
+    echo "lock=${lock_n} install=${install_n} gate=${gate_n} envbak=${envbak_n}" >&2
+  fi
+  order_file="${MOCK_FS}/.predeploy.order.log"
+  if [[ -f "${order_file}" ]]; then
+    # shellcheck disable=SC2002
+    order_flat="$(tr '\n' ' ' <"${order_file}")"
+    if [[ "${order_flat}" == *"psql"* && "${order_flat}" == *"pg_dump"* \
+      && "${order_flat}" == *"pg_restore_list"* && "${order_flat}" == *"createdb"* \
+      && "${order_flat}" == *"pg_restore"* && "${order_flat}" == *"dropdb"* ]]; then
+      # Exact relative order of first occurrences
+      o_psql="$(grep -n '^psql' "${order_file}" | head -1 | cut -d: -f1)"
+      o_dump="$(grep -n '^pg_dump' "${order_file}" | head -1 | cut -d: -f1)"
+      o_list="$(grep -n '^pg_restore_list' "${order_file}" | head -1 | cut -d: -f1)"
+      o_cdb="$(grep -n '^createdb' "${order_file}" | head -1 | cut -d: -f1)"
+      o_rst="$(grep -n '^pg_restore$' "${order_file}" | head -1 | cut -d: -f1)"
+      o_ddb="$(grep -n '^dropdb' "${order_file}" | head -1 | cut -d: -f1)"
+      if [[ "${o_psql}" -lt "${o_dump}" && "${o_dump}" -lt "${o_list}" \
+        && "${o_list}" -lt "${o_cdb}" && "${o_cdb}" -lt "${o_rst}" \
+        && "${o_rst}" -lt "${o_ddb}" ]]; then
+        ok "pre-deploy canonical order (schema→dump→list→createdb→restore→dropdb)"
+      else
+        bad "pre-deploy op order wrong"
+        cat "${order_file}" >&2 || true
+      fi
+    else
+      bad "pre-deploy order log incomplete"
+      cat "${order_file}" >&2 || true
+    fi
+  else
+    bad "pre-deploy order log missing"
+  fi
+  if compgen -G "${MOCK_FS}/var/backups/bwb-fiscal/pre-deploy/"*.dump >/dev/null; then
+    ok "durable pre-deploy dump retained after success"
+  else
+    bad "durable pre-deploy dump missing"
   fi
   if grep -E 'sudo /usr/local/sbin/bwb-fiscal-deploy-helper' "${MOCK_LOG}" >/dev/null \
     && grep -E '^ssh ' "${MOCK_LOG}" | grep -q 'bwb-fiscal-deploy-helper'; then
@@ -2219,10 +2276,12 @@ else
   fi
 fi
 
-# Absent prior envs: restore removes newly installed files
+# Absent prior fiscal/admin envs: seed migrate.env so gate can run; restore removes newly installed files
 MOCK_FS6="${TMP}/mockfs6"
 MOCK_LOG6="${TMP}/mock6.log"
 mkdir -p "${MOCK_FS6}/opt/bwb-modulo-fiscal/releases" "${MOCK_FS6}/etc/bwb-modulo-fiscal/backups" "${MOCK_FS6}/tmp"
+cp "${TMP}/migrate.old.env" "${MOCK_FS6}/etc/bwb-modulo-fiscal/migrate.env"
+chmod 0600 "${MOCK_FS6}/etc/bwb-modulo-fiscal/migrate.env"
 if run_live "${TMP}/live6.out" "${TMP}/live6.err" "${MOCK_LOG6}" "${MOCK_FS6}" \
   OUT_DIR="${TMP}/live-rel6" \
   DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
@@ -2232,7 +2291,8 @@ if run_live "${TMP}/live6.out" "${TMP}/live6.err" "${MOCK_LOG6}" "${MOCK_FS6}" \
 else
   if grep -q 'env_restore=ok' "${TMP}/live6.out" "${TMP}/live6.err" \
     && [[ ! -e "${MOCK_FS6}/etc/bwb-modulo-fiscal/fiscal.env" ]] \
-    && [[ ! -e "${MOCK_FS6}/etc/bwb-modulo-fiscal/migrate.env" ]]; then
+    && [[ ! -e "${MOCK_FS6}/etc/bwb-modulo-fiscal/admin.env" ]] \
+    && grep -q 'OLD_MIG_SECRET' "${MOCK_FS6}/etc/bwb-modulo-fiscal/migrate.env"; then
     ok "restore removes envs that did not previously exist"
   else
     bad "absent-env restore did not remove new files"
@@ -2709,6 +2769,283 @@ if [[ -f "${SUDOERS_SRC}" ]]; then
   fi
 else
   bad "deploy/sudoers/bwb-fiscal-deploy missing"
+fi
+
+# --- Pre-deploy pg gate unit tests (helper + parser; mocked pg tools) ---
+PRE_ROOT="${TMP}/predeploy-unit"
+mkdir -p "${PRE_ROOT}/lib" "${PRE_ROOT}/etc" "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${PRE_ROOT}/lib/allowlist.sh"
+cp "${ROOT}/deploy/migrate.env.allowlist" "${PRE_ROOT}/lib/migrate.env.allowlist"
+cp "${ROOT}/deploy/admin.env.allowlist" "${PRE_ROOT}/lib/admin.env.allowlist"
+cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${PRE_ROOT}/lib/parse_migrate_dsn.py"
+cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${PRE_ROOT}/lib/predeploy_pg.sh"
+cat >"${PRE_ROOT}/etc/migrate.env" <<'EOF'
+FISCAL_DATABASE_DRIVER=postgres
+FISCAL_DATABASE_URL=postgres://fiscal_migrate:unit-pass%3Awithcolon@127.0.0.1:5432/fiscal?sslmode=require
+EOF
+chmod 0600 "${PRE_ROOT}/etc/migrate.env"
+
+parse_ok() {
+  local url="$1"
+  printf '%s' "${url}" | python3 "${PRE_ROOT}/lib/parse_migrate_dsn.py" \
+    --outdir "${PRE_ROOT}/parse-out" --temp-db "bwb_pd_20260724120000_abcd1234" \
+    >"${PRE_ROOT}/parse.out" 2>"${PRE_ROOT}/parse.err"
+}
+
+mkdir -p "${PRE_ROOT}/parse-out"
+if parse_ok 'postgres://fiscal_migrate:p%40ss@127.0.0.1:5432/fiscal?sslmode=require' \
+  && grep -q 'parse_ok' "${PRE_ROOT}/parse.out" \
+  && grep -q 'dbname=fiscal' "${PRE_ROOT}/parse-out/pg_service.conf" \
+  && grep -q 'dbname=bwb_pd_20260724120000_abcd1234' "${PRE_ROOT}/parse-out/pg_service.conf" \
+  && ! grep -q 'p@ss\|p%40ss\|unit-pass' "${PRE_ROOT}/parse.out" "${PRE_ROOT}/parse.err"; then
+  ok "DSN parser accepts closed URL and omits secrets from stdout"
+else
+  bad "DSN parser happy path failed"
+  cat "${PRE_ROOT}/parse.out" "${PRE_ROOT}/parse.err" >&2 || true
+fi
+# PGPASSFILE escaping for colon/backslash
+rm -rf "${PRE_ROOT}/parse-out"; mkdir -p "${PRE_ROOT}/parse-out"
+if printf '%s' 'postgres://fiscal_migrate:a%3Ab%5Cc@127.0.0.1:5432/fiscal?sslmode=require' \
+  | python3 "${PRE_ROOT}/lib/parse_migrate_dsn.py" --outdir "${PRE_ROOT}/parse-out" \
+  --temp-db "bwb_pd_20260724120000_abcd1234" >/dev/null \
+  && grep -qE '127\.0\.0\.1:5432:\*:fiscal_migrate:a\\:b\\\\c$' "${PRE_ROOT}/parse-out/pgpass"; then
+  ok "PGPASSFILE escapes colon and backslash"
+else
+  bad "PGPASSFILE escaping incorrect"
+  cat "${PRE_ROOT}/parse-out/pgpass" >&2 || true
+fi
+
+reject_url() {
+  local label="$1" url="$2"
+  rm -rf "${PRE_ROOT}/parse-out"; mkdir -p "${PRE_ROOT}/parse-out"
+  if printf '%s' "${url}" | python3 "${PRE_ROOT}/lib/parse_migrate_dsn.py" \
+    --outdir "${PRE_ROOT}/parse-out" --temp-db "bwb_pd_20260724120000_abcd1234" \
+    >/dev/null 2>"${PRE_ROOT}/parse.err"; then
+    bad "parser should reject ${label}"
+  else
+    ok "parser rejects ${label}"
+  fi
+}
+reject_url "localhost" 'postgres://fiscal_migrate:x@localhost:5432/fiscal?sslmode=require'
+reject_url "bad_user" 'postgres://other:x@127.0.0.1:5432/fiscal?sslmode=require'
+reject_url "empty_password" 'postgres://fiscal_migrate:@127.0.0.1:5432/fiscal?sslmode=require'
+reject_url "fragment" 'postgres://fiscal_migrate:x@127.0.0.1:5432/fiscal?sslmode=require#x'
+reject_url "extra_query" 'postgres://fiscal_migrate:x@127.0.0.1:5432/fiscal?sslmode=require&foo=1'
+reject_url "dup_sslmode" 'postgres://fiscal_migrate:x@127.0.0.1:5432/fiscal?sslmode=require&sslmode=require'
+reject_url "inject_nl" $'postgres://fiscal_migrate:x@127.0.0.1:5432/fis\ncal?sslmode=require'
+
+run_pre_helper() {
+  env PATH="${MOCK_BIN}:${PATH}" \
+    BWB_HELPER_LIB="${PRE_ROOT}/lib" \
+    BWB_DEPLOY_ETC="${PRE_ROOT}/etc" \
+    BWB_DEPLOY_RUN="${PRE_ROOT}/run" \
+    BWB_PG_BACKUP_ROOT="${PRE_ROOT}/backups" \
+    DEPLOY_MOCK_PREDEPLOY_LOG="${PRE_ROOT}/order.log" \
+    DEPLOY_MOCK_PREDEPLOY_DBS="${PRE_ROOT}/dbs" \
+    DEPLOY_MOCK_LOG="${PRE_ROOT}/install.log" \
+    DEPLOY_MOCK_REQUIRE_CLEAN_PG=1 \
+    PGPASSWORD=should-be-ignored \
+    bash "${ROOT}/scripts/deploy/remote-deploy-helper.sh" "$@"
+}
+
+SHA40="${HEAD}"
+BID="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+rm -f "${PRE_ROOT}/order.log"
+rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+
+if run_pre_helper deploy-lock-acquire "${BID}" >"${PRE_ROOT}/lock.out" 2>"${PRE_ROOT}/lock.err"; then
+  ok "deploy-lock-acquire succeeds on empty lock"
+else
+  bad "deploy-lock-acquire failed"
+  cat "${PRE_ROOT}/lock.err" >&2 || true
+fi
+
+if run_pre_helper deploy-lock-acquire "${BID}" >"${PRE_ROOT}/lock2.out" 2>"${PRE_ROOT}/lock2.err"; then
+  bad "second acquire should fail busy"
+else
+  ok "deploy-lock-acquire refuses busy lock"
+fi
+
+if PGPASSWORD=ignored run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BID}" \
+  >"${PRE_ROOT}/gate.out" 2>"${PRE_ROOT}/gate.err"; then
+  if grep -q 'deploy_allowed=true' "${PRE_ROOT}/gate.out" \
+    && grep -q 'backup_created=true' "${PRE_ROOT}/gate.out" \
+    && [[ -f "${PRE_ROOT}/backups/${BID}.dump" ]] \
+    && ! grep -qiE 'postgres://|PGPASSWORD|unit-pass|should-be-ignored' \
+      "${PRE_ROOT}/gate.out" "${PRE_ROOT}/gate.err" "${PRE_ROOT}/order.log"; then
+    ok "pre-deploy gate success sanitized"
+  else
+    bad "pre-deploy gate success assertions failed"
+    cat "${PRE_ROOT}/gate.out" "${PRE_ROOT}/gate.err" >&2 || true
+  fi
+else
+  bad "pre-deploy gate failed unexpectedly"
+  cat "${PRE_ROOT}/gate.out" "${PRE_ROOT}/gate.err" >&2 || true
+fi
+
+# list failure ⇒ no durable dump
+BID2="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+# release previous lock first
+run_pre_helper deploy-lock-release "${BID}" >/dev/null 2>&1 || true
+rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs" "${PRE_ROOT}/order.log"
+mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+run_pre_helper deploy-lock-acquire "${BID2}" >/dev/null
+if DEPLOY_MOCK_PG_RESTORE_LIST_FAIL=1 run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BID2}" \
+  >"${PRE_ROOT}/listfail.out" 2>"${PRE_ROOT}/listfail.err"; then
+  bad "list fail should refuse deploy"
+else
+  if grep -q 'backup_created=false' "${PRE_ROOT}/listfail.out" \
+    && grep -q 'deploy_allowed=false' "${PRE_ROOT}/listfail.out" \
+    && ! compgen -G "${PRE_ROOT}/backups/"*.dump >/dev/null; then
+    ok "list failure leaves no durable dump"
+  else
+    bad "list failure durable/gate flags wrong"
+    cat "${PRE_ROOT}/listfail.out" "${PRE_ROOT}/listfail.err" >&2 || true
+  fi
+fi
+
+# restore failure ⇒ durable dump preserved
+run_pre_helper deploy-lock-release "${BID2}" >/dev/null 2>&1 || true
+BID3="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+run_pre_helper deploy-lock-acquire "${BID3}" >/dev/null
+if DEPLOY_MOCK_PG_RESTORE_FAIL=1 run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BID3}" \
+  >"${PRE_ROOT}/rstfail.out" 2>"${PRE_ROOT}/rstfail.err"; then
+  bad "restore fail should refuse deploy"
+else
+  if grep -q 'backup_created=true' "${PRE_ROOT}/rstfail.out" \
+    && grep -q 'restore_verified=false' "${PRE_ROOT}/rstfail.out" \
+    && grep -q 'deploy_allowed=false' "${PRE_ROOT}/rstfail.out" \
+    && [[ -f "${PRE_ROOT}/backups/${BID3}.dump" ]]; then
+    ok "restore failure preserves durable dump"
+  else
+    bad "restore failure preservation wrong"
+    cat "${PRE_ROOT}/rstfail.out" "${PRE_ROOT}/rstfail.err" >&2 || true
+  fi
+fi
+
+# dropdb failure ⇒ poisoned lock (no release allowed)
+run_pre_helper deploy-lock-release "${BID3}" >/dev/null 2>&1 || true
+BID4="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+run_pre_helper deploy-lock-acquire "${BID4}" >/dev/null
+if DEPLOY_MOCK_DROPDB_FAIL=1 run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BID4}" \
+  >"${PRE_ROOT}/dropfail.out" 2>"${PRE_ROOT}/dropfail.err"; then
+  bad "dropdb fail should refuse deploy"
+else
+  if grep -q 'lock_state=poisoned' "${PRE_ROOT}/dropfail.out" \
+    && grep -q 'deploy_allowed=false' "${PRE_ROOT}/dropfail.out"; then
+    ok "dropdb failure poisons lock"
+  else
+    bad "dropdb poison markers missing"
+    cat "${PRE_ROOT}/dropfail.out" "${PRE_ROOT}/dropfail.err" >&2 || true
+  fi
+fi
+if run_pre_helper deploy-lock-release "${BID4}" >/dev/null 2>"${PRE_ROOT}/poison-rel.err"; then
+  bad "release must be denied on poisoned lock"
+else
+  ok "poisoned lock refuses release"
+fi
+if run_pre_helper deploy-lock-acquire "$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}" \
+  >/dev/null 2>"${PRE_ROOT}/poison-acq.err"; then
+  bad "acquire must be denied while poisoned"
+else
+  ok "poisoned lock refuses acquire"
+fi
+
+# durable collision without overwrite
+rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+BID5="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+printf 'ORIGINAL\n' >"${PRE_ROOT}/backups/${BID5}.dump"
+chmod 0600 "${PRE_ROOT}/backups/${BID5}.dump"
+run_pre_helper deploy-lock-acquire "${BID5}" >/dev/null
+if run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BID5}" \
+  >"${PRE_ROOT}/col.out" 2>"${PRE_ROOT}/col.err"; then
+  bad "durable collision should fail"
+else
+  if grep -q 'error=durable_dump_exists\|durable_dump_exists' "${PRE_ROOT}/col.out" "${PRE_ROOT}/col.err" \
+    && grep -q 'ORIGINAL' "${PRE_ROOT}/backups/${BID5}.dump" \
+    && ! grep -q 'BWBMOCKDUMP' "${PRE_ROOT}/backups/${BID5}.dump"; then
+    ok "durable collision does not overwrite"
+  else
+    bad "durable collision handling wrong"
+    cat "${PRE_ROOT}/col.out" "${PRE_ROOT}/col.err" >&2 || true
+  fi
+fi
+run_pre_helper deploy-lock-release "${BID5}" >/dev/null 2>&1 || true
+
+# schema_migrations invalid shapes
+for mode in empty multi dirty fail; do
+  BIDM="$(date -u +%Y%m%dT%H%M%SZ)-${SHA40}"
+  rm -rf "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+  mkdir -p "${PRE_ROOT}/run" "${PRE_ROOT}/backups" "${PRE_ROOT}/dbs"
+  run_pre_helper deploy-lock-acquire "${BIDM}" >/dev/null
+  if DEPLOY_MOCK_PSQL_SCHEMA_MODE="${mode}" run_pre_helper pre-deploy-pg-backup "${SHA40}" "${BIDM}" \
+    >"${PRE_ROOT}/sch-${mode}.out" 2>"${PRE_ROOT}/sch-${mode}.err"; then
+    bad "schema mode ${mode} should fail gate"
+  else
+    if grep -q 'deploy_allowed=false' "${PRE_ROOT}/sch-${mode}.out" \
+      && ! compgen -G "${PRE_ROOT}/backups/"*.dump >/dev/null; then
+      ok "schema mode ${mode} fails closed without durable dump"
+    else
+      bad "schema mode ${mode} flags wrong"
+      cat "${PRE_ROOT}/sch-${mode}.out" "${PRE_ROOT}/sch-${mode}.err" >&2 || true
+    fi
+  fi
+  run_pre_helper deploy-lock-release "${BIDM}" >/dev/null 2>&1 || true
+done
+
+# Static proof: no CREATEDB grant in repo scripts for fiscal_migrate
+if ! grep -RInE 'ALTER[[:space:]]+ROLE[[:space:]]+fiscal_migrate[[:space:]]+.*CREATEDB' \
+  scripts/deploy docs/07-operations --include='*.sh' --include='*.md' --include='*.py' \
+  >/dev/null 2>&1; then
+  ok "repo deploy docs/scripts do not grant CREATEDB to fiscal_migrate"
+else
+  bad "CREATEDB grant for fiscal_migrate found"
+  grep -RInE 'ALTER[[:space:]]+ROLE[[:space:]]+fiscal_migrate[[:space:]]+.*CREATEDB' \
+    scripts/deploy docs/07-operations --include='*.sh' --include='*.md' --include='*.py' >&2 || true
+fi
+
+# Live: gate failure before deploy_allowed must not mutate envs/current/services
+MOCK_FSgf="${TMP}/mockfsgatefail"
+MOCK_LOGgf="${TMP}/mockgatefail.log"
+seed_sha_release "${MOCK_FSgf}" "${PREV}"
+ln -sfn "${MOCK_FSgf}/opt/bwb-modulo-fiscal/releases/${PREV}" "${MOCK_FSgf}/opt/bwb-modulo-fiscal/current"
+seed_old_envs "${MOCK_FSgf}"
+: >"${MOCK_FSgf}/.fail-pg-restore-list"
+current_before="$(readlink "${MOCK_FSgf}/opt/bwb-modulo-fiscal/current")"
+if run_live "${TMP}/live-gf.out" "${TMP}/live-gf.err" "${MOCK_LOGgf}" "${MOCK_FSgf}" \
+  OUT_DIR="${TMP}/live-rel-gf" \
+  DEPLOY_MOCK_MIGRATE_VERSION_BEFORE=3 \
+  DEPLOY_MOCK_MIGRATE_VERSION_AFTER=3 \
+  DEPLOY_MOCK_MIGRATE_DIRTY=false; then
+  bad "gate fail live path should exit non-zero"
+else
+  current_after="$(readlink "${MOCK_FSgf}/opt/bwb-modulo-fiscal/current")"
+  if grep -q 'pre_deploy_pg_backup=fail' "${TMP}/live-gf.out" "${TMP}/live-gf.err" \
+    && ! grep -q 'env_backup=ok' "${TMP}/live-gf.out" "${TMP}/live-gf.err" \
+    && ! grep -q 'install_env=ok' "${TMP}/live-gf.out" "${TMP}/live-gf.err" \
+    && ! grep -q 'backup-envs' "${MOCK_LOGgf}" \
+    && ! grep -q 'install-env' "${MOCK_LOGgf}" \
+    && ! grep -q ' activate ' "${MOCK_LOGgf}" \
+    && ! grep -q 'restart' "${MOCK_LOGgf}" \
+    && [[ "${current_after}" == "${current_before}" ]] \
+    && assert_envs_restored_old "${MOCK_FSgf}" \
+    && grep -q 'OLD_MIG_SECRET' "${MOCK_FSgf}/etc/bwb-modulo-fiscal/migrate.env"; then
+    ok "gate fail: no env/current/service mutation; lock released if not poisoned"
+  else
+    bad "gate fail isolation incomplete"
+    cat "${TMP}/live-gf.out" "${TMP}/live-gf.err" "${MOCK_LOGgf}" >&2 || true
+  fi
+  if grep -q 'lock_release=ok' "${TMP}/live-gf.out" "${TMP}/live-gf.err"; then
+    ok "gate fail (non-poison) releases lock"
+  else
+    bad "gate fail should release non-poisoned lock"
+  fi
 fi
 
 # Local git diff --check against main range (same intent as CI)

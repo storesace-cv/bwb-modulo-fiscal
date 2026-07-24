@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Mock dropdb (OS postgres path in tests).
+set -Eeuo pipefail
+LOG="${DEPLOY_MOCK_PREDEPLOY_LOG:-/dev/null}"
+printf 'dropdb\n' >>"${LOG}"
+if [[ "${DEPLOY_MOCK_DROPDB_FAIL:-0}" == "1" ]]; then
+  echo "error: mock dropdb fail" >&2
+  exit 1
+fi
+db=""
+prev=""
+for a in "$@"; do
+  if [[ "${prev}" == "--" ]]; then
+    db="${a}"
+  fi
+  prev="${a}"
+done
+[[ -n "${db}" ]] || db="${*: -1}"
+marker_dir="${DEPLOY_MOCK_PREDEPLOY_DBS:-}"
+if [[ -n "${marker_dir}" && -n "${db}" ]]; then
+  rm -f "${marker_dir}/${db}"
+fi
+exit 0

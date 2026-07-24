@@ -55,15 +55,18 @@ jobs:
           sudo apt-get install -y -qq shellcheck
           shellcheck -x -P SCRIPTDIR -e SC1091 \
             scripts/deploy/lib/allowlist.sh \
+            scripts/deploy/lib/predeploy_pg.sh \
             scripts/deploy/*.sh \
-            tests/deploy/run-tests.sh
+            tests/deploy/run-tests.sh \
+            tests/deploy/run-predeploy-pg16.sh
           shellcheck -e SC2317,SC2329 \
             scripts/integration/pos-sandbox-kit.sh \
             tests/integration/run-pos-kit-tests.sh
 
       - name: Deploy D1 script tests
         run: |
-          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh tests/deploy/mocks/bin/*
+          bash -n scripts/deploy/*.sh scripts/deploy/lib/*.sh tests/deploy/run-tests.sh \
+            tests/deploy/run-predeploy-pg16.sh tests/deploy/mocks/bin/*
           bash -n scripts/integration/pos-sandbox-kit.sh tests/integration/run-pos-kit-tests.sh
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
@@ -115,3 +118,26 @@ jobs:
             --ignore github.com/storesace-cv/bwb-modulo-fiscal \
             --ignore modernc.org/mathutil \
             --allowed_licenses="$ALLOWED"
+
+  predeploy-pg16:
+    name: predeploy-pg16-real
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install PostgreSQL 16
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-16 postgresql-client-16 openssl
+          # Free :5432 for the ephemeral SSL instance (closed parser requires port 5432).
+          sudo systemctl stop postgresql || true
+          sudo systemctl stop postgresql@16-main || true
+          for s in /etc/init.d/postgresql*; do
+            if [[ -x "$s" ]]; then sudo "$s" stop || true; fi
+          done
+
+      - name: Real pre-deploy pg_dump gate
+        run: bash tests/deploy/run-predeploy-pg16.sh
