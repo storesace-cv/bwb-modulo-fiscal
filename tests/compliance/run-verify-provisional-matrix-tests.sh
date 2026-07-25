@@ -205,5 +205,20 @@ t = p.read_text(encoding="utf-8").replace("RS256", "ALG-X")
 p.write_text(t, encoding="utf-8")
 '
 
+mutate_real "AO-SAF-001 sem AuditFile" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8").replace("AuditFile", "RootFile")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-SAF-001 promovido a partial" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-SAF-001 | `pending_validation`", "| AO-SAF-001 | `partial`")
+p.write_text(t, encoding="utf-8")
+'
+
 printf '\n%d passed, %d failed\n' "${pass}" "${fail}"
 [[ "${fail}" -eq 0 ]]
