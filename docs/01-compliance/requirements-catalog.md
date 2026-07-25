@@ -1,6 +1,8 @@
 # Catálogo inicial de requisitos
 
 > Rascunho para validação jurídico-fiscal. Não representa ainda a matriz legal completa.
+>
+> Matriz provisória em curso (RM-REQ-001, **não** confirmada): [`compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md).
 
 | ID | Requisito | Criticidade | Evidência esperada |
 |---|---|---:|---|
