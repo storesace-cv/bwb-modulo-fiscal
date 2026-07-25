@@ -1,14 +1,16 @@
 # Catálogo versionado de fontes fiscais angolanas (metadados).
 # Recolha local 2026-07-25 — hashes coincidem com arquivo_fiscal_ao/SHA256SUMS.txt.
 # SRC-B1: originais B1 sincronizados em storesace-cv/bwb-fiscal-sources-ao (privado).
-# XSD/ZIP permanecem local_only até SRC-B2. OCR ainda não iniciado.
+# SRC-B2: XSD SAFTAO1.01_01 no Git público (pending_validation); ZIP permanece local_only.
+# OCR ainda não iniciado.
 catalog_version: 1
 collection_id: arquivo_fiscal_ao-2026-07-25
 retrieved_at: "2026-07-25"
 description: >
   Metadados da recolha arquivo_fiscal_ao. Originais B1 (PDFs DR + HTML FE +
   proveniência) em storesace-cv/bwb-fiscal-sources-ao (privado, SRC-B1).
-  local/ permanece consulta. XSD/ZIP = SRC-B2. OCR não iniciado.
+  XSD SAFTAO1.01_01 versionado em compliance/saft-ao/schemas/ (SRC-B2,
+  pending_validation). ZIP ASSOFT permanece local_only. OCR não iniciado.
   O PDF original é a única fonte normativa; OCR/Markdown são derivados.
 
 sources:
@@ -161,21 +163,21 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: permitted
-    storage: local_only
+    storage: git_public
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/02_saft_ao/SAFTAO1.01_01.xsd
-    versioned_path: null
+    versioned_path: compliance/saft-ao/schemas/SAFTAO1.01_01.xsd
     tags:
       - schema
       - redistribuicao_permitida
-      - candidato_copia_versionada
     derived_requirements: []
     affects:
       - compliance/saft-ao/schemas/
       - docs/01-compliance/saft-ao.md
     notes: >
-      MIT ASSOFT permite redistribuição com NOTICE. Namespace
+      Cópia pública SRC-B2 sob MIT ASSOFT (+ LICENSE/NOTICE). Namespace
       urn:OECD:StandardAuditFile-Tax:AO_1.01_01; doc:Status=Development.
-      NÃO afirmado como XSD validado/certificado pela AGT. Cópia versionada no PR B.
+      NÃO afirmado como XSD validado/certificado pela AGT (pending_validation).
+      Snapshot upstream registado ed86c7d5a5ab21cf5ebb410507a5de04a86663f3.
       Mecanismos SAF-T são distintos de JWS/RS256 da faturação electrónica.
 
   - id: AO-SAFT-ZIP-ASSOFT-MASTER

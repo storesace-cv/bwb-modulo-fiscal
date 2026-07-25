@@ -54,6 +54,7 @@ jobs:
           python3 -m venv compliance/scripts/.venv
           compliance/scripts/.venv/bin/pip install -q -r compliance/scripts/requirements.txt
           compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
+          bash tests/compliance/run-verify-catalog-tests.sh
           bash compliance/scripts/verify_no_local_deps.sh
 
       - name: ROADMAP structural validation
@@ -76,6 +77,7 @@ jobs:
             tests/integration/run-pos-kit-tests.sh
           shellcheck -e SC2016 compliance/scripts/verify_no_local_deps.sh
           shellcheck -e SC2015,SC2016 tests/docs/run-verify-roadmap-tests.sh
+          shellcheck -e SC2015,SC2016 tests/compliance/run-verify-catalog-tests.sh
 
       - name: Deploy D1 script tests
         run: |

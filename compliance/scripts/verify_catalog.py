@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,12 @@ from jsonschema import Draft202012Validator
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_PATH = REPO_ROOT / "compliance" / "catalog" / "sources.yaml"
 SCHEMA_PATH = REPO_ROOT / "compliance" / "catalog" / "schema" / "sources.schema.json"
+SCHEMAS_DIR = REPO_ROOT / "compliance" / "saft-ao" / "schemas"
+SCHEMAS_MANIFEST = SCHEMAS_DIR / "SHA256SUMS.txt"
+LICENSE_EXPECTED_SHA256 = (
+    "b0ae3b4eb33bf63c99fd4c818419f19296cf03dbfde9331e5856fb192cb3ea82"
+)
+MANIFEST_ENTRIES = ("LICENSE", "NOTICE.md", "README.md", "SAFTAO1.01_01.xsd")
 
 EXPECTED_COLLECTION_COUNT = 20
 LEGISLATION_PAGES = {
@@ -63,10 +70,6 @@ def validate_relations(sources: list[dict], errors: list[str]) -> None:
                     errors.append(f"{sid}: {field} references unknown id {ref}")
                 elif ref == sid:
                     errors.append(f"{sid}: {field} must not self-reference")
-        for older in src.get("supersedes") or []:
-            if older in by_id and sid not in (by_id[older].get("superseded_by") or []):
-                # Soft check: recommend bidirectional link when both listed.
-                pass
         for der in src.get("derivatives") or []:
             if der.get("original_sha256") != src.get("sha256"):
                 errors.append(
@@ -99,11 +102,7 @@ def validate_legislation_invariants(sources: list[dict], errors: list[str]) -> N
                 f"{sid}: required_future_derivatives must be searchable_pdf and markdown_text"
             )
         if src.get("derivatives"):
-            errors.append(f"{sid}: derivatives must be empty until authorized OCR (PR B)")
-        if src.get("versioned_path") is not None:
-            errors.append(
-                f"{sid}: versioned_path must be null (binaries live in private_sync, not this repo)"
-            )
+            errors.append(f"{sid}: derivatives must be empty until authorized OCR")
 
 
 def validate_private_sync(sources: list[dict], errors: list[str]) -> None:
@@ -120,8 +119,6 @@ def validate_private_sync(sources: list[dict], errors: list[str]) -> None:
                 errors.append(f"{sid}: private_commit obrigatório (40 hex)")
             if not isinstance(path, str) or not path.startswith("originals/"):
                 errors.append(f"{sid}: private_repository_path obrigatório sob originals/")
-            if src.get("versioned_path") is not None:
-                errors.append(f"{sid}: private_sync não usa versioned_path neste repositório")
         else:
             if repo is not None or commit is not None or path is not None:
                 errors.append(
@@ -129,20 +126,132 @@ def validate_private_sync(sources: list[dict], errors: list[str]) -> None:
                 )
 
 
-def validate_no_versioned_binaries_yet(sources: list[dict], errors: list[str]) -> None:
+def resolve_versioned_path(vp: str, sid: str, errors: list[str]) -> Path | None:
+    if not isinstance(vp, str) or not vp.strip():
+        errors.append(f"{sid}: versioned_path vazio")
+        return None
+    if vp.startswith("/") or re.match(r"^[A-Za-z]:[\\/]", vp):
+        errors.append(f"{sid}: versioned_path absoluto rejeitado: {vp}")
+        return None
+    if "\\" in vp:
+        errors.append(f"{sid}: versioned_path deve usar separadores POSIX: {vp}")
+        return None
+    parts = Path(vp).parts
+    if ".." in parts or "." in parts:
+        # Allow no "." components for normalization strictness
+        if ".." in parts:
+            errors.append(f"{sid}: versioned_path traversal rejeitado: {vp}")
+            return None
+        if "." in parts:
+            errors.append(f"{sid}: versioned_path não normalizado: {vp}")
+            return None
+    if vp != Path(vp).as_posix():
+        errors.append(f"{sid}: versioned_path não normalizado: {vp}")
+        return None
+    leaf = REPO_ROOT / vp
+    try:
+        leaf.resolve().relative_to(REPO_ROOT.resolve())
+    except ValueError:
+        errors.append(f"{sid}: versioned_path fora do repositório: {vp}")
+        return None
+    return leaf
+
+
+def validate_storage_paths(sources: list[dict], errors: list[str]) -> None:
     for src in sources:
+        sid = src["id"]
+        storage = src.get("storage")
         vp = src.get("versioned_path")
-        if vp is not None:
-            path = REPO_ROOT / vp
+        lic = src.get("license_redistribution")
+
+        if storage == "git_public":
+            if vp is None:
+                errors.append(f"{sid}: git_public exige versioned_path")
+                continue
+            if lic != "permitted":
+                errors.append(
+                    f"{sid}: git_public exige license_redistribution=permitted"
+                )
+            path = resolve_versioned_path(vp, sid, errors)
+            if path is None:
+                continue
+            if path.is_symlink() or (REPO_ROOT / vp).is_symlink():
+                errors.append(f"{sid}: versioned_path não pode ser symlink: {vp}")
+                continue
             if not path.is_file():
-                errors.append(f"{src['id']}: versioned_path missing: {vp}")
-            else:
-                digest = sha256_file(path)
-                if digest != src["sha256"]:
-                    errors.append(
-                        f"{src['id']}: versioned_path sha256 mismatch "
-                        f"(catalog={src['sha256']} file={digest})"
-                    )
+                errors.append(f"{sid}: versioned_path missing: {vp}")
+                continue
+            digest = sha256_file(path)
+            if digest != src.get("sha256"):
+                errors.append(
+                    f"{sid}: versioned_path sha256 mismatch "
+                    f"(catalog={src.get('sha256')} file={digest})"
+                )
+            continue
+
+        if storage in {"private_sync", "local_only"}:
+            if vp is not None:
+                errors.append(
+                    f"{sid}: {storage} proíbe versioned_path (got {vp})"
+                )
+
+        if src.get("type") == "archive" or sid == "AO-SAFT-ZIP-ASSOFT-MASTER":
+            if storage == "git_public":
+                errors.append(f"{sid}: ZIP/archive nunca git_public")
+            if vp is not None:
+                errors.append(f"{sid}: ZIP/archive nunca com versioned_path")
+            if sid == "AO-SAFT-ZIP-ASSOFT-MASTER" and storage != "local_only":
+                errors.append("ZIP archive must remain storage=local_only")
+
+
+def validate_schemas_manifest(errors: list[str]) -> None:
+    if not SCHEMAS_MANIFEST.is_file():
+        errors.append("compliance/saft-ao/schemas/SHA256SUMS.txt ausente")
+        return
+    mapping: dict[str, str] = {}
+    for line_no, raw in enumerate(
+        SCHEMAS_MANIFEST.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            errors.append(f"SHA256SUMS linha {line_no} malformada")
+            continue
+        digest, name = parts
+        if not re.fullmatch(r"[a-f0-9]{64}", digest):
+            errors.append(f"SHA256SUMS sha256 inválido linha {line_no}")
+            continue
+        if name in mapping:
+            errors.append(f"SHA256SUMS path duplicado: {name}")
+            continue
+        mapping[name] = digest
+
+    expected = list(MANIFEST_ENTRIES)
+    if list(mapping.keys()) != expected:
+        errors.append(
+            "SHA256SUMS entradas incorrectas "
+            f"(want {expected}, got {list(mapping.keys())})"
+        )
+        return
+
+    for name in expected:
+        path = SCHEMAS_DIR / name
+        if path.is_symlink():
+            errors.append(f"schemas/{name}: symlink rejeitado")
+            continue
+        if not path.is_file():
+            errors.append(f"schemas/{name}: ficheiro ausente")
+            continue
+        digest = sha256_file(path)
+        if digest != mapping[name]:
+            errors.append(f"schemas/{name}: sha256 diverge do manifesto")
+        if name == "LICENSE" and digest != LICENSE_EXPECTED_SHA256:
+            errors.append(
+                f"schemas/LICENSE: sha256 diverge do valor fixo esperado "
+                f"({LICENSE_EXPECTED_SHA256})"
+            )
 
 
 def validate_optional_local(sources: list[dict], local_root: Path, errors: list[str]) -> None:
@@ -211,29 +320,19 @@ def main() -> int:
             f"expected {EXPECTED_COLLECTION_COUNT} sources in collection, got {len(sources)}"
         )
 
-    validate_relations([s for s in sources if isinstance(s, dict)], errors)
-    validate_legislation_invariants([s for s in sources if isinstance(s, dict)], errors)
-    validate_private_sync([s for s in sources if isinstance(s, dict)], errors)
-    validate_no_versioned_binaries_yet([s for s in sources if isinstance(s, dict)], errors)
-
-    # ZIP must never be marked as git_public runtime dependency.
-    for src in sources:
-        if not isinstance(src, dict):
-            continue
-        if src.get("type") == "archive" and src.get("id") == "AO-SAFT-ZIP-ASSOFT-MASTER":
-            if src.get("storage") != "local_only":
-                errors.append("ZIP archive must remain storage=local_only")
-            if src.get("versioned_path") is not None:
-                errors.append("ZIP must not have versioned_path")
+    typed = [s for s in sources if isinstance(s, dict)]
+    validate_relations(typed, errors)
+    validate_legislation_invariants(typed, errors)
+    validate_private_sync(typed, errors)
+    validate_storage_paths(typed, errors)
+    validate_schemas_manifest(errors)
 
     if args.with_local or os.environ.get("COMPLIANCE_VERIFY_LOCAL") == "1":
         local_root = args.local_root or (REPO_ROOT / "local")
         if not local_root.is_dir():
             errors.append(f"--with-local requested but local root missing: {local_root}")
         else:
-            validate_optional_local(
-                [s for s in sources if isinstance(s, dict)], local_root, errors
-            )
+            validate_optional_local(typed, local_root, errors)
 
     if errors:
         return fail(errors)
