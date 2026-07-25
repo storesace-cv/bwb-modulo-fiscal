@@ -1,13 +1,15 @@
 # Catálogo versionado de fontes fiscais angolanas (metadados).
-# Recolha local 2026-07-25 — artefactos NÃO estão neste PR (PR A).
-# Hashes coincidem com local/.../arquivo_fiscal_ao/SHA256SUMS.txt (+ hash do próprio SUMS).
+# Recolha local 2026-07-25 — hashes coincidem com arquivo_fiscal_ao/SHA256SUMS.txt.
+# SRC-B1: originais B1 sincronizados em storesace-cv/bwb-fiscal-sources-ao (privado).
+# XSD/ZIP permanecem local_only até SRC-B2. OCR ainda não iniciado.
 catalog_version: 1
 collection_id: arquivo_fiscal_ao-2026-07-25
 retrieved_at: "2026-07-25"
 description: >
-  Metadados da recolha arquivo_fiscal_ao. Originais em local/ apenas.
-  Cópias versionadas e OCR só após autorização (PR B). O PDF original é a
-  única fonte normativa; OCR/Markdown são derivados de consulta.
+  Metadados da recolha arquivo_fiscal_ao. Originais B1 (PDFs DR + HTML FE +
+  proveniência) em storesace-cv/bwb-fiscal-sources-ao (privado, SRC-B1).
+  local/ permanece consulta. XSD/ZIP = SRC-B2. OCR não iniciado.
+  O PDF original é a única fonte normativa; OCR/Markdown são derivados.
 
 sources:
   - id: AO-LEG-DE-74-19-2019
@@ -26,9 +28,12 @@ sources:
     related_to:
       - AO-LEG-RECT-10-19-2019
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_30_2019_DE_74-19.pdf
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/legislation/AO-LEG-DE-74-19-2019/original/Diario_Republica_I_30_2019_DE_74-19.pdf
     page_count: 12
     text_extractable: false
     conversion_required: true
@@ -68,9 +73,12 @@ sources:
     related_to:
       - AO-LEG-DE-74-19-2019
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
     page_count: 2
     text_extractable: false
     conversion_required: true
@@ -109,9 +117,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_159_2025_DE_683-25.pdf
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/legislation/AO-LEG-DE-683-25-2025/original/Diario_Republica_I_159_2025_DE_683-25.pdf
     page_count: 16
     text_extractable: false
     conversion_required: true
@@ -211,9 +222,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/index.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-INDEX/original/index.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -221,7 +235,7 @@ sources:
     derived_requirements: []
     affects:
       - compliance/fe/
-    notes: "Snapshot HML. JWS/RS256 FE ≠ mecanismos SAF-T. Sem cópia neste PR."
+    notes: "Snapshot HML. JWS/RS256 FE ≠ mecanismos SAF-T. Cópia privada SRC-B1 sincronizada."
 
   - id: AO-FE-SNAP-HML-2026-07-25-API
     official_name: "FE HML — api.html (autenticação e endereços)"
@@ -238,9 +252,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/api.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-API/original/api.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -267,9 +284,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/estrutura.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-ESTRUTURA/original/estrutura.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -294,9 +314,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/modelo.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-MODELO/original/modelo.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -321,9 +344,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/gestao.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-GESTAO/original/gestao.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -348,9 +374,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/qrcode.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-QRCODE/original/qrcode.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -375,9 +404,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_solicitar.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-SOLICITAR/original/servico_solicitar.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -402,9 +434,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR/original/servico_listar.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -429,9 +464,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_registar.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-REGISTAR/original/servico_registar.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -456,9 +494,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR/original/servico_consultar.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -483,9 +524,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar_fatura.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA/original/servico_consultar_fatura.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -510,9 +554,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar_faturas.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS/original/servico_listar_faturas.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -537,9 +584,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: uncertain
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_validar.html
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-VALIDAR/original/servico_validar.html
     tags:
       - doc_tecnica_oficial
       - redistribuicao_incerta
@@ -564,9 +614,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: local_only
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/README.md
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/provenance/AO-ARC-README-2026-07-25/original/README.md
     tags:
       - exemplo_auxiliar
       - apenas_referencia_local
@@ -574,7 +627,7 @@ sources:
     derived_requirements: []
     affects:
       - compliance/catalog/sources.yaml
-    notes: "Metadados da recolha; conteúdo permanece em local/."
+    notes: "Metadados da recolha; cópia privada SRC-B1; local/ só consulta."
 
   - id: AO-ARC-SUMS-2026-07-25
     official_name: "SHA256SUMS.txt da recolha arquivo_fiscal_ao (2026-07-25)"
@@ -591,9 +644,12 @@ sources:
     superseded_by: []
     related_to: []
     license_redistribution: local_only
-    storage: local_only
+    storage: private_sync
     local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/SHA256SUMS.txt
     versioned_path: null
+    private_repository: storesace-cv/bwb-fiscal-sources-ao
+    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+    private_repository_path: originals/provenance/AO-ARC-SUMS-2026-07-25/original/SHA256SUMS.txt
     tags:
       - exemplo_auxiliar
       - apenas_referencia_local

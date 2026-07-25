@@ -101,7 +101,32 @@ def validate_legislation_invariants(sources: list[dict], errors: list[str]) -> N
         if src.get("derivatives"):
             errors.append(f"{sid}: derivatives must be empty until authorized OCR (PR B)")
         if src.get("versioned_path") is not None:
-            errors.append(f"{sid}: versioned_path must be null in catalog-only phase")
+            errors.append(
+                f"{sid}: versioned_path must be null (binaries live in private_sync, not this repo)"
+            )
+
+
+def validate_private_sync(sources: list[dict], errors: list[str]) -> None:
+    for src in sources:
+        sid = src["id"]
+        storage = src.get("storage")
+        repo = src.get("private_repository")
+        commit = src.get("private_commit")
+        path = src.get("private_repository_path")
+        if storage == "private_sync":
+            if repo != "storesace-cv/bwb-fiscal-sources-ao":
+                errors.append(f"{sid}: private_repository inválido para private_sync")
+            if not isinstance(commit, str) or len(commit) != 40:
+                errors.append(f"{sid}: private_commit obrigatório (40 hex)")
+            if not isinstance(path, str) or not path.startswith("originals/"):
+                errors.append(f"{sid}: private_repository_path obrigatório sob originals/")
+            if src.get("versioned_path") is not None:
+                errors.append(f"{sid}: private_sync não usa versioned_path neste repositório")
+        else:
+            if repo is not None or commit is not None or path is not None:
+                errors.append(
+                    f"{sid}: campos private_* só são permitidos com storage=private_sync"
+                )
 
 
 def validate_no_versioned_binaries_yet(sources: list[dict], errors: list[str]) -> None:
@@ -188,6 +213,7 @@ def main() -> int:
 
     validate_relations([s for s in sources if isinstance(s, dict)], errors)
     validate_legislation_invariants([s for s in sources if isinstance(s, dict)], errors)
+    validate_private_sync([s for s in sources if isinstance(s, dict)], errors)
     validate_no_versioned_binaries_yet([s for s in sources if isinstance(s, dict)], errors)
 
     # ZIP must never be marked as git_public runtime dependency.

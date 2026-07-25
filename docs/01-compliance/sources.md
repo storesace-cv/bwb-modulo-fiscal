@@ -6,7 +6,7 @@
 
 Política: [`compliance/POLICY.md`](../../compliance/POLICY.md). Validação: `compliance/scripts/verify_catalog.py` (sem depender de `local/` no CI).
 
-Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). Conversão OCR (`searchable_pdf` + `markdown_text`) está prevista para o PR B após autorização de redistribuição. O PDF original permanece a única fonte normativa.
+Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). **SRC-B1 concluído:** originais B1 (PDFs + HTML FE HML + proveniência) estão no repositório privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao) (commit `c93db4f89352eab884a4862943faa2ed874217fc`), com catálogo/manifesto e verificação de integridade. Acesso privado **não** equivale a autorização de redistribuição pública. OCR / PDF pesquisável / Markdown **ainda pendentes**. XSD SAF-T AO e ZIP ASSOFT permanecem **SRC-B2**. O PDF original permanece a única fonte normativa.
 
 Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte de IDs, hashes e estado.
 
