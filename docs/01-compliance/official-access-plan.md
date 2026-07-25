@@ -30,37 +30,26 @@ Não é possível garantir antecipadamente acesso a uma área restrita sem essas
 8. Executar validação independente do XSD e criar vetores dourados.
 9. Rever fontes antes de cada release fiscal e antes da submissão à AGT.
 
-## Estrutura recomendada para o repositório privado
+## Estrutura versionada (implementada — PR A metadados)
+
+Ver [`compliance/README.md`](../../compliance/README.md). Catálogo activo: [`compliance/catalog/sources.yaml`](../../compliance/catalog/sources.yaml).
 
 ```text
 compliance/
-  sources-manifest.yaml
-  public/
-    legislation/
-    api-docs/
-    schemas/
-  restricted/          # não versionar sem aprovação jurídica e controlo de acesso
-  extracted-requirements/
-  evidence/
+  catalog/sources.yaml          # manifesto (metadados; PR A)
+  catalog/schema/               # JSON Schema
+  legislation/ao/               # PDFs + OCR após autorização (PR B)
+  saft-ao/schemas/              # XSD versionado (PR B)
+  fe/snapshots/                 # HTML/inventários FE (PR B)
+  derived/                      # requisitos AO-* (PR C)
+  scripts/                      # validação determinística
 ```
 
-O manifesto pode entrar em Git. Ficheiros restritos, credenciais, chaves privadas e dados de teste reais ficam fora do repositório normal.
+O catálogo está no Git. Binários (PDF/HTML/XSD/ZIP) e OCR **não** entram até autorização explícita. Credenciais, chaves privadas e dados de teste reais ficam fora do repositório.
 
-## Campos do manifesto
+## Campos do catálogo
 
-- `id`
-- `title`
-- `issuer`
-- `source_url`
-- `published_at`
-- `retrieved_at`
-- `effective_from`
-- `version`
-- `sha256`
-- `access_class`: public/restricted
-- `supersedes`
-- `status`: current/superseded/pending-verification
-- `requirements`
+Alinhados a `compliance/catalog/schema/sources.schema.json`, incluindo para legislação image-only: `page_count`, `text_extractable`, `conversion_required`, `required_future_derivatives`, e metadados futuros de OCR (`original_sha256`, ferramenta/versão, idioma, `derivative_sha256`, `review_status`, `pages_reviewed`, erros/baixa confiança, `human_corrections_ref`).
 
 ## Gate para começar o motor fiscal
 
