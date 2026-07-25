@@ -310,41 +310,106 @@ def validate_distinctions(text: str, path: str) -> None:
                 or ("sealintx" in norm and "certificad" in norm)
             ),
         ),
-        ("RM-GOV-002", "rm-gov-002" in norm),
-        (
-            "RM-GOV-002 ruleset de main",
-            (
-                "rm-gov-002" in norm
-                and "ruleset" in norm
-                and (
-                    # Concluído: protecção activa documentada (canónica via ruleset).
-                    (
-                        (
-                            "ruleset activo" in norm
-                            or "ruleset ativo" in norm
-                            or "protect main and require project checks" in norm
-                        )
-                        and (
-                            "bypass" in norm
-                            or "sem bypass" in norm
-                            or "bypass_actors" in norm
-                            or "bypass actors" in norm
-                        )
-                    )
-                    # Legado: estado anterior sem ruleset (política contornável).
-                    or "nao tecnicamente impossivel de contornar" in norm
-                    or (
-                        "contornar" in norm
-                        and ("politica assistida" in norm or "politica" in norm)
-                    )
-                )
-            ),
-        ),
     ]
     for label, ok in checks:
         if not ok:
             fail(path, "-", f"distinção essencial ausente: {label}")
 
+
+def has_active_ruleset_evidence(norm: str) -> bool:
+    if "protect main and require project checks" in norm:
+        return True
+    # Ignorar negações do tipo «sem ruleset activo».
+    cleaned = re.sub(r"\bsem ruleset activ[oa]\b", " ", norm)
+    return bool(re.search(r"\bruleset activ[oa]\b", cleaned))
+
+
+def has_nonempty_bypass_claim(norm: str) -> bool:
+    if re.search(r"\bbypass\s+permitido\b", norm):
+        return True
+    if re.search(r"\bbypass\s+configurado\b", norm):
+        return True
+    if re.search(
+        r"\bbypass(?:[_\s]+actors?)?\s*[:=]\s*(?:\*\*)?"
+        r"(?:admin|always|true|enabled|[1-9]\d*|"
+        r"\[(?!\s*\])[^\]]+\])",
+        norm,
+    ):
+        return True
+    return False
+
+
+def has_empty_bypass_evidence(norm: str) -> bool:
+    """Exige ausência explícita de bypass; não aceita só a palavra «bypass»."""
+    if has_nonempty_bypass_claim(norm):
+        return False
+    if re.search(r"\bsem bypass\b", norm):
+        return True
+    if re.search(r"\bbypass(?:[_\s]+actors?)?\s*[:=]\s*(?:\*\*)?vazio\b", norm):
+        return True
+    if re.search(r"\bbypass(?:[_\s]+actors?)?\s*[:=]\s*\[\s*\]", norm):
+        return True
+    return False
+
+
+def has_never_bypass_evidence(norm: str) -> bool:
+    if re.search(r"current_user_can_bypass\s*=\s*always\b", norm):
+        return False
+    if re.search(r"current_user_can_bypass\s*=\s*never\b", norm):
+        return True
+    if re.search(r"current_user_can_bypass\s*:\s*never\b", norm):
+        return True
+    return False
+
+
+def has_legacy_contornavel_policy(norm: str) -> bool:
+    return "nao tecnicamente impossivel de contornar" in norm or (
+        "contornar" in norm and "politica assistida" in norm
+    )
+
+
+def validate_rm_gov_002(text: str, path: str, items: list[dict[str, str]]) -> None:
+    """Valida RM-GOV-002 com base no Estado canónico do item analisado."""
+    gov = next((it for it in items if it["id"] == "RM-GOV-002"), None)
+    if gov is None:
+        fail(path, "RM-GOV-002", "RM-GOV-002 ausente da tabela canónica")
+
+    estado = gov["estado"].strip()
+    norm = normalize_text(text)
+    active = has_active_ruleset_evidence(norm)
+    empty_bypass = has_empty_bypass_evidence(norm)
+    never_bypass = has_never_bypass_evidence(norm)
+    legacy = has_legacy_contornavel_policy(norm)
+
+    if estado == "CONCLUÍDO":
+        if legacy and not active:
+            fail(
+                path,
+                "RM-GOV-002",
+                "fallback legado só é permitido enquanto RM-GOV-002 não estiver concluído",
+            )
+        if not active:
+            fail(path, "RM-GOV-002", "RM-GOV-002 concluído exige ruleset ativo")
+        if not empty_bypass:
+            fail(path, "RM-GOV-002", "RM-GOV-002 concluído exige bypass vazio")
+        if not never_bypass:
+            fail(
+                path,
+                "RM-GOV-002",
+                "RM-GOV-002 concluído exige current_user_can_bypass=never",
+            )
+        return
+
+    if estado in {"BLOQUEADO", "PENDENTE", "EM_CURSO"}:
+        if legacy or (active and empty_bypass and never_bypass):
+            return
+        fail(
+            path,
+            "RM-GOV-002",
+            "RM-GOV-002 não concluído exige formulação legada ou ruleset ativo completo",
+        )
+
+    fail(path, "RM-GOV-002", f"estado RM-GOV-002 inesperado para governação: {estado}")
 
 def validate_item(
     item: dict[str, str],
@@ -491,12 +556,14 @@ def verify(repo_root: Path, roadmap_path: Path) -> None:
     if not items:
         fail(rel, "-", "nenhum item RM-* em tabela canónica encontrado")
 
+    if "rm-gov-002-ruleset-de-main" not in anchors:
+        fail(rel, "RM-GOV-002", "âncora rm-gov-002-ruleset-de-main ausente")
+
+    validate_rm_gov_002(text, rel, items)
+
     seen: set[str] = set()
     for item in items:
         validate_item(item, rel, repo_root, roadmap_path, anchors, seen)
-
-    if "rm-gov-002-ruleset-de-main" not in anchors:
-        fail(rel, "RM-GOV-002", "âncora rm-gov-002-ruleset-de-main ausente")
 
     validate_pointer(repo_root)
     validate_second_canonical(repo_root)
