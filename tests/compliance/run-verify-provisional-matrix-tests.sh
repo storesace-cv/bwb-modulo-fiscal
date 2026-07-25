@@ -69,7 +69,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `blocked` | — | Rect |
-| AO-CRYPTO-001 | `blocked` | — | x |
+| AO-CRYPTO-001 | `partial` | AO-LEG-DE-683-25-2025 + AO-FE-SNAP-HML-2026-07-25-ESTRUTURA | jwsDocumentSignature 19168 RS256 pending_validation SAF-T encadeamento **não** citado; critério **não** fica satisfeito; **Não** confirmado |
 | AO-KEY-001 | `blocked` | — | x |
 | AO-AGT-001 | `blocked` | — | x |
 | AO-AGT-002 | `scaffold` | — | x |
@@ -187,6 +187,21 @@ for line in t.splitlines():
         )
         t = t.replace(line, bad)
         break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-CRYPTO-001 blocked" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-CRYPTO-001 | `partial`", "| AO-CRYPTO-001 | `blocked`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-CRYPTO-001 sem RS256" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8").replace("RS256", "ALG-X")
 p.write_text(t, encoding="utf-8")
 '
 
