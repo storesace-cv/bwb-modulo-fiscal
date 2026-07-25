@@ -30,13 +30,36 @@ REQUIRED_HEADER = (
     "Dependências / gate",
     "Done",
 )
+# Titles as listed in the executive structure (optional leading "N. " in the file).
+REQUIRED_SECTION_TITLES = (
+    "Visão executiva",
+    "Estado atual",
+    "O que já foi construído",
+    "Caminho crítico para Angola",
+    "Roadmap detalhado por área",
+    "Fontes fiscais e SAF-T AO",
+    "Motor fiscal Angola",
+    "Faturação electrónica AGT",
+    "Backoffice",
+    "Edge/offline",
+    "Integradores e software houses",
+    "Operações de produção",
+    "Certificação AGT",
+    "Cabo Verde",
+    "Bloqueios, decisões e incidentes",
+    "Critérios de conclusão",
+    "Evidências e documentos relacionados",
+    "Regras de manutenção do roadmap",
+)
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 HTML_ANCHOR_RE = re.compile(
     r"<a\s+[^>]*\bid\s*=\s*[\"']([^\"']+)[\"'][^>]*>", re.IGNORECASE
 )
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 ITEM_ID_RE = re.compile(r"^RM-[A-Z0-9]+(?:-[A-Z0-9]+)*$")
-TABLE_ROW_RE = re.compile(r"^\|(.+)\|$")
+RM_TOKEN_RE = re.compile(r"\bRM-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
+SECTION_NUM_RE = re.compile(r"^\d+\.\s+")
 
 
 class Failure(Exception):
@@ -58,6 +81,14 @@ def github_slug(text: str) -> str:
     return text
 
 
+def normalize_section_title(title: str) -> str:
+    title = title.strip()
+    title = re.sub(r"`([^`]+)`", r"\1", title)
+    title = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", title)
+    title = SECTION_NUM_RE.sub("", title)
+    return title.strip()
+
+
 def collect_anchors(text: str) -> set[str]:
     anchors: set[str] = set()
     for match in HTML_ANCHOR_RE.finditer(text):
@@ -74,8 +105,7 @@ def split_row(line: str) -> list[str]:
     inner = line.strip()
     if not (inner.startswith("|") and inner.endswith("|")):
         return []
-    parts = [p.strip() for p in inner[1:-1].split("|")]
-    return parts
+    return [p.strip() for p in inner[1:-1].split("|")]
 
 
 def is_separator(cells: list[str]) -> bool:
@@ -84,8 +114,15 @@ def is_separator(cells: list[str]) -> bool:
     return all(re.fullmatch(r":?-{3,}:?", c.replace(" ", "")) for c in cells)
 
 
-def parse_items(text: str, path: str) -> list[dict[str, str]]:
+def is_table_line(line: str) -> bool:
+    stripped = line.strip()
+    return stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2
+
+
+def parse_items(text: str, path: str) -> tuple[list[dict[str, str]], set[int]]:
+    """Parse canonical RM-* tables. Returns (items, consumed_line_indexes)."""
     items: list[dict[str, str]] = []
+    consumed: set[int] = set()
     lines = text.splitlines()
     i = 0
     while i < len(lines):
@@ -116,25 +153,39 @@ def parse_items(text: str, path: str) -> list[dict[str, str]]:
                         "evidencia": row[4],
                         "gate": row[5],
                         "done": row[6],
+                        "_line": str(i),
                     }
                 )
+                consumed.add(i)
                 i += 1
             continue
         i += 1
-    return items
+    return items, consumed
 
 
 def extract_links(cell: str) -> list[str]:
     return [m.group(2).strip() for m in MD_LINK_RE.finditer(cell)]
 
 
-def is_https_url(target: str) -> bool:
+def link_kind(target: str) -> str:
+    """Classify a Markdown link target without network I/O.
+
+    Returns: https | fragment | relative | bad_external
+    """
+    if target.startswith("#"):
+        return "fragment"
     parsed = urlparse(target)
-    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    scheme = (parsed.scheme or "").lower()
+    if scheme:
+        if scheme == "https" and parsed.netloc:
+            return "https"
+        return "bad_external"
+    return "relative"
 
 
-def is_internal_fragment(target: str) -> bool:
-    return target.startswith("#") and len(target) > 1
+def is_https_url(target: str) -> bool:
+    """True only for syntactically valid https:// URLs (never http)."""
+    return link_kind(target) == "https"
 
 
 def resolve_relative(repo_root: Path, from_file: Path, target: str) -> Path:
@@ -148,12 +199,12 @@ def resolve_relative(repo_root: Path, from_file: Path, target: str) -> Path:
 def validate_local_deps(text: str, path: str) -> None:
     for match in MD_LINK_RE.finditer(text):
         target = match.group(2).strip()
-        if is_https_url(target) or is_internal_fragment(target):
+        kind = link_kind(target)
+        if kind in ("https", "fragment", "bad_external"):
             continue
         path_part = unquote(target.split("#", 1)[0]).lstrip("./")
         if path_part.startswith("local/") or path_part == "local":
             fail(path, "-", f"link Markdown para local/ proibido: {target}")
-    # Build/test style dependencies (not explanatory prose).
     for pattern, label in (
         (r"(?i)(?:^|\s)(?:source|include|require|import)\s+[\"']local/", "include/import local/"),
         (r"(?i)(?:^|\s)(?:cd|cat|cp|mv|ln)\s+local/", "comando com local/"),
@@ -173,7 +224,6 @@ def validate_pointer(repo_root: Path) -> None:
         fail(rel, "-", "apontador não referencia ROADMAP.md")
     if not re.search(r"\[ROADMAP\.md\]\(\.\./\.\./ROADMAP\.md\)", text):
         fail(rel, "-", "apontador deve usar [ROADMAP.md](../../ROADMAP.md)")
-    # Must not still look like a second detailed roadmap of phases.
     if re.search(r"^## Fase 0", text, re.MULTILINE):
         fail(rel, "-", "apontador ainda contém roadmap de fases (não é só pointer)")
 
@@ -186,8 +236,7 @@ def validate_second_canonical(repo_root: Path) -> None:
             continue
         if path.suffix.lower() != ".md":
             continue
-        name = path.name
-        if "roadmap" not in name.lower():
+        if "roadmap" not in path.name.lower():
             continue
         rel = str(path.relative_to(repo_root))
         if path.name == CANONICAL_NAME and path.parent == repo_root:
@@ -199,6 +248,84 @@ def validate_second_canonical(repo_root: Path) -> None:
             r"(?i)fonte can[oó]nica de estado", text
         ):
             fail(rel, "-", "segundo ficheiro roadmap autodeclarado canónico")
+
+
+def normalize_text(text: str) -> str:
+    text = text.lower()
+    text = (
+        text.replace("á", "a")
+        .replace("à", "a")
+        .replace("ã", "a")
+        .replace("â", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("õ", "o")
+        .replace("ô", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def validate_sections(text: str, path: str) -> None:
+    found: list[str] = []
+    for match in H2_RE.finditer(text):
+        found.append(normalize_section_title(match.group(1)))
+    expected = list(REQUIRED_SECTION_TITLES)
+    if found != expected:
+        # Missing / extra / wrong order
+        if set(found) != set(expected):
+            missing = [t for t in expected if t not in found]
+            if missing:
+                fail(path, "-", f"secção em falta: {missing[0]}")
+            extra = [t for t in found if t not in expected]
+            if extra:
+                fail(path, "-", f"secção H2 inesperada: {extra[0]}")
+        fail(path, "-", "ordem das 18 secções H2 incorrecta")
+
+
+def validate_distinctions(text: str, path: str) -> None:
+    norm = normalize_text(text)
+    checks = [
+        ("FISCAL_ENV=homologation", "FISCAL_ENV=homologation" in text or "fiscal_env=homologation" in norm),
+        ("sandbox BWB", "sandbox bwb" in norm),
+        (
+            "não é homologação oficial AGT",
+            (
+                "nao e homologacao oficial agt" in norm
+                or "nao significa acesso ao ambiente oficial de homologacao da agt" in norm
+                or ("nao" in norm and "homologacao oficial agt" in norm)
+            ),
+        ),
+        ("sealed_locally/SealInTx", "sealed_locally" in norm or "sealintx" in norm),
+        (
+            "não equivale a emissão/certificação AGT",
+            (
+                "nao constituem emissao fiscal certificada" in norm
+                or "emissao fiscal certificada" in norm
+                or ("sealed_locally" in norm and "certificad" in norm)
+                or ("sealintx" in norm and "certificad" in norm)
+            ),
+        ),
+        ("RM-GOV-002", "rm-gov-002" in norm),
+        (
+            "política contornável sem ruleset",
+            (
+                "nao tecnicamente impossivel de contornar" in norm
+                or (
+                    "contornar" in norm
+                    and "ruleset" in norm
+                    and ("rm-gov-002" in norm or "politica assistida" in norm)
+                )
+            ),
+        ),
+    ]
+    for label, ok in checks:
+        if not ok:
+            fail(path, "-", f"distinção essencial ausente: {label}")
 
 
 def validate_item(
@@ -266,17 +393,16 @@ def validate_item(
     for target in all_links:
         if any(ph.lower() in target.lower() for ph in FORBIDDEN_PLACEHOLDERS):
             fail(path, item_id, f"placeholder em link: {target}")
-        if is_https_url(target):
-            parsed = urlparse(target)
-            if parsed.scheme not in ("http", "https") or not parsed.netloc:
-                fail(path, item_id, f"URL HTTPS inválida sintaticamente: {target}")
+        kind = link_kind(target)
+        if kind == "https":
             continue
-        if is_internal_fragment(target):
+        if kind == "bad_external":
+            fail(path, item_id, f"URL externa deve ser https://: {target}")
+        if kind == "fragment":
             frag = target[1:]
             if frag not in anchors:
                 fail(path, item_id, f"fragmento interno inexistente: {target}")
             continue
-        # Relative file link (optional fragment).
         file_part, _, frag = target.partition("#")
         resolved = resolve_relative(repo_root, roadmap_path, file_part or ".")
         try:
@@ -291,22 +417,59 @@ def validate_item(
                 fail(path, item_id, f"fragmento inexistente em {target}")
 
 
+def validate_rm_candidates(
+    text: str, path: str, items: list[dict[str, str]], consumed: set[int]
+) -> None:
+    lines = text.splitlines()
+    candidate_idxs: set[int] = set()
+    for i, line in enumerate(lines):
+        if not is_table_line(line):
+            continue
+        cells = split_row(line)
+        if is_separator(cells):
+            continue
+        if len(cells) == 7 and tuple(cells) == REQUIRED_HEADER:
+            continue
+        if not RM_TOKEN_RE.search(line):
+            continue
+        candidate_idxs.add(i)
+
+    if len(items) != len(consumed):
+        fail(path, "-", f"invariante items≠consumed ({len(items)}≠{len(consumed)})")
+
+    unconsumed = sorted(candidate_idxs - consumed)
+    if unconsumed:
+        idx = unconsumed[0]
+        tokens = RM_TOKEN_RE.findall(lines[idx])
+        rid = tokens[0] if tokens else "-"
+        fail(path, rid, "linha RM-* malformada/não analisada")
+
+    if len(items) != len(candidate_idxs):
+        fail(
+            path,
+            "-",
+            f"contagem RM-* divergente (analisados={len(items)} candidatos={len(candidate_idxs)})",
+        )
+
+
 def verify(repo_root: Path, roadmap_path: Path) -> None:
-    rel = str(roadmap_path.relative_to(repo_root)) if roadmap_path.is_relative_to(repo_root) else str(roadmap_path)
+    if roadmap_path.is_relative_to(repo_root):
+        rel = str(roadmap_path.relative_to(repo_root))
+    else:
+        rel = str(roadmap_path)
     if not roadmap_path.is_file():
         fail(rel, "-", "ROADMAP.md ausente")
     if roadmap_path.name != CANONICAL_NAME:
         fail(rel, "-", "ficheiro canónico deve chamar-se ROADMAP.md")
 
     text = roadmap_path.read_text(encoding="utf-8")
-    for ph in FORBIDDEN_PLACEHOLDERS:
-        # Allow documenting the rule itself in maintenance section only if quoted carefully;
-        # still fail if used as evidence placeholders in tables (checked per-item).
-        pass
 
+    validate_sections(text, rel)
+    validate_distinctions(text, rel)
     validate_local_deps(text, rel)
     anchors = collect_anchors(text)
-    items = parse_items(text, rel)
+    items, consumed = parse_items(text, rel)
+    validate_rm_candidates(text, rel, items, consumed)
     if not items:
         fail(rel, "-", "nenhum item RM-* em tabela canónica encontrado")
 
