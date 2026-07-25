@@ -4,6 +4,7 @@
 
 - Compliance SRC-B2: XSD `SAFTAO1.01_01.xsd` + LICENSE MIT ASSOFT + NOTICE/README/SHA256SUMS em `compliance/saft-ao/schemas/`; catálogo `AO-SAFT-XSD-1.01_01` → `git_public` / `pending_validation`; ZIP permanece `local_only`.
 - Verificador/testes: invariantes genéricas de `versioned_path`/`git_public`; suite `tests/compliance/run-verify-catalog-tests.sh` na CI.
+- CI/`tests/deploy`: `git diff --check` exclui o XSD upstream imutável (trailing whitespace ASSOFT por desenho).
 - Docs activos + ROADMAP (`RM-SRC-005` CONCLUÍDO); GAP-004 parcialmente mitigado (sem confirmação AGT). Sem OCR, runtime, servidor ou alterações ao repo privado.
 
 ## 0.2.25-draft — 2026-07-25
