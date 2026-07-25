@@ -141,12 +141,17 @@ def verify(root: Path) -> list[str]:
     # AO-ID-001: partial citation — contribuinte/software fields; never full catalog criterion.
     if rows.get("AO-ID-001") != "partial":
         fail("AO-ID-001: deve estar `partial` (citação preliminar DE 683/25 campos FE)", errors)
-    for token in ("taxRegistrationNumber", "softwareValidationNumber", "19166", "19167"):
+    for token in ("taxRegistrationNumber", "softwareValidationNumber", "productVersion", "19166", "19167"):
         if token not in text:
             fail(f"citação AO-ID-001 deve incluir `{token}`", errors)
-    if "estabelecimento" not in text.lower() or "terminal" not in text.lower():
-        fail("AO-ID-001 deve declarar lacuna estabelecimento/terminal", errors)
     check_partial_row("AO-ID-001")
+    id_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-ID-001\s*\|", ln)]
+    if id_rows:
+        id_line = id_rows[0].lower()
+        if "estabelecimento" not in id_line or "terminal" not in id_line:
+            fail("AO-ID-001: a linha da tabela deve declarar lacuna estabelecimento/terminal", errors)
+        if "não" not in id_line or "satisfeito" not in id_line:
+            fail("AO-ID-001: a linha da tabela deve declarar que o critério não fica satisfeito", errors)
 
     return errors
 

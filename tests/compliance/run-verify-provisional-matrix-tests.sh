@@ -172,5 +172,23 @@ t = p.read_text(encoding="utf-8").replace("taxRegistrationNumber", "taxRegField"
 p.write_text(t, encoding="utf-8")
 '
 
+mutate_real "AO-ID-001 lacuna só fora da linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-ID-001 |"):
+        # Remove gap words from the table row only; keep them elsewhere in the doc.
+        bad = (
+            line.replace("Estabelecimento/terminal", "Campos FE")
+            .replace("estabelecimento/terminal", "campos FE")
+            .replace("estabelecimento", "ambito")
+            .replace("terminal", "ponto")
+        )
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
 printf '\n%d passed, %d failed\n' "${pass}" "${fail}"
 [[ "${fail}" -eq 0 ]]
