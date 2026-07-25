@@ -26,6 +26,11 @@ SCHEMAS_MANIFEST = SCHEMAS_DIR / "SHA256SUMS.txt"
 LICENSE_EXPECTED_SHA256 = (
     "b0ae3b4eb33bf63c99fd4c818419f19296cf03dbfde9331e5856fb192cb3ea82"
 )
+XSD_EXPECTED_SHA256 = (
+    "e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631"
+)
+XSD_CANONICAL_ID = "AO-SAFT-XSD-1.01_01"
+XSD_CANONICAL_VERSIONED_PATH = "compliance/saft-ao/schemas/SAFTAO1.01_01.xsd"
 MANIFEST_ENTRIES = ("LICENSE", "NOTICE.md", "README.md", "SAFTAO1.01_01.xsd")
 
 EXPECTED_COLLECTION_COUNT = 20
@@ -204,10 +209,10 @@ def validate_storage_paths(sources: list[dict], errors: list[str]) -> None:
                 errors.append("ZIP archive must remain storage=local_only")
 
 
-def validate_schemas_manifest(errors: list[str]) -> None:
+def parse_schemas_manifest(errors: list[str]) -> dict[str, str] | None:
     if not SCHEMAS_MANIFEST.is_file():
         errors.append("compliance/saft-ao/schemas/SHA256SUMS.txt ausente")
-        return
+        return None
     mapping: dict[str, str] = {}
     for line_no, raw in enumerate(
         SCHEMAS_MANIFEST.read_text(encoding="utf-8").splitlines(), 1
@@ -227,6 +232,13 @@ def validate_schemas_manifest(errors: list[str]) -> None:
             errors.append(f"SHA256SUMS path duplicado: {name}")
             continue
         mapping[name] = digest
+    return mapping
+
+
+def validate_schemas_manifest(errors: list[str]) -> None:
+    mapping = parse_schemas_manifest(errors)
+    if mapping is None:
+        return
 
     expected = list(MANIFEST_ENTRIES)
     if list(mapping.keys()) != expected:
@@ -252,6 +264,69 @@ def validate_schemas_manifest(errors: list[str]) -> None:
                 f"schemas/LICENSE: sha256 diverge do valor fixo esperado "
                 f"({LICENSE_EXPECTED_SHA256})"
             )
+
+
+def validate_canonical_xsd(sources: list[dict], errors: list[str]) -> None:
+    """Integrity pin for the immutable ASSOFT SAF-T AO XSD (does not replace
+    generic git_public / versioned_path invariants).
+    """
+    matches = [s for s in sources if s.get("id") == XSD_CANONICAL_ID]
+    if len(matches) != 1:
+        errors.append(
+            f"{XSD_CANONICAL_ID}: exactamente uma entrada exigida "
+            f"(got {len(matches)})"
+        )
+        return
+    src = matches[0]
+    if src.get("storage") != "git_public":
+        errors.append(f"{XSD_CANONICAL_ID}: storage deve ser git_public")
+    vp = src.get("versioned_path")
+    if vp != XSD_CANONICAL_VERSIONED_PATH:
+        errors.append(
+            f"{XSD_CANONICAL_ID}: versioned_path canónico exacto exigido "
+            f"({XSD_CANONICAL_VERSIONED_PATH}), got {vp}"
+        )
+    catalog_sha = src.get("sha256")
+    if catalog_sha != XSD_EXPECTED_SHA256:
+        errors.append(
+            f"{XSD_CANONICAL_ID}: sha256 do catálogo diverge do hash canónico "
+            f"fixo ({XSD_EXPECTED_SHA256})"
+        )
+
+    xsd_path = REPO_ROOT / XSD_CANONICAL_VERSIONED_PATH
+    if xsd_path.is_symlink():
+        errors.append(
+            f"{XSD_CANONICAL_ID}: ficheiro canónico não pode ser symlink"
+        )
+    elif not xsd_path.is_file():
+        errors.append(
+            f"{XSD_CANONICAL_ID}: ficheiro canónico ausente "
+            f"({XSD_CANONICAL_VERSIONED_PATH})"
+        )
+    else:
+        file_sha = sha256_file(xsd_path)
+        if file_sha != XSD_EXPECTED_SHA256:
+            errors.append(
+                f"{XSD_CANONICAL_ID}: SHA-256 do ficheiro diverge do hash "
+                f"canónico fixo ({XSD_EXPECTED_SHA256})"
+            )
+
+    # Read only the XSD manifest line (avoid re-emitting SHA256SUMS parse errors).
+    manifest_sha: str | None = None
+    if SCHEMAS_MANIFEST.is_file():
+        for raw in SCHEMAS_MANIFEST.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) == 2 and parts[1] == "SAFTAO1.01_01.xsd":
+                manifest_sha = parts[0]
+                break
+    if manifest_sha != XSD_EXPECTED_SHA256:
+        errors.append(
+            f"{XSD_CANONICAL_ID}: entrada SHA256SUMS diverge do hash canónico "
+            f"fixo ({XSD_EXPECTED_SHA256})"
+        )
 
 
 def validate_optional_local(sources: list[dict], local_root: Path, errors: list[str]) -> None:
@@ -326,6 +401,7 @@ def main() -> int:
     validate_private_sync(typed, errors)
     validate_storage_paths(typed, errors)
     validate_schemas_manifest(errors)
+    validate_canonical_xsd(typed, errors)
 
     if args.with_local or os.environ.get("COMPLIANCE_VERIFY_LOCAL") == "1":
         local_root = args.local_root or (REPO_ROOT / "local")

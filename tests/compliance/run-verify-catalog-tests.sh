@@ -240,6 +240,71 @@ if run_v "${TMP}/manbad" >/dev/null 2>"${TMP}/manbad.err"; then bad "manifesto a
   if grep -qi 'SHA256SUMS\|manifesto\|entradas\|diverge\|LICENSE' "${TMP}/manbad.err"; then ok "manifesto alterado"; else bad "manifesto alterado (msg)"; fi
 fi
 
+# --- alteração coordenada XSD + catálogo + manifesto (pin canónico) ---
+setup_fixture "${TMP}/coord"
+"${PY}" - <<'PY' "${TMP}/coord"
+import hashlib, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+xsd = root / "compliance/saft-ao/schemas/SAFTAO1.01_01.xsd"
+data = bytearray(xsd.read_bytes())
+data[-1] = (data[-1] + 1) % 256
+xsd.write_bytes(data)
+new_sha = hashlib.sha256(data).hexdigest()
+old = "e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631"
+cat = root / "compliance/catalog/sources.yaml"
+text = cat.read_text(encoding="utf-8")
+idx = text.find("id: AO-SAFT-XSD-1.01_01")
+assert idx != -1
+chunk = text[idx:idx + 1200]
+chunk2 = chunk.replace(f"sha256: {old}", f"sha256: {new_sha}", 1)
+assert chunk2 != chunk, "catalog sha256 not updated"
+text = text[:idx] + chunk2 + text[idx + len(chunk):]
+cat.write_text(text, encoding="utf-8")
+man = root / "compliance/saft-ao/schemas/SHA256SUMS.txt"
+mlines = man.read_text(encoding="utf-8").splitlines()
+out = []
+for line in mlines:
+    parts = line.split()
+    if len(parts) == 2 and parts[1] == "SAFTAO1.01_01.xsd":
+        out.append(f"{new_sha}  SAFTAO1.01_01.xsd")
+    else:
+        out.append(line)
+man.write_text("\n".join(out) + "\n", encoding="utf-8")
+print(new_sha)
+PY
+if run_v "${TMP}/coord" >/dev/null 2>"${TMP}/coord.err"; then bad "alteração coordenada pin"; else
+  if grep -qi 'canónico\|hash canónico\|XSD_EXPECTED\|AO-SAFT-XSD-1.01_01' "${TMP}/coord.err"; then
+    ok "alteração coordenada pin"
+  else
+    bad "alteração coordenada pin (msg)"
+    cat "${TMP}/coord.err" >&2 || true
+  fi
+fi
+
+# --- versioned_path canónico exacto (mesmo conteúdo noutro path) ---
+setup_fixture "${TMP}/canonpath"
+cp "${TMP}/canonpath/compliance/saft-ao/schemas/SAFTAO1.01_01.xsd" \
+  "${TMP}/canonpath/compliance/saft-ao/schemas/SAFTAO1.01_01.copy.xsd"
+"${PY}" - <<'PY' "${TMP}/canonpath/compliance/catalog/sources.yaml"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace(
+    "versioned_path: compliance/saft-ao/schemas/SAFTAO1.01_01.xsd",
+    "versioned_path: compliance/saft-ao/schemas/SAFTAO1.01_01.copy.xsd",
+    1,
+)
+p.write_text(text, encoding="utf-8")
+PY
+if run_v "${TMP}/canonpath" >/dev/null 2>"${TMP}/canonpath.err"; then bad "path canónico exacto"; else
+  if grep -qi 'versioned_path canónico\|canónico exacto\|AO-SAFT-XSD-1.01_01' "${TMP}/canonpath.err"; then
+    ok "path canónico exacto"
+  else
+    bad "path canónico exacto (msg)"
+    cat "${TMP}/canonpath.err" >&2 || true
+  fi
+fi
+
 # --- real repo ---
 if "${PY}" "${VERIFY}" >/dev/null; then ok "verificador no repositório real"; else bad "verificador no repositório real"; fi
 
