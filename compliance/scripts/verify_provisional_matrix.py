@@ -94,7 +94,7 @@ def verify(root: Path) -> list[str]:
         if not re.search(r"(?i)AO-\*.*confirmad|requisitos?\s+AO-\*\s+confirmad", line):
             continue
         lowered = line.lower()
-        if "não" in lowered or "nao" in lowered:
+        if "não" in lowered or "nao" in lowered or "nenhum" in lowered:
             continue
         fail(f"afirmação indevida de confirmação: {line.strip()[:120]}", errors)
         break
@@ -152,6 +152,29 @@ def verify(root: Path) -> list[str]:
             fail("AO-ID-001: a linha da tabela deve declarar lacuna estabelecimento/terminal", errors)
         if "não" not in id_line or "satisfeito" not in id_line:
             fail("AO-ID-001: a linha da tabela deve declarar que o critério não fica satisfeito", errors)
+
+    # AO-CRYPTO-001: partial — JWS document signature + RS256 FE; never confirmed; ≠ SAF-T.
+    if rows.get("AO-CRYPTO-001") != "partial":
+        fail("AO-CRYPTO-001: deve estar `partial` (jwsDocumentSignature + RS256 FE)", errors)
+    for token in (
+        "jwsDocumentSignature",
+        "19168",
+        "RS256",
+        "AO-FE-SNAP-HML-2026-07-25-ESTRUTURA",
+        "pending_validation",
+    ):
+        if token not in text:
+            fail(f"citação AO-CRYPTO-001 deve incluir `{token}`", errors)
+    if "SAF-T" not in text and "SAFT" not in text:
+        fail("AO-CRYPTO-001 deve distinguir JWS FE de mecanismos SAF-T", errors)
+    check_partial_row("AO-CRYPTO-001")
+    crypto_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-CRYPTO-001\s*\|", ln)]
+    if crypto_rows:
+        cl = crypto_rows[0].lower()
+        if "encadeamento" not in cl and "encadear" not in cl:
+            fail("AO-CRYPTO-001: a linha deve mencionar encadeamento (lacuna/não citado)", errors)
+        if "não" not in cl or "satisfeito" not in cl:
+            fail("AO-CRYPTO-001: a linha deve declarar que o critério não fica satisfeito", errors)
 
     return errors
 

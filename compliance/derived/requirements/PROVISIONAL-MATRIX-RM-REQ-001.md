@@ -2,7 +2,7 @@
 
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
 **Data:** 2026-07-25
-**Âmbito:** apenas fontes com OCR `reviewed` utilizável como KB auxiliar + XSD ASSOFT `pending_validation`.
+**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation` — **não** há AO-* confirmados.
 
 ## Fontes admitidas neste rascunho
 
@@ -10,6 +10,7 @@
 |---|---|---|---|
 | `AO-LEG-DE-74-19-2019` | `reviewed` v1 (`5b63c80e…`, 12p) | Pesquisa auxiliar; citação futura com página do PDF original | Conjunto normativo incompleto sem Rect. 10/19 — **não** confirmar texto consolidado |
 | `AO-LEG-DE-683-25-2025` | `reviewed` v2 (`b01e4581…`, 66p) | Pesquisa auxiliar; citar **apenas** gazeta 19164–19227 (PDF p.2–65) | PDF p.66 = Aviso BNA 4/25 @19228 — **não** citar como DE 683 |
+| `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | HTML `pending_validation` (`50ba18e0…`) | Algoritmo JWS/RS256 FE (≠ SAF-T) | Snapshot HML; não validado AGT; sem inventar campos |
 | `AO-SAFT-XSD-1.01_01` | schema `pending_validation` (`e9a938e1…`) | Referência técnica ASSOFT MIT | Não afirmado como validado pela AGT |
 | `AO-LEG-RECT-10-19-2019` | `rejected` / excluída (`77b77f01…`) | **Não usar** | Original incorrecto/incompleto; GAP-002 |
 
@@ -57,6 +58,16 @@ Fonte: `AO-LEG-DE-683-25-2025` · original sha256 `b01e45813eccc54790ce23ae64bba
 
 Limite explícito: estes campos cobrem **parte** do critério do catálogo (contribuinte + software/versão); **não** demonstram por si estabelecimento nem terminal. O critério completo do catálogo **não** fica satisfeito só com esta citação. PDF original prevalece; OCR pode ter ruído (`productld`, etc.).
 
+### Citação C — assinatura JWS do documento (AO-CRYPTO-001)
+
+**C.1** Fonte `AO-LEG-DE-683-25-2025` · sha256 `b01e4581…` · OCR v2 `reviewed` · PDF p.6 · gazeta **19168**.
+
+Campo OCR auxiliar: `jwsDocumentSignature` — assinatura da factura com chave privada do emissor sobre campos incluindo `documentNo`, `taxRegistrationNumber`, `documentType`, `documentDate`, totais (OCR com ruído; PDF prevalece).
+
+**C.2** Fonte `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` · sha256 `50ba18e0…` · `pending_validation` · secção «Algoritmo Utilizado (RS256)» — JWS com **RS256 (RSA + SHA-256)**; JWS FE ≠ mecanismos SAF-T.
+
+Limites: **não** afirma encadeamento documental; **não** fecha lista exacta de campos sem confronto PDF+snapshot; critério do catálogo **não** fica satisfeito só com estas citações; **não** confirmado.
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
@@ -69,7 +80,7 @@ Limite explícito: estes campos cobrem **parte** do critério do catálogo (cont
 | AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: ART. 4.º / gazeta **19164** (PDF p.2) — séries FE geradas pela AGT. O critério do catálogo («POS não atribui o número fiscal final») **não** fica satisfeito só com esta citação; falta cruzamento com DP 71/25 e revisão compliance. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação |
 | AO-TAX-001 | `blocked` | Rect. / fontes oficiais | Cálculo fiscal exige fontes oficiais completas e texto consolidado |
-| AO-CRYPTO-001 | `blocked` | Snapshot FE oficial / 74+Rect | Distinguir JWS FE vs SAF-T; FE oficial incompleto |
+| AO-CRYPTO-001 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | Ligação preliminar: `jwsDocumentSignature` @**19168** (PDF p.6) + RS256 no snapshot FE (`pending_validation`). JWS FE ≠ SAF-T; encadeamento **não** citado; critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 | Custódia de chave contribuinte em aberto |
 | AO-AGT-001 | `blocked` | FE HML/PRD oficiais | Credenciais/docs oficiais AGT pendentes |
 | AO-AGT-002 | `scaffold` | — | Máquina de estados — DEC-API-004 |
@@ -83,12 +94,13 @@ Limite explícito: estes campos cobrem **parte** do critério do catálogo (cont
 
 ## Próximos passos (este item)
 
-1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. ou docs oficiais) — manter `partial` até revisão compliance.
-2. Cruzar AO-SEQ-002 com DP 71/25 (quando fonte oficial catalogada/`reviewed`) sem inventar regra; manter `partial`.
-3. Eleger outras linhas `scaffold` sem dependência Rect. → `partial` (ainda não confirmado).
-4. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
-5. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios de aceitação testáveis.
-6. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido documentada).
+1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. ou docs oficiais) — manter `partial`.
+2. Cruzar AO-SEQ-002 com DP 71/25 (quando catalogada/`reviewed`); manter `partial`.
+3. AO-CRYPTO-001: confrontar lista de campos assinados PDF↔snapshot FE; manter `partial` até revisão compliance (sem inventar encadeamento).
+4. Eleger outras linhas `scaffold` sem dependência Rect. → `partial` só com fonte suficiente.
+5. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
+6. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
+7. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido).
 
 ## Referências
 
