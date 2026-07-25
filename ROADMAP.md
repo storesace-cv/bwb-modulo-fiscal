@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**  
 **Estado revisto em:** 2026-07-25  
-**Inicialmente consolidado no PR:** *(será actualizado com o número/URL reais após abertura do Draft PR)*
+**Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
 Glossário anti-colisão: **OPS-B1/B2/B3** = gate `pg_dump` pré-deploy; **SRC-A/B0/B1/B2/C/D** = trilho de fontes fiscais e SAF-T AO.
 
@@ -312,7 +312,7 @@ Homologação oficial AGT e certificação **não** são o sandbox BWB.
 
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
-| [x] | RM-GOV-001 | Template PR + AGENTS/rules + verificador CI do roadmap | CONCLUÍDO | [ROADMAP.md](ROADMAP.md) · [.github/pull_request_template.md](.github/pull_request_template.md) · [AGENTS.md](AGENTS.md) · [.cursor/rules/roadmap-maintenance.mdc](.cursor/rules/roadmap-maintenance.mdc) · [scripts/verify_roadmap.py](scripts/verify_roadmap.py) · [tests/docs/run-verify-roadmap-tests.sh](tests/docs/run-verify-roadmap-tests.sh) · [.github/workflows/ci.yml](.github/workflows/ci.yml) | — | Política assistida e verificável no repo |
+| [x] | RM-GOV-001 | Template PR + AGENTS/rules + verificador CI do roadmap | CONCLUÍDO | [ROADMAP.md](ROADMAP.md) · [.github/pull_request_template.md](.github/pull_request_template.md) · [AGENTS.md](AGENTS.md) · [.cursor/rules/roadmap-maintenance.mdc](.cursor/rules/roadmap-maintenance.mdc) · [scripts/verify_roadmap.py](scripts/verify_roadmap.py) · [tests/docs/run-verify-roadmap-tests.sh](tests/docs/run-verify-roadmap-tests.sh) · [.github/workflows/ci.yml](.github/workflows/ci.yml) · [PR #28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28) | — | Política assistida e verificável no repo |
 | [ ] | RM-GOV-002 | Ruleset/branch protection em main exigindo o check do roadmap | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização humana para alterar settings GitHub | Merge bloqueado se o verificador falhar |
 
 <a id="rm-gov-002-ruleset-de-main"></a>
