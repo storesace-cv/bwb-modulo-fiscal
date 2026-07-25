@@ -127,8 +127,11 @@ def validate_ocr_derivatives(src: dict, errors: list[str]) -> None:
             errors.append(f"{sid}: private_repository_path inválido para derivado")
         pr = der.get("pages_reviewed") or []
         if status in {"reviewed", "rejected"}:
-            expected = list(range(1, int(pages) + 1))
-            if pr != expected:
+            page_n = pages if isinstance(pages, int) and pages > 0 else 0
+            expected = list(range(1, page_n + 1))
+            if not page_n:
+                errors.append(f"{sid}: page_count inválido para {status}")
+            elif pr != expected:
                 errors.append(
                     f"{sid}: pages_reviewed incompleto para {status}"
                 )

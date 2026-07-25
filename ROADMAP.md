@@ -63,7 +63,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | Armazenamento sincronizado (SRC-B1) | CONCLUÍDO (repo privado) |
 | XSD SAF-T AO (SRC-B2) | CONCLUÍDO (Git público; `pending_validation`) |
 | Auditoria B0 SAF-T | CONCLUÍDO |
-| OCR das fontes | BLOQUEADO (faltam Rect. 10/19 e DE 683/25 com originais correctos + OCR `reviewed`) |
+| OCR das fontes | BLOQUEADO (falta Rect. 10/19 integral oficial + OCR `reviewed`; 74/19 e 683/25 v2 já `reviewed`) |
 | Requisitos AO-* confirmados | PENDENTE |
 | Fundação transacional fiscal | CONCLUÍDA (slice) |
 | Motor regulamentar Angola | NÃO IMPLEMENTADO |

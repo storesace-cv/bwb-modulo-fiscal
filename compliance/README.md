@@ -57,7 +57,7 @@ O CI valida o catálogo **sem** exigir `local/`. A regeneração OCR é operaç�
 |---|---:|---|
 | `AO-LEG-DE-74-19-2019` | 12 | não |
 | `AO-LEG-RECT-10-19-2019` | 2 (incorrecto/incompleto) | não |
-| `AO-LEG-DE-683-25-2025` | 66 (original v2 correcto; OCR pendente) | não |
+| `AO-LEG-DE-683-25-2025` | 66 (original v2 correcto; OCR reviewed) | não |
 
 ## Relação com `docs/01-compliance/`
 

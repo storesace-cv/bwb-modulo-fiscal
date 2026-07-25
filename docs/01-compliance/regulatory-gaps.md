@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
 **Data:** 2026-07-20 (correcção fail-closed OCR 2026-07-25)
-**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **BLOQUEADOS** (falta original correcto Rect. 10/19; DE 683/25 original v2 importado, OCR v2/`reviewed` pendente)
+**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **BLOQUEADOS** exclusivamente pela Rect. 10/19 (DE 74/19 e DE 683/25 v2 têm OCR `reviewed` como KB auxiliar)
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais; OCR `rejected` não é base de conhecimento.
 
 Documentos relacionados:
@@ -15,7 +15,7 @@ Documentos relacionados:
 
 ## Resumo executivo
 
-A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado, originais B1 no privado, e XSD ASSOFT (`pending_validation`). **Fail-closed:** RM-SRC-004/RM-M2-C estão BLOQUEADOS — DE 74/19 tem OCR `reviewed`; Rect. 10/19 permanece sem original integral oficial; DE 683/25 tem original correcto v2 no privado (import autorizado) mas OCR v2/`reviewed` ainda não publicado como KB. Derivados `rejected` não entram no catálogo público. GAP-001 parcialmente mitigado; GAP-002 aberto; GAP-014 parcialmente mitigado (original); GAP-005 aberto; GAP-004 parcialmente mitigado.
+A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado, originais B1 no privado, e XSD ASSOFT (`pending_validation`). **Fail-closed:** RM-SRC-004/RM-M2-C estão BLOQUEADOS pela Rect. 10/19 sem original integral oficial. DE 74/19 e DE 683/25 v2 têm OCR `reviewed` publicado como KB auxiliar (683: citar só 19164–19227). Derivados `rejected` não entram no catálogo público. GAP-001 parcialmente mitigado; GAP-002 aberto; GAP-014 parcialmente mitigado (URL oficial); GAP-005 aberto; GAP-004 parcialmente mitigado.
 
 ## Inventário de lacunas
 
@@ -41,7 +41,7 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 ### O que falta
 
 - **Aquisição oficial** do texto integral da Rectificação n.º 10/19 (DR I/40/2019) — o PDF actual `77b77f01…` está incorrecto/incompleto.
-- **Aquisição oficial** (ou import autorizado) do DE 683/25 a partir de p.19164 — o PDF actual `59a48189…` é o Aviso 4/25.
+- DE 683/25: original correcto v2 + OCR `reviewed` já no arquivo; falta URL oficial estável (GAP-014 residual).
 - OCR `reviewed` dos três diplomas correctos antes de fechar RM-SRC-004/RM-M2-C.
 - Extração `AO-*` só após o conjunto 74/19+Rect. estar `reviewed`.
 
