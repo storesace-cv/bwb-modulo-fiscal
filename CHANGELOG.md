@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.22-draft — 2026-07-25
+
+- CI (MAINT-CI-001): `actions/checkout@v4` → `@v7` em `go-checks` e `predeploy-pg16-real` para eliminar a anotação de runtime Node.js 20. Sem alteração de código de aplicação.
+
 ## 0.2.21-draft — 2026-07-25
 
 - Compliance B0 (docs only): auditoria cross-project SAF-T AO [`AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md`](docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md) contra `bwb-efatura-docs@629edde…`; matriz de reutilização; paridade XSD `e9a938e1…`; hipótese de namespaces só como inferência operacional; zero código/fixtures/dados copiados; `my-bwb-app` intacto. B1 continua bloqueado pela criação de `bwb-fiscal-sources-ao`.
