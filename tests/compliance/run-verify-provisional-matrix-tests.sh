@@ -90,21 +90,72 @@ else
   ok "afirmação afirmativa rejeitada com banner presente"
 fi
 
-# Fixture: AO-SEQ-002 scaffold (em vez de partial) deve falhar
-cp "${ROOT}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" \
-  "${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md"
-python3 - <<PY
+mutate_real() {
+  local label="$1"
+  local py="$2"
+  cp "${ROOT}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" \
+    "${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md"
+  python3 -c "$py"
+  if python3 "${VERIFY}" --repo-root "${TMP}" >/dev/null 2>&1; then
+    bad "${label} deveria falhar"
+  else
+    ok "${label} rejeitado"
+  fi
+}
+
+mutate_real "AO-SEQ-002 scaffold" '
 from pathlib import Path
-p = Path("${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-SEQ-002 | \`partial\`", "| AO-SEQ-002 | \`scaffold\`")
+t = t.replace("| AO-SEQ-002 | `partial`", "| AO-SEQ-002 | `scaffold`")
 p.write_text(t, encoding="utf-8")
-PY
-if python3 "${VERIFY}" --repo-root "${TMP}" >/dev/null 2>&1; then
-  bad "AO-SEQ-002 scaffold deveria falhar"
-else
-  ok "AO-SEQ-002 scaffold rejeitado"
-fi
+'
+
+mutate_real "AO-DOC-001 desbloqueado" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-DOC-001 | `blocked`", "| AO-DOC-001 | `partial`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-SEQ-001 desbloqueado" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-SEQ-001 | `blocked`", "| AO-SEQ-001 | `scaffold`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "sem caveat não fica satisfeito" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("**não** fica satisfeito", "fica satisfeito")
+t = t.replace("não fica satisfeito", "fica satisfeito")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "sem sha256 original DE 683" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca", "deadbeef")
+t = t.replace("b01e4581", "deadbeef")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-SEQ-002 sem Não confirmado" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-SEQ-002 |"):
+        bad = line.replace("**Não** confirmado", "confirmado").replace("não confirmado", "confirmado")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
 
 printf '\n%d passed, %d failed\n' "${pass}" "${fail}"
 [[ "${fail}" -eq 0 ]]
