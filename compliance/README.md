@@ -35,7 +35,7 @@ compliance/
 - Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR)
 - XSD público B2: [`saft-ao/schemas/`](saft-ao/schemas/) (`AO-SAFT-XSD-1.01_01`, `pending_validation`); ZIP `local_only`
 
-Os três PDFs do Diário da República são **image-only**. OCR: só 74/19 `reviewed` no privado; Rect./683 com originais incorrectos — derivados `rejected` **não** são KB pública. RM-SRC-004/RM-M2-C **BLOQUEADOS**. CI valida metadados **sem** regenerar OCR.
+Os três PDFs do Diário da República são **image-only**. OCR: 74/19 e 683/25 v2 `reviewed` no privado (KB auxiliar); Rect. 10/19 sem original integral — `rejected` **não** é KB. RM-SRC-004/RM-M2-C **BLOQUEADOS**. CI valida metadados **sem** regenerar OCR.
 
 ## Validação
 
@@ -56,8 +56,8 @@ O CI valida o catálogo **sem** exigir `local/`. A regeneração OCR é operaç�
 | ID | Páginas | Texto embutido |
 |---|---:|---|
 | `AO-LEG-DE-74-19-2019` | 12 | não |
-| `AO-LEG-RECT-10-19-2019` | 2 | não |
-| `AO-LEG-DE-683-25-2025` | 16 | não |
+| `AO-LEG-RECT-10-19-2019` | 2 (incorrecto/incompleto) | não |
+| `AO-LEG-DE-683-25-2025` | 66 (original v2 correcto; OCR pendente) | não |
 
 ## Relação com `docs/01-compliance/`
 

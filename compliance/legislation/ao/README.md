@@ -9,7 +9,8 @@ Originais e derivados OCR vivem apenas no repositório privado
 
 ## Não utilizável (diagnóstico apenas)
 
-- `AO-LEG-RECT-10-19-2019` e `AO-LEG-DE-683-25-2025` — originais arquivados incorrectos; OCR `rejected` sob `derivatives/.../v1/` **não** é base de conhecimento nem sustenta `AO-*`. O catálogo público **não** publica esses `derivatives[]`.
+- `AO-LEG-RECT-10-19-2019` — original arquivado incorrecto/incompleto; OCR `rejected` sob `derivatives/.../v1/` **não** é KB.
+- `AO-LEG-DE-683-25-2025` — original correcto v2 no privado (`…/v2/original/…`, 66p); OCR v2 pendente de revisão; OCR v1 do original incorrecto está em `diagnostics/` no privado e **não** é KB.
 
 Metadados públicos: [`../../catalog/sources.yaml`](../../catalog/sources.yaml).
 
