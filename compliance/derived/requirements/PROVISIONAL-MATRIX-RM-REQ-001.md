@@ -32,7 +32,9 @@
 
 Estados proibidos neste ficheiro: `confirmed`, `confirmado`, `validated_agt`.
 
-## Citação candidata (OCR `reviewed`, não normativa)
+## Citações candidatas (OCR `reviewed`, não normativas)
+
+### Citação A — séries AGT (AO-SEQ-002)
 
 Fonte: `AO-LEG-DE-683-25-2025` · original sha256 `b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca` · OCR v2 `reviewed` · PDF p.2 · gazeta **19164**.
 
@@ -44,12 +46,23 @@ Trecho OCR (pesquisa; tipografia/OCR podem ter ruído — PDF original prevalece
 
 Path privado: `derivatives/legislation/AO-LEG-DE-683-25-2025/v2/text.md` (`private_commit` `dbae3260df3b8865afd712ffc3e81925a63fb399`).
 
+### Citação B — identificação contribuinte / software (AO-ID-001)
+
+Fonte: `AO-LEG-DE-683-25-2025` · original sha256 `b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca` · OCR v2 `reviewed`.
+
+| Campo OCR (auxiliar) | PDF | Gazeta |
+|---|---|---|
+| `taxRegistrationNumber` (NIF contribuinte emissor) | p.4 | **19166** |
+| `productId` / `productVersion` / `softwareValidationNumber` (software + versão/certificação) | p.5 | **19167** |
+
+Limite explícito: estes campos cobrem **parte** do critério do catálogo (contribuinte + software/versão); **não** demonstram por si estabelecimento nem terminal. O critério completo do catálogo **não** fica satisfeito só com esta citação. PDF original prevalece; OCR pode ter ruído (`productld`, etc.).
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
-| AO-ID-001 | `scaffold` | DE 74/19 / DE 683/25 | Associação contribuinte/estabelecimento/software — mapear páginas depois; sem confirmação |
+| AO-ID-001 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: `taxRegistrationNumber` @**19166** (PDF p.4) + `softwareValidationNumber`/`productVersion` @**19167** (PDF p.5). Estabelecimento/terminal **não** cobertos nesta citação; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
 | AO-DOC-001 | `blocked` | DE 74/19 + Rect. 10/19 | Campos/tipos dependem do conjunto normativo 74+Rect (GAP-002) |
 | AO-DOC-002 | `blocked` | DE 74/19 + Rect. 10/19 | Imutabilidade/regras de emissão exigem texto consolidado 74+Rect antes de confirmar |
 | AO-SEQ-001 | `blocked` | DE 74/19 (+ Rect.) / DE 683/25 | Sequencialidade no âmbito 74/19 depende do conjunto com Rect.; não misturar com 683 sem split formal |
@@ -70,11 +83,12 @@ Path privado: `derivatives/legislation/AO-LEG-DE-683-25-2025/v2/text.md` (`priva
 
 ## Próximos passos (este item)
 
-1. Cruzar AO-SEQ-002 com DP 71/25 (quando fonte oficial catalogada/`reviewed`) sem inventar regra; manter `partial` até revisão compliance.
-2. Eleger outras linhas `scaffold` sem dependência Rect. e ligar `source_id` + página PDF + trecho OCR `reviewed` → `partial` (ainda não confirmado).
-3. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
-4. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios de aceitação testáveis.
-5. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido documentada).
+1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. ou docs oficiais) — manter `partial` até revisão compliance.
+2. Cruzar AO-SEQ-002 com DP 71/25 (quando fonte oficial catalogada/`reviewed`) sem inventar regra; manter `partial`.
+3. Eleger outras linhas `scaffold` sem dependência Rect. → `partial` (ainda não confirmado).
+4. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
+5. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios de aceitação testáveis.
+6. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido documentada).
 
 ## Referências
 

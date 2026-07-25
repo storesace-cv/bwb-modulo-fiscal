@@ -119,23 +119,34 @@ def verify(root: Path) -> list[str]:
     if "19164" not in text:
         fail("citação AO-SEQ-002 deve incluir gazeta 19164", errors)
     if "não** fica satisfeito" not in text and "não fica satisfeito" not in text:
-        fail("AO-SEQ-002 deve declarar que o critério do catálogo não fica satisfeito só com ART.4", errors)
+        fail("matriz deve declarar que critérios de catálogo não ficam satisfeitos só com as citações parciais", errors)
 
-    seq002_rows = [
-        ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SEQ-002\s*\|", ln)
-    ]
-    if not seq002_rows:
-        fail("linha de tabela AO-SEQ-002 ausente", errors)
-    else:
-        seq_line = seq002_rows[0]
-        if "`partial`" not in seq_line:
-            fail("AO-SEQ-002: célula de estado deve ser `partial`", errors)
-        if re.search(r"(?i)\b(confirmed|confirmado|validated_agt)\b", seq_line) and not re.search(
-            r"(?i)não|nao", seq_line
+    def check_partial_row(rid: str) -> None:
+        rows_ln = [ln for ln in text.splitlines() if re.match(rf"^\|\s*{re.escape(rid)}\s*\|", ln)]
+        if not rows_ln:
+            fail(f"linha de tabela {rid} ausente", errors)
+            return
+        line = rows_ln[0]
+        if "`partial`" not in line:
+            fail(f"{rid}: célula de estado deve ser `partial`", errors)
+        if re.search(r"(?i)\b(confirmed|confirmado|validated_agt)\b", line) and not re.search(
+            r"(?i)não|nao", line
         ):
-            fail("AO-SEQ-002: afirmação de confirmação sem negação na linha", errors)
-        if not re.search(r"(?i)não\*\*\s*confirmado|não\s+confirmado|\*\*não\*\*\s+confirmado", seq_line):
-            fail("AO-SEQ-002: linha deve declarar explicitamente que não está confirmado", errors)
+            fail(f"{rid}: afirmação de confirmação sem negação na linha", errors)
+        if not re.search(r"(?i)não\*\*\s*confirmado|não\s+confirmado|\*\*não\*\*\s+confirmado", line):
+            fail(f"{rid}: linha deve declarar explicitamente que não está confirmado", errors)
+
+    check_partial_row("AO-SEQ-002")
+
+    # AO-ID-001: partial citation — contribuinte/software fields; never full catalog criterion.
+    if rows.get("AO-ID-001") != "partial":
+        fail("AO-ID-001: deve estar `partial` (citação preliminar DE 683/25 campos FE)", errors)
+    for token in ("taxRegistrationNumber", "softwareValidationNumber", "19166", "19167"):
+        if token not in text:
+            fail(f"citação AO-ID-001 deve incluir `{token}`", errors)
+    if "estabelecimento" not in text.lower() or "terminal" not in text.lower():
+        fail("AO-ID-001 deve declarar lacuna estabelecimento/terminal", errors)
+    check_partial_row("AO-ID-001")
 
     return errors
 
