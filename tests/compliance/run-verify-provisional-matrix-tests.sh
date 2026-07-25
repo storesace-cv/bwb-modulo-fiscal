@@ -62,11 +62,11 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | x |
-| AO-ID-001 | `scaffold` | — | x |
+| AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
 | AO-DOC-001 | `blocked` | — | Rect |
 | AO-DOC-002 | `blocked` | — | Rect |
 | AO-SEQ-001 | `blocked` | — | Rect |
-| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 |
+| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `blocked` | — | Rect |
 | AO-CRYPTO-001 | `blocked` | — | x |
@@ -152,6 +152,39 @@ t = p.read_text(encoding="utf-8")
 for line in t.splitlines():
     if line.startswith("| AO-SEQ-002 |"):
         bad = line.replace("**Não** confirmado", "confirmado").replace("não confirmado", "confirmado")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-ID-001 scaffold" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-ID-001 | `partial`", "| AO-ID-001 | `scaffold`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-ID-001 sem taxRegistrationNumber" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8").replace("taxRegistrationNumber", "taxRegField")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-ID-001 lacuna só fora da linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-ID-001 |"):
+        # Remove gap words from the table row only; keep them elsewhere in the doc.
+        bad = (
+            line.replace("Estabelecimento/terminal", "Campos FE")
+            .replace("estabelecimento/terminal", "campos FE")
+            .replace("estabelecimento", "ambito")
+            .replace("terminal", "ponto")
+        )
         t = t.replace(line, bad)
         break
 p.write_text(t, encoding="utf-8")
