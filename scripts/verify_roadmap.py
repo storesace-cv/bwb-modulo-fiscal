@@ -317,11 +317,18 @@ def validate_distinctions(text: str, path: str) -> None:
 
 
 def has_active_ruleset_evidence(norm: str) -> bool:
-    if "protect main and require project checks" in norm:
-        return True
-    # Ignorar negações do tipo «sem ruleset activo».
+    """Exige afirmação de ruleset activo/enforcement; o nome sozinho não basta."""
     cleaned = re.sub(r"\bsem ruleset activ[oa]\b", " ", norm)
-    return bool(re.search(r"\bruleset activ[oa]\b", cleaned))
+    has_active_word = bool(re.search(r"\bruleset activ[oa]\b", cleaned))
+    has_enforcement_active = bool(
+        re.search(r"\benforcement\s*[:=`]+\s*active\b", cleaned)
+        or re.search(r"\benforcement\s+active\b", cleaned)
+    )
+    has_name = "protect main and require project checks" in cleaned
+    if has_active_word:
+        return True
+    # Nome só conta se houver enforcement=active explícito.
+    return has_name and has_enforcement_active
 
 
 def has_nonempty_bypass_claim(norm: str) -> bool:
@@ -329,10 +336,9 @@ def has_nonempty_bypass_claim(norm: str) -> bool:
         return True
     if re.search(r"\bbypass\s+configurado\b", norm):
         return True
+    # Qualquer valor atribuído que não seja forma vazia aceite.
     if re.search(
-        r"\bbypass(?:[_\s]+actors?)?\s*[:=]\s*(?:\*\*)?"
-        r"(?:admin|always|true|enabled|[1-9]\d*|"
-        r"\[(?!\s*\])[^\]]+\])",
+        r"\bbypass(?:[_\s]+actors?)?\s*[:=]\s*(?:\*\*)?(?!vazio\b|\[\s*\]|nenhum\b|none\b|empty\b)[^\s*]",
         norm,
     ):
         return True

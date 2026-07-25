@@ -552,6 +552,36 @@ if run_verify "${TMP}/govlegacy" >/dev/null 2>"${TMP}/govlegacy.err"; then bad "
   if grep -qi 'legado\|ruleset ativo' "${TMP}/govlegacy.err"; then ok "RM-GOV-002 legado em CONCLUÍDO"; else bad "RM-GOV-002 legado em CONCLUÍDO (msg)"; fi
 fi
 
+# --- CONCLUÍDO: Bypass actors: @admins + «sem bypass» noutro sítio → FAIL ---
+make_base "${TMP}/govat"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govat/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govat/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Bypass actors: vazio", "Bypass actors: @admins")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govat" >/dev/null 2>"${TMP}/govat.err"; then bad "RM-GOV-002 bypass @admins"; else
+  if grep -qi 'bypass vazio' "${TMP}/govat.err"; then ok "RM-GOV-002 bypass @admins"; else bad "RM-GOV-002 bypass @admins (msg)"; fi
+fi
+
+# --- CONCLUÍDO: só o nome do ruleset, sem activo/enforcement → FAIL ---
+make_base "${TMP}/govname"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govname/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govname/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Ruleset activo em main", "Governação de main")
+text = text.replace("Ruleset activo: Protect main and require project checks", "Nome: Protect main and require project checks")
+text = text.replace("Ruleset activo; sem bypass", "sem bypass")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govname" >/dev/null 2>"${TMP}/govname.err"; then bad "RM-GOV-002 só nome ruleset"; else
+  if grep -qi 'legado\|ruleset ativo' "${TMP}/govname.err"; then ok "RM-GOV-002 só nome ruleset"; else bad "RM-GOV-002 só nome ruleset (msg)"; fi
+fi
+
 # --- BLOQUEADO com frase legada e gate válido → PASS (fixture histórica) ---
 if run_verify "${TMP}/valid" >/dev/null; then ok "RM-GOV-002 BLOQUEADO legado"; else bad "RM-GOV-002 BLOQUEADO legado"; fi
 
