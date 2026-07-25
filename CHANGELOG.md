@@ -2,7 +2,7 @@
 
 ## 0.2.22-draft — 2026-07-25
 
-- CI (MAINT-CI-001): `actions/checkout@v4` → `@v7` em `go-checks` e `predeploy-pg16-real` para eliminar a anotação de runtime Node.js 20. Sem alteração de código de aplicação.
+- CI (MAINT-CI-001): `actions/checkout@v4` → `@v7` e `actions/setup-go@v5` → `@v7` para eliminar as anotações de runtime Node.js 20 nos jobs CI. Sem alteração de código de aplicação.
 
 ## 0.2.21-draft — 2026-07-25
 
