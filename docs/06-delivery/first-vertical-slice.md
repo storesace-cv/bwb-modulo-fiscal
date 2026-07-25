@@ -1,19 +1,23 @@
 # Primeiro vertical slice — especificação (Fase 0)
 
+> **Histórico / superseded.** O progresso actual do projecto está em [ROADMAP.md](../../ROADMAP.md).  
+> Contrato público **actual:** OpenAPI `0.1.6-draft` (`specs/openapi/openapi.yaml`). As referências a `0.1.x-draft` abaixo são históricas do momento em que cada passo foi aplicado.
+
 **Data:** 2026-07-20
-**Estado:** especificação para implementação na **Fase 1** (não implementar na Fase 0)
+**Estado:** especificação histórica da Fase 0 / primeiro slice (parcialmente realizado: SealInTx + `POST /v1/documents` sem motor regulamentar AGT completo)
 **Premissa:** `ASM-REG-001` — o módulo é a única autoridade de emissão/numeração
 **Requisitos âncora:** `AO-ID-001`, `AO-DOC-001`, `AO-DOC-002`, `AO-SEQ-001`, `AO-SEQ-002`, `AO-IDEM-001`, `AO-CRYPTO-001` (arquitetura), `AO-AGT-002`, `AO-AUD-001`
 
 Documentos relacionados:
 
+- [ROADMAP.md](../../ROADMAP.md) (progresso canónico)
 - [phase-0-execution-plan.md](phase-0-execution-plan.md)
 - [open-decisions.md](open-decisions.md) (DEC-API-004, DEC-STACK-001)
 - [technical-stack-proposal.md](technical-stack-proposal.md)
 - [document-state-machine.md](../04-domain/document-state-machine.md)
 - [api-guidelines.md](../03-api/api-guidelines.md)
 - [testing-strategy.md](testing-strategy.md)
-- [openapi.yaml](../../specs/openapi/openapi.yaml) (`0.1.3-draft`; tarefa zero + contrato createDocument)
+- [openapi.yaml](../../specs/openapi/openapi.yaml) (actual `0.1.6-draft`; histórico do slice referia `0.1.3-draft`)
 - [api-guidelines.md](../03-api/api-guidelines.md) / [examples/create-document.http](../03-api/examples/create-document.http)
 
 ## Objetivo da demonstração
@@ -74,7 +78,7 @@ POS demo (CLI / coleção HTTP)
 
 ## Tarefa zero da Fase 1 (antes do endpoint)
 
-**Estado:** aplicada; contrato público em `0.1.3-draft` (`POST /documents` → `201`, sem GET fantasma).
+**Estado (histórico do slice):** aplicada no contrato então `0.1.3-draft` (`POST /documents` → `201`, sem GET fantasma). Contrato público **actual:** `0.1.6-draft` — ver [ROADMAP.md](../../ROADMAP.md).
 
 1. DEC-API-001 — `Money` canónico (sem sinal, escala 2).
 2. DEC-API-003 — `DecimalQuantity` separado e estritamente positivo.

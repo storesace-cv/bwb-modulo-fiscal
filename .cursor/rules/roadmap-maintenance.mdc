@@ -1,0 +1,14 @@
+---
+description: Manutenção obrigatória do ROADMAP.md canónico
+alwaysApply: true
+---
+
+- O ficheiro `ROADMAP.md` na raiz é o roadmap canónico de estado e progresso.
+- Qualquer PR que conclua, introduza, bloqueie, adie ou altere um item `RM-*` deve actualizar `ROADMAP.md` no mesmo PR.
+- Usar apenas o formato de tabela canónico (Check, ID, Entrega, Estado, Evidência, Dependências/gate, Done).
+- Estados permitidos: `CONCLUÍDO`, `PENDENTE`, `EM_CURSO`, `BLOQUEADO`, `ADIADO`.
+- `[x]` exige `CONCLUÍDO` e evidência com link verificável; não marcar conformidade fiscal por inferência.
+- Não usar placeholders («links deste PR», «PR #N», «decisão pending»).
+- `docs/06-delivery/implementation-roadmap.md` é apenas apontador de compatibilidade para `ROADMAP.md`.
+- A CI valida estrutura; a semântica de conclusão continua humana.
+- Enquanto `RM-GOV-002` não estiver concluído, a actualização do roadmap é política assistida e verificável, mas não tecnicamente impossível de contornar.

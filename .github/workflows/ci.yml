@@ -56,6 +56,11 @@ jobs:
           compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
           bash compliance/scripts/verify_no_local_deps.sh
 
+      - name: ROADMAP structural validation
+        run: |
+          python3 scripts/verify_roadmap.py
+          bash tests/docs/run-verify-roadmap-tests.sh
+
       - name: Shellcheck scripts
         run: |
           sudo apt-get update -qq
@@ -70,6 +75,7 @@ jobs:
             scripts/integration/pos-sandbox-kit.sh \
             tests/integration/run-pos-kit-tests.sh
           shellcheck -e SC2016 compliance/scripts/verify_no_local_deps.sh
+          shellcheck -e SC2015,SC2016 tests/docs/run-verify-roadmap-tests.sh
 
       - name: Deploy D1 script tests
         run: |

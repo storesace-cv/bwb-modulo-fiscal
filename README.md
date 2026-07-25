@@ -10,17 +10,19 @@ Esta é uma premissa de produto (`ASM-REG-001`), não uma conclusão jurídica. 
 
 ## Ordem de leitura
 
-1. [docs/00-product/vision.md](docs/00-product/vision.md)
-2. [docs/00-product/scope.md](docs/00-product/scope.md)
-3. [docs/01-compliance/angola-compliance.md](docs/01-compliance/angola-compliance.md)
-4. [docs/01-compliance/sources.md](docs/01-compliance/sources.md)
-5. [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md)
-6. [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md)
-7. [docs/03-api/api-guidelines.md](docs/03-api/api-guidelines.md) · [quickstart S4](docs/03-api/quickstart.md)
-8. [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md)
-9. [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md)
-10. [docs/06-delivery/implementation-roadmap.md](docs/06-delivery/implementation-roadmap.md)
+1. [ROADMAP.md](ROADMAP.md) — estado e progresso canónicos
+2. [docs/00-product/vision.md](docs/00-product/vision.md)
+3. [docs/00-product/scope.md](docs/00-product/scope.md)
+4. [docs/01-compliance/angola-compliance.md](docs/01-compliance/angola-compliance.md)
+5. [docs/01-compliance/sources.md](docs/01-compliance/sources.md)
+6. [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md)
+7. [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md)
+8. [docs/03-api/api-guidelines.md](docs/03-api/api-guidelines.md) · [quickstart S4](docs/03-api/quickstart.md)
+9. [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md)
+10. [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md)
 11. [docs/07-operations/operations.md](docs/07-operations/operations.md)
+
+Apontador legado (compatibilidade): [docs/06-delivery/implementation-roadmap.md](docs/06-delivery/implementation-roadmap.md).
 
 ## Regras para desenvolvimento assistido
 
@@ -30,11 +32,15 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 
 ## Estado
 
-- Etapa: sandbox S3C2 confirmado + kit de integração S4 (docs/tooling).
-- País ativo: Angola.
-- País futuro: Cabo Verde.
-- Código: Go com health, schema/migrations, SealInTx e `POST /v1/documents`.
+- Progresso canónico: [ROADMAP.md](ROADMAP.md).
+- Sandbox autenticado e **confirmado** (`S3C2 CONFIRMED`) em `https://sandbox.fiscalmod.bwb.pt` — `credential_store` + `FISCAL_ENV=homologation` (ambiente técnico BWB; **não** homologação AGT).
+- Kit POS validado **9/9** no sandbox.
+- Gate pré-deploy PostgreSQL (`pg_dump`) validado no Ubuntu; INC-S4-003 resolvido; INC-B2-001 aberto.
+- Fontes fiscais **SRC-A** (catálogo) e auditoria **B0** concluídas; **SRC-B1** / OCR ainda pendentes.
+- Fundação transacional (SealInTx / `sealed_locally`) concluída para o slice inicial; **motor regulamentar Angola / integração oficial AGT ainda não implementados**.
+- País activo: Angola. País futuro: Cabo Verde.
 - Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
+- Schema: `ExpectedVersion=3`.
 - Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
 - Staging: [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).

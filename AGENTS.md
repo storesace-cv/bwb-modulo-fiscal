@@ -17,14 +17,23 @@ Construir um módulo fiscal externo, certificável pela AGT, que seja a autorida
 
 ## Fontes de verdade
 
-1. Requisitos regulatórios em `docs/01-compliance/requirements-catalog.md`.
-2. Decisões arquiteturais em `docs/02-architecture/adrs/`.
-3. Contrato público em `specs/openapi/openapi.yaml`.
-4. Modelo de domínio em `docs/04-domain/domain-model.md`.
-5. Testes de conformidade e vetores aprovados.
-6. Catálogo versionado de fontes fiscais em `compliance/catalog/sources.yaml` e política em `compliance/POLICY.md`.
+1. Estado e progresso do projecto em `ROADMAP.md` (roadmap canónico).
+2. Requisitos regulatórios em `docs/01-compliance/requirements-catalog.md`.
+3. Decisões arquiteturais em `docs/02-architecture/adrs/`.
+4. Contrato público em `specs/openapi/openapi.yaml`.
+5. Modelo de domínio em `docs/04-domain/domain-model.md`.
+6. Testes de conformidade e vetores aprovados.
+7. Catálogo versionado de fontes fiscais em `compliance/catalog/sources.yaml` e política em `compliance/POLICY.md`.
 
 Quando houver conflito, parar e registar o conflito. Não inventar uma interpretação fiscal.
+
+## Manutenção do ROADMAP
+
+- Qualquer PR que conclua, introduza, bloqueie, adie ou altere um item `RM-*` deve actualizar `ROADMAP.md` no mesmo PR.
+- Usar o formato de tabela canónico e os estados `CONCLUÍDO` | `PENDENTE` | `EM_CURSO` | `BLOQUEADO` | `ADIADO`.
+- `[x]` / `CONCLUÍDO` exige evidência verificável; a CI valida estrutura (`scripts/verify_roadmap.py`), não a semântica fiscal.
+- `docs/06-delivery/implementation-roadmap.md` é apenas apontador de compatibilidade.
+- Ver também `.cursor/rules/roadmap-maintenance.mdc`.
 
 ## Fontes fiscais versionadas
 
@@ -34,7 +43,7 @@ Antes de tarefas fiscais (regras, SAF-T, FE, requisitos `AO-*`):
 2. Citar `source_id`, diploma/secção, **página** (quando PDF), endpoint ou `FE-RNG-*` conforme a fonte.
 3. Alertar se a fonte estiver `pending_validation`, `superseded`, `withdrawn`, ou se o derivado OCR não estiver `reviewed`.
 4. Tratar PDFs image-only como **não legíveis** para requisitos até existir OCR com páginas `reviewed`; renderizar páginas não equivale a texto pesquisável.
-5. O PDF original é a única fonte normativa; OCR/Markdown são derivados de consulta.
+5. Para cada derivado OCR de um diploma, o PDF oficial original permanece a representação autoritativa; OCR/Markdown são auxiliares de pesquisa. Só conteúdo `reviewed` e confrontado visualmente com o original pode sustentar requisitos `AO-*` confirmados.
 6. JWS/RS256 da faturação electrónica é distinto de mecanismos SAF-T.
 7. Nunca depender de `local/` em build, testes, runtime ou CI.
 
