@@ -106,6 +106,24 @@ def verify(root: Path) -> list[str]:
 
     if rows.get("AO-SAF-001") != "pending_validation":
         fail("AO-SAF-001: deve estar `pending_validation`", errors)
+    for token in (
+        "AO-SAFT-XSD-1.01_01",
+        "e9a938e1",
+        "AuditFile",
+        "urn:OECD:StandardAuditFile-Tax:AO_1.01_01",
+        "SAFTAO1.01_01.xsd",
+    ):
+        if token not in text:
+            fail(f"citação AO-SAF-001 deve incluir `{token}`", errors)
+    saf_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SAF-001\s*\|", ln)]
+    if saf_rows:
+        sl = saf_rows[0].lower()
+        if "`pending_validation`" not in saf_rows[0]:
+            fail("AO-SAF-001: célula de estado deve ser `pending_validation`", errors)
+        if re.search(r"(?i)\b(confirmed|confirmado|validated_agt)\b", sl) and "não" not in sl and "nao" not in sl:
+            fail("AO-SAF-001: afirmação de confirmação sem negação na linha", errors)
+        if "não" not in sl or "satisfeito" not in sl:
+            fail("AO-SAF-001: a linha deve declarar que o critério não fica satisfeito", errors)
 
     # AO-SEQ-002: partial citation to DE 683 ART.4 / gazeta 19164 — never confirmed.
     if rows.get("AO-SEQ-002") != "partial":

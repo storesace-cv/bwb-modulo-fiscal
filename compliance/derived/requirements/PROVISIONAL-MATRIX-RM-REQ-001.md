@@ -68,6 +68,14 @@ Campo OCR auxiliar: `jwsDocumentSignature` — assinatura da factura com chave p
 
 Limites: **não** afirma encadeamento documental; **não** fecha lista exacta de campos sem confronto PDF+snapshot; critério do catálogo **não** fica satisfeito só com estas citações; **não** confirmado.
 
+### Citação D — schema SAF-T AO (AO-SAF-001)
+
+Fonte: `AO-SAFT-XSD-1.01_01` · ficheiro versionado [`compliance/saft-ao/schemas/SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631` · estado catálogo **`pending_validation`**.
+
+Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · `version` `1.01_01` · elemento raiz `AuditFile`.
+
+Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a conformidade de exportação; critério do catálogo **não** fica satisfeito só com o schema versionado; **não** confirmado.
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
@@ -87,7 +95,7 @@ Limites: **não** afirma encadeamento documental; **não** fecha lista exacta de
 | AO-OFF-001 | `blocked` | Contingência oficial | Fonte oficial de contingência pendente |
 | AO-OFF-002 | `scaffold` | — | Sync sem renumerar — produto + legal |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
-| AO-SAF-001 | `pending_validation` | `AO-SAFT-XSD-1.01_01` | XSD ASSOFT versionado; validação AGT pendente |
+| AO-SAF-001 | `pending_validation` | `AO-SAFT-XSD-1.01_01` | XSD versionado (`e9a938e1…`, `AuditFile`, NS AO_1.01_01); validação AGT pendente; critério do catálogo **não** fica satisfeito só com o schema; **não** confirmado |
 | AO-SAF-002 | `pending_validation` | XSD + legislação completa | Anulados/retificativos — sem fecho sem fontes completas / Rect. |
 | AO-OPS-001 | `scaffold` | — | Ops/DR |
 | AO-UPD-001 | `scaffold` | — | Updates Edge assinados |
@@ -97,10 +105,11 @@ Limites: **não** afirma encadeamento documental; **não** fecha lista exacta de
 1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. ou docs oficiais) — manter `partial`.
 2. Cruzar AO-SEQ-002 com DP 71/25 (quando catalogada/`reviewed`); manter `partial`.
 3. AO-CRYPTO-001: confrontar lista de campos assinados PDF↔snapshot FE; manter `partial` até revisão compliance (sem inventar encadeamento).
-4. Eleger outras linhas `scaffold` sem dependência Rect. → `partial` só com fonte suficiente.
-5. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
-6. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
-7. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido).
+4. AO-SAF-001: manter `pending_validation` até validação AGT; não promover a `partial`/`confirmado` só com XSD ASSOFT.
+5. Parar promoção de novas linhas `scaffold` sem fonte suficiente (DP 71/25, Rect. 10/19, GAP-013, DEC-*, credenciais AGT).
+6. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
+7. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
+8. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido).
 
 ## Referências
 

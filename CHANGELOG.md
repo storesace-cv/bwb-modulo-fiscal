@@ -2,6 +2,7 @@
 
 ## 0.2.27-draft — 2026-07-25
 
+- Compliance RM-REQ-001: AO-SAF-001 — citação técnica do XSD ASSOFT (`AuditFile`, NS AO_1.01_01, sha256 `e9a938e1…`) mantendo `pending_validation`; sem AO-* confirmados.
 - Compliance RM-REQ-001: AO-CRYPTO-001 → `partial` (`jwsDocumentSignature` @19168 + RS256 no snapshot FE `pending_validation`); JWS FE ≠ SAF-T; encadeamento não citado; sem AO-* confirmados; Rect.-dependent `blocked`.
 - Compliance RM-REQ-001: AO-ID-001 → `partial` com citação DE 683/25 (`taxRegistrationNumber` @19166 / software @19167); lacuna estabelecimento/terminal explícita na linha; verificador exige lacuna na própria linha da tabela; sem AO-* confirmados; Rect.-dependent `blocked`.
 - Compliance RM-REQ-001: AO-SEQ-002 → `partial` com citação DE 683/25 ART.4.º (gazeta 19164 / PDF p.2); critério do catálogo explicitamente não satisfeito só com ART.4; Rect.-dependent mantêm-se `blocked`; sem AO-* confirmados.
