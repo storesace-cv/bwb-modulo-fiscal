@@ -1,10 +1,10 @@
 # Relatório B2/B3 — gate obrigatório `pg_dump` pré-deploy (INC-S4-003)
 
-**Data (UTC):** 2026-07-25T00:42Z–00:45Z (B2 ops); documentação B3 nesta branch  
-**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`  
-**Fingerprint Ed25519 (D2):** `SHA256:I5NU5TgFEAggzCb6K0iHF3F+mXGNuLrzdbTTJgiipag`  
-**Repo base:** `main` = `origin/main` = `e39638fa1595e228c65918d7ee9c4e46ac748daa`  
-**Resultado B2:** **APROVADO** (gate real + falha induzida fail-closed)  
+**Data (UTC):** 2026-07-25T00:42Z–00:45Z (B2 ops); documentação B3 nesta branch
+**Host:** `sandbox.fiscalmod.bwb.pt` / `194.9.62.239`
+**Fingerprint Ed25519 (D2):** `SHA256:I5NU5TgFEAggzCb6K0iHF3F+mXGNuLrzdbTTJgiipag`
+**Repo base:** `main` = `origin/main` = `e39638fa1595e228c65918d7ee9c4e46ac748daa`
+**Resultado B2:** **APROVADO** (gate real + falha induzida fail-closed)
 **INC-S4-003:** **RESOLVIDO** (fundamentação abaixo)
 
 Este relatório **não** contém passwords, tokens, DSN, PGPASSFILE, conteúdo de dumps, NIF, IDs fiscais, corpos HTTP nem URLs de ligação.
@@ -56,11 +56,11 @@ Prova adicional: `createdb`/`dropdb` smoke como OS `postgres` (socket `/var/run/
 
 ### Ordem observada (updater)
 
-1. `deploy_lock=acquired` (`backup_id` abaixo)  
-2. Upload + `install-release` **lateral** (`releases/e39638fa…`; `current` ainda N-1)  
-3. `pre_deploy_pg_backup=ok` (`deploy_allowed=true` só aqui)  
-4. `backup-envs` → `install-env` → migrate `3→3` dirty=false → activate → restart → health  
-5. `promote=ok` / `done`  
+1. `deploy_lock=acquired` (`backup_id` abaixo)
+2. Upload + `install-release` **lateral** (`releases/e39638fa…`; `current` ainda N-1)
+3. `pre_deploy_pg_backup=ok` (`deploy_allowed=true` só aqui)
+4. `backup-envs` → `install-env` → migrate `3→3` dirty=false → activate → restart → health
+5. `promote=ok` / `done`
 6. `lock_release=ok`
 
 ### Identificadores e dump (sanitizado)
