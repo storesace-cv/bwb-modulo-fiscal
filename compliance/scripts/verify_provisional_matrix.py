@@ -107,6 +107,16 @@ def verify(root: Path) -> list[str]:
     if rows.get("AO-SAF-001") != "pending_validation":
         fail("AO-SAF-001: deve estar `pending_validation`", errors)
 
+    # AO-SEQ-002: partial citation to DE 683 ART.4 / gazeta 19164 — never confirmed.
+    if rows.get("AO-SEQ-002") != "partial":
+        fail("AO-SEQ-002: deve estar `partial` (citação preliminar DE 683/25 ART.4)", errors)
+    if "ARTIGO 4" not in text and "ART. 4" not in text:
+        fail("matriz deve citar ARTIGO 4.º / ART. 4 para AO-SEQ-002", errors)
+    if "19164" not in text:
+        fail("citação AO-SEQ-002 deve incluir gazeta 19164", errors)
+    if "não** fica satisfeito" not in text and "não fica satisfeito" not in text:
+        fail("AO-SEQ-002 deve declarar que o critério do catálogo não fica satisfeito só com ART.4", errors)
+
     return errors
 
 

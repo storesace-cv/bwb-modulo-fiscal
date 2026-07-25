@@ -2,6 +2,7 @@
 
 ## 0.2.27-draft — 2026-07-25
 
+- Compliance RM-REQ-001: AO-SEQ-002 → `partial` com citação DE 683/25 ART.4.º (gazeta 19164 / PDF p.2); critério do catálogo explicitamente não satisfeito só com ART.4; Rect.-dependent mantêm-se `blocked`; sem AO-* confirmados.
 - Compliance RM-REQ-001: matriz provisória AO-* + verificador fail-closed (`verify_provisional_matrix.py`); linhas dependentes da Rect. 10/19 em `blocked`; sem requisitos confirmados.
 - Compliance RM-SRC-004: DE 683/25 original correcto + OCR v2 `reviewed` no privado ([bwb-fiscal-sources-ao#2](https://github.com/storesace-cv/bwb-fiscal-sources-ao/pull/2)); Rect. 10/19 continua BLOQUEADA; RM-SRC-004/RM-M2-C fail-closed.
 - Compliance RM-SRC-004 / RM-M2-C: pipeline OCR privado iniciado ([bwb-fiscal-sources-ao#2](https://github.com/storesace-cv/bwb-fiscal-sources-ao/pull/2)); **fail-closed** — itens `BLOQUEADOS` até os 3 diplomas correctos estarem `reviewed`.
