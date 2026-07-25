@@ -1,10 +1,10 @@
 catalog_version: 1
 collection_id: arquivo_fiscal_ao-2026-07-25
 retrieved_at: '2026-07-25'
-description: 'Metadados da recolha arquivo_fiscal_ao. Originais B1 em storesace-cv/bwb-fiscal-sources-ao.
-  OCR legislação v1: DE 74/19 reviewed; Rect. 10/19 e DE 683/25 rejected (PDFs incompletos/desalinhados).
-  XSD SAFTAO1.01_01 em compliance/saft-ao/schemas/ (pending_validation). O PDF original é a única fonte
-  normativa; OCR/Markdown são derivados.'
+description: 'Metadados arquivo_fiscal_ao. Originais B1 + OCR parcial no privado. FAIL-CLOSED: só AO-LEG-DE-74-19-2019
+  tem OCR reviewed; Rect. 10/19 e DE 683/25 sem derivados públicos (originais arquivados incorrectos;
+  OCR rejected só diagnóstico privado). RM-SRC-004/RM-M2-C BLOQUEADOS até 3 diplomas correctos reviewed.
+  XSD SAFTAO1.01_01 pending_validation. PDF original = única fonte normativa.'
 sources:
 - id: AO-LEG-DE-74-19-2019
   official_name: Decreto Executivo n.º 74/19 (Diário da República I Série n.º 30, 6 de Março de 2019)
@@ -108,9 +108,10 @@ sources:
   affects:
   - docs/01-compliance/
   - compliance/derived/requirements/
-  notes: OCR v1 reviewed (ai_assisted, 2 passes). PDF pesquisável + MD no repo privado. Conjunto normativo
-    com Rect. 10/19 incompleto (Rect. rejected). TXT privado em derivatives/.../text.txt. Não substitui
-    o original.
+  notes: 'OCR v1 reviewed (ai_assisted, 2 passes) no privado — utilizável para pesquisa auxiliar. Conjunto
+    normativo com Rect. 10/19 CONTINUA BLOQUEADO: Rect. sem original correcto/`reviewed`. PDF original
+    sha256 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd. Não substitui o PDF original;
+    não fecha RM-SRC-004 sozinho.'
 - id: AO-LEG-RECT-10-19-2019
   official_name: Rectificação n.º 10/19 ao Decreto Executivo n.º 74/19 (Diário da República I Série n.º
     40, 26 de Março de 2019)
@@ -141,47 +142,7 @@ sources:
   required_future_derivatives:
   - searchable_pdf
   - markdown_text
-  derivatives:
-  - kind: searchable_pdf
-    original_sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
-    ocr_tool: ocrmypdf
-    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
-    ocr_language: por
-    ocr_config: --language por --deskew --rotate-pages --force-ocr
-    generated_at: '2026-07-25T17:47:34Z'
-    derivative_sha256: 96c3619054f05c41416a71899f785a0778c164e9fe025898d916f3c5fc12f9a2
-    page_count: 2
-    review_status: rejected
-    pages_reviewed:
-    - 1
-    - 2
-    low_confidence_or_errors:
-    - source_pdf_incomplete_missing_rectificacao_body
-    - page2_wrong_diploma_identity
-    human_corrections_ref: null
-    derivative_version: v1
-    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/searchable.pdf
-    versioned_path: null
-  - kind: markdown_text
-    original_sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
-    ocr_tool: ocrmypdf
-    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
-    ocr_language: por
-    ocr_config: --language por --deskew --rotate-pages --force-ocr
-    generated_at: '2026-07-25T17:47:34Z'
-    derivative_sha256: 41719f371007449ea91b5c7bf59a95858f86aa9960fe4f69a432968999d995e4
-    page_count: 2
-    review_status: rejected
-    pages_reviewed:
-    - 1
-    - 2
-    low_confidence_or_errors:
-    - source_pdf_incomplete_missing_rectificacao_body
-    - page2_wrong_diploma_identity
-    human_corrections_ref: null
-    derivative_version: v1
-    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/text.md
-    versioned_path: null
+  derivatives: []
   tags:
   - normativa_legal
   - redistribuicao_incerta
@@ -192,8 +153,14 @@ sources:
   affects:
   - docs/01-compliance/
   - compliance/derived/requirements/
-  notes: 'OCR v1 rejected (ai_assisted): PDF de 2 páginas incompleto — Rectificação só no sumário; p.2
-    é Decreto Presidencial 99/19–100/19. Substituir original antes de novo OCR.'
+  notes: 'ORIGINAL ARQUIVADO INCORRECTO/INCOMPLETO (sha256 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5):
+    PDF de 2 páginas do DR I/40/2019 contém apenas sumário com menção à Rectificação n.º 10/19; a página
+    2 é Decreto Presidencial n.º 99/19–100/19. URL catalogada LEX.AO aponta para DP 99/19 (url_status
+    pending_validation / desalinhada). OCR diagnóstico rejected existe apenas no repo privado sob derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/
+    — NÃO utilizável como base de conhecimento nem para AO-*. Não há cópia correcta da Rectificação nos
+    arquivos autorizados (arquivo_fiscal_ao / bwb-fiscal-sources-ao). Aquisição oficial necessária: Diário
+    da República I Série n.º 40 de 26/03/2019, páginas com o texto integral da Rectificação n.º 10/19
+    (Ministério das Finanças).'
 - id: AO-LEG-DE-683-25-2025
   official_name: Decreto Executivo n.º 683/25 (Diário da República I Série n.º 159, 22 de Agosto de 2025)
   authority: MINFIN / Diário da República
@@ -222,75 +189,7 @@ sources:
   required_future_derivatives:
   - searchable_pdf
   - markdown_text
-  derivatives:
-  - kind: searchable_pdf
-    original_sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
-    ocr_tool: ocrmypdf
-    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
-    ocr_language: por
-    ocr_config: --language por --deskew --rotate-pages --force-ocr
-    generated_at: '2026-07-25T18:03:39Z'
-    derivative_sha256: 05220030c6596f0356d63daddf4cfa1e6364732c0a0304a83d047034cd95b9ab
-    page_count: 16
-    review_status: rejected
-    pages_reviewed:
-    - 1
-    - 2
-    - 3
-    - 4
-    - 5
-    - 6
-    - 7
-    - 8
-    - 9
-    - 10
-    - 11
-    - 12
-    - 13
-    - 14
-    - 15
-    - 16
-    low_confidence_or_errors:
-    - source_pdf_wrong_diploma_aviso_4_25
-    - rotated_annex_tables_illegible
-    human_corrections_ref: null
-    derivative_version: v1
-    private_repository_path: derivatives/legislation/AO-LEG-DE-683-25-2025/v1/searchable.pdf
-    versioned_path: null
-  - kind: markdown_text
-    original_sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
-    ocr_tool: ocrmypdf
-    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
-    ocr_language: por
-    ocr_config: --language por --deskew --rotate-pages --force-ocr
-    generated_at: '2026-07-25T18:03:39Z'
-    derivative_sha256: f8bdcbaae47e627da387454d8502f536a3a480985cfd126f0507b73c2de87773
-    page_count: 16
-    review_status: rejected
-    pages_reviewed:
-    - 1
-    - 2
-    - 3
-    - 4
-    - 5
-    - 6
-    - 7
-    - 8
-    - 9
-    - 10
-    - 11
-    - 12
-    - 13
-    - 14
-    - 15
-    - 16
-    low_confidence_or_errors:
-    - source_pdf_wrong_diploma_aviso_4_25
-    - rotated_annex_tables_illegible
-    human_corrections_ref: null
-    derivative_version: v1
-    private_repository_path: derivatives/legislation/AO-LEG-DE-683-25-2025/v1/text.md
-    versioned_path: null
+  derivatives: []
   tags:
   - normativa_legal
   - redistribuicao_incerta
@@ -301,8 +200,16 @@ sources:
   affects:
   - docs/01-compliance/
   - compliance/derived/requirements/
-  notes: 'OCR v1 rejected (ai_assisted): PDF arquivado corresponde ao Aviso BNA n.º 4/25 (páginas a partir
-    de 19228), não ao corpo do DE 683/25 (19164). URL LEX.AO já estava desalinhada.'
+  notes: 'ORIGINAL ARQUIVADO INCORRECTO (sha256 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38):
+    PDF rotulado DE 683/25 é na prática o Aviso BNA n.º 4/25 (páginas a partir de 19228); o corpo do Decreto
+    Executivo n.º 683/25 começa em 19164 no mesmo número DR. URL catalogada LEX.AO é aviso-n-o-4-25 (desalinhada).
+    OCR diagnóstico rejected apenas no privado derivatives/legislation/AO-LEG-DE-683-25-2025/v1/ — NÃO
+    utilizável. Nos arquivos autorizados (arquivo_fiscal_ao / bwb-fiscal-sources-ao) NÃO existe PDF correcto.
+    Candidato externo NÃO autorizado para import automático: my-bwb-app/.../DECRETO EXECUTIVO 683_25….pdf
+    (sha256 b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca, 66p; página 2 = DE 683/25
+    em 19164) — requer autorização explícita do proprietário para copiar para arquivo privado + nova versão
+    de original + OCR v2. Aquisição oficial alternativa: DR I Série n.º 159 de 22/08/2025, páginas do
+    DE 683/25 a partir de 19164 (MINFIN/Imprensa Nacional), não o Aviso 4/25.'
 - id: AO-SAFT-XSD-1.01_01
   official_name: SAF-T (AO) XSD SAFTAO1.01_01
   authority: AGT (via repositório ASSOFT — pendente confirmação AGT)

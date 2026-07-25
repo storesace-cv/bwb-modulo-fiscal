@@ -99,6 +99,11 @@ def validate_ocr_derivatives(src: dict, errors: list[str]) -> None:
             f"{sid}: derivatives deve ter searchable_pdf + markdown_text (got {kinds})"
         )
     statuses = {d.get("review_status") for d in ders}
+    if "rejected" in statuses:
+        errors.append(
+            f"{sid}: derivatives rejected não podem ser publicados como KB "
+            "(manter só diagnóstico privado; limpar derivatives[] públicos)"
+        )
     if not statuses.issubset({"generated_unreviewed", "reviewed", "rejected"}):
         errors.append(f"{sid}: review_status OCR inválido {statuses}")
     if "partially_reviewed" in statuses:

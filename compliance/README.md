@@ -35,7 +35,7 @@ compliance/
 - Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR)
 - XSD público B2: [`saft-ao/schemas/`](saft-ao/schemas/) (`AO-SAFT-XSD-1.01_01`, `pending_validation`); ZIP `local_only`
 
-Os três PDFs do Diário da República são **image-only**. OCR v1 no privado: 74/19 `reviewed`; Rect. 10/19 e 683/25 `rejected` (PDFs a substituir). CI valida metadados **sem** regenerar OCR.
+Os três PDFs do Diário da República são **image-only**. OCR: só 74/19 `reviewed` no privado; Rect./683 com originais incorrectos — derivados `rejected` **não** são KB pública. RM-SRC-004/RM-M2-C **BLOQUEADOS**. CI valida metadados **sem** regenerar OCR.
 
 ## Validação
 
