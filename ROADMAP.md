@@ -1,7 +1,9 @@
 # ROADMAP — BWB Módulo Fiscal
 
-**Fonte canónica de estado e progresso do projecto.**  
-**Estado revisto em:** 2026-07-25  
+**Fonte canónica de estado e progresso do projecto.**
+
+**Estado revisto em:** 2026-07-25
+
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
 Glossário anti-colisão: **OPS-B1/B2/B3** = gate `pg_dump` pré-deploy; **SRC-A/B0/B1/B2/C/D** = trilho de fontes fiscais e SAF-T AO.
@@ -211,11 +213,16 @@ POS → autenticação e binding → validação fiscal oficial → série/numer
 
 ## 7. Motor fiscal Angola
 
-Fundação transacional fiscal: **CONCLUÍDA** para o slice inicial (`RM-TX-*`).  
-Motor regulamentar Angola: **NÃO IMPLEMENTADO**.  
-Integração oficial AGT: **NÃO IMPLEMENTADA**.  
-Homologação AGT: **NÃO INICIADA**.  
-Certificação: **NÃO INICIADA**.  
+Fundação transacional fiscal: **CONCLUÍDA** para o slice inicial (`RM-TX-*`).
+
+Motor regulamentar Angola: **NÃO IMPLEMENTADO**.
+
+Integração oficial AGT: **NÃO IMPLEMENTADA**.
+
+Homologação AGT: **NÃO INICIADA**.
+
+Certificação: **NÃO INICIADA**.
+
 SealInTx / `sealed_locally` **não** constituem emissão fiscal certificada.
 
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |

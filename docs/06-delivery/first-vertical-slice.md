@@ -1,6 +1,7 @@
 # Primeiro vertical slice — especificação (Fase 0)
 
-> **Histórico / superseded.** O progresso actual do projecto está em [ROADMAP.md](../../ROADMAP.md).  
+> **Histórico / superseded.** O progresso actual do projecto está em [ROADMAP.md](../../ROADMAP.md).
+>
 > Contrato público **actual:** OpenAPI `0.1.6-draft` (`specs/openapi/openapi.yaml`). As referências a `0.1.x-draft` abaixo são históricas do momento em que cada passo foi aplicado.
 
 **Data:** 2026-07-20
