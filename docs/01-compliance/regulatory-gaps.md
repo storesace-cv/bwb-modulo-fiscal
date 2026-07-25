@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
-**Data:** 2026-07-20
-**Estado:** inventário inicial da Fase 0
+**Data:** 2026-07-20 (actualização catálogo 2026-07-25)
+**Estado:** inventário Fase 0 + catálogo de metadados (PR A)
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais.
 
 Documentos relacionados:
@@ -11,37 +11,38 @@ Documentos relacionados:
 - [angola-compliance.md](angola-compliance.md)
 - [requirements-catalog.md](requirements-catalog.md)
 - [phase-0-execution-plan.md](../06-delivery/phase-0-execution-plan.md)
+- [`compliance/catalog/sources.yaml`](../../compliance/catalog/sources.yaml)
 
 ## Resumo executivo
 
-A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis, mas **faltam artefactos oficiais versionados** necessários para fechar requisitos críticos (`AO-CRYPTO-*`, `AO-SAF-*`, certificação). O acesso a Modelo 8, XSD SAF-T (AO) e homologação depende de registo/credenciais de produtora.
+A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe agora um **catálogo versionado de metadados** (`compliance/catalog/sources.yaml`) da recolha 2026-07-25, mas **faltam artefactos oficiais no Git** (PDF/HTML/XSD) e OCR revisto necessários para fechar requisitos críticos (`AO-CRYPTO-*`, `AO-SAF-*`, certificação). GAP-001/002/004/005 **permanecem abertos**. O acesso a Modelo 8 e homologação depende de registo/credenciais de produtora.
 
 ## Inventário de lacunas
 
 | ID | Artefacto / diploma | Acesso atual | Bloqueia | Evidência para fechar |
 |---|---|---|---|---|
-| GAP-001 | Decreto Executivo n.º 74/19 (PDF oficial) | Existência referida; PDF oficial **não** arquivado no projeto | Matriz normativa, assinatura, menções, séries | PDF de fonte oficial (DR/MINFIN/AGT), data, URL/origem, SHA-256, responsável |
-| GAP-002 | Rectificação do Decreto Executivo n.º 74/19 | Não arquivada | Interpretação correta do 74/19 | PDF oficial da rectificação + hash + ligação ao diploma base |
+| GAP-001 | Decreto Executivo n.º 74/19 (PDF oficial) | PDF em `local/` + metadados no catálogo (`AO-LEG-DE-74-19-2019`, image-only 12p); **não** no Git; OCR pendente (PR B) | Matriz normativa, assinatura, menções, séries | Cópia autorizada + OCR `reviewed` + requisitos derivados |
+| GAP-002 | Rectificação do Decreto Executivo n.º 74/19 | PDF em `local/` + catálogo (`AO-LEG-RECT-10-19-2019`, image-only 2p); **não** no Git; OCR pendente | Interpretação correta do 74/19 | Cópia autorizada + OCR `reviewed` + ligação ao 74/19 |
 | GAP-003 | Modelo 8 (processo de produtores) | Área autenticada; acesso não demonstrado | Submissão/certificação, rotação de chaves comunicada à AGT | Cópia autorizada ou captura de requisitos atuais + referência de versão; **sem** dados pessoais desnecessários no Git |
-| GAP-004 | XSD oficial SAF-T (AO) | Restrito / não obtido | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Ficheiro oficial + hash + data de vigência; validação independente documentada |
-| GAP-005 | Especificação técnica FE versionada (snapshot) | Pública e acessível; snapshot do projeto ainda por criar | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot datado (HTML/PDF/export permitido) + hash + versão observada |
+| GAP-004 | XSD oficial SAF-T (AO) | XSD ASSOFT catalogado (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** no Git; **não** afirmado como validado pela AGT | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Importação versionada (PR B) + confirmação AGT + validação independente |
+| GAP-005 | Especificação técnica FE versionada (snapshot) | 13 HTML em `local/` + metadados no catálogo; snapshot **não** no Git | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot autorizado no Git + inventários HML/PRD (PR B) |
 | GAP-006 | Credenciais e ambiente de homologação | Pedido formal ainda não concluído (conforme inventário) | Testes de integração reais com AGT | Credenciais apenas em gestor de segredos; registo de ambiente (HML) sem segredos no Git |
 | GAP-007 | Confirmação processual de `ASM-REG-001` | Premissa de produto; sem evidência AGT | Modelo de certificação comercial | Resposta/ata AGT ou aceite formal de risco + plano B (ADR-0001) |
 | GAP-008 | Catálogo oficial completo de tipos documentais / impostos / isenções aplicáveis ao MVP | Parcial via FE pública; incompleto sem 74/19 + manuais | `AO-DOC-001`, `AO-TAX-001` | Extrato aprovado por compliance a partir de fontes oficiais |
 | GAP-009 | Regras oficiais de contingência / faturação offline | Não fechadas | `AO-OFF-001`, `AO-OFF-002`, Edge | Texto oficial ou orientação AGT escrita |
 | GAP-010 | Vetores / resultados de testes oficiais AGT | Não disponíveis | Declaração de conformidade | Relatórios oficiais ou harness alinhado aos testes publicados |
 | GAP-011 | Portal do Contribuinte / guias operacionais estáveis | Manutenção / timeout em 2026-07-20 | Orientação operacional | Reconsulta + arquivo permitido de conteúdo/versão |
-| GAP-012 | Manifesto de fontes versionado no repositório | Estrutura recomendada; ainda não criada | Rastreabilidade contínua | `compliance/sources-manifest.yaml` (metadados públicos) |
+| GAP-012 | Manifesto de fontes versionado no repositório | **Parcialmente fechado:** `compliance/catalog/sources.yaml` + schema + CI (metadados; sem binários) | Rastreabilidade contínua | Manter catálogo actualizado; importar artefactos autorizados nos PRs B+ |
 | GAP-013 | Confirmação oficial AGT sobre custódia/uso da chave privada do contribuinte por módulo fiscal externo | Não confirmada; contrato privado insuficiente | Provisionamento de `TaxpayerKeyRef` na plataforma; DEC-REG-KEY-CUSTODY; DEC-SEC-EDGE-KEYS | Orientação/escrito oficial AGT ou regra em diploma/manual versionado; ver [open-decisions.md](../06-delivery/open-decisions.md) e [backoffice-architecture.md](../02-architecture/backoffice-architecture.md) |
 
 ## Decreto Executivo n.º 74/19 e respetiva rectificação
 
 ### O que falta
 
-- PDF oficial do Decreto Executivo n.º 74/19.
-- PDF oficial da respetiva rectificação.
-- Registo de hash, origem, data de publicação e data de consulta.
+- Cópia autorizada no Git (ou armazenamento privado sincronizado) dos PDFs oficiais 74/19 e Rectificação 10/19 (hoje só em `local/` + hashes no catálogo).
+- Conversão OCR (`searchable_pdf` + `markdown_text`) e revisão visual `reviewed` (PR B/C).
 - Extração controlada de requisitos para a matriz (`AO-*`), com interpretação aprovada.
+- Validação das URLs oficiais (Rectificação: `url_status: pending_validation` no catálogo).
 
 ### O que **não** fecha esta lacuna
 
@@ -133,7 +134,7 @@ Permitido pelo [official-access-plan.md](official-access-plan.md):
 3. Snapshot FE público (GAP-005).
 4. Pedido/obtenção XSD SAF-T (AO) (GAP-004).
 5. Perguntas formais `ASM-REG-001` e contingência (GAP-007, GAP-009).
-6. Manifesto versionado (GAP-012).
+6. Manifesto versionado (GAP-012) — metadados criados; importação de artefactos continua pendente.
 7. Reconsulta portais operacionais (GAP-011).
 
 ## Critério de atualização

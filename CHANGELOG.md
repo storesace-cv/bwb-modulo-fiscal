@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.20-draft — 2026-07-25
+
+- Compliance PR A (metadados): catálogo versionado [`compliance/catalog/sources.yaml`](compliance/catalog/sources.yaml) da recolha `arquivo_fiscal_ao` (2026-07-25, 20 fontes); POLICY/README; schema JSON + validação PyYAML/jsonschema pinados; CI sem depender de `local/`; PDFs DR registados como image-only (12/2/16 p.) com OCR obrigatório no PR B; GAP-012 parcialmente fechado; GAP-001/002/004/005 abertos. Sem binários, sem OCR, sem novos `AO-*`.
+
 ## 0.2.19-draft — 2026-07-25
 
 - Ops B2/B3 (docs): validação sandbox do gate pré-deploy; relatório [b2-predeploy-pg-dump-gate-report.md](docs/07-operations/b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 aberto (prova poisoned não ensaiada); runbook: remediação humana de locks poisoned/stale/corrupt, sem auto-remoção. Sem novo SSH/deploy neste incremento documental.

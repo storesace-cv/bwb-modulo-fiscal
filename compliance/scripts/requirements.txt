@@ -1,0 +1,8 @@
+# Pinned tooling for compliance catalog validation (CI + local venv only).
+# Not a runtime dependency of fiscal-api.
+PyYAML==6.0.3
+jsonschema==4.25.1
+referencing==0.37.0
+attrs==26.1.0
+rpds-py==2026.6.3
+jsonschema-specifications==2025.9.1

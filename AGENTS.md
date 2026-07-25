@@ -22,8 +22,21 @@ Construir um módulo fiscal externo, certificável pela AGT, que seja a autorida
 3. Contrato público em `specs/openapi/openapi.yaml`.
 4. Modelo de domínio em `docs/04-domain/domain-model.md`.
 5. Testes de conformidade e vetores aprovados.
+6. Catálogo versionado de fontes fiscais em `compliance/catalog/sources.yaml` e política em `compliance/POLICY.md`.
 
 Quando houver conflito, parar e registar o conflito. Não inventar uma interpretação fiscal.
+
+## Fontes fiscais versionadas
+
+Antes de tarefas fiscais (regras, SAF-T, FE, requisitos `AO-*`):
+
+1. Consultar `compliance/catalog/sources.yaml` e `compliance/POLICY.md`.
+2. Citar `source_id`, diploma/secção, **página** (quando PDF), endpoint ou `FE-RNG-*` conforme a fonte.
+3. Alertar se a fonte estiver `pending_validation`, `superseded`, `withdrawn`, ou se o derivado OCR não estiver `reviewed`.
+4. Tratar PDFs image-only como **não legíveis** para requisitos até existir OCR com páginas `reviewed`; renderizar páginas não equivale a texto pesquisável.
+5. O PDF original é a única fonte normativa; OCR/Markdown são derivados de consulta.
+6. JWS/RS256 da faturação electrónica é distinto de mecanismos SAF-T.
+7. Nunca depender de `local/` em build, testes, runtime ou CI.
 
 ## Pasta local de consulta
 

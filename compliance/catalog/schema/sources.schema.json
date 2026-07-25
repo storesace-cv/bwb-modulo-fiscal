@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/storesace-cv/bwb-modulo-fiscal/compliance/catalog/schema/sources.schema.json",
+  "title": "Fiscal sources catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalog_version", "collection_id", "retrieved_at", "description", "sources"],
+  "properties": {
+    "catalog_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "collection_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieved_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^AO-[A-Z0-9]+([._-][A-Z0-9]+)+$"
+    },
+    "reviewStatus": {
+      "type": "string",
+      "enum": [
+        "generated_unreviewed",
+        "partially_reviewed",
+        "reviewed",
+        "rejected"
+      ]
+    },
+    "ocrDerivative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "original_sha256",
+        "ocr_tool",
+        "ocr_tool_version",
+        "ocr_language",
+        "generated_at",
+        "derivative_sha256",
+        "page_count",
+        "review_status",
+        "pages_reviewed",
+        "low_confidence_or_errors",
+        "human_corrections_ref"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["searchable_pdf", "markdown_text"]
+        },
+        "original_sha256": { "$ref": "#/$defs/sha256" },
+        "ocr_tool": { "type": "string", "minLength": 1 },
+        "ocr_tool_version": { "type": "string", "minLength": 1 },
+        "ocr_language": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Prefer Portuguese (por)."
+        },
+        "generated_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:Z.+-]+)?$"
+        },
+        "derivative_sha256": { "$ref": "#/$defs/sha256" },
+        "page_count": { "type": "integer", "minimum": 1 },
+        "review_status": { "$ref": "#/$defs/reviewStatus" },
+        "pages_reviewed": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "low_confidence_or_errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "human_corrections_ref": {
+          "type": ["string", "null"],
+          "description": "Path to separate human corrections file, or null if none."
+        },
+        "versioned_path": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "official_name",
+        "authority",
+        "type",
+        "sha256",
+        "status",
+        "license_redistribution",
+        "storage",
+        "local_path",
+        "versioned_path",
+        "tags",
+        "derived_requirements",
+        "affects",
+        "notes"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/sourceId" },
+        "official_name": { "type": "string", "minLength": 1 },
+        "authority": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "legislation",
+            "schema",
+            "fe_snapshot",
+            "archive",
+            "aux",
+            "ocr_derivative",
+            "text_derivative"
+          ]
+        },
+        "version": { "type": ["string", "null"] },
+        "published_at": { "type": ["string", "null"] },
+        "retrieved_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "source_url": { "type": ["string", "null"] },
+        "url_status": {
+          "type": "string",
+          "enum": ["ok", "pending_validation", "unavailable", "not_applicable"]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "superseded", "withdrawn", "pending_validation"]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceId" }
+        },
+        "superseded_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceId" }
+        },
+        "related_to": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceId" },
+          "description": "Non-supersession relations (e.g. 74/19 with Rectificação 10/19)."
+        },
+        "license_redistribution": {
+          "type": "string",
+          "enum": ["permitted", "uncertain", "forbidden", "local_only"]
+        },
+        "storage": {
+          "type": "string",
+          "enum": ["git_public", "private_sync", "local_only"]
+        },
+        "local_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path under local/ for human/agent consultation only. Never a build dependency."
+        },
+        "versioned_path": {
+          "type": ["string", "null"],
+          "description": "Path under the Git tree when an authorized copy exists; null in PR A."
+        },
+        "page_count": { "type": ["integer", "null"], "minimum": 1 },
+        "text_extractable": { "type": ["boolean", "null"] },
+        "conversion_required": { "type": ["boolean", "null"] },
+        "normative_role": {
+          "type": "string",
+          "enum": [
+            "normative_original",
+            "ocr_derivative",
+            "text_derivative",
+            "technical_reference",
+            "auxiliary"
+          ]
+        },
+        "required_future_derivatives": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["searchable_pdf", "markdown_text"]
+          }
+        },
+        "derivatives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ocrDerivative" },
+          "description": "Present after authorized OCR import (PR B+). Empty or omitted until then."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "normativa_legal",
+              "schema",
+              "doc_tecnica_oficial",
+              "exemplo_auxiliar",
+              "arquivo_zip",
+              "redistribuicao_permitida",
+              "redistribuicao_incerta",
+              "apenas_referencia_local",
+              "candidato_copia_versionada",
+              "candidato_catalogo_sem_conteudo",
+              "image_only",
+              "ocr_pending"
+            ]
+          }
+        },
+        "derived_requirements": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^AO-[A-Z0-9-]+$" }
+        },
+        "affects": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "legislation" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": [
+              "page_count",
+              "text_extractable",
+              "conversion_required",
+              "normative_role",
+              "required_future_derivatives",
+              "derivatives"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

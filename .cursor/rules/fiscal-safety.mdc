@@ -14,3 +14,4 @@ alwaysApply: true
 - Mantenha regras de país isoladas no respetivo pacote.
 - Se a regra legal estiver ambígua, pare e peça decisão de compliance.
 - Trate `local/` como área de consulta não versionada: nunca faça commit dessa pasta e copie primeiro para uma pasta sincronizada qualquer ficheiro autorizado que o projeto precise de utilizar.
+- Para fontes fiscais angolanas, use o catálogo em `compliance/catalog/sources.yaml` (ver também `fiscal-sources.mdc`).

@@ -1,5 +1,15 @@
 # Fontes regulatórias e técnicas
 
+## Catálogo versionado (obrigatório)
+
+Índice rastreável da recolha `arquivo_fiscal_ao` (2026-07-25): [`compliance/catalog/sources.yaml`](../../compliance/catalog/sources.yaml).
+
+Política: [`compliance/POLICY.md`](../../compliance/POLICY.md). Validação: `compliance/scripts/verify_catalog.py` (sem depender de `local/` no CI).
+
+Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). Conversão OCR (`searchable_pdf` + `markdown_text`) está prevista para o PR B após autorização de redistribuição. O PDF original permanece a única fonte normativa.
+
+Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte de IDs, hashes e estado.
+
 ## Fonte oficial prioritária
 
 ### Portal do Contribuinte — Ministério das Finanças de Angola / AGT
@@ -75,8 +85,9 @@
 | Portal institucional da AGT | 2026-07-20 | Aplicação web acessível; conteúdo não extraído | Rever secções e anexos manualmente |
 | Documentação técnica de Facturação Electrónica | 2026-07-20 | Pública e acessível | Criar snapshot versionado na Fase 0 |
 | Portal do Parceiro | 2026-07-20 | Conteúdo público indexado; aplicação requer JavaScript | Obter downloads e credenciais de homologação |
-| Decreto Executivo n.º 74/19 + rectificação | 2026-07-20 | Existência confirmada; PDF oficial ainda por arquivar | Descarregar de fonte oficial e calcular hash |
-| Área de Produtores / Modelo 8 / XSD SAF-T (AO) | 2026-07-20 | Restrita; acesso não demonstrado | Registar empresa/NIF e obter credenciais |
+| Decreto Executivo n.º 74/19 + rectificação | 2026-07-25 | PDFs oficiais em `local/` e metadados no catálogo (`AO-LEG-DE-74-19-2019`, `AO-LEG-RECT-10-19-2019`); image-only; cópia Git pendente (PR B) | Autorizar redistribuição + OCR + revisão |
+| Decreto Executivo n.º 683/25 | 2026-07-25 | PDF em `local/` + catálogo (`AO-LEG-DE-683-25-2025`); image-only; cópia Git pendente | Autorizar redistribuição + OCR + revisão |
+| Área de Produtores / Modelo 8 / XSD SAF-T (AO) | 2026-07-25 | XSD ASSOFT catalogado (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); não afirmado como validado pela AGT | Confirmar XSD AGT; importar no PR B com NOTICE |
 
 ## Fontes comunitárias
 

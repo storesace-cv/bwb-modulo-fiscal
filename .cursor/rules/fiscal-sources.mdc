@@ -1,0 +1,15 @@
+---
+description: Catálogo e política de fontes fiscais versionadas (Angola)
+alwaysApply: true
+---
+
+- Antes de tarefas fiscais, consulte `compliance/catalog/sources.yaml` e `compliance/POLICY.md`.
+- Cite `source_id`, diploma/secção, página (PDF), endpoint ou `FE-RNG-*` da fonte catalogada.
+- Alerte se a fonte estiver desatualizada, `pending_validation`, `superseded` ou se o OCR não estiver `reviewed`.
+- O PDF original é a única fonte normativa; OCR e Markdown nunca a substituem.
+- PDFs image-only exigem OCR + revisão visual antes de requisitos confirmados.
+- JWS/RS256 da faturação electrónica é distinto de mecanismos SAF-T.
+- Nunca use `local/` como dependência de build, teste, runtime ou CI.
+- Preserve `local/` no `.gitignore`; não faça commit dessa pasta.
+- Não copie segredos, chaves privadas, tokens, Basic Auth reais ou dados pessoais/fiscais.
+- Não invente campos, endpoints, códigos FE-RNG, QR Code ou regras criptográficas.

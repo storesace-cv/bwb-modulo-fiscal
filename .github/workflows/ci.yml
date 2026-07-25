@@ -49,6 +49,13 @@ jobs:
             exit 1
           fi
 
+      - name: Compliance catalog metadata validation
+        run: |
+          python3 -m venv compliance/scripts/.venv
+          compliance/scripts/.venv/bin/pip install -q -r compliance/scripts/requirements.txt
+          compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
+          bash compliance/scripts/verify_no_local_deps.sh
+
       - name: Shellcheck scripts
         run: |
           sudo apt-get update -qq
@@ -62,6 +69,7 @@ jobs:
           shellcheck -e SC2317,SC2329 \
             scripts/integration/pos-sandbox-kit.sh \
             tests/integration/run-pos-kit-tests.sh
+          shellcheck -e SC2016 compliance/scripts/verify_no_local_deps.sh
 
       - name: Deploy D1 script tests
         run: |
