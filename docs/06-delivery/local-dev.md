@@ -110,7 +110,9 @@ Contrato: [api-guidelines.md](../03-api/api-guidelines.md). Sem ficheiros `.env`
 
 Persistência: `SealInTx` (API interna) e testes VS-T01–VS-T07.
 
-Contrato público `0.1.5-draft` (Health `revision` required) + `credential_store` / `FISCAL_SCOPE_MISMATCH` (PR S2) + DEC-TIME-001 (`canonical_v2`, migration `0002`/`0003`). Builds de desenvolvimento expõem `revision=dev`; releases injectam SHA40 via ldflags (`fiscal-api version`).
+Contrato público `0.1.6-draft` (Health `revision` required) + `credential_store` / `FISCAL_SCOPE_MISMATCH` (PR S2) + DEC-TIME-001 (`canonical_v2`, migration `0002`/`0003`). Builds de desenvolvimento expõem `revision=dev`; releases injectam SHA40 via ldflags (`fiscal-api version`).
+
+Nota: `dev_static` acima é **apenas** para desenvolvimento local (`FISCAL_ENV=development`). O sandbox usa `credential_store` — ver [staging-runbook.md](../07-operations/staging-runbook.md) e [ROADMAP.md](../../ROADMAP.md).
 
 Staging deploy (artefactos D1): [staging-runbook.md](../07-operations/staging-runbook.md).
 

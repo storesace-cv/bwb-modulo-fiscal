@@ -1,5 +1,7 @@
 # Backlog inicial
 
+> **Histórico.** O progresso e o estado actuais estão no roadmap canónico [ROADMAP.md](../../ROADMAP.md). Este backlog não é actualizado como fonte de estado.
+
 ## Épico E0 — Conformidade
 
 - Completar fontes legais e requisitos críticos.

@@ -1,10 +1,12 @@
 # Plano de execução — Fase 0 (Descoberta)
 
-**Estado:** rascunho executável
+> **Superseded / histórico.** A Fase 0 documental foi ultrapassada pela fundação técnica e pelo sandbox. Progresso actual: [ROADMAP.md](../../ROADMAP.md).
+
+**Estado:** superseded (histórico)
 **Data:** 2026-07-20
 **Premissa ativa:** `ASM-REG-001` (não alterada nesta fase)
-**Âmbito:** planeamento, compliance e fundações documentais — **sem código de produção**
-**Esforço interno alvo:** 2–4 semanas (espera AGT em paralelo, sem ocupar engenharia)
+**Âmbito original:** planeamento, compliance e fundações documentais — o texto abaixo reflecte o plano da época (já existe código de produção no repositório)
+**Esforço interno alvo (histórico):** 2–4 semanas (espera AGT em paralelo, sem ocupar engenharia)
 
 ## Objetivo
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.23-draft — 2026-07-25
+
+- Docs: `ROADMAP.md` canónico de estado/progresso; apontador em `docs/06-delivery/implementation-roadmap.md`; README/AGENTS/rules/template PR; verificador `scripts/verify_roadmap.py` + testes `tests/docs/run-verify-roadmap-tests.sh` na CI.
+- Ops docs activos: `deployment.md` e `staging-runbook.md` alinhados ao sandbox `credential_store` / S3C2 CONFIRMED (deny-all = rollback); `local-dev.md` e `first-vertical-slice.md` com OpenAPI `0.1.6-draft`.
+- Sem runtime, OCR, servidor, `local/` ou settings GitHub (RM-GOV-002 continua bloqueado).
+
 ## 0.2.22-draft — 2026-07-25
 
 - CI (MAINT-CI-001): `actions/checkout@v4` → `@v7` e `actions/setup-go@v5` → `@v7` para eliminar as anotações de runtime Node.js 20 nos jobs CI. Sem alteração de código de aplicação.
