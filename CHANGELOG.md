@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.27-draft — 2026-07-25
+
+- Compliance RM-SRC-004 / RM-M2-C: OCR via container OCI pinado + revisão AI-assisted (2 passagens) no repo privado `bwb-fiscal-sources-ao` ([PR #2](https://github.com/storesace-cv/bwb-fiscal-sources-ao/pull/2), commit `e6825d9a…`); 9 artefactos core; DE 74/19 `reviewed`; Rect. 10/19 e DE 683/25 `rejected` (PDFs incompletos/desalinhados).
+- Catálogo público: `derivatives[]` + schema (`ocr_config`, `derivative_version`, `private_repository_path`, tag `ocr_reviewed`); `verify_catalog` aceita unreviewed/reviewed/rejected; ROADMAP/docs/POLICY actualizados. Sem HTML/XSD/ZIP/runtime; CI não regenera OCR; sem `AO-*` novos.
+
 ## 0.2.26-draft — 2026-07-25
 
 - Compliance SRC-B2: XSD `SAFTAO1.01_01.xsd` + LICENSE MIT ASSOFT + NOTICE/README/SHA256SUMS em `compliance/saft-ao/schemas/`; catálogo `AO-SAFT-XSD-1.01_01` → `git_public` / `pending_validation`; ZIP permanece `local_only`.

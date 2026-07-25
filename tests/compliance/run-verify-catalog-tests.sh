@@ -54,7 +54,7 @@ import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
 text = p.read_text(encoding="utf-8")
 text = re.sub(
-    r"(id: AO-SAFT-XSD-1.01_01\n(?:.*\n)*?    versioned_path: )compliance/saft-ao/schemas/SAFTAO1.01_01.xsd",
+    r"(id: AO-SAFT-XSD-1.01_01\n(?:.*\n)*?  versioned_path: )compliance/saft-ao/schemas/SAFTAO1.01_01.xsd",
     r"\1null",
     text,
     count=1,

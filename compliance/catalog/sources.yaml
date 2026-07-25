@@ -1,664 +1,806 @@
-# Catálogo versionado de fontes fiscais angolanas (metadados).
-# Recolha local 2026-07-25 — hashes coincidem com arquivo_fiscal_ao/SHA256SUMS.txt.
-# SRC-B1: originais B1 sincronizados em storesace-cv/bwb-fiscal-sources-ao (privado).
-# SRC-B2: XSD SAFTAO1.01_01 no Git público (pending_validation); ZIP permanece local_only.
-# OCR ainda não iniciado.
 catalog_version: 1
 collection_id: arquivo_fiscal_ao-2026-07-25
-retrieved_at: "2026-07-25"
-description: >
-  Metadados da recolha arquivo_fiscal_ao. Originais B1 (PDFs DR + HTML FE +
-  proveniência) em storesace-cv/bwb-fiscal-sources-ao (privado, SRC-B1).
-  XSD SAFTAO1.01_01 versionado em compliance/saft-ao/schemas/ (SRC-B2,
-  pending_validation). ZIP ASSOFT permanece local_only. OCR não iniciado.
-  O PDF original é a única fonte normativa; OCR/Markdown são derivados.
-
+retrieved_at: '2026-07-25'
+description: 'Metadados da recolha arquivo_fiscal_ao. Originais B1 em storesace-cv/bwb-fiscal-sources-ao.
+  OCR legislação v1: DE 74/19 reviewed; Rect. 10/19 e DE 683/25 rejected (PDFs incompletos/desalinhados).
+  XSD SAFTAO1.01_01 em compliance/saft-ao/schemas/ (pending_validation). O PDF original é a única fonte
+  normativa; OCR/Markdown são derivados.'
 sources:
-  - id: AO-LEG-DE-74-19-2019
-    official_name: "Decreto Executivo n.º 74/19 (Diário da República I Série n.º 30, 6 de Março de 2019)"
-    authority: "MINFIN / Diário da República"
-    type: legislation
-    version: "74/19"
-    published_at: "2019-03-06"
-    retrieved_at: "2026-07-25"
-    source_url: "https://www.ucm.minfin.gov.ao/cs/groups/public/documents/document/aw40/otq5/~edisp/minfin4949834.pdf"
-    url_status: ok
-    sha256: 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to:
-      - AO-LEG-RECT-10-19-2019
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_30_2019_DE_74-19.pdf
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/legislation/AO-LEG-DE-74-19-2019/original/Diario_Republica_I_30_2019_DE_74-19.pdf
+- id: AO-LEG-DE-74-19-2019
+  official_name: Decreto Executivo n.º 74/19 (Diário da República I Série n.º 30, 6 de Março de 2019)
+  authority: MINFIN / Diário da República
+  type: legislation
+  version: 74/19
+  published_at: '2019-03-06'
+  retrieved_at: '2026-07-25'
+  source_url: https://www.ucm.minfin.gov.ao/cs/groups/public/documents/document/aw40/otq5/~edisp/minfin4949834.pdf
+  url_status: ok
+  sha256: 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to:
+  - AO-LEG-RECT-10-19-2019
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_30_2019_DE_74-19.pdf
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_repository_path: originals/legislation/AO-LEG-DE-74-19-2019/original/Diario_Republica_I_30_2019_DE_74-19.pdf
+  page_count: 12
+  text_extractable: false
+  conversion_required: true
+  normative_role: normative_original
+  required_future_derivatives:
+  - searchable_pdf
+  - markdown_text
+  derivatives:
+  - kind: searchable_pdf
+    original_sha256: 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T17:56:22Z'
+    derivative_sha256: fb99ca6c8cb62e5fec48857c20291ba3478be0a3aaa03c4c906d090884d126d5
     page_count: 12
-    text_extractable: false
-    conversion_required: true
-    normative_role: normative_original
-    required_future_derivatives:
-      - searchable_pdf
-      - markdown_text
-    derivatives: []
-    tags:
-      - normativa_legal
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-      - image_only
-      - ocr_pending
-    derived_requirements: []
-    affects:
-      - docs/01-compliance/
-      - compliance/derived/requirements/
-    notes: >
-      PDF image-only (zero texto embutido). Única fonte normativa deste diploma.
-      Ler em conjunto com AO-LEG-RECT-10-19-2019. Conversão OCR/MD no PR B
-      após autorização de redistribuição; derivados nunca substituem o original.
-
-  - id: AO-LEG-RECT-10-19-2019
-    official_name: "Rectificação n.º 10/19 ao Decreto Executivo n.º 74/19 (Diário da República I Série n.º 40, 26 de Março de 2019)"
-    authority: "MINFIN / Diário da República"
-    type: legislation
-    version: "10/19"
-    published_at: "2019-03-26"
-    retrieved_at: "2026-07-25"
-    source_url: "https://files.lex.ao/presidente-da-republica/2019/decreto-presidencial-n-o-99-19-de-26-de-marco/download/decreto-presidencial-n-o-99-19-de-26-de-marco_presidente-da-republica_lex-ao.pdf"
-    url_status: pending_validation
-    sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to:
-      - AO-LEG-DE-74-19-2019
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
+    review_status: reviewed
+    pages_reviewed:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    low_confidence_or_errors:
+    - layout_two_column_reading_order
+    - table_linearization_pages_8_11_12
+    - crypto_example_noise_pages_9_10
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DE-74-19-2019/v1/searchable.pdf
     versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
+  - kind: markdown_text
+    original_sha256: 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T17:56:22Z'
+    derivative_sha256: e2346b5212a29ffd3d311b709979b51d4fda5d9a177988c3f9c8437cb518e617
+    page_count: 12
+    review_status: reviewed
+    pages_reviewed:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    low_confidence_or_errors:
+    - layout_two_column_reading_order
+    - table_linearization_pages_8_11_12
+    - crypto_example_noise_pages_9_10
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DE-74-19-2019/v1/text.md
+    versioned_path: null
+  tags:
+  - normativa_legal
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  - image_only
+  - ocr_reviewed
+  derived_requirements: []
+  affects:
+  - docs/01-compliance/
+  - compliance/derived/requirements/
+  notes: OCR v1 reviewed (ai_assisted, 2 passes). PDF pesquisável + MD no repo privado. Conjunto normativo
+    com Rect. 10/19 incompleto (Rect. rejected). TXT privado em derivatives/.../text.txt. Não substitui
+    o original.
+- id: AO-LEG-RECT-10-19-2019
+  official_name: Rectificação n.º 10/19 ao Decreto Executivo n.º 74/19 (Diário da República I Série n.º
+    40, 26 de Março de 2019)
+  authority: MINFIN / Diário da República
+  type: legislation
+  version: 10/19
+  published_at: '2019-03-26'
+  retrieved_at: '2026-07-25'
+  source_url: https://files.lex.ao/presidente-da-republica/2019/decreto-presidencial-n-o-99-19-de-26-de-marco/download/decreto-presidencial-n-o-99-19-de-26-de-marco_presidente-da-republica_lex-ao.pdf
+  url_status: pending_validation
+  sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to:
+  - AO-LEG-DE-74-19-2019
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
+  page_count: 2
+  text_extractable: false
+  conversion_required: true
+  normative_role: normative_original
+  required_future_derivatives:
+  - searchable_pdf
+  - markdown_text
+  derivatives:
+  - kind: searchable_pdf
+    original_sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T17:47:34Z'
+    derivative_sha256: 96c3619054f05c41416a71899f785a0778c164e9fe025898d916f3c5fc12f9a2
     page_count: 2
-    text_extractable: false
-    conversion_required: true
-    normative_role: normative_original
-    required_future_derivatives:
-      - searchable_pdf
-      - markdown_text
-    derivatives: []
-    tags:
-      - normativa_legal
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-      - image_only
-      - ocr_pending
-    derived_requirements: []
-    affects:
-      - docs/01-compliance/
-      - compliance/derived/requirements/
-    notes: >
-      PDF image-only (2 páginas). Conjunto normativo com AO-LEG-DE-74-19-2019.
-      URL LEX.AO no README da recolha parece desalinhada com o título do PDF —
-      validar URL oficial; o hash do PDF local prevalece.
-
-  - id: AO-LEG-DE-683-25-2025
-    official_name: "Decreto Executivo n.º 683/25 (Diário da República I Série n.º 159, 22 de Agosto de 2025)"
-    authority: "MINFIN / Diário da República"
-    type: legislation
-    version: "683/25"
-    published_at: "2025-08-22"
-    retrieved_at: "2026-07-25"
-    source_url: "https://files.lex.ao/banco-nacional-de-angola/2025/aviso-n-o-4-25-de-22-de-agosto/download/aviso-n-o-4-25-de-22-de-agosto_banco-nacional-de-angola_lex-ao.pdf"
-    url_status: pending_validation
-    sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_159_2025_DE_683-25.pdf
+    review_status: rejected
+    pages_reviewed:
+    - 1
+    - 2
+    low_confidence_or_errors:
+    - source_pdf_incomplete_missing_rectificacao_body
+    - page2_wrong_diploma_identity
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/searchable.pdf
     versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/legislation/AO-LEG-DE-683-25-2025/original/Diario_Republica_I_159_2025_DE_683-25.pdf
+  - kind: markdown_text
+    original_sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T17:47:34Z'
+    derivative_sha256: 41719f371007449ea91b5c7bf59a95858f86aa9960fe4f69a432968999d995e4
+    page_count: 2
+    review_status: rejected
+    pages_reviewed:
+    - 1
+    - 2
+    low_confidence_or_errors:
+    - source_pdf_incomplete_missing_rectificacao_body
+    - page2_wrong_diploma_identity
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/text.md
+    versioned_path: null
+  tags:
+  - normativa_legal
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  - image_only
+  - ocr_pending
+  derived_requirements: []
+  affects:
+  - docs/01-compliance/
+  - compliance/derived/requirements/
+  notes: 'OCR v1 rejected (ai_assisted): PDF de 2 páginas incompleto — Rectificação só no sumário; p.2
+    é Decreto Presidencial 99/19–100/19. Substituir original antes de novo OCR.'
+- id: AO-LEG-DE-683-25-2025
+  official_name: Decreto Executivo n.º 683/25 (Diário da República I Série n.º 159, 22 de Agosto de 2025)
+  authority: MINFIN / Diário da República
+  type: legislation
+  version: 683/25
+  published_at: '2025-08-22'
+  retrieved_at: '2026-07-25'
+  source_url: https://files.lex.ao/banco-nacional-de-angola/2025/aviso-n-o-4-25-de-22-de-agosto/download/aviso-n-o-4-25-de-22-de-agosto_banco-nacional-de-angola_lex-ao.pdf
+  url_status: pending_validation
+  sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_159_2025_DE_683-25.pdf
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_repository_path: originals/legislation/AO-LEG-DE-683-25-2025/original/Diario_Republica_I_159_2025_DE_683-25.pdf
+  page_count: 16
+  text_extractable: false
+  conversion_required: true
+  normative_role: normative_original
+  required_future_derivatives:
+  - searchable_pdf
+  - markdown_text
+  derivatives:
+  - kind: searchable_pdf
+    original_sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T18:03:39Z'
+    derivative_sha256: 05220030c6596f0356d63daddf4cfa1e6364732c0a0304a83d047034cd95b9ab
     page_count: 16
-    text_extractable: false
-    conversion_required: true
-    normative_role: normative_original
-    required_future_derivatives:
-      - searchable_pdf
-      - markdown_text
-    derivatives: []
-    tags:
-      - normativa_legal
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-      - image_only
-      - ocr_pending
-    derived_requirements: []
-    affects:
-      - docs/01-compliance/
-      - compliance/derived/requirements/
-    notes: >
-      PDF image-only (16 páginas). Legislação posterior; precedência quando o
-      diploma o estabelecer relativamente a 74/19+rect. URL LEX.AO a validar.
-      OCR/MD no PR B; nunca substituto legal do original.
-
-  - id: AO-SAFT-XSD-1.01_01
-    official_name: "SAF-T (AO) XSD SAFTAO1.01_01"
-    authority: "AGT (via repositório ASSOFT — pendente confirmação AGT)"
-    type: schema
-    version: "1.01_01"
-    published_at: "2024-10-16"
-    retrieved_at: "2026-07-25"
-    source_url: "https://github.com/assoft-portugal/SAF-T-AO"
-    url_status: ok
-    sha256: e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: permitted
-    storage: git_public
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/02_saft_ao/SAFTAO1.01_01.xsd
-    versioned_path: compliance/saft-ao/schemas/SAFTAO1.01_01.xsd
-    tags:
-      - schema
-      - redistribuicao_permitida
-    derived_requirements: []
-    affects:
-      - compliance/saft-ao/schemas/
-      - docs/01-compliance/saft-ao.md
-    notes: >
-      Cópia pública SRC-B2 sob MIT ASSOFT (+ LICENSE/NOTICE). Namespace
-      urn:OECD:StandardAuditFile-Tax:AO_1.01_01; doc:Status=Development.
-      NÃO afirmado como XSD validado/certificado pela AGT (pending_validation).
-      Snapshot upstream registado ed86c7d5a5ab21cf5ebb410507a5de04a86663f3.
-      Mecanismos SAF-T são distintos de JWS/RS256 da faturação electrónica.
-
-  - id: AO-SAFT-ZIP-ASSOFT-MASTER
-    official_name: "Cópia ZIP do repositório ASSOFT SAF-T-AO (master)"
-    authority: "ASSOFT / AGT (contexto parceria; arquivo auxiliar)"
-    type: archive
-    version: "master-snapshot-2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://github.com/assoft-portugal/SAF-T-AO"
-    url_status: ok
-    sha256: 10000a8152f665119e14430e2df0985c834071af56ecb5654cb82137c9db66f6
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to:
-      - AO-SAFT-XSD-1.01_01
-    license_redistribution: local_only
-    storage: local_only
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/02_saft_ao/SAF-T-AO_repositorio_master.zip
+    review_status: rejected
+    pages_reviewed:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    low_confidence_or_errors:
+    - source_pdf_wrong_diploma_aviso_4_25
+    - rotated_annex_tables_illegible
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DE-683-25-2025/v1/searchable.pdf
     versioned_path: null
-    tags:
-      - arquivo_zip
-      - apenas_referencia_local
-      - candidato_catalogo_sem_conteudo
-    derived_requirements: []
-    affects: []
-    notes: >
-      Arquivo auxiliar. Nunca dependência de runtime, testes ou CI.
-      Preferir SAFTAO1.01_01.xsd extraído (AO-SAFT-XSD-1.01_01).
-
-  - id: AO-FE-SNAP-HML-2026-07-25-INDEX
-    official_name: "FE HML — index.html (introdução e arquitectura)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 67fc40a653e7c6e1d461ab93448676e711a4a55c47f771b751042ddd1136c1de
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/index.html
+  - kind: markdown_text
+    original_sha256: 59a48189bbd0d58698b7f9863e86ed5bb0ceec5ca8a670e699d09ccf51752e38
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-25T18:03:39Z'
+    derivative_sha256: f8bdcbaae47e627da387454d8502f536a3a480985cfd126f0507b73c2de87773
+    page_count: 16
+    review_status: rejected
+    pages_reviewed:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    low_confidence_or_errors:
+    - source_pdf_wrong_diploma_aviso_4_25
+    - rotated_annex_tables_illegible
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DE-683-25-2025/v1/text.md
     versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-INDEX/original/index.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "Snapshot HML. JWS/RS256 FE ≠ mecanismos SAF-T. Cópia privada SRC-B1 sincronizada."
+  tags:
+  - normativa_legal
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  - image_only
+  - ocr_pending
+  derived_requirements: []
+  affects:
+  - docs/01-compliance/
+  - compliance/derived/requirements/
+  notes: 'OCR v1 rejected (ai_assisted): PDF arquivado corresponde ao Aviso BNA n.º 4/25 (páginas a partir
+    de 19228), não ao corpo do DE 683/25 (19164). URL LEX.AO já estava desalinhada.'
+- id: AO-SAFT-XSD-1.01_01
+  official_name: SAF-T (AO) XSD SAFTAO1.01_01
+  authority: AGT (via repositório ASSOFT — pendente confirmação AGT)
+  type: schema
+  version: '1.01_01'
+  published_at: '2024-10-16'
+  retrieved_at: '2026-07-25'
+  source_url: https://github.com/assoft-portugal/SAF-T-AO
+  url_status: ok
+  sha256: e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: permitted
+  storage: git_public
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/02_saft_ao/SAFTAO1.01_01.xsd
+  versioned_path: compliance/saft-ao/schemas/SAFTAO1.01_01.xsd
+  tags:
+  - schema
+  - redistribuicao_permitida
+  derived_requirements: []
+  affects:
+  - compliance/saft-ao/schemas/
+  - docs/01-compliance/saft-ao.md
+  notes: 'Cópia pública SRC-B2 sob MIT ASSOFT (+ LICENSE/NOTICE). Namespace urn:OECD:StandardAuditFile-Tax:AO_1.01_01;
+    doc:Status=Development. NÃO afirmado como XSD validado/certificado pela AGT (pending_validation).
+    Snapshot upstream registado ed86c7d5a5ab21cf5ebb410507a5de04a86663f3. Mecanismos SAF-T são distintos
+    de JWS/RS256 da faturação electrónica.
 
-  - id: AO-FE-SNAP-HML-2026-07-25-API
-    official_name: "FE HML — api.html (autenticação e endereços)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 06a9dbdf9857fbef0be932d35954c00e3612dfa88fd332ba03abe9a50ee1e33e
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/api.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-API/original/api.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: >
-      Contém exemplos de Basic Auth na documentação oficial. Nunca versionar
-      credenciais reais. Separar HML (sifphml) de PRD (sifp).
+    '
+- id: AO-SAFT-ZIP-ASSOFT-MASTER
+  official_name: Cópia ZIP do repositório ASSOFT SAF-T-AO (master)
+  authority: ASSOFT / AGT (contexto parceria; arquivo auxiliar)
+  type: archive
+  version: master-snapshot-2026-07-25
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://github.com/assoft-portugal/SAF-T-AO
+  url_status: ok
+  sha256: 10000a8152f665119e14430e2df0985c834071af56ecb5654cb82137c9db66f6
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to:
+  - AO-SAFT-XSD-1.01_01
+  license_redistribution: local_only
+  storage: local_only
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/02_saft_ao/SAF-T-AO_repositorio_master.zip
+  versioned_path: null
+  tags:
+  - arquivo_zip
+  - apenas_referencia_local
+  - candidato_catalogo_sem_conteudo
+  derived_requirements: []
+  affects: []
+  notes: 'Arquivo auxiliar. Nunca dependência de runtime, testes ou CI. Preferir SAFTAO1.01_01.xsd extraído
+    (AO-SAFT-XSD-1.01_01).
 
-  - id: AO-FE-SNAP-HML-2026-07-25-ESTRUTURA
-    official_name: "FE HML — estrutura.html (JWS RS256 e campos assinados)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 50ba18e087156438fdb509850bf8dff3c445880dd6ff91ed16a0b96055d99232
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/estrutura.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-ESTRUTURA/original/estrutura.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "JWS/RS256 da FE é distinto de qualquer mecanismo SAF-T histórico."
+    '
+- id: AO-FE-SNAP-HML-2026-07-25-INDEX
+  official_name: FE HML — index.html (introdução e arquitectura)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 67fc40a653e7c6e1d461ab93448676e711a4a55c47f771b751042ddd1136c1de
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/index.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-INDEX/original/index.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: Snapshot HML. JWS/RS256 FE ≠ mecanismos SAF-T. Cópia privada SRC-B1 sincronizada.
+- id: AO-FE-SNAP-HML-2026-07-25-API
+  official_name: FE HML — api.html (autenticação e endereços)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 06a9dbdf9857fbef0be932d35954c00e3612dfa88fd332ba03abe9a50ee1e33e
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/api.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-API/original/api.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: 'Contém exemplos de Basic Auth na documentação oficial. Nunca versionar credenciais reais. Separar
+    HML (sifphml) de PRD (sifp).
 
-  - id: AO-FE-SNAP-HML-2026-07-25-MODELO
-    official_name: "FE HML — modelo.html (processamento assíncrono)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: f851f5125012254496550e3fd56580301926e49b9406969fdc7a1b1ca753f702
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/modelo.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-MODELO/original/modelo.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
+    '
+- id: AO-FE-SNAP-HML-2026-07-25-ESTRUTURA
+  official_name: FE HML — estrutura.html (JWS RS256 e campos assinados)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 50ba18e087156438fdb509850bf8dff3c445880dd6ff91ed16a0b96055d99232
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/estrutura.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-ESTRUTURA/original/estrutura.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: JWS/RS256 da FE é distinto de qualquer mecanismo SAF-T histórico.
+- id: AO-FE-SNAP-HML-2026-07-25-MODELO
+  official_name: FE HML — modelo.html (processamento assíncrono)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: f851f5125012254496550e3fd56580301926e49b9406969fdc7a1b1ca753f702
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/modelo.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-MODELO/original/modelo.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-FE-SNAP-HML-2026-07-25-GESTAO
+  official_name: FE HML — gestao.html (certificados e chaves — regras públicas)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: de423e66bdd742763b0c39cf50ffd0cf80cf8d692eeee84888755fa152f6e98e
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/gestao.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-GESTAO/original/gestao.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: Não versionar chaves privadas, certificados secretos nem credenciais.
+- id: AO-FE-SNAP-HML-2026-07-25-QRCODE
+  official_name: FE HML — qrcode.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: ccade20b77c20f97b049c98fc7bccdad94426ae76e6e743e81253f759888ea0f
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/qrcode.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-QRCODE/original/qrcode.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: Não inventar campos de QR Code.
+- id: AO-FE-SNAP-HML-2026-07-25-SOLICITAR
+  official_name: FE HML — servico_solicitar.html (séries)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: f8fb22e78e18039e9656c9ce24062c89a21d29ee96256d04444d2cc0ac665bb7
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_solicitar.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-SOLICITAR/original/servico_solicitar.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: Inventariar endpoints HML vs PRD sem inventar paths.
+- id: AO-FE-SNAP-HML-2026-07-25-LISTAR
+  official_name: FE HML — servico_listar.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 5729f02c040d01278457856a2514e8b9118e64bd1a79033190e1253612094568
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR/original/servico_listar.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-FE-SNAP-HML-2026-07-25-REGISTAR
+  official_name: FE HML — servico_registar.html (registo e FE-RNG)
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: eb430954724584da8658c7fe2f6413e6a0ff43a4c0662915ec8c39599aae09fb
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_registar.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-REGISTAR/original/servico_registar.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: Catálogo principal de validações FE-RNG no snapshot; não inventar códigos.
+- id: AO-FE-SNAP-HML-2026-07-25-CONSULTAR
+  official_name: FE HML — servico_consultar.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 1cac2844ddd1f0987fe808d582b05f97c2287d618c0f135202fa109ab1afd5b4
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR/original/servico_consultar.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA
+  official_name: FE HML — servico_consultar_fatura.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 6d5cc1a013b15cbe3f6fc7dca573f4bad46aedc705595087477172181b30489c
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar_fatura.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA/original/servico_consultar_fatura.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS
+  official_name: FE HML — servico_listar_faturas.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: c748caca023c5312542d9302745540180d0070f2aef327f94ac1d0e501f7d8a9
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar_faturas.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS/original/servico_listar_faturas.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-FE-SNAP-HML-2026-07-25-VALIDAR
+  official_name: FE HML — servico_validar.html
+  authority: MINFIN / AGT Portal do Parceiro (HML)
+  type: fe_snapshot
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/
+  url_status: ok
+  sha256: 7ab706297045b2e17755f413f9a39a3f9ccb12e8dca18fd94d3ef9cb476b3733
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_validar.html
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-VALIDAR/original/servico_validar.html
+  tags:
+  - doc_tecnica_oficial
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  derived_requirements: []
+  affects:
+  - compliance/fe/
+  notes: ''
+- id: AO-ARC-README-2026-07-25
+  official_name: README da recolha arquivo_fiscal_ao (2026-07-25)
+  authority: project archive metadata
+  type: aux
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: null
+  url_status: not_applicable
+  sha256: f7b059e98787026dfe83fa2e7602062e47249f23cadfca3dd8f85bd5341044ef
+  status: active
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: local_only
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/README.md
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/provenance/AO-ARC-README-2026-07-25/original/README.md
+  tags:
+  - exemplo_auxiliar
+  - apenas_referencia_local
+  - candidato_catalogo_sem_conteudo
+  derived_requirements: []
+  affects:
+  - compliance/catalog/sources.yaml
+  notes: Metadados da recolha; cópia privada SRC-B1; local/ só consulta.
+- id: AO-ARC-SUMS-2026-07-25
+  official_name: SHA256SUMS.txt da recolha arquivo_fiscal_ao (2026-07-25)
+  authority: project archive metadata
+  type: aux
+  version: '2026-07-25'
+  published_at: null
+  retrieved_at: '2026-07-25'
+  source_url: null
+  url_status: not_applicable
+  sha256: 740aba360d2b354faa8ee2108fca0d3540256866b8f1e8a0f906f337bfec8a64
+  status: active
+  supersedes: []
+  superseded_by: []
+  related_to: []
+  license_redistribution: local_only
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/SHA256SUMS.txt
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c93db4f89352eab884a4862943faa2ed874217fc
+  private_repository_path: originals/provenance/AO-ARC-SUMS-2026-07-25/original/SHA256SUMS.txt
+  tags:
+  - exemplo_auxiliar
+  - apenas_referencia_local
+  - candidato_catalogo_sem_conteudo
+  derived_requirements: []
+  affects:
+  - compliance/catalog/sources.yaml
+  notes: 'Integridade da recolha. O sha256 deste registo é o hash do próprio SHA256SUMS.txt (não listado
+    dentro do ficheiro).
 
-  - id: AO-FE-SNAP-HML-2026-07-25-GESTAO
-    official_name: "FE HML — gestao.html (certificados e chaves — regras públicas)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: de423e66bdd742763b0c39cf50ffd0cf80cf8d692eeee84888755fa152f6e98e
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/gestao.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-GESTAO/original/gestao.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "Não versionar chaves privadas, certificados secretos nem credenciais."
-
-  - id: AO-FE-SNAP-HML-2026-07-25-QRCODE
-    official_name: "FE HML — qrcode.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: ccade20b77c20f97b049c98fc7bccdad94426ae76e6e743e81253f759888ea0f
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/qrcode.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-QRCODE/original/qrcode.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "Não inventar campos de QR Code."
-
-  - id: AO-FE-SNAP-HML-2026-07-25-SOLICITAR
-    official_name: "FE HML — servico_solicitar.html (séries)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: f8fb22e78e18039e9656c9ce24062c89a21d29ee96256d04444d2cc0ac665bb7
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_solicitar.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-SOLICITAR/original/servico_solicitar.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "Inventariar endpoints HML vs PRD sem inventar paths."
-
-  - id: AO-FE-SNAP-HML-2026-07-25-LISTAR
-    official_name: "FE HML — servico_listar.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 5729f02c040d01278457856a2514e8b9118e64bd1a79033190e1253612094568
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR/original/servico_listar.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
-
-  - id: AO-FE-SNAP-HML-2026-07-25-REGISTAR
-    official_name: "FE HML — servico_registar.html (registo e FE-RNG)"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: eb430954724584da8658c7fe2f6413e6a0ff43a4c0662915ec8c39599aae09fb
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_registar.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-REGISTAR/original/servico_registar.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: "Catálogo principal de validações FE-RNG no snapshot; não inventar códigos."
-
-  - id: AO-FE-SNAP-HML-2026-07-25-CONSULTAR
-    official_name: "FE HML — servico_consultar.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 1cac2844ddd1f0987fe808d582b05f97c2287d618c0f135202fa109ab1afd5b4
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR/original/servico_consultar.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
-
-  - id: AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA
-    official_name: "FE HML — servico_consultar_fatura.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 6d5cc1a013b15cbe3f6fc7dca573f4bad46aedc705595087477172181b30489c
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_consultar_fatura.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA/original/servico_consultar_fatura.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
-
-  - id: AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS
-    official_name: "FE HML — servico_listar_faturas.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: c748caca023c5312542d9302745540180d0070f2aef327f94ac1d0e501f7d8a9
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_listar_faturas.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS/original/servico_listar_faturas.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
-
-  - id: AO-FE-SNAP-HML-2026-07-25-VALIDAR
-    official_name: "FE HML — servico_validar.html"
-    authority: "MINFIN / AGT Portal do Parceiro (HML)"
-    type: fe_snapshot
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: "https://portaldoparceiro.hml.minfin.gov.ao/doc-agt/faturacao-electronica/1/"
-    url_status: ok
-    sha256: 7ab706297045b2e17755f413f9a39a3f9ccb12e8dca18fd94d3ef9cb476b3733
-    status: pending_validation
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: uncertain
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/03_faturacao_eletronica/servico_validar.html
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/faturacao-eletronica/AO-FE-SNAP-HML-2026-07-25-VALIDAR/original/servico_validar.html
-    tags:
-      - doc_tecnica_oficial
-      - redistribuicao_incerta
-      - candidato_copia_versionada
-    derived_requirements: []
-    affects:
-      - compliance/fe/
-    notes: ""
-
-  - id: AO-ARC-README-2026-07-25
-    official_name: "README da recolha arquivo_fiscal_ao (2026-07-25)"
-    authority: "project archive metadata"
-    type: aux
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: null
-    url_status: not_applicable
-    sha256: f7b059e98787026dfe83fa2e7602062e47249f23cadfca3dd8f85bd5341044ef
-    status: active
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: local_only
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/README.md
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/provenance/AO-ARC-README-2026-07-25/original/README.md
-    tags:
-      - exemplo_auxiliar
-      - apenas_referencia_local
-      - candidato_catalogo_sem_conteudo
-    derived_requirements: []
-    affects:
-      - compliance/catalog/sources.yaml
-    notes: "Metadados da recolha; cópia privada SRC-B1; local/ só consulta."
-
-  - id: AO-ARC-SUMS-2026-07-25
-    official_name: "SHA256SUMS.txt da recolha arquivo_fiscal_ao (2026-07-25)"
-    authority: "project archive metadata"
-    type: aux
-    version: "2026-07-25"
-    published_at: null
-    retrieved_at: "2026-07-25"
-    source_url: null
-    url_status: not_applicable
-    sha256: 740aba360d2b354faa8ee2108fca0d3540256866b8f1e8a0f906f337bfec8a64
-    status: active
-    supersedes: []
-    superseded_by: []
-    related_to: []
-    license_redistribution: local_only
-    storage: private_sync
-    local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/SHA256SUMS.txt
-    versioned_path: null
-    private_repository: storesace-cv/bwb-fiscal-sources-ao
-    private_commit: c93db4f89352eab884a4862943faa2ed874217fc
-    private_repository_path: originals/provenance/AO-ARC-SUMS-2026-07-25/original/SHA256SUMS.txt
-    tags:
-      - exemplo_auxiliar
-      - apenas_referencia_local
-      - candidato_catalogo_sem_conteudo
-    derived_requirements: []
-    affects:
-      - compliance/catalog/sources.yaml
-    notes: >
-      Integridade da recolha. O sha256 deste registo é o hash do próprio
-      SHA256SUMS.txt (não listado dentro do ficheiro).
+    '

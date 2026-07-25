@@ -42,7 +42,7 @@ Antes de tarefas fiscais (regras, SAF-T, FE, requisitos `AO-*`):
 1. Consultar `compliance/catalog/sources.yaml` e `compliance/POLICY.md`.
 2. Citar `source_id`, diploma/secção, **página** (quando PDF), endpoint ou `FE-RNG-*` conforme a fonte.
 3. Alertar se a fonte estiver `pending_validation`, `superseded`, `withdrawn`, ou se o derivado OCR não estiver `reviewed`.
-4. Tratar PDFs image-only como **não legíveis** para requisitos até existir OCR com páginas `reviewed`; renderizar páginas não equivale a texto pesquisável.
+4. Tratar PDFs image-only como **não legíveis** para requisitos até existir OCR com páginas `reviewed`; renderizar páginas não equivale a texto pesquisável. Derivados e revisão (`reviewer_kind=ai_assisted`) vivem no repo privado — nunca depender de `local/`.
 5. Para cada derivado OCR de um diploma, o PDF oficial original permanece a representação autoritativa; OCR/Markdown são auxiliares de pesquisa. Só conteúdo `reviewed` e confrontado visualmente com o original pode sustentar requisitos `AO-*` confirmados.
 6. JWS/RS256 da faturação electrónica é distinto de mecanismos SAF-T.
 7. Nunca depender de `local/` em build, testes, runtime ou CI.
