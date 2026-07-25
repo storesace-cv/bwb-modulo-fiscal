@@ -6,7 +6,7 @@
 
 Política: [`compliance/POLICY.md`](../../compliance/POLICY.md). Validação: `compliance/scripts/verify_catalog.py` (sem depender de `local/` no CI).
 
-Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). **SRC-B1 concluído:** originais B1 (PDFs + HTML FE HML + proveniência) estão no repositório privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao) (commit `c93db4f89352eab884a4862943faa2ed874217fc`), com catálogo/manifesto e verificação de integridade. Acesso privado **não** equivale a autorização de redistribuição pública. **SRC-B2 concluído:** XSD `SAFTAO1.01_01.xsd` versionado em [`compliance/saft-ao/schemas/`](../../compliance/saft-ao/schemas/) com LICENSE MIT ASSOFT, NOTICE e `SHA256SUMS.txt` (`storage=git_public`, `status=pending_validation`). O ZIP ASSOFT permanece `local_only`. OCR / PDF pesquisável / Markdown **ainda pendentes**. O PDF original permanece a única fonte normativa.
+Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 66 páginas; `text_extractable: false`). **SRC-B1 concluído:** originais B1 no repositório privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao). **OCR RM-SRC-004 (fail-closed / BLOQUEADO):** `AO-LEG-DE-74-19-2019` tem OCR `reviewed`. `AO-LEG-RECT-10-19-2019` permanece com original **incorrecto/incompleto** (aquisição oficial bloqueada — ver gaps/GAP-002). `AO-LEG-DE-683-25-2025` tem original **correcto** v2 no privado (`b01e4581…`, 66p; import autorizado); OCR v2/`reviewed` pendente antes de KB pública. OCR `rejected` antigo só diagnóstico privado. **SRC-B2 concluído:** XSD `SAFTAO1.01_01.xsd` em [`compliance/saft-ao/schemas/`](../../compliance/saft-ao/schemas/) (`pending_validation`). O PDF original permanece a única fonte normativa; OCR não-`reviewed` não confirma requisitos `AO-*`.
 
 Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte de IDs, hashes e estado.
 
@@ -88,8 +88,8 @@ Auditoria de capacidades SAF-T AO noutro projecto privado (pista técnica, não 
 | Portal institucional da AGT | 2026-07-20 | Aplicação web acessível; conteúdo não extraído | Rever secções e anexos manualmente |
 | Documentação técnica de Facturação Electrónica | 2026-07-20 | Pública e acessível | Criar snapshot versionado na Fase 0 |
 | Portal do Parceiro | 2026-07-20 | Conteúdo público indexado; aplicação requer JavaScript | Obter downloads e credenciais de homologação |
-| Decreto Executivo n.º 74/19 + rectificação | 2026-07-25 | PDFs oficiais em `local/` e metadados no catálogo (`AO-LEG-DE-74-19-2019`, `AO-LEG-RECT-10-19-2019`); image-only; cópia Git pendente (PR B) | Autorizar redistribuição + OCR + revisão |
-| Decreto Executivo n.º 683/25 | 2026-07-25 | PDF em `local/` + catálogo (`AO-LEG-DE-683-25-2025`); image-only; cópia Git pendente | Autorizar redistribuição + OCR + revisão |
+| Decreto Executivo n.º 74/19 + rectificação | 2026-07-25 | 74/19 OCR `reviewed` (privado); Rect. original incorrecto — sem KB OCR pública | Adquirir Rect. 10/19 correcta + OCR `reviewed` do conjunto |
+| Decreto Executivo n.º 683/25 | 2026-07-25 | Original arquivado = Aviso 4/25 (`59a48189…`); sem KB OCR pública | Adquirir DE 683/25 (DR I/159/2025 p.19164+) + OCR `reviewed` |
 | Área de Produtores / Modelo 8 / XSD SAF-T (AO) | 2026-07-25 | XSD ASSOFT versionado em `compliance/saft-ao/schemas/` (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** afirmado como validado pela AGT | Confirmar XSD AGT; validação independente; ZIP permanece `local_only` |
 
 ## Fontes comunitárias

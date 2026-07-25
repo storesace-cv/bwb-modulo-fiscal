@@ -37,7 +37,7 @@ EXPECTED_COLLECTION_COUNT = 20
 LEGISLATION_PAGES = {
     "AO-LEG-DE-74-19-2019": 12,
     "AO-LEG-RECT-10-19-2019": 2,
-    "AO-LEG-DE-683-25-2025": 16,
+    "AO-LEG-DE-683-25-2025": 66,
 }
 
 
@@ -86,7 +86,74 @@ def validate_relations(sources: list[dict], errors: list[str]) -> None:
                 )
 
 
+def validate_ocr_derivatives(src: dict, errors: list[str]) -> None:
+    sid = src["id"]
+    pages = src.get("page_count")
+    ders = src.get("derivatives") or []
+    if not ders:
+        errors.append(f"{sid}: derivatives obrigatório após OCR autorizado")
+        return
+    kinds = [d.get("kind") for d in ders]
+    if sorted(kinds) != ["markdown_text", "searchable_pdf"]:
+        errors.append(
+            f"{sid}: derivatives deve ter searchable_pdf + markdown_text (got {kinds})"
+        )
+    statuses = {d.get("review_status") for d in ders}
+    if "rejected" in statuses:
+        errors.append(
+            f"{sid}: derivatives rejected não podem ser publicados como KB "
+            "(manter só diagnóstico privado; limpar derivatives[] públicos)"
+        )
+    if not statuses.issubset({"generated_unreviewed", "reviewed", "rejected"}):
+        errors.append(f"{sid}: review_status OCR inválido {statuses}")
+    if "partially_reviewed" in statuses:
+        errors.append(f"{sid}: partially_reviewed não é usado neste workflow")
+    if len(statuses) != 1:
+        errors.append(f"{sid}: review_status inconsistente entre derivatives")
+    status = next(iter(statuses)) if statuses else None
+    for der in ders:
+        if der.get("original_sha256") != src.get("sha256"):
+            errors.append(f"{sid}: original_sha256 diverge")
+        if der.get("page_count") != pages:
+            errors.append(f"{sid}: page_count derivado diverge")
+        if not der.get("ocr_config"):
+            errors.append(f"{sid}: ocr_config obrigatório")
+        if not der.get("derivative_version"):
+            errors.append(f"{sid}: derivative_version obrigatório")
+        path = der.get("private_repository_path")
+        if not isinstance(path, str) or not path.startswith(
+            f"derivatives/legislation/{sid}/"
+        ):
+            errors.append(f"{sid}: private_repository_path inválido para derivado")
+        pr = der.get("pages_reviewed") or []
+        if status in {"reviewed", "rejected"}:
+            page_n = pages if isinstance(pages, int) and pages > 0 else 0
+            expected = list(range(1, page_n + 1))
+            if not page_n:
+                errors.append(f"{sid}: page_count inválido para {status}")
+            elif pr != expected:
+                errors.append(
+                    f"{sid}: pages_reviewed incompleto para {status}"
+                )
+        elif status == "generated_unreviewed" and pr:
+            errors.append(f"{sid}: pages_reviewed deve estar vazio em unreviewed")
+        if status != "reviewed" and src.get("derived_requirements"):
+            errors.append(
+                f"{sid}: derived_requirements só permitido com OCR reviewed"
+            )
+    tags = set(src.get("tags") or [])
+    if status == "reviewed":
+        if "ocr_reviewed" not in tags:
+            errors.append(f"{sid}: tag ocr_reviewed obrigatória quando reviewed")
+        if "ocr_pending" in tags:
+            errors.append(f"{sid}: remover ocr_pending quando reviewed")
+    elif status in {"generated_unreviewed", "rejected"}:
+        if "ocr_pending" not in tags:
+            errors.append(f"{sid}: tag ocr_pending obrigatória quando {status}")
+
+
 def validate_legislation_invariants(sources: list[dict], errors: list[str]) -> None:
+    by_id = {s["id"]: s for s in sources}
     for sid, pages in LEGISLATION_PAGES.items():
         matches = [s for s in sources if s["id"] == sid]
         if len(matches) != 1:
@@ -106,8 +173,34 @@ def validate_legislation_invariants(sources: list[dict], errors: list[str]) -> N
             errors.append(
                 f"{sid}: required_future_derivatives must be searchable_pdf and markdown_text"
             )
+        # OCR authorized: derivatives may be empty only before first private sync of OCR.
+        # After RM-SRC-004, legislation must carry searchable_pdf + markdown_text metadata.
         if src.get("derivatives"):
-            errors.append(f"{sid}: derivatives must be empty until authorized OCR")
+            validate_ocr_derivatives(src, errors)
+        else:
+            # Allow empty only if still tagged ocr_pending and conversion_required —
+            # transitional; prefer populated derivatives.
+            tags = set(src.get("tags") or [])
+            if "ocr_pending" not in tags:
+                errors.append(
+                    f"{sid}: sem derivatives exige tag ocr_pending (pré-OCR)"
+                )
+
+    # Companion set: if either 74/19 or Rect is reviewed, both must be.
+    a = "AO-LEG-DE-74-19-2019"
+    b = "AO-LEG-RECT-10-19-2019"
+    if a in by_id and b in by_id:
+        def status_of(sid: str) -> str | None:
+            ders = by_id[sid].get("derivatives") or []
+            if not ders:
+                return None
+            return ders[0].get("review_status")
+
+        sa, sb = status_of(a), status_of(b)
+        if sa == "reviewed" and sb == "generated_unreviewed":
+            errors.append(f"{a}: reviewed exige companion {b} reviewed ou rejected")
+        if sb == "reviewed" and sa == "generated_unreviewed":
+            errors.append(f"{b}: reviewed exige companion {a} reviewed ou rejected")
 
 
 def validate_private_sync(sources: list[dict], errors: list[str]) -> None:

@@ -1,8 +1,8 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
-**Data:** 2026-07-20 (actualização catálogo/SRC-B2 2026-07-25)
-**Estado:** inventário Fase 0 + catálogo + XSD público SRC-B2 (`pending_validation`); OCR pendente
-**Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais.
+**Data:** 2026-07-20 (correcção fail-closed OCR 2026-07-25)
+**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **BLOQUEADOS** exclusivamente pela Rect. 10/19 (DE 74/19 e DE 683/25 v2 têm OCR `reviewed` como KB auxiliar)
+**Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais; OCR `rejected` não é base de conhecimento.
 
 Documentos relacionados:
 
@@ -15,17 +15,18 @@ Documentos relacionados:
 
 ## Resumo executivo
 
-A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado (`compliance/catalog/sources.yaml`), originais B1 no repo privado, e **XSD ASSOFT versionado** em `compliance/saft-ao/schemas/` (SRC-B2, `pending_validation`). Continuam em falta OCR revisto dos PDFs e confirmação AGT do schema. GAP-001/002/005 permanecem abertos; **GAP-004 está parcialmente mitigado**. O acesso a Modelo 8 e homologação depende de registo/credenciais de produtora.
+A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado, originais B1 no privado, e XSD ASSOFT (`pending_validation`). **Fail-closed:** RM-SRC-004/RM-M2-C estão BLOQUEADOS pela Rect. 10/19 sem original integral oficial. DE 74/19 e DE 683/25 v2 têm OCR `reviewed` publicado como KB auxiliar (683: citar só 19164–19227). Derivados `rejected` não entram no catálogo público. GAP-001 parcialmente mitigado; GAP-002 aberto; GAP-014 parcialmente mitigado (URL oficial); GAP-005 aberto; GAP-004 parcialmente mitigado.
 
 ## Inventário de lacunas
 
 | ID | Artefacto / diploma | Acesso atual | Bloqueia | Evidência para fechar |
 |---|---|---|---|---|
-| GAP-001 | Decreto Executivo n.º 74/19 (PDF oficial) | PDF em `local/` + metadados no catálogo (`AO-LEG-DE-74-19-2019`, image-only 12p); **não** no Git; OCR pendente (PR B) | Matriz normativa, assinatura, menções, séries | Cópia autorizada + OCR `reviewed` + requisitos derivados |
-| GAP-002 | Rectificação do Decreto Executivo n.º 74/19 | PDF em `local/` + catálogo (`AO-LEG-RECT-10-19-2019`, image-only 2p); **não** no Git; OCR pendente | Interpretação correta do 74/19 | Cópia autorizada + OCR `reviewed` + ligação ao 74/19 |
+| GAP-001 | Decreto Executivo n.º 74/19 (PDF oficial) | Original correcto + OCR `reviewed` no privado (`5b63c80e…`); metadados públicos com `derivatives` reviewed | Matriz normativa (conjunto com Rect.) | Fechar Rect. `reviewed` + extrair `AO-*` |
+| GAP-002 | Rectificação do Decreto Executivo n.º 74/19 | Original arquivado **incorrecto/incompleto** (`77b77f01…`, 2p: sumário + DP 99/19–100/19); OCR rejected só diagnóstico privado; **sem** `derivatives` públicos; tentativas oficiais 2026-07-25 documentadas no privado `docs/ACQUISITION-RECT-10-19.md` (UCM PDFs ≠ Rect. 10/19; Imprensa Nacional inacessível) | Interpretação correcta do 74/19 | Adquirir DR I/40/2019 com texto integral Rect. 10/19 (MINFIN/Imprensa Nacional); nova versão original privada + OCR `reviewed` |
 | GAP-003 | Modelo 8 (processo de produtores) | Área autenticada; acesso não demonstrado | Submissão/certificação, rotação de chaves comunicada à AGT | Cópia autorizada ou captura de requisitos atuais + referência de versão; **sem** dados pessoais desnecessários no Git |
 | GAP-004 | XSD oficial SAF-T (AO) | **Parcialmente mitigado:** XSD ASSOFT + LICENSE/NOTICE em `compliance/saft-ao/schemas/` (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** afirmado como validado pela AGT; ZIP permanece `local_only` | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Confirmação AGT + validação independente |
-| GAP-005 | Especificação técnica FE versionada (snapshot) | 13 HTML em `local/` + metadados no catálogo; snapshot **não** no Git | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot autorizado no Git + inventários HML/PRD (PR B) |
+| GAP-005 | Especificação técnica FE versionada (snapshot) | 13 HTML em `local/` + metadados no catálogo; snapshot **não** no Git público (bytes no privado B1) | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot autorizado no Git público ou ponteiros + inventários HML/PRD |
+| GAP-014 | Decreto Executivo n.º 683/25 (PDF oficial) | Original **correcto** + OCR v2 `reviewed` no privado/público (`b01e4581…`, 66p); PDF p.66 = início Aviso 4/25 @19228 (mesmo DR — não citar como DE); incorrecto `59a48189…` em `diagnostics/`; URL oficial estável ainda `pending_validation` | Precedência legislativa posterior | Confirmar URL MINFIN/Imprensa Nacional estável; ao citar DE 683 usar páginas 19164–19227 |
 | GAP-006 | Credenciais e ambiente de homologação | Pedido formal ainda não concluído (conforme inventário) | Testes de integração reais com AGT | Credenciais apenas em gestor de segredos; registo de ambiente (HML) sem segredos no Git |
 | GAP-007 | Confirmação processual de `ASM-REG-001` | Premissa de produto; sem evidência AGT | Modelo de certificação comercial | Resposta/ata AGT ou aceite formal de risco + plano B (ADR-0001) |
 | GAP-008 | Catálogo oficial completo de tipos documentais / impostos / isenções aplicáveis ao MVP | Parcial via FE pública; incompleto sem 74/19 + manuais | `AO-DOC-001`, `AO-TAX-001` | Extrato aprovado por compliance a partir de fontes oficiais |
@@ -39,10 +40,10 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 
 ### O que falta
 
-- Cópia autorizada no Git (ou armazenamento privado sincronizado) dos PDFs oficiais 74/19 e Rectificação 10/19 (hoje só em `local/` + hashes no catálogo).
-- Conversão OCR (`searchable_pdf` + `markdown_text`) e revisão visual `reviewed` (PR B/C).
-- Extração controlada de requisitos para a matriz (`AO-*`), com interpretação aprovada.
-- Validação das URLs oficiais (Rectificação: `url_status: pending_validation` no catálogo).
+- **Aquisição oficial** do texto integral da Rectificação n.º 10/19 (DR I/40/2019) — o PDF actual `77b77f01…` está incorrecto/incompleto.
+- DE 683/25: original correcto v2 + OCR `reviewed` já no arquivo; falta URL oficial estável (GAP-014 residual).
+- OCR `reviewed` dos três diplomas correctos antes de fechar RM-SRC-004/RM-M2-C.
+- Extração `AO-*` só após o conjunto 74/19+Rect. estar `reviewed`.
 
 ### O que **não** fecha esta lacuna
 

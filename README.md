@@ -36,7 +36,7 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Sandbox autenticado e **confirmado** (`S3C2 CONFIRMED`) em `https://sandbox.fiscalmod.bwb.pt` — `credential_store` + `FISCAL_ENV=homologation` (ambiente técnico BWB; **não** homologação AGT).
 - Kit POS validado **9/9** no sandbox.
 - Gate pré-deploy PostgreSQL (`pg_dump`) validado no Ubuntu; INC-S4-003 resolvido; INC-B2-001 aberto.
-- Fontes fiscais **SRC-A** (catálogo) e auditoria **B0** concluídas; **SRC-B1** / OCR ainda pendentes.
+- Fontes fiscais **SRC-A** / **B0** / **B1** / **B2** concluídos no âmbito documentado; **OCR RM-SRC-004/RM-M2-C BLOQUEADOS** (falta Rect. 10/19 integral; 74/19+683/25 v2 com OCR reviewed); requisitos `AO-*` pendentes.
 - Fundação transacional (SealInTx / `sealed_locally`) concluída para o slice inicial; **motor regulamentar Angola / integração oficial AGT ainda não implementados**.
 - País activo: Angola. País futuro: Cabo Verde.
 - Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.6-draft`).

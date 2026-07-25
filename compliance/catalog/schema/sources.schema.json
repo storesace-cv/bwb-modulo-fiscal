@@ -55,13 +55,16 @@
         "ocr_tool",
         "ocr_tool_version",
         "ocr_language",
+        "ocr_config",
         "generated_at",
         "derivative_sha256",
         "page_count",
         "review_status",
         "pages_reviewed",
         "low_confidence_or_errors",
-        "human_corrections_ref"
+        "human_corrections_ref",
+        "derivative_version",
+        "private_repository_path"
       ],
       "properties": {
         "kind": {
@@ -75,6 +78,11 @@
           "type": "string",
           "minLength": 2,
           "description": "Prefer Portuguese (por)."
+        },
+        "ocr_config": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact OCR flags / config string from the pinned run."
         },
         "generated_at": {
           "type": "string",
@@ -93,7 +101,17 @@
         },
         "human_corrections_ref": {
           "type": ["string", "null"],
-          "description": "Path to separate human corrections file, or null if none."
+          "description": "Path to corrections file in private repo, or null if none."
+        },
+        "derivative_version": {
+          "type": "string",
+          "pattern": "^v[0-9]+$",
+          "description": "Immutable derivative version directory (e.g. v1)."
+        },
+        "private_repository_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path inside private repo for this derivative artifact."
         },
         "versioned_path": {
           "type": ["string", "null"]
@@ -235,7 +253,8 @@
               "candidato_copia_versionada",
               "candidato_catalogo_sem_conteudo",
               "image_only",
-              "ocr_pending"
+              "ocr_pending",
+              "ocr_reviewed"
             ]
           }
         },

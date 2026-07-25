@@ -20,9 +20,12 @@ Nenhum derivado OCR/textual pode ser apresentado como substituto legal do PDF or
 ## Estados de derivados OCR
 
 - `generated_unreviewed` — só pesquisa e localização preliminar
-- `partially_reviewed` — pesquisa; não sustenta requisitos nas páginas não revistas
 - `reviewed` — único estado que pode sustentar requisitos fiscais **confirmados**
-- `rejected` — não usar; manter para auditoria
+- `rejected` — não usar para requisitos; manter para auditoria (ex.: PDF arquivado incompleto ou desalinhado)
+
+`partially_reviewed` existe no schema JSON por compatibilidade mas **não** é usado neste workflow.
+
+A revisão visual deste incremento é `reviewer_kind=ai_assisted` (Cursor/Codex por delegação), com evidência página a página — **não** é revisão humana. Adopção normativa posterior continua a exigir estado `reviewed` + evidência.
 
 Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 
@@ -36,7 +39,8 @@ Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 
 - `local/` é consulta não versionada (ver `.gitignore` e `AGENTS.md`).
 - Build, testes, runtime e CI **nunca** apontam para `local/`.
-- Originais B1 (PDFs DR + HTML FE + proveniência) sincronizados em `storesace-cv/bwb-fiscal-sources-ao` (privado; `storage=private_sync` no catálogo). Acesso privado ≠ redistribuição pública.
+- Originais B1 (PDFs DR + HTML FE + proveniência) e derivados OCR legislação sincronizados em `storesace-cv/bwb-fiscal-sources-ao` (privado; `storage=private_sync` no catálogo). Acesso privado ≠ redistribuição pública.
+- Revisão OCR: `reviewer_kind=ai_assisted` (não humana); só `reviewed` sustenta requisitos `AO-*`.
 - XSD SAF-T AO ASSOFT pode ser versionado no Git público sob MIT (`storage=git_public`, `pending_validation`); o ZIP completo permanece `local_only`.
 - Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR futuros permanecem em armazenamento privado sincronizado; o Git público mantém catálogo, hashes, proveniência, referências e artefactos redistribuíveis autorizados.
 
