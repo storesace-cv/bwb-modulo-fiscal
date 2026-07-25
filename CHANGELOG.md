@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.19-draft — 2026-07-25
+
+- Ops B2/B3 (docs): validação sandbox do gate pré-deploy; relatório [b2-predeploy-pg-dump-gate-report.md](docs/07-operations/b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 aberto (prova poisoned não ensaiada); runbook: remediação humana de locks poisoned/stale/corrupt, sem auto-remoção. Sem novo SSH/deploy neste incremento documental.
+
 ## 0.2.18-draft — 2026-07-24
 
 - Pre-deploy `pg_dump` gate (B1, repo only): helper `deploy-lock-acquire`/`deploy-lock-release`/`pre-deploy-pg-backup`; parser URI fechado + `pg_service.conf`/`PGPASSFILE`; instalação durável anti-TOCTOU; updater live com lock antes de upload e mutações só após `deploy_allowed=true`; `createdb`/`dropdb` via OS `postgres` sem `CREATEDB`/`SUPERUSER` em `fiscal_migrate`; mocks + CI PostgreSQL 16 real; runbook. Sem acesso ao servidor, sem B2/B3, sem Ready/merge.
