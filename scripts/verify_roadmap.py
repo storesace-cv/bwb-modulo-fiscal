@@ -312,13 +312,31 @@ def validate_distinctions(text: str, path: str) -> None:
         ),
         ("RM-GOV-002", "rm-gov-002" in norm),
         (
-            "política contornável sem ruleset",
+            "RM-GOV-002 ruleset de main",
             (
-                "nao tecnicamente impossivel de contornar" in norm
-                or (
-                    "contornar" in norm
-                    and "ruleset" in norm
-                    and ("rm-gov-002" in norm or "politica assistida" in norm)
+                "rm-gov-002" in norm
+                and "ruleset" in norm
+                and (
+                    # Concluído: protecção activa documentada (canónica via ruleset).
+                    (
+                        (
+                            "ruleset activo" in norm
+                            or "ruleset ativo" in norm
+                            or "protect main and require project checks" in norm
+                        )
+                        and (
+                            "bypass" in norm
+                            or "sem bypass" in norm
+                            or "bypass_actors" in norm
+                            or "bypass actors" in norm
+                        )
+                    )
+                    # Legado: estado anterior sem ruleset (política contornável).
+                    or "nao tecnicamente impossivel de contornar" in norm
+                    or (
+                        "contornar" in norm
+                        and ("politica assistida" in norm or "politica" in norm)
+                    )
                 )
             ),
         ),

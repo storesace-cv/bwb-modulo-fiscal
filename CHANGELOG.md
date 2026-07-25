@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.24-draft — 2026-07-25
+
+- Governance: ruleset activo `Protect main and require project checks` (ID `19731202`) em `main` — PR obrigatório, checks `go-checks` / `predeploy-pg16-real` / `GitGuardian Security Checks`, approvals=0, bypass vazio, cubic opcional; RM-GOV-002 CONCLUÍDO.
+- Docs: `ROADMAP.md` actualizado com evidência e configuração sanitizada do ruleset; verificador/testes/rule alinhados ao estado com ruleset activo. Sem runtime, OCR, servidor, `local/` ou branch protection clássica adicional.
+
 ## 0.2.23-draft — 2026-07-25
 
 - Docs: `ROADMAP.md` canónico de estado/progresso; apontador em `docs/06-delivery/implementation-roadmap.md`; README/AGENTS/rules/template PR; verificador `scripts/verify_roadmap.py` + testes `tests/docs/run-verify-roadmap-tests.sh` na CI.

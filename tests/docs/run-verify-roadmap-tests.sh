@@ -434,7 +434,7 @@ if run_mut "${TMP}/noseal/ROADMAP.md" >/dev/null 2>"${TMP}/noseal.err"; then bad
   if grep -qi 'distinção\|Seal\|sealed\|emiss' "${TMP}/noseal.err"; then ok "distinção SealInTx"; else bad "distinção SealInTx (msg)"; fi
 fi
 
-# --- remove RM-GOV-002 / ruleset limitation ---
+# --- remove RM-GOV-002 / ruleset protection facts ---
 mkdir -p "${TMP}/nogov" && cp "${ROOT}/ROADMAP.md" "${TMP}/nogov/ROADMAP.md"
 python3 - <<'PY' "${TMP}/nogov/ROADMAP.md"
 import pathlib, re, sys
@@ -447,9 +447,17 @@ text = re.sub(
     count=1,
     flags=re.S,
 )
+text = re.sub(
+    r"#### RM-GOV-002 — ruleset de main\n\n.*?(?=\n### |\n## |\Z)",
+    "#### RM-GOV-002 — ruleset de main\n\nREDACTED_RULESET_SECTION.\n\n",
+    text,
+    count=1,
+    flags=re.S,
+)
 text = text.replace("RM-GOV-002", "RM-GOVX002")
 text = text.replace("rm-gov-002-ruleset-de-main", "rm-govx002-anchor")
 text = text.replace("ruleset", "protecao-ramo")
+text = text.replace("Ruleset", "Protecao-ramo")
 p.write_text(text, encoding="utf-8")
 PY
 if run_mut "${TMP}/nogov/ROADMAP.md" >/dev/null 2>"${TMP}/nogov.err"; then bad "RM-GOV-002/ruleset"; else
