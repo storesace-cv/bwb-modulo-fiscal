@@ -203,8 +203,8 @@ UI (`templates/`, `static/js/`), `api/saftao/routes/*`, migrations `086+` / `338
 
 ## Matriz de reutilização
 
-`source_repo` = `storesace-cv/bwb-efatura-docs`  
-`source_commit` = `629edde439b61aab1994e839415f19e086ce30a1`  
+`source_repo` = `storesace-cv/bwb-efatura-docs`
+`source_commit` = `629edde439b61aab1994e839415f19e086ce30a1`
 `licença/autorização` da app = **sem LICENSE de topo**; cópia pública de código/fixtures exige autorização humana explícita. O XSD em si redistribui-se sob **MIT ASSOFT**, não sob licença da app.
 
 | source_path | categoria | comportamento | fundamento oficial | confiança | risco dados | destino futuro | ação |
