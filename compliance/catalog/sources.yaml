@@ -26,7 +26,7 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_30_2019_DE_74-19.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_commit: 330b8212aa22fbec302115a6b73fe9f9dc3ad7a2
   private_repository_path: originals/legislation/AO-LEG-DE-74-19-2019/original/Diario_Republica_I_30_2019_DE_74-19.pdf
   page_count: 12
   text_extractable: false
@@ -133,7 +133,7 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_commit: 330b8212aa22fbec302115a6b73fe9f9dc3ad7a2
   private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
   page_count: 2
   text_extractable: false
@@ -180,7 +180,7 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_159_2025_DE_683-25.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: e6825d9a40062fc89f9dee52aa172d9780bffd2b
+  private_commit: 330b8212aa22fbec302115a6b73fe9f9dc3ad7a2
   private_repository_path: originals/legislation/AO-LEG-DE-683-25-2025/original/Diario_Republica_I_159_2025_DE_683-25.pdf
   page_count: 16
   text_extractable: false
