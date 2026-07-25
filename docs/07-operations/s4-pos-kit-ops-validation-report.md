@@ -173,8 +173,9 @@ Motivo do deploy antes da revalidação: provar também o `fiscal-admin --output
 | Impacto | Impossível restaurar exactamente o estado PG imediatamente anterior ao promote `5d7c14b…` a partir de um dump dessa janela |
 | Impossibilidade | Um backup **pré-deploy** **não** pode ser recriado retroactivamente após o promote e a corrida do kit |
 | Mitigação nesta sessão | Dump **pós-deploy** criado e validado (ver abaixo); **não** rotulado como pré-deploy |
-| Estado | Aberto (mitigado parcialmente) |
-| Risco residual | Rollback PG ao instante pré-`5d7c14b` depende de dumps anteriores (ex. S3C1) ou de N-1 de release/envs; gap de evidência pré-promote PG permanece |
+| Estado | **RESOLVIDO** (2026-07-25) — ver [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md) |
+| Fecho | B1 mergeado (`e39638fa…`); gate instalado no sandbox; dump pré-deploy real + restore/schema validados; falha induzida bloqueou mutação activa; deploy saudável |
+| Risco residual | Retenção manual de dumps; prova/remediação de lock poisoned continua em **INC-B2-001** (não reabre este INC) |
 
 #### Backup pós-deploy (criado nesta sessão de rastreabilidade)
 
@@ -257,7 +258,8 @@ Nota de domínio observada na emissão: `Issue` permite no máximo **uma** crede
 |---|---|---|
 | INC-S4-001 | **Fechado** | `rate_429` PASS: 8×429, 22×201, collected=30, 0×5xx/transporte; Nginx inalterado |
 | INC-S4-002 | **Fechado** | `fiscal-admin --output-file` na release `5d7c14b…` grava 52 bytes sem CR/LF; kit aceita ficheiro bruto |
-| INC-S4-003 | **Aberto (mitigado)** | `pg_dump` pré-deploy omitido; dump pós-deploy validado em 2026-07-24T16:25Z |
+| INC-S4-003 | **RESOLVIDO** | Gate pré-deploy B2 em 2026-07-25; relatório [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md) |
+| INC-B2-001 | **Aberto** | Prova lock poisoned não ensaiada (sem procedimento seguro no runbook); não reabre INC-S4-003 |
 
 ### Decisões (corrida 2)
 

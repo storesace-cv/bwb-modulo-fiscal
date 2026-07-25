@@ -104,7 +104,9 @@ Identidades: dump/restore/psql = `bwb-fiscal-migrate` / `fiscal_migrate` via `PG
 
 Falhas: dump/`--list` ⇒ sem dump durável; restore após install ⇒ dump durável permanece; `dropdb` falhado ⇒ lock `poisoned` (sem release automático). Timeouts: dump/restore 900s; list/createdb/dropdb 60s; psql 30s; TERM→KILL 5s.
 
-Libs do helper (instalar fora do deploy protegido, B2): `parse_migrate_dsn.py`, `predeploy_pg.sh` em `/usr/local/lib/bwb-fiscal-deploy/` junto com as allowlists.
+Locks `poisoned` / `stale` / `corrupt`: exigem **remediação humana**. O procedimento de teste/remediação **ainda não foi ensaiado** no sandbox (ver INC-B2-001). É **proibido** remover automaticamente estes locks (nenhuma rotina de auto-clean).
+
+Libs do helper (instalar fora do deploy protegido, B2): `parse_migrate_dsn.py`, `predeploy_pg.sh` em `/usr/local/lib/bwb-fiscal-deploy/` junto com as allowlists. Relatório B2/fecho INC-S4-003: [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md).
 
 ## Scripts
 
