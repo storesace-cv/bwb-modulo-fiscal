@@ -8,6 +8,19 @@
 - Fechar tipos documentais, impostos e fluxo de contingência.
 - Aprovar arquitetura, ameaça e stack.
 
+### Fontes fiscais e SAF-T AO (trilho paralelo)
+
+| Fase | Entrega |
+|---|---|
+| A | Catálogo versionado + governação (`compliance/`) — concluído |
+| B0 | Auditoria de reutilização SAF-T AO cross-project — [AUD-B0](../01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md) |
+| B1 | Repo privado `bwb-fiscal-sources-ao` + PDFs DR + OCR + HTML FE |
+| B2 | Importação pública XSD (MIT ASSOFT) + inventários FE |
+| C | Requisitos `AO-*` a partir de fontes oficiais |
+| D | Implementação/testes SAF-T com vetores aprovados |
+
+A experiência em `bwb-efatura-docs` é pista técnica, **não** fonte normativa.
+
 **Gate:** catálogo crítico validado e contrato API rascunhado.
 
 ## Fase 1 — Contrato e vertical (8–12 semanas)

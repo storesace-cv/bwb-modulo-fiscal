@@ -10,6 +10,9 @@ Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 p�
 
 Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte de IDs, hashes e estado.
 
+Auditoria de capacidades SAF-T AO noutro projecto privado (pista técnica, não normativa):
+[audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md](audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).
+
 ## Fonte oficial prioritária
 
 ### Portal do Contribuinte — Ministério das Finanças de Angola / AGT

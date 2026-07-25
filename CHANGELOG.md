@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.21-draft — 2026-07-25
+
+- Compliance B0 (docs only): auditoria cross-project SAF-T AO [`AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md`](docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md) contra `bwb-efatura-docs@629edde…`; matriz de reutilização; paridade XSD `e9a938e1…`; hipótese de namespaces só como inferência operacional; zero código/fixtures/dados copiados; `my-bwb-app` intacto. B1 continua bloqueado pela criação de `bwb-fiscal-sources-ao`.
+
 ## 0.2.20-draft — 2026-07-25
 
 - Compliance PR A (metadados): catálogo versionado [`compliance/catalog/sources.yaml`](compliance/catalog/sources.yaml) da recolha `arquivo_fiscal_ao` (2026-07-25, 20 fontes); POLICY/README; schema JSON + validação PyYAML/jsonschema pinados; CI sem depender de `local/`; PDFs DR registados como image-only (12/2/16 p.) com OCR obrigatório no PR B; GAP-012 parcialmente fechado; GAP-001/002/004/005 abertos. Sem binários, sem OCR, sem novos `AO-*`.
