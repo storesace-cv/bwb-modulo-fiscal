@@ -6,7 +6,7 @@
 
 Política: [`compliance/POLICY.md`](../../compliance/POLICY.md). Validação: `compliance/scripts/verify_catalog.py` (sem depender de `local/` no CI).
 
-Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). **SRC-B1 concluído:** originais B1 (PDFs + HTML FE HML + proveniência) estão no repositório privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao) (commit `c93db4f89352eab884a4862943faa2ed874217fc`), com catálogo/manifesto e verificação de integridade. Acesso privado **não** equivale a autorização de redistribuição pública. OCR / PDF pesquisável / Markdown **ainda pendentes**. XSD SAF-T AO e ZIP ASSOFT permanecem **SRC-B2**. O PDF original permanece a única fonte normativa.
+Os PDFs do Diário da República catalogados são **image-only** (12 / 2 / 16 páginas; `text_extractable: false`). **SRC-B1 concluído:** originais B1 (PDFs + HTML FE HML + proveniência) estão no repositório privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao) (commit `c93db4f89352eab884a4862943faa2ed874217fc`), com catálogo/manifesto e verificação de integridade. Acesso privado **não** equivale a autorização de redistribuição pública. **SRC-B2 concluído:** XSD `SAFTAO1.01_01.xsd` versionado em [`compliance/saft-ao/schemas/`](../../compliance/saft-ao/schemas/) com LICENSE MIT ASSOFT, NOTICE e `SHA256SUMS.txt` (`storage=git_public`, `status=pending_validation`). O ZIP ASSOFT permanece `local_only`. OCR / PDF pesquisável / Markdown **ainda pendentes**. O PDF original permanece a única fonte normativa.
 
 Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte de IDs, hashes e estado.
 
@@ -90,7 +90,7 @@ Auditoria de capacidades SAF-T AO noutro projecto privado (pista técnica, não 
 | Portal do Parceiro | 2026-07-20 | Conteúdo público indexado; aplicação requer JavaScript | Obter downloads e credenciais de homologação |
 | Decreto Executivo n.º 74/19 + rectificação | 2026-07-25 | PDFs oficiais em `local/` e metadados no catálogo (`AO-LEG-DE-74-19-2019`, `AO-LEG-RECT-10-19-2019`); image-only; cópia Git pendente (PR B) | Autorizar redistribuição + OCR + revisão |
 | Decreto Executivo n.º 683/25 | 2026-07-25 | PDF em `local/` + catálogo (`AO-LEG-DE-683-25-2025`); image-only; cópia Git pendente | Autorizar redistribuição + OCR + revisão |
-| Área de Produtores / Modelo 8 / XSD SAF-T (AO) | 2026-07-25 | XSD ASSOFT catalogado (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); não afirmado como validado pela AGT | Confirmar XSD AGT; importar no PR B com NOTICE |
+| Área de Produtores / Modelo 8 / XSD SAF-T (AO) | 2026-07-25 | XSD ASSOFT versionado em `compliance/saft-ao/schemas/` (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** afirmado como validado pela AGT | Confirmar XSD AGT; validação independente; ZIP permanece `local_only` |
 
 ## Fontes comunitárias
 

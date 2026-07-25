@@ -5,7 +5,7 @@ Governação versionada de fontes fiscais (catálogo, política e estrutura). Co
 ## Princípios
 
 1. **Nunca** depender de `local/` em build, testes, runtime ou CI.
-2. Copiar para o Git **apenas** artefactos autorizados (PR B+), com hash e proveniência.
+2. Copiar para o Git **apenas** artefactos autorizados, com hash e proveniência.
 3. O **PDF original** é a única fonte normativa. OCR e Markdown são derivados de consulta — nunca substitutos legais.
 4. JWS/RS256 da faturação electrónica é **distinto** de mecanismos SAF-T.
 5. Não inventar campos, endpoints, `FE-RNG-*`, QR Code ou regras criptográficas.
@@ -20,10 +20,10 @@ compliance/
   catalog/sources.yaml      # catálogo (PR A: só metadados)
   catalog/schema/           # JSON Schema do catálogo
   scripts/                  # validação determinística (sem OCR no CI)
-  legislation/ao/           # originais + OCR (PR B, se autorizado)
-  saft-ao/                  # XSD versionado (PR B)
-  fe/                       # snapshots FE + inventários (PR B)
-  derived/                  # requisitos AO-* (PR C)
+  legislation/ao/           # OCR futuro (se autorizado)
+  saft-ao/                  # XSD + LICENSE/NOTICE (SRC-B2)
+  fe/                       # snapshots FE + inventários (futuro)
+  derived/                  # requisitos AO-* (fase C)
   superseded/               # ponteiros; nunca apagar versões
 ```
 
@@ -32,9 +32,10 @@ compliance/
 - Ficheiro: [`catalog/sources.yaml`](catalog/sources.yaml)
 - Schema: [`catalog/schema/sources.schema.json`](catalog/schema/sources.schema.json)
 - Recolha indexada: `arquivo_fiscal_ao-2026-07-25` (20 fontes)
-- Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR; XSD/ZIP = SRC-B2)
+- Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR)
+- XSD público B2: [`saft-ao/schemas/`](saft-ao/schemas/) (`AO-SAFT-XSD-1.01_01`, `pending_validation`); ZIP `local_only`
 
-Os três PDFs do Diário da República são **image-only** (`text_extractable: false`, `conversion_required: true`). OCR permanece pendente (`searchable_pdf` + `markdown_text`). Sem derivados neste repositório público.
+Os três PDFs do Diário da República são **image-only** (`text_extractable: false`, `conversion_required: true`). OCR permanece pendente.
 
 ## Validação
 
@@ -42,6 +43,7 @@ Os três PDFs do Diário da República são **image-only** (`text_extractable: f
 python3 -m venv compliance/scripts/.venv
 compliance/scripts/.venv/bin/pip install -r compliance/scripts/requirements.txt
 compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
+bash tests/compliance/run-verify-catalog-tests.sh
 # Desenvolvimento (opcional; exige local/):
 compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py --with-local
 bash compliance/scripts/verify_no_local_deps.sh
@@ -67,4 +69,4 @@ Experiência técnica inventariada (sem cópia de código) em
 [AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md](../docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).
 Essa auditoria **não** eleva a aplicação privada a fonte normativa; o catálogo e a POLICY continuam a prevalecer.
 
-Sequência: **A** (feito) → **B0** (auditoria) → **B1** (privado+OCR) → **B2** (XSD público) → **C** (requisitos) → **D** (testes).
+Sequência: **A** (feito) → **B0** (feito) → **B1** (feito; OCR separado) → **B2** (XSD público, feito) → **C** (requisitos) → **D** (testes).

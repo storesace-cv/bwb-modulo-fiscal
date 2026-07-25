@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
-**Data:** 2026-07-20 (actualização catálogo 2026-07-25)
-**Estado:** inventário Fase 0 + catálogo de metadados (PR A)
+**Data:** 2026-07-20 (actualização catálogo/SRC-B2 2026-07-25)
+**Estado:** inventário Fase 0 + catálogo + XSD público SRC-B2 (`pending_validation`); OCR pendente
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais.
 
 Documentos relacionados:
@@ -15,7 +15,7 @@ Documentos relacionados:
 
 ## Resumo executivo
 
-A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe agora um **catálogo versionado de metadados** (`compliance/catalog/sources.yaml`) da recolha 2026-07-25, mas **faltam artefactos oficiais no Git** (PDF/HTML/XSD) e OCR revisto necessários para fechar requisitos críticos (`AO-CRYPTO-*`, `AO-SAF-*`, certificação). GAP-001/002/004/005 **permanecem abertos**. O acesso a Modelo 8 e homologação depende de registo/credenciais de produtora.
+A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado (`compliance/catalog/sources.yaml`), originais B1 no repo privado, e **XSD ASSOFT versionado** em `compliance/saft-ao/schemas/` (SRC-B2, `pending_validation`). Continuam em falta OCR revisto dos PDFs e confirmação AGT do schema. GAP-001/002/005 permanecem abertos; **GAP-004 está parcialmente mitigado**. O acesso a Modelo 8 e homologação depende de registo/credenciais de produtora.
 
 ## Inventário de lacunas
 
@@ -24,7 +24,7 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 | GAP-001 | Decreto Executivo n.º 74/19 (PDF oficial) | PDF em `local/` + metadados no catálogo (`AO-LEG-DE-74-19-2019`, image-only 12p); **não** no Git; OCR pendente (PR B) | Matriz normativa, assinatura, menções, séries | Cópia autorizada + OCR `reviewed` + requisitos derivados |
 | GAP-002 | Rectificação do Decreto Executivo n.º 74/19 | PDF em `local/` + catálogo (`AO-LEG-RECT-10-19-2019`, image-only 2p); **não** no Git; OCR pendente | Interpretação correta do 74/19 | Cópia autorizada + OCR `reviewed` + ligação ao 74/19 |
 | GAP-003 | Modelo 8 (processo de produtores) | Área autenticada; acesso não demonstrado | Submissão/certificação, rotação de chaves comunicada à AGT | Cópia autorizada ou captura de requisitos atuais + referência de versão; **sem** dados pessoais desnecessários no Git |
-| GAP-004 | XSD oficial SAF-T (AO) | XSD ASSOFT catalogado (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** no Git; **não** afirmado como validado pela AGT | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Importação versionada (PR B) + confirmação AGT + validação independente |
+| GAP-004 | XSD oficial SAF-T (AO) | **Parcialmente mitigado:** XSD ASSOFT + LICENSE/NOTICE em `compliance/saft-ao/schemas/` (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** afirmado como validado pela AGT; ZIP permanece `local_only` | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Confirmação AGT + validação independente |
 | GAP-005 | Especificação técnica FE versionada (snapshot) | 13 HTML em `local/` + metadados no catálogo; snapshot **não** no Git | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot autorizado no Git + inventários HML/PRD (PR B) |
 | GAP-006 | Credenciais e ambiente de homologação | Pedido formal ainda não concluído (conforme inventário) | Testes de integração reais com AGT | Credenciais apenas em gestor de segredos; registo de ambiente (HML) sem segredos no Git |
 | GAP-007 | Confirmação processual de `ASM-REG-001` | Premissa de produto; sem evidência AGT | Modelo de certificação comercial | Resposta/ata AGT ou aceite formal de risco + plano B (ADR-0001) |
@@ -77,13 +77,13 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 
 | Aspeto | Estado |
 |---|---|
-| Disponibilidade | Restrita segundo inventário do projeto |
-| Uso | Geração e validação (`AO-SAF-001`, `AO-SAF-002`) |
-| Lacuna | Ficheiro oficial não obtido; schemas comunitários **não** são norma |
-| Evidência de fecho | XSD oficial + hash + testes de validação + nota de vigência |
-| Gate | Ver [official-access-plan.md](official-access-plan.md): sem XSD oficial não declarar gerador SAF-T de produção |
+| Disponibilidade | Cópia ASSOFT MIT versionada em `compliance/saft-ao/schemas/` (`pending_validation`); confirmação AGT pendente |
+| Uso | Preparação de geração/validação (`AO-SAF-001`, `AO-SAF-002`); **não** declarar conformidade de produção |
+| Lacuna | Oficialidade/vigência AGT e validação independente ainda em aberto (GAP-004 parcial) |
+| Evidência de fecho | Confirmação AGT + hash + testes de validação + nota de vigência |
+| Gate | Ver [official-access-plan.md](official-access-plan.md): sem confirmação AGT não declarar gerador SAF-T de produção |
 
-Qualquer XSD obtido de fonte comunitária (ex.: projetos de interoperabilidade) pode servir apenas diagnóstico interno e deve ser marcado como **não normativo**.
+O XSD ASSOFT redistribuído sob MIT serve diagnóstico e preparação; **não** substitui um schema autenticado pela AGT se este divergir.
 
 ## Especificações técnicas versionadas (Facturação Electrónica)
 

@@ -3048,9 +3048,11 @@ else
   fi
 fi
 
-# Local git diff --check against main range (same intent as CI)
+# Local git diff --check against main range (same intent as CI).
+# Exclude immutable upstream XSD bytes (ASSOFT) which contain trailing whitespace by design.
 if git rev-parse --verify origin/main >/dev/null 2>&1; then
-  if git diff --check origin/main...HEAD; then
+  if git diff --check origin/main...HEAD -- . \
+    ':(exclude)compliance/saft-ao/schemas/SAFTAO1.01_01.xsd'; then
     ok "git diff --check origin/main...HEAD clean"
   else
     bad "git diff --check origin/main...HEAD failed"

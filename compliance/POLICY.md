@@ -37,7 +37,8 @@ Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 - `local/` é consulta não versionada (ver `.gitignore` e `AGENTS.md`).
 - Build, testes, runtime e CI **nunca** apontam para `local/`.
 - Originais B1 (PDFs DR + HTML FE + proveniência) sincronizados em `storesace-cv/bwb-fiscal-sources-ao` (privado; `storage=private_sync` no catálogo). Acesso privado ≠ redistribuição pública.
-- Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR futuros permanecem em armazenamento privado sincronizado; o Git público mantém catálogo, hashes, proveniência e referências.
+- XSD SAF-T AO ASSOFT pode ser versionado no Git público sob MIT (`storage=git_public`, `pending_validation`); o ZIP completo permanece `local_only`.
+- Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR futuros permanecem em armazenamento privado sincronizado; o Git público mantém catálogo, hashes, proveniência, referências e artefactos redistribuíveis autorizados.
 
 ## Experiência cross-project
 

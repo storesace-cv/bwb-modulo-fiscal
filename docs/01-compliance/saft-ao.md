@@ -10,9 +10,9 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 |---|---|---|
 | A | Catálogo/governação | Concluído |
 | B0 | Auditoria de reutilização cross-project | [AUD-B0](audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md) — experiência da app **não** é fonte normativa |
-| B1 | Storage privado + OCR PDFs + HTML FE | Repo dedicado `bwb-fiscal-sources-ao` (decisão humana) |
-| B2 | XSD + LICENSE/NOTICE + inventários no Git público | MIT ASSOFT; `pending_validation` AGT |
-| C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas `reviewed` |
+| B1 | Storage privado de originais B1 (PDFs + HTML FE) | Repo `bwb-fiscal-sources-ao` (SRC-B1 concluído); OCR = incremento separado |
+| B2 | XSD + LICENSE/NOTICE + inventário no Git público | MIT ASSOFT; `pending_validation` AGT (SRC-B2) |
+| C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
 ## Decisões iniciais

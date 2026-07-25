@@ -54,6 +54,7 @@ jobs:
           python3 -m venv compliance/scripts/.venv
           compliance/scripts/.venv/bin/pip install -q -r compliance/scripts/requirements.txt
           compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
+          bash tests/compliance/run-verify-catalog-tests.sh
           bash compliance/scripts/verify_no_local_deps.sh
 
       - name: ROADMAP structural validation
@@ -76,6 +77,7 @@ jobs:
             tests/integration/run-pos-kit-tests.sh
           shellcheck -e SC2016 compliance/scripts/verify_no_local_deps.sh
           shellcheck -e SC2015,SC2016 tests/docs/run-verify-roadmap-tests.sh
+          shellcheck -e SC2015,SC2016 tests/compliance/run-verify-catalog-tests.sh
 
       - name: Deploy D1 script tests
         run: |
@@ -85,10 +87,13 @@ jobs:
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
           # Must run and fail the job on whitespace/conflict markers (no masking || fallback).
+          # Exclude immutable upstream XSD bytes (ASSOFT) which contain trailing whitespace by design.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
+            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD" -- . \
+              ':(exclude)compliance/saft-ao/schemas/SAFTAO1.01_01.xsd'
           else
-            git diff --check "HEAD~1...HEAD"
+            git diff --check "HEAD~1...HEAD" -- . \
+              ':(exclude)compliance/saft-ao/schemas/SAFTAO1.01_01.xsd'
           fi
 
       - name: POS sandbox kit tests (S4 mocks)
