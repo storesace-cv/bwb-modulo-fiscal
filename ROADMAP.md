@@ -64,7 +64,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | XSD SAF-T AO (SRC-B2) | CONCLUÍDO (Git público; `pending_validation`) |
 | Auditoria B0 SAF-T | CONCLUÍDO |
 | OCR das fontes | BLOQUEADO (falta Rect. 10/19 integral oficial + OCR `reviewed`; 74/19 e 683/25 v2 já `reviewed`) |
-| Requisitos AO-* confirmados | PENDENTE |
+| Requisitos AO-* confirmados | EM_CURSO (matriz provisória; Rect. 10/19 bloqueia fecho) |
 | Fundação transacional fiscal | CONCLUÍDA (slice) |
 | Motor regulamentar Angola | NÃO IMPLEMENTADO |
 | Integração oficial AGT | NÃO IMPLEMENTADA |
@@ -209,7 +209,7 @@ POS → autenticação e binding → validação fiscal oficial → série/numer
 | [x] | RM-SRC-005 | SRC-B2 XSD público/inventário no Git | CONCLUÍDO | [compliance/saft-ao/schemas/SAFTAO1.01_01.xsd](compliance/saft-ao/schemas/SAFTAO1.01_01.xsd) · [compliance/saft-ao/schemas/LICENSE](compliance/saft-ao/schemas/LICENSE) · [compliance/saft-ao/schemas/NOTICE.md](compliance/saft-ao/schemas/NOTICE.md) · [compliance/saft-ao/schemas/SHA256SUMS.txt](compliance/saft-ao/schemas/SHA256SUMS.txt) · [compliance/catalog/sources.yaml](compliance/catalog/sources.yaml) · [PR #31](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/31) | — | XSD+LICENSE+NOTICE versionados (`pending_validation`) |
 | [ ] | RM-SRC-006 | Decreto 74/19 + Rect. 10/19 + 683/25 como requisitos confirmados | BLOQUEADO | [docs/01-compliance/regulatory-gaps.md](docs/01-compliance/regulatory-gaps.md) | OCR `reviewed` + prioridade POLICY | GAPs legais fechados sem inventar |
 | [ ] | RM-SRC-007 | Documentação FE / XSD SAF-T / contingência / chaves / HML-PRD oficiais | BLOQUEADO | [docs/01-compliance/regulatory-gaps.md](docs/01-compliance/regulatory-gaps.md) · [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md) | Acesso oficial AGT + SRC-B1/B2 | Fontes oficiais suficientes para C |
-| [ ] | RM-REQ-001 | Requisitos AO-* confirmados a partir de fontes oficiais | PENDENTE | [docs/01-compliance/requirements-catalog.md](docs/01-compliance/requirements-catalog.md) | RM-SRC-004 + RM-SRC-005 + revisão | Matriz AO-* rastreável |
+| [ ] | RM-REQ-001 | Requisitos AO-* confirmados a partir de fontes oficiais | EM_CURSO | [compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md](compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md) · [docs/01-compliance/requirements-catalog.md](docs/01-compliance/requirements-catalog.md) | RM-SRC-005 feito; RM-SRC-004 BLOQUEADO (Rect. 10/19); revisão compliance | Matriz AO-* rastreável; linhas dependentes da Rect. ficam `blocked` |
 
 ---
 
