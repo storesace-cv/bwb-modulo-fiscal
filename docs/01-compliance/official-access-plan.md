@@ -15,7 +15,7 @@ Não é possível garantir antecipadamente acesso a uma área restrita sem essas
 | Portal do Parceiro | Público + áreas autenticadas | Guias, modelos, testes e adesão |
 | Decreto 74/19 e rectificação | Público, PDF oficial a arquivar | Regras funcionais e criptográficas |
 | Modelo 8 | Por confirmar em sessão autenticada | Processo de certificação |
-| XSD SAF-T (AO) oficial | Restrito segundo informação do projeto; confirmar | Gerador e validador SAF-T |
+| XSD SAF-T (AO) oficial | Cópia ASSOFT MIT no Git (`pending_validation`); oficialidade AGT a confirmar | Gerador e validador SAF-T |
 | Credenciais API homologação | Pedido formal à AGT | Testes de integração |
 
 ## Passos organizacionais
@@ -36,16 +36,16 @@ Ver [`compliance/README.md`](../../compliance/README.md). Catálogo activo: [`co
 
 ```text
 compliance/
-  catalog/sources.yaml          # manifesto (metadados; PR A)
+  catalog/sources.yaml          # manifesto (metadados)
   catalog/schema/               # JSON Schema
-  legislation/ao/               # PDFs + OCR após autorização (PR B)
-  saft-ao/schemas/              # XSD versionado (PR B)
-  fe/snapshots/                 # HTML/inventários FE (PR B)
-  derived/                      # requisitos AO-* (PR C)
+  legislation/ao/               # OCR futuro (se autorizado)
+  saft-ao/schemas/              # XSD + LICENSE/NOTICE (SRC-B2; pending_validation)
+  fe/snapshots/                 # HTML/inventários FE (autorização futura)
+  derived/                      # requisitos AO-* (fase C)
   scripts/                      # validação determinística
 ```
 
-O catálogo está no Git. Binários (PDF/HTML/XSD/ZIP) e OCR **não** entram até autorização explícita. Credenciais, chaves privadas e dados de teste reais ficam fora do repositório.
+O catálogo está no Git. Originais B1 (PDF/HTML) estão no repo privado. O XSD ASSOFT está versionado publicamente sob MIT (`pending_validation`). ZIP ASSOFT e OCR **não** entram neste incremento. Credenciais, chaves privadas e dados de teste reais ficam fora do repositório.
 
 ## Campos do catálogo
 
@@ -55,8 +55,8 @@ Alinhados a `compliance/catalog/schema/sources.schema.json`, incluindo para legi
 
 Podemos criar infraestrutura, modelo canónico, idempotência e simulador com documentação pública. Não devemos declarar concluídos assinatura legal, gerador SAF-T ou conformidade de produção até termos:
 
-- PDF oficial do Decreto 74/19 e rectificação;
-- XSD SAF-T (AO) oficial aplicável;
+- PDF oficial do Decreto 74/19 e rectificação (com OCR `reviewed` quando aplicável);
+- XSD SAF-T (AO) aplicável com confirmação AGT (cópia ASSOFT já versionada permanece `pending_validation`);
 - especificação técnica versionada da API;
 - credenciais/ambiente de homologação;
 - resposta dos testes oficiais da AGT.
