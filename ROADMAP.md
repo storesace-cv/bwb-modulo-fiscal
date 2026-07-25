@@ -320,17 +320,20 @@ Homologação oficial AGT e certificação **não** são o sandbox BWB.
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
 | [x] | RM-GOV-001 | Template PR + AGENTS/rules + verificador CI do roadmap | CONCLUÍDO | [ROADMAP.md](ROADMAP.md) · [.github/pull_request_template.md](.github/pull_request_template.md) · [AGENTS.md](AGENTS.md) · [.cursor/rules/roadmap-maintenance.mdc](.cursor/rules/roadmap-maintenance.mdc) · [scripts/verify_roadmap.py](scripts/verify_roadmap.py) · [tests/docs/run-verify-roadmap-tests.sh](tests/docs/run-verify-roadmap-tests.sh) · [.github/workflows/ci.yml](.github/workflows/ci.yml) · [PR #28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28) | — | Política assistida e verificável no repo |
-| [ ] | RM-GOV-002 | Ruleset/branch protection em main exigindo o check do roadmap | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização humana para alterar settings GitHub | Merge bloqueado se o verificador falhar |
+| [x] | RM-GOV-002 | Ruleset activo em main com PR e checks obrigatórios | CONCLUÍDO | [Ruleset #19731202](https://github.com/storesace-cv/bwb-modulo-fiscal/rules/19731202) · [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | — | Ruleset activo em main; PR obrigatório; checks obrigatórios; sem bypass |
 
 <a id="rm-gov-002-ruleset-de-main"></a>
 
-#### RM-GOV-002 — ruleset de main (decisão pendente)
+#### RM-GOV-002 — ruleset de main
 
-- Branch protection em `main`: **inexistente** (estado actual do repositório).
-- Rulesets GitHub: **vazios**.
-- Alterar settings GitHub exige **autorização humana explícita** (fora deste PR documental).
-- Opções de bypass de administradores: **por decidir**.
-- Enquanto RM-GOV-002 não estiver concluído, a atualização do roadmap é uma política assistida e verificável, mas não tecnicamente impossível de contornar.
+- Branch protection clássica em `main`: **ausente** (404); a proteção canónica é o ruleset de repositório.
+- Ruleset activo: **Protect main and require project checks** (ID `19731202`), target `branch`, enforcement `active`, condição apenas `refs/heads/main`.
+- URL estável: [https://github.com/storesace-cv/bwb-modulo-fiscal/rules/19731202](https://github.com/storesace-cv/bwb-modulo-fiscal/rules/19731202).
+- Bypass actors: **vazio** (`current_user_can_bypass=never`).
+- Regras: `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`.
+- Pull request: `required_approving_review_count=0`; sem code owners; sem aprovação do último push; resolução de review threads obrigatória; merge permitido apenas via squash neste ruleset.
+- Checks obrigatórios (strict): `go-checks` (integration `15368`), `predeploy-pg16-real` (integration `15368`), `GitGuardian Security Checks` (integration `46505`).
+- `cubic · AI code reviewer`: **opcional** (não incluído nos required status checks).
 
 ### Incidentes e decisões abertas
 

@@ -434,27 +434,156 @@ if run_mut "${TMP}/noseal/ROADMAP.md" >/dev/null 2>"${TMP}/noseal.err"; then bad
   if grep -qi 'distinção\|Seal\|sealed\|emiss' "${TMP}/noseal.err"; then ok "distinção SealInTx"; else bad "distinção SealInTx (msg)"; fi
 fi
 
-# --- remove RM-GOV-002 / ruleset limitation ---
+# --- remove RM-GOV-002 / ruleset protection facts (mantém ID canónico) ---
 mkdir -p "${TMP}/nogov" && cp "${ROOT}/ROADMAP.md" "${TMP}/nogov/ROADMAP.md"
 python3 - <<'PY' "${TMP}/nogov/ROADMAP.md"
 import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
 text = p.read_text(encoding="utf-8")
 text = re.sub(
-    r"Enquanto RM-GOV-002 não estiver concluído,.*?contornar\.",
-    "REDACTED_POLICY.",
+    r"#### RM-GOV-002 — ruleset de main\n\n.*?(?=\n### |\n## |\Z)",
+    "#### RM-GOV-002 — ruleset de main\n\nREDACTED_RULESET_SECTION.\n\n",
     text,
     count=1,
     flags=re.S,
 )
-text = text.replace("RM-GOV-002", "RM-GOVX002")
-text = text.replace("rm-gov-002-ruleset-de-main", "rm-govx002-anchor")
-text = text.replace("ruleset", "protecao-ramo")
+text = text.replace(
+    "Ruleset activo em main com PR e checks obrigatórios",
+    "Governação documental de main",
+)
+text = text.replace(
+    "Ruleset activo em main; PR obrigatório; checks obrigatórios; sem bypass",
+    "Documentação actualizada",
+)
+text = text.replace("Protect main and require project checks", "REDACTED_NAME")
+text = text.replace("ruleset activo", "protecao activa")
+text = text.replace("Ruleset activo", "Protecao activa")
+# Frase legada sem ruleset activo — inválida para CONCLUÍDO.
+text = text.replace(
+    "`FISCAL_ENV=homologation`",
+    "RM-GOV-002: a política assistida não é tecnicamente impossível de contornar.\n\n`FISCAL_ENV=homologation`",
+    1,
+)
 p.write_text(text, encoding="utf-8")
 PY
 if run_mut "${TMP}/nogov/ROADMAP.md" >/dev/null 2>"${TMP}/nogov.err"; then bad "RM-GOV-002/ruleset"; else
-  if grep -qi 'distinção\|RM-GOV\|ruleset\|contorn\|âncora\|ancora\|ID' "${TMP}/nogov.err"; then ok "RM-GOV-002/ruleset"; else bad "RM-GOV-002/ruleset (msg)"; fi
+  if grep -qi 'RM-GOV-002\|ruleset ativo\|legado\|bypass vazio\|current_user_can_bypass=never' "${TMP}/nogov.err"; then ok "RM-GOV-002/ruleset"; else bad "RM-GOV-002/ruleset (msg)"; fi
 fi
+
+# --- RM-GOV-002 CONCLUÍDO + bypass vazio + never → PASS ---
+make_base "${TMP}/govok"
+write_roadmap "${TMP}/govok" '| Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
+|---|---|---|---|---|---|---|
+| [x] | RM-GOV-002 | Ruleset activo em main | CONCLUÍDO | [AGENTS.md](AGENTS.md) · [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | — | Ruleset activo; sem bypass |
+
+#### RM-GOV-002 — ruleset de main
+- Ruleset activo: Protect main and require project checks
+- Bypass actors: vazio
+- current_user_can_bypass=never
+'
+if run_verify "${TMP}/govok" >/dev/null; then ok "RM-GOV-002 CONCLUÍDO bypass vazio"; else bad "RM-GOV-002 CONCLUÍDO bypass vazio"; fi
+
+# --- CONCLUÍDO: vazio→admin e never→always → FAIL ---
+make_base "${TMP}/govadmin"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govadmin/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govadmin/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Bypass actors: vazio", "Bypass actors: admin")
+text = text.replace("current_user_can_bypass=never", "current_user_can_bypass=always")
+text = text.replace("sem bypass", "bypass configurado")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govadmin" >/dev/null 2>"${TMP}/govadmin.err"; then bad "RM-GOV-002 bypass admin"; else
+  if grep -qi 'bypass vazio\|current_user_can_bypass=never' "${TMP}/govadmin.err"; then ok "RM-GOV-002 bypass admin"; else bad "RM-GOV-002 bypass admin (msg)"; fi
+fi
+
+# --- CONCLUÍDO: apenas a palavra bypass → FAIL ---
+make_base "${TMP}/govword"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govword/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govword/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Bypass actors: vazio", "bypass")
+text = text.replace("current_user_can_bypass=never", "")
+text = text.replace("sem bypass", "bypass")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govword" >/dev/null 2>"${TMP}/govword.err"; then bad "RM-GOV-002 só bypass"; else
+  if grep -qi 'bypass vazio\|current_user_can_bypass=never' "${TMP}/govword.err"; then ok "RM-GOV-002 só bypass"; else bad "RM-GOV-002 só bypass (msg)"; fi
+fi
+
+# --- CONCLUÍDO: remover never e equivalentes → FAIL ---
+make_base "${TMP}/govnonever"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govnonever/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govnonever/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("current_user_can_bypass=never", "")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govnonever" >/dev/null 2>"${TMP}/govnonever.err"; then bad "RM-GOV-002 sem never"; else
+  if grep -qi 'current_user_can_bypass=never' "${TMP}/govnonever.err"; then ok "RM-GOV-002 sem never"; else bad "RM-GOV-002 sem never (msg)"; fi
+fi
+
+# --- CONCLUÍDO: remover ruleset activo e manter/adicionar legado → FAIL ---
+make_base "${TMP}/govlegacy"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govlegacy/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govlegacy/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Ruleset activo em main", "Governação documental")
+text = text.replace("Ruleset activo: Protect main and require project checks", "Sem ruleset activo")
+text = text.replace("Ruleset activo; sem bypass", "sem bypass")
+text = text.replace("Protect main and require project checks", "")
+# Ensure legacy phrase remains (skeleton already has it); reinforce.
+if "tecnicamente impossível de contornar" not in text and "tecnicamente impossivel de contornar" not in text.lower():
+    text = text.replace(
+        "RM-GOV-002: enquanto não houver ruleset, a política assistida não é tecnicamente impossível de contornar.",
+        "RM-GOV-002: enquanto não houver ruleset, a política assistida não é tecnicamente impossível de contornar.",
+    )
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govlegacy" >/dev/null 2>"${TMP}/govlegacy.err"; then bad "RM-GOV-002 legado em CONCLUÍDO"; else
+  if grep -qi 'legado\|ruleset ativo' "${TMP}/govlegacy.err"; then ok "RM-GOV-002 legado em CONCLUÍDO"; else bad "RM-GOV-002 legado em CONCLUÍDO (msg)"; fi
+fi
+
+# --- CONCLUÍDO: Bypass actors: @admins + «sem bypass» noutro sítio → FAIL ---
+make_base "${TMP}/govat"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govat/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govat/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Bypass actors: vazio", "Bypass actors: @admins")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govat" >/dev/null 2>"${TMP}/govat.err"; then bad "RM-GOV-002 bypass @admins"; else
+  if grep -qi 'bypass vazio' "${TMP}/govat.err"; then ok "RM-GOV-002 bypass @admins"; else bad "RM-GOV-002 bypass @admins (msg)"; fi
+fi
+
+# --- CONCLUÍDO: só o nome do ruleset, sem activo/enforcement → FAIL ---
+make_base "${TMP}/govname"
+cp "${TMP}/govok/ROADMAP.md" "${TMP}/govname/ROADMAP.md"
+python3 - <<'PY' "${TMP}/govname/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("Ruleset activo em main", "Governação de main")
+text = text.replace("Ruleset activo: Protect main and require project checks", "Nome: Protect main and require project checks")
+text = text.replace("Ruleset activo; sem bypass", "sem bypass")
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/govname" >/dev/null 2>"${TMP}/govname.err"; then bad "RM-GOV-002 só nome ruleset"; else
+  if grep -qi 'legado\|ruleset ativo' "${TMP}/govname.err"; then ok "RM-GOV-002 só nome ruleset"; else bad "RM-GOV-002 só nome ruleset (msg)"; fi
+fi
+
+# --- BLOQUEADO com frase legada e gate válido → PASS (fixture histórica) ---
+if run_verify "${TMP}/valid" >/dev/null; then ok "RM-GOV-002 BLOQUEADO legado"; else bad "RM-GOV-002 BLOQUEADO legado"; fi
 
 # --- real repo ---
 if python3 "${VERIFY}" --repo-root "${ROOT}" >/dev/null; then
