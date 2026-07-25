@@ -88,13 +88,16 @@ def verify(root: Path) -> list[str]:
         if FORBIDDEN_STATUS_WORDS.search(status):
             fail(f"{rid}: estado proibido `{status}`", errors)
 
-    # Body must not claim confirmed requirements.
-    if re.search(r"(?i)requisitos?\s+AO-\*\s+confirmad", text) and "não** é matriz" not in text:
-        # Allow negations; flag affirmative claims outside the banner.
-        for line in text.splitlines():
-            if re.search(r"(?i)AO-\*.*confirmad", line) and "não" not in line.lower():
-                fail(f"afirmação indevida de confirmação: {line.strip()[:120]}", errors)
-                break
+    # Body must not claim confirmed requirements (scan every line; banner negation
+    # must not disable detection of later affirmative claims).
+    for line in text.splitlines():
+        if not re.search(r"(?i)AO-\*.*confirmad|requisitos?\s+AO-\*\s+confirmad", line):
+            continue
+        lowered = line.lower()
+        if "não" in lowered or "nao" in lowered:
+            continue
+        fail(f"afirmação indevida de confirmação: {line.strip()[:120]}", errors)
+        break
 
     for rid in RECT_DEPENDENT_BLOCKED:
         st = rows.get(rid)
