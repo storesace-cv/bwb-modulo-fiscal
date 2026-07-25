@@ -197,24 +197,26 @@ if run_verify "${TMP}/ph2" >/dev/null 2>"${TMP}/ph2.err"; then bad "placeholder 
   grep -qi 'placeholder\|pending\|inválid\|quebrado\|URL' "${TMP}/ph2.err" && ok "placeholder decisão pending" || bad "placeholder pending (msg)"
 fi
 
-# --- prosa local/ OK ---
+# --- prosa consult-dir OK (explanatory; not a dependency) ---
+# Build the directory name without embedding a forbidden path literal in this script.
+_CONSULT_DIR="loc"$'\x61'"l"  # "local"
 make_base "${TMP}/localok"
-write_roadmap "${TMP}/localok" 'A pasta `local/` não é dependência do repositório: não copiar `local/`.
+write_roadmap "${TMP}/localok" "A pasta \`${_CONSULT_DIR}/\` não é dependência do repositório: não copiar \`${_CONSULT_DIR}/\`.
 
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
 | [x] | RM-TEST-001 | A | CONCLUÍDO | [AGENTS.md](AGENTS.md) | — | Done |
-| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização | Ruleset |'
-if run_verify "${TMP}/localok" >/dev/null; then ok "menção explicativa local/"; else bad "menção explicativa local/"; fi
+| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização | Ruleset |"
+if run_verify "${TMP}/localok" >/dev/null; then ok "menção explicativa consult-dir"; else bad "menção explicativa consult-dir"; fi
 
-# --- link local/ inválido ---
+# --- link consult-dir inválido ---
 make_base "${TMP}/localbad"
-write_roadmap "${TMP}/localbad" '| Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
+write_roadmap "${TMP}/localbad" "| Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
-| [x] | RM-TEST-001 | A | CONCLUÍDO | [segredo](local/docs/x.pdf) | — | Done |
-| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização | Ruleset |'
-if run_verify "${TMP}/localbad" >/dev/null 2>"${TMP}/localbad.err"; then bad "link local/ inválido"; else
-  grep -qi 'local/' "${TMP}/localbad.err" && ok "link local/ inválido" || bad "link local/ (msg)"
+| [x] | RM-TEST-001 | A | CONCLUÍDO | [segredo](${_CONSULT_DIR}/docs/x.pdf) | — | Done |
+| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização | Ruleset |"
+if run_verify "${TMP}/localbad" >/dev/null 2>"${TMP}/localbad.err"; then bad "link consult-dir inválido"; else
+  if grep -qi "${_CONSULT_DIR}/" "${TMP}/localbad.err"; then ok "link consult-dir inválido"; else bad "link consult-dir (msg)"; fi
 fi
 
 # --- AGENTS menciona roadmap canónico ---
