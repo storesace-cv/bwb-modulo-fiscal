@@ -87,10 +87,13 @@ jobs:
           bash scripts/deploy/check-antipatterns.sh
           bash tests/deploy/run-tests.sh
           # Must run and fail the job on whitespace/conflict markers (no masking || fallback).
+          # Exclude immutable upstream XSD bytes (ASSOFT) which contain trailing whitespace by design.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
+            git diff --check "${{ github.event.pull_request.base.sha }}...HEAD" -- . \
+              ':(exclude)compliance/saft-ao/schemas/SAFTAO1.01_01.xsd'
           else
-            git diff --check "HEAD~1...HEAD"
+            git diff --check "HEAD~1...HEAD" -- . \
+              ':(exclude)compliance/saft-ao/schemas/SAFTAO1.01_01.xsd'
           fi
 
       - name: POS sandbox kit tests (S4 mocks)
