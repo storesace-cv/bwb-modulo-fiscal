@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.25-draft — 2026-07-25
+
+- Compliance SRC-B1: repositório privado `storesace-cv/bwb-fiscal-sources-ao` inicializado; originais B1 (3 PDFs DR + 13 HTML FE + proveniência) sincronizados byte-for-byte com checksums; OCR **não** iniciado; XSD/ZIP permanecem SRC-B2.
+- Docs: `ROADMAP.md` (RM-SRC-003/RM-M2-B CONCLUÍDOS; OCR desbloqueado mas PENDENTE); catálogo `sources.yaml` com `storage=private_sync` + ponteiros de commit/path privados; `docs/01-compliance/sources.md` actualizado.
+- Sem runtime, migrations, OpenAPI, servidor ou dependência de `local/` em build/CI.
+
 ## 0.2.24-draft — 2026-07-25
 
 - Governance: ruleset activo `Protect main and require project checks` (ID `19731202`) em `main` — PR obrigatório, checks `go-checks` / `predeploy-pg16-real` / `GitGuardian Security Checks`, approvals=0, bypass vazio, cubic opcional; RM-GOV-002 CONCLUÍDO.

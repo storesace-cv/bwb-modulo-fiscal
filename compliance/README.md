@@ -1,6 +1,6 @@
 # Compliance — fontes fiscais angolanas
 
-Governação versionada de fontes fiscais (catálogo, política e estrutura). Os originais da recolha permanecem em `local/` (não sincronizado).
+Governação versionada de fontes fiscais (catálogo, política e estrutura). Consulta local em `local/` (não sincronizado). Originais B1 sincronizados no repositório privado `storesace-cv/bwb-fiscal-sources-ao` (`storage=private_sync`).
 
 ## Princípios
 
@@ -32,8 +32,9 @@ compliance/
 - Ficheiro: [`catalog/sources.yaml`](catalog/sources.yaml)
 - Schema: [`catalog/schema/sources.schema.json`](catalog/schema/sources.schema.json)
 - Recolha indexada: `arquivo_fiscal_ao-2026-07-25` (20 fontes)
+- Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR; XSD/ZIP = SRC-B2)
 
-Os três PDFs do Diário da República são **image-only** (`text_extractable: false`, `conversion_required: true`) e exigem OCR no PR B (`searchable_pdf` + `markdown_text`). Sem derivados neste PR.
+Os três PDFs do Diário da República são **image-only** (`text_extractable: false`, `conversion_required: true`). OCR permanece pendente (`searchable_pdf` + `markdown_text`). Sem derivados neste repositório público.
 
 ## Validação
 

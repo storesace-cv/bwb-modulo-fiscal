@@ -36,7 +36,8 @@ Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 
 - `local/` é consulta não versionada (ver `.gitignore` e `AGENTS.md`).
 - Build, testes, runtime e CI **nunca** apontam para `local/`.
-- Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR ficam em armazenamento privado sincronizado; o Git público mantém apenas catálogo, hashes, proveniência e referências.
+- Originais B1 (PDFs DR + HTML FE + proveniência) sincronizados em `storesace-cv/bwb-fiscal-sources-ao` (privado; `storage=private_sync` no catálogo). Acesso privado ≠ redistribuição pública.
+- Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR futuros permanecem em armazenamento privado sincronizado; o Git público mantém catálogo, hashes, proveniência e referências.
 
 ## Experiência cross-project
 

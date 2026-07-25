@@ -179,7 +179,20 @@
         },
         "versioned_path": {
           "type": ["string", "null"],
-          "description": "Path under the Git tree when an authorized copy exists; null in PR A."
+          "description": "Path under this Git tree when an authorized public copy exists; null when only private_sync or local_only."
+        },
+        "private_repository": {
+          "type": ["string", "null"],
+          "description": "owner/name of private sync repository when storage=private_sync."
+        },
+        "private_commit": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Immutable full commit SHA in the private repository."
+        },
+        "private_repository_path": {
+          "type": ["string", "null"],
+          "description": "Path inside the private repository for the original bytes."
         },
         "page_count": { "type": ["integer", "null"], "minimum": 1 },
         "text_extractable": { "type": ["boolean", "null"] },
