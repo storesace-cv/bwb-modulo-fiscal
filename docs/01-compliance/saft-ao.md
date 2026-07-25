@@ -4,6 +4,17 @@
 
 Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do livro fiscal, nunca a partir de reconstruções parciais do POS.
 
+## Roadmap de fontes e implementação (A → D)
+
+| Fase | Conteúdo | Notas |
+|---|---|---|
+| A | Catálogo/governação | Concluído |
+| B0 | Auditoria de reutilização cross-project | [AUD-B0](audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md) — experiência da app **não** é fonte normativa |
+| B1 | Storage privado + OCR PDFs + HTML FE | Repo dedicado `bwb-fiscal-sources-ao` (decisão humana) |
+| B2 | XSD + LICENSE/NOTICE + inventários no Git público | MIT ASSOFT; `pending_validation` AGT |
+| C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas `reviewed` |
+| D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
+
 ## Decisões iniciais
 
 - Persistir desde a emissão todos os campos necessários ao SAF-T.
@@ -12,6 +23,7 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 - Guardar hash, utilizador, instante, versão do gerador e resultado da validação.
 - Não corrigir silenciosamente dados durante a exportação.
 - Separar erro de dados, erro de configuração e erro de schema.
+- Não promover hipóteses operacionais (ex. namespaces) a requisitos `AO-*` sem evidência oficial.
 
 ## Pipeline
 

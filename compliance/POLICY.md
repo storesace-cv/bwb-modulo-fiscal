@@ -38,6 +38,10 @@ Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 - Build, testes, runtime e CI **nunca** apontam para `local/`.
 - Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR ficam em armazenamento privado sincronizado; o Git público mantém apenas catálogo, hashes, proveniência e referências.
 
+## Experiência cross-project
+
+Conhecimento técnico proveniente de outras aplicações internas (ex. inventário B0) pode informar testes e desenho, mas **não** constitui fonte normativa. Hipóteses operacionais (incluindo compatibilidade de namespaces com validadores AGT) não geram requisitos `AO-*` nem autofix até evidência oficial. Ver [AUD-B0](../docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).
+
 ## Segurança
 
 Proibido versionar ou registar no catálogo: chaves privadas, certificados secretos, tokens, palavras-passe, Basic Auth reais ou dados pessoais/fiscais desnecessários.

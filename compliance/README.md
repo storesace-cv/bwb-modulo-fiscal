@@ -59,3 +59,11 @@ O CI valida o catálogo **sem** exigir `local/`. A regeneração OCR é operaç�
 ## Relação com `docs/01-compliance/`
 
 A prosa em `docs/01-compliance/` aponta para este catálogo. GAP-012 (manifesto versionado) fica parcialmente fechado com a criação deste índice; GAP-001/002/004/005 permanecem abertos até importação autorizada e validação.
+
+## Auditoria B0 (reutilização SAF-T AO)
+
+Experiência técnica inventariada (sem cópia de código) em
+[AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md](../docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).
+Essa auditoria **não** eleva a aplicação privada a fonte normativa; o catálogo e a POLICY continuam a prevalecer.
+
+Sequência: **A** (feito) → **B0** (auditoria) → **B1** (privado+OCR) → **B2** (XSD público) → **C** (requisitos) → **D** (testes).
