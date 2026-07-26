@@ -1,8 +1,8 @@
 # Dependências AGT — inventário
 
-**Data:** 2026-07-26  
-**Política:** credenciais e confirmação externa = **`BLOQUEADO_EXTERNO` / `ADIADO`** — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes.  
-**Proibido:** inventar respostas da AGT; declarar conformidade / `AO-*` confirmados sem evidência.  
+**Data:** 2026-07-26
+**Política:** credenciais e confirmação externa = **`BLOQUEADO_EXTERNO` / `ADIADO`** — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes.
+**Proibido:** inventar respostas da AGT; declarar conformidade / `AO-*` confirmados sem evidência.
 **Relaciona:** [`regulatory-gaps.md`](regulatory-gaps.md) · [`open-decisions.md`](../06-delivery/open-decisions.md) · [`official-access-plan.md`](official-access-plan.md) · `DEC-DEL-002`
 
 Legenda de classificação (semântica; ROADMAP usa só `BLOQUEADO` \| `ADIADO`):
@@ -67,16 +67,16 @@ Enquanto as lacunas §1–§2 estiverem abertas, **é obrigatório poder avança
 
 ## 5. Pedidos formais (quando houver canal) — sem inventar resposta
 
-1. Custódia chave contribuinte (GAP-013).  
-2. `ASM-REG-001` (GAP-007).  
-3. Contingência offline (GAP-009).  
-4. Vigência XSD SAF-T (GAP-004).  
-5. Credenciais HML + Modelo 8 (GAP-006, GAP-003).  
-6. Momento jurídico emissão/aceitação (DEC-API-004).  
+1. Custódia chave contribuinte (GAP-013).
+2. `ASM-REG-001` (GAP-007).
+3. Contingência offline (GAP-009).
+4. Vigência XSD SAF-T (GAP-004).
+5. Credenciais HML + Modelo 8 (GAP-006, GAP-003).
+6. Momento jurídico emissão/aceitação (DEC-API-004).
 7. Mapeamento FA/RC/RG vs SAF-T (C-DOC-003) **se** a AGT publicar.
 
 ## 6. Gate de conformidade
 
-- Sem evidência verificável: **não** `AO-*` confirmados; **não** «certificado AGT»; **não** inventar respostas.  
-- Simulador / sandbox BWB **≠** homologação AGT.  
+- Sem evidência verificável: **não** `AO-*` confirmados; **não** «certificado AGT»; **não** inventar respostas.
+- Simulador / sandbox BWB **≠** homologação AGT.
 - `BLOQUEADO_EXTERNO` no inventário **≠** parar `RM-REQ-001`, domínio, contratos, persistência ou CI.
