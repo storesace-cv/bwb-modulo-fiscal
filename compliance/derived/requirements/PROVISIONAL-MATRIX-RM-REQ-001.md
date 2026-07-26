@@ -83,7 +83,7 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: `taxRegistrationNumber` @**19166** (PDF p.4) + `softwareValidationNumber`/`productVersion` @**19167** (PDF p.5). Estabelecimento/terminal **não** cobertos nesta citação; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
-| AO-DOC-001 | `scaffold` | DE 74/19 + Rect. 10/19 v2 | Fontes OCR `reviewed` disponíveis; falta citação página a página + revisão compliance — **não** confirmado |
+| AO-DOC-001 | `scaffold` | DP 71/25 + DE 683/25 + FE HML + SAF-T XSD | Inventário de tipos com citações em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md); campos obrigatórios por tipo **ainda** incompletos; critério do catálogo **não** fica satisfeito; **não** confirmado |
 | AO-DOC-002 | `scaffold` | DE 74/19 + Rect. 10/19 v2 | Imutabilidade/regras de emissão: citação consolidada pendente — **não** confirmado |
 | AO-SEQ-001 | `scaffold` | DE 74/19 (+ Rect.) / DE 683/25 | Sequencialidade: split formal de fontes e citação página a página pendentes — **não** confirmado |
 | AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: ART. 4.º / gazeta **19164** (PDF p.2) — séries FE geradas pela AGT. O critério do catálogo («POS não atribui o número fiscal final») **não** fica satisfeito só com esta citação; cruzamento com DP 71/25 (`reviewed`, 11902–11920) ainda sem citação página a página. **Não** confirmado |
@@ -107,9 +107,10 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 2. Cruzar AO-SEQ-002 com DP 71/25 (gazeta 11902–11920; não citar p.21/DE 372/25); manter `partial`.
 3. AO-CRYPTO-001: confrontar lista de campos assinados PDF↔snapshot FE; manter `partial` até revisão compliance (sem inventar encadeamento).
 4. AO-SAF-001: manter `pending_validation` até validação AGT; não promover a `partial`/`confirmado` só com XSD ASSOFT.
-5. Extrair citações página a página para AO-DOC-* / AO-SEQ-001 / AO-TAX-001 a partir de 74+Rect v2 (sem promover a confirmado sem compliance).
-6. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
-7. Fechar RM-REQ-001 só com matriz rastreável e gate de revisão compliance (RM-SRC-004 OCR fechado; confirmação AO-* ainda aberta).
+5. Fechar conflitos C-DOC-001/002/003 (GF OCR, rótulo RG, FE↔SAF-T) e completar Art.10 DP 71 página a página para campos por tipo — manter AO-DOC-001 `scaffold` até critérios do catálogo.
+6. Extrair citações para AO-SEQ-001 / AO-TAX-001 / AO-DOC-002 (imutabilidade) sem promover a confirmado.
+7. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis; não alargar OpenAPI `document_type` sem DEC-REG-003.
+8. Fechar RM-REQ-001 só com matriz rastreável e gate de revisão compliance (OCR fechado; confirmação AO-* ainda aberta).
 
 ## Referências
 
@@ -117,4 +118,5 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 - Catálogo inicial de IDs: [`docs/01-compliance/requirements-catalog.md`](../../../docs/01-compliance/requirements-catalog.md)
 - Gaps: [`docs/01-compliance/regulatory-gaps.md`](../../../docs/01-compliance/regulatory-gaps.md)
 - Aquisição Rect. (privado): `storesace-cv/bwb-fiscal-sources-ao` → `docs/ACQUISITION-RECT-10-19.md`
+- Tipos documentais: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)
 - Verificador: [`compliance/scripts/verify_provisional_matrix.py`](../../scripts/verify_provisional_matrix.py)
