@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Produto: **DEC-PROD-001**–**015** (+ **DEC-OPS-001**) — modelo completo SAF-T/FE (5 grupos L3); esquema mínimo + seed [`DOCUMENT-CATALOG-RM-REQ-001.md`](compliance/derived/requirements/DOCUMENT-CATALOG-RM-REQ-001.md) + verifier CI; `DEC-REG-003` = faseamento; sem AO-* confirmados.
 - Compliance RM-REQ-001: matriz de tipos — quatro camadas ortogonais L1 (documento legal) · L2 (tipo SAF-T) · L3 (estrutura SAF-T) · L4 (`documentType` FE); C-DOC-003 reformulado; sem bijecção; sem AO-* confirmados.
 - Compliance RM-REQ-001: Citação H — docs FE HML (`registarFactura`/`solicitarSerie`/`listarSeries`/`listarFacturas`/`obterEstado`) + inventário `FE-RNG-*` extractado; AO-AGT-001 → `pending_validation`; AO-AGT-002 → `partial` (`requestID`); C-FE-001 (paths `/ws/` vs `/v1`); sem inventar códigos; sem AO-* confirmados.
 - Compliance RM-REQ-001: Citação D expandida sobre `SAFTAO1.01_01.xsd` (`e9a938e1…`; p.ex. `AuditFile`, `InvoiceNo`, `InvoiceType`, `InvoiceStatus`, `References`, `Hash`/`HashControl`, `SAFTAOPaymentType`/`PaymentType`); AO-SAF-001/002 mantêm `pending_validation`; C-DOC-003 actualizado (`RC`/`RG` em Payments ≠ `InvoiceType`); sem AO-* confirmados.
