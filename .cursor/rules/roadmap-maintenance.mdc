@@ -5,6 +5,7 @@ alwaysApply: true
 
 - O ficheiro `ROADMAP.md` na raiz é o roadmap canónico de estado e progresso.
 - Qualquer PR que conclua, introduza, bloqueie, adie ou altere um item `RM-*` deve actualizar `ROADMAP.md` no mesmo PR.
+- Alterações materiais a `ROADMAP.md` (qualquer conteúdo excepto a linha «Estado revisto em») exigem actualizar **Estado revisto em** para a data UTC do dia; a CI rejeita data desactualizada.
 - Usar apenas o formato de tabela canónico (Check, ID, Entrega, Estado, Evidência, Dependências/gate, Done).
 - Estados permitidos: `CONCLUÍDO`, `PENDENTE`, `EM_CURSO`, `BLOQUEADO`, `ADIADO`.
 - `[x]` exige `CONCLUÍDO` e evidência com link verificável; não marcar conformidade fiscal por inferência.
