@@ -984,7 +984,7 @@ Gere e observa, **sem** material secreto:
 **Decisão:**
 
 1. Backoffice/admin usa superfície **separada** da API POS: prefixo **`/admin/v1`**.
-2. OpenAPI administrativo próprio: [`specs/openapi-admin/openapi.yaml`](../../specs/openapi-admin/openapi.yaml) começando em **`0.1.0-draft`** — **não** misturar com `specs/openapi/openapi.yaml` POS `0.1.x`.
+2. OpenAPI administrativo próprio: [`specs/admin/openapi.yaml`](../../specs/admin/openapi.yaml) começando em **`0.1.0-draft`** (evolução actual `0.1.3-draft`) — **não** misturar com `specs/openapi/openapi.yaml` POS `0.1.x`. Path canónico é `specs/admin/` (não `specs/openapi/`).
 3. Autenticação de operadores por contrato **OIDC/JWT + RBAC**, distinta do POS Bearer `credential_store`.
 4. Papéis iniciais: `owner` | `admin` | `operator` | `auditor`.
 5. **Apenas `owner`** acede à zona de administração de integração/segredos (SecAdm / `RM-SECADM-*`).

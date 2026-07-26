@@ -114,7 +114,7 @@ jobs:
       - name: OpenAPI lint
         run: |
           npx --yes @redocly/cli@1.34.3 lint specs/openapi/openapi.yaml
-          npx --yes @redocly/cli@1.34.3 lint specs/openapi-admin/openapi.yaml
+          npx --yes @redocly/cli@1.34.3 lint specs/admin/openapi.yaml
 
       - name: Migration parity and immutability
         if: github.event_name == 'pull_request'
