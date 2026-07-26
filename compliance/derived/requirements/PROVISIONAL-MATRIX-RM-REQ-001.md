@@ -69,13 +69,26 @@ Campo OCR auxiliar: `jwsDocumentSignature` — assinatura da factura com chave p
 
 Limites: **não** afirma encadeamento documental; **não** fecha lista exacta de campos sem confronto PDF+snapshot; critério do catálogo **não** fica satisfeito só com estas citações; **não** confirmado.
 
-### Citação D — schema SAF-T AO (AO-SAF-001)
+### Citação D — schema SAF-T AO (`SAFTAO1.01_01.xsd`)
 
-Fonte: `AO-SAFT-XSD-1.01_01` · ficheiro versionado [`compliance/saft-ao/schemas/SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631` · estado catálogo **`pending_validation`**.
+Fonte: `AO-SAFT-XSD-1.01_01` · ficheiro versionado [`compliance/saft-ao/schemas/SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631` · estado catálogo **`pending_validation`** · upstream ASSOFT commit `ed86c7d5…` · `doc:Status` **Development** · MIT ASSOFT ([LICENSE](../../saft-ao/schemas/LICENSE) / [NOTICE](../../saft-ao/schemas/NOTICE.md)).
 
-Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · `version` `1.01_01` · elemento raiz `AuditFile`.
+Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · `version`/`doc:Number` `1.01_01` · `id` `SAF-T_AO` · elemento raiz `AuditFile`.
 
-Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a conformidade de exportação; critério do catálogo **não** fica satisfeito só com o schema versionado; **não** confirmado.
+| Tema (AO-SAF-*) | Elemento / tipo XSD | Linhas (aprox.) | Nota |
+|---|---|---|---|
+| Raiz / MasterFiles / SourceDocuments | `AuditFile` → `Header`, `MasterFiles`, `GeneralLedgerEntries?`, `SourceDocuments?` | L42–58 | Estrutura mínima do ficheiro |
+| Vendas | `SourceDocuments/SalesInvoices/Invoice` | L445–542 | Inclui `InvoiceNo`, `DocumentStatus`, `Hash`, `HashControl`, `InvoiceType`, `Line` |
+| Numeração | `InvoiceNo` pattern `[^ ]+ [^/^ ]+/[0-9]+` | L1974–2001 | Ex.: `FT S001/1`; alinhável a DE 683 `documentNo` (formato SAF-T) |
+| Tipos venda | `InvoiceType` enum FT/FR/GF/FG/AC/AR/ND/NC/AF/TV + segurador RP/RE/CS/LD/RA | L2023–2065 | **Sem** FA/RC/RG — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md) |
+| Estado / anulado | `InvoiceStatus` N/S/A/R | L2003–2021 | “A” = anulado (candidato AO-SAF-002) |
+| Hash SAF-T | `Hash` (max 172) + `HashControl` | L1361–1367 / L1368–1374 / uso L491–492 | Algoritmo **não** está no XSD — ver DE 74 n.º34 @1582–1584; ≠ JWS FE ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)) |
+| Rectificativos | `References` (obrigatório quando `InvoiceType=NC`) | L1004–1023 / uso L523 | Candidato AO-SAF-002; liga a DE 74 n.º4 e) @1577 |
+| Recibos (Payments) | `Payment` + `SAFTAOPaymentType` (`PaymentType`) | L722–800 / L735 / **L2740–2754** | Enum **`RC`/`RG`/`AR`** em Payments — **não** resolve mapeamento FE→`InvoiceType` (C-DOC-003) |
+| Impostos linha | `TaxType` IVA/IS/NS | L2379–2395 | IEC aparece como `IECAmount` / produto tipo “E”, **não** como `TaxType` enum |
+| Obrigação legal exportação | (fora do XSD) DE 74 Anexo I n.º1 | — | Gazeta **1576**; Rect. SAF-T(AO) @1948 |
+
+Limites: XSD ASSOFT **não** equivale a validação AGT; `doc:Status=Development`; ausência de algoritmo Hash no schema; conflitos FE↔SAF-T abertos; critério do catálogo **não** fica satisfeito só com o schema versionado; **não** confirmado.
 
 ### Citação E — DP 71/25 (regime de facturas; tipos e requisitos)
 
@@ -159,20 +172,20 @@ Detalhe tipos FE: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-
 | AO-OFF-001 | `partial` | DP 71 + DE 683 | Ligação preliminar: Art.18 @**11911–11912** + FE `obterEstado`/`validationStatus` P (atraso >24h sem contingência) @**19179**/**19183**. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
-| AO-SAF-001 | `pending_validation` | XSD + DE 74/19 n.º1 | XSD (`e9a938e1…`) + obrigação exportação Anexo I n.º1 @**1576** (Rect. corrige SAF-T AO); validação AGT pendente; critério do catálogo **não** fica satisfeito só com schema+citação; **não** confirmado |
-| AO-SAF-002 | `pending_validation` | DE 74/19 n.º4 e) + XSD | Rectificativos com `References` @**1577**; validação AGT / regras anulação completas pendentes; **não** confirmado |
+| AO-SAF-001 | `pending_validation` | XSD + DE 74/19 n.º1 | Citação D: `AuditFile`/`SalesInvoices`/`InvoiceNo`/`InvoiceType`/`Hash` (`e9a938e1…`, L42–58 / L445+ / L1974–2001 / L2023–2065 / L1361–1367) + exportação Anexo I n.º1 @**1576**; AGT pendente; critério do catálogo **não** fica satisfeito só com schema+citação; **não** confirmado |
+| AO-SAF-002 | `pending_validation` | DE 74/19 + XSD | Citação D: `InvoiceStatus=A` (L2003–2021) + `References` p/ NC (L1004–1023) + DE74 n.º4 e) @**1577**; `SAFTAOPaymentType` RC/RG (L2740–2754) ≠ fecho FE→`InvoiceType`; AGT / amostragem pendentes; critério do catálogo **não** fica satisfeito só com estas citações; **não** confirmado |
 | AO-OPS-001 | `scaffold` | — | Ops/DR |
 | AO-UPD-001 | `scaffold` | — | Updates Edge assinados |
 
 ## Próximos passos (este item)
 
-1. Confrontar PDF DE 683 p.2–65 nas citações G (OCR ruidoso; GF lacuna C-DOC-001).
-2. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
-3. AO-TAX-001: arredondamento/cálculo + revisão compliance — manter `partial` (não confirmado).
-4. Separar implementação crypto FE vs SAF-T (C-SIGN-001) — manter `AO-CRYPTO-001` `partial`.
-5. AO-ID-001: terminal ainda em falta — manter `partial`.
-6. Não promover nenhuma linha a confirmado; não alargar OpenAPI sem DEC-REG-003.
-7. QR/`FE-RNG-*`: só após snapshot/docs oficiais — **não** inventar códigos a partir do OCR.
+1. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
+2. Fechar C-DOC-003 (FA/RC/RG vs `InvoiceType`; hipótese `RC`→`Payments` **não** adoptada sem decisão).
+3. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
+4. AO-TAX-001: arredondamento/cálculo + revisão compliance — manter `partial` (não confirmado).
+5. Separar implementação crypto FE vs SAF-T (C-SIGN-001) — Hash XSD ≠ algoritmo n.º34.
+6. AO-ID-001: terminal ainda em falta — manter `partial`.
+7. Não promover nenhuma linha a confirmado; não alargar OpenAPI sem DEC-REG-003.
 
 ## Referências
 
