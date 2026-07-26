@@ -971,6 +971,30 @@ Gere e observa, **sem** material secreto:
 
 ---
 
+## DEC-BO-002 — Superfície Admin API `/admin/v1` e auth OIDC/JWT RBAC
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / API / segurança |
+| Prazo máximo | — |
+| Responsável | Product Owner + Arquitectura |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. Backoffice/admin usa superfície **separada** da API POS: prefixo **`/admin/v1`**.
+2. OpenAPI administrativo próprio: [`specs/openapi-admin/openapi.yaml`](../../specs/openapi-admin/openapi.yaml) começando em **`0.1.0-draft`** — **não** misturar com `specs/openapi/openapi.yaml` POS `0.1.x`.
+3. Autenticação de operadores por contrato **OIDC/JWT + RBAC**, distinta do POS Bearer `credential_store`.
+4. Papéis iniciais: `owner` | `admin` | `operator` | `auditor`.
+5. **Apenas `owner`** acede à zona de administração de integração/segredos (SecAdm / `RM-SECADM-*`).
+6. Enquanto não houver IdP real: `Authenticator` **injectável** e **fail-closed** por omissão; `FISCAL_ADMIN_AUTH_MODE=injected` só em `FISCAL_ENV=development` (testes/dev explícito). **Proibido** login local improvisado e credenciais reais AGT.
+7. Mutações admin geram auditoria **append-only** (`admin_audit_events`); segredos nunca na resposta.
+
+**Evidência:** este registo; OpenAPI admin; `internal/adminauth`, `internal/adminapi`, `internal/adminaudit`.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
@@ -982,7 +1006,7 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**.
 
 ---
 

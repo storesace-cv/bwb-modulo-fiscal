@@ -1,12 +1,12 @@
 # Arquitetura do backoffice operacional
 
-**Estado:** formalizado (DEC-BO-001); fundação backend em curso
+**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API cadastros `RM-BO-001` em código
 **Âmbito:** ops administrativas — fora do primeiro vertical slice POS
 **Stack:** alinhada a DEC-STACK-001 (API no monólito Go; UI posterior)
 
 ## Posição no sistema
 
-O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS. Sem microserviços.
+O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS: prefixo **`/admin/v1`**, OpenAPI [`specs/openapi-admin/openapi.yaml`](../../specs/openapi-admin/openapi.yaml) `0.1.0-draft` (≠ POS `0.1.x`). Auth operadores OIDC/JWT RBAC (`owner|admin|operator|auditor`); só `owner` em SecAdm. Sem microserviços.
 
 ```mermaid
 flowchart TB
@@ -90,18 +90,19 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 
 ## Fases de entrega
 
-1. Decisão/arquitectura da separação (`DEC-BO-001` / `RM-ARCH-006`).
-2. Fundação backend cadastros (`RM-BO-010`) — sem UI.
-3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) — **concluído** em código (`internal/secretstore`); ACL owner-only HTTP ainda `RM-SECADM-001`.
-4. API administrativa funcional + zona SecAdm.
-5. UI backoffice mínimo (M7).
-6. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
+1. Decisão/arquitectura da separação (`DEC-BO-001` / `RM-ARCH-006`) — concluído.
+2. Fundação backend cadastros (`RM-BO-010`) — concluído.
+3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) + gate owner-only (`RM-SECADM-001`) — concluídos em código; HTTP SecAdm ainda futuro.
+4. Superfície Admin API (`DEC-BO-002` / `RM-BO-001`) — `/admin/v1` cadastros + auth injectável fail-closed + audit append-only; IdP real e UI ainda futuros.
+5. Séries/config não secreta, visibilidade ops, matriz permissões (`RM-BO-002`/`003`/`004`).
+6. UI backoffice mínimo (M7 / `RM-ARCH-005`).
+7. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
 
 ## Referências
 
 - [domain-model.md](../04-domain/domain-model.md)
 - [security-baseline.md](../05-security/security-baseline.md)
-- [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
+- [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`, `DEC-BO-002`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
 - [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) (GAP-013)
 - [ROADMAP.md](../../ROADMAP.md)
 - [system-architecture.md](system-architecture.md)

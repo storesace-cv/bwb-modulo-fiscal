@@ -41,8 +41,8 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | `0.1.6-draft` ([specs/openapi/openapi.yaml](specs/openapi/openapi.yaml)) |
-| Schema | `ExpectedVersion=5` |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.0-draft` ([specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml)) |
+| Schema | `ExpectedVersion=6` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -102,7 +102,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|---|---|---|---|---|
 | [x] | RM-ARCH-001 | Stack Go + PostgreSQL cloud + SQLite WAL Edge | CONCLUÍDO | [docs/06-delivery/technical-stack-proposal.md](docs/06-delivery/technical-stack-proposal.md) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | — | DEC-STACK-001 decidida |
 | [x] | RM-ARCH-002 | API HTTP + Nginx + systemd | CONCLUÍDO | [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md) · [docs/07-operations/d2-staging-bootstrap-report.md](docs/07-operations/d2-staging-bootstrap-report.md) | — | Sandbox operacional |
-| [x] | RM-ARCH-003 | Migrations dual-engine PG/SQLite | CONCLUÍDO | [internal/platform/dbmigrate/migrate.go](internal/platform/dbmigrate/migrate.go) | — | ExpectedVersion=5 |
+| [x] | RM-ARCH-003 | Migrations dual-engine PG/SQLite | CONCLUÍDO | [internal/platform/dbmigrate/migrate.go](internal/platform/dbmigrate/migrate.go) | — | ExpectedVersion=6 |
 | [x] | RM-ARCH-004 | Scopes multi-tenant e separação de papéis | CONCLUÍDO | [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | — | Plataforma / integradores / contribuintes / estabelecimentos / credenciais POS / chaves AGT / HML-PRD |
 | [x] | RM-ARCH-006 | Separação backoffice funcional vs zona segredos (`DEC-BO-001`) | CONCLUÍDO | [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [CHANGELOG.md](CHANGELOG.md) | — | Plano A ops; plano B owner write-only; metadados sanitizados |
 | [ ] | RM-ARCH-005 | Backoffice operacional (UI) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 + RM-BO-010 + RM-SECADM-002 | UI/ops mínimos em produção |
@@ -265,11 +265,11 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
-| [ ] | RM-BO-001 | Cadastros: contribuintes, estabelecimentos, scopes/bindings (plano A) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md) | RM-BO-010 | API/UI cadastros sem segredos |
+| [x] | RM-BO-001 | Cadastros: contribuintes, estabelecimentos, scopes/bindings (plano A) | CONCLUÍDO | [specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml) · [internal/adminapi/handlers.go](internal/adminapi/handlers.go) · [internal/adminauth/auth.go](internal/adminauth/auth.go) · [internal/adminaudit/audit.go](internal/adminaudit/audit.go) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-002 + RM-BO-010 | `/admin/v1`; OpenAPI admin 0.1.0-draft; RBAC injectável fail-closed; audit append-only; sem segredos |
 | [ ] | RM-BO-002 | Séries e configuração não secreta; timezone; ambiente HML/PRD (metadados) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 | Ops de scope sem ler segredos |
 | [ ] | RM-BO-003 | Visibilidade ops: submissões, erros, reconciliação, auditoria; refs só metadados sanitizados | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 + RM-SECADM-002 | Sem corpos secretos na UI |
 | [ ] | RM-BO-004 | Permissões e MFA do plano A; sem ACL de leitura de segredos | PENDENTE | [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | DEC-BO-001 | Operadores ≠ owner SecAdm |
-| [x] | RM-BO-010 | Fundação backend Taxpayer / Establishment / ScopeBinding | CONCLUÍDO | [internal/adminregistry/registry.go](internal/adminregistry/registry.go) · [migrations/postgres/0005_admin_registry.up.sql](migrations/postgres/0005_admin_registry.up.sql) · [migrations/sqlite/0005_admin_registry.up.sql](migrations/sqlite/0005_admin_registry.up.sql) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Persistência cadastros; sem UI; sem segredos; ExpectedVersion=5 |
+| [x] | RM-BO-010 | Fundação backend Taxpayer / Establishment / ScopeBinding | CONCLUÍDO | [internal/adminregistry/registry.go](internal/adminregistry/registry.go) · [migrations/postgres/0005_admin_registry.up.sql](migrations/postgres/0005_admin_registry.up.sql) · [migrations/sqlite/0005_admin_registry.up.sql](migrations/sqlite/0005_admin_registry.up.sql) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Persistência cadastros; sem UI; sem segredos; ExpectedVersion=5 (depois `0006` audit) |
 | [x] | RM-SECADM-001 | Zona admin integração/segredos: owner-only, HML≠PRD, auditoria | CONCLUÍDO | [internal/secadm/gate.go](internal/secadm/gate.go) · [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Gate owner-only; HML≠PRD no store; auditoria HTTP/UI ainda futura |
 | [x] | RM-SECADM-002 | Contrato write-only SecretStore + simulator fail-closed + metadados | CONCLUÍDO | [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Sem GET admin; AES-GCM memória; HML≠PRD; sem credenciais reais |
 
