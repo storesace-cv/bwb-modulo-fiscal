@@ -21,3 +21,4 @@
 - Não tratar L2=`PaymentType=RC` como fecho de L4→SAF-T (são camadas distintas).
 - Não inventar estrutura L3 para `FA` sem fonte oficial / `DEC-REG-003`.
 - Não confundir L1 «Recibo» com L4 `RG`/`RC` nem com L2 `PaymentType`.
+- Não enviar tipo SAF-T-only ao endpoint FE; `FA` (FE-only) só no canal FE (`DEC-PROD-006`).

@@ -69,32 +69,523 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 
 ---
 
-## DEC-REG-003 — Tipos documentais do MVP Angola
+## DEC-PROD-001 — Organização do catálogo documental (5 grupos SAF-T)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / catálogo |
+| Prazo máximo | — |
+| Responsável | Product Owner |
+| Decisão | 2026-07-26 |
+
+**Decisão:** o catálogo documental do produto organiza-se **exactamente** em **5 grupos funcionais** alinhados a `SourceDocuments` do SAF-T (AO) — camada **L3** (estrutura), **não** L1 legal nem L4 `documentType` FE:
+
+| # | Grupo funcional (produto) | Estrutura L3 XSD | Tipo L2 associado |
+|---|---|---|---|
+| 1 | Vendas | `SalesInvoices` | `InvoiceType` |
+| 2 | Movimentação de mercadorias | `MovementOfGoods` | `MovementType` |
+| 3 | Conferência / trabalho | `WorkingDocuments` | `WorkType` |
+| 4 | Pagamentos / recibos | `Payments` | `SAFTAOPaymentType` / `PaymentType` |
+| 5 | Compras | `PurchaseInvoices` | `PurchaseType` |
+
+**Não autoriza:** bijecção com L4 FE; alargamento OpenAPI sem revisão; truncar o modelo ao slice (`DEC-PROD-014`); promoção de `AO-DOC-*`.
+
+**Evidência:** inventário em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) secção C; XSD `SAFTAO1.01_01.xsd` (`e9a938e1…`, `pending_validation`).
+
+---
+
+## DEC-PROD-002 — Critério de inclusão no catálogo (canais SAF-T / FE)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / catálogo |
+| Prazo máximo | — |
+| Responsável | Product Owner |
+| Decisão | 2026-07-26 |
+
+**Decisão:** o catálogo inclui **apenas** tipos utilizáveis em pelo menos um destes canais:
+
+1. **SAF-T (AO)** — código presente num enum L2 do XSD (`InvoiceType`, `MovementType`, `WorkType`, `SAFTAOPaymentType`, `PurchaseType`) sob um dos 5 grupos L3 (`DEC-PROD-001`);
+2. **FE AGT** — código presente em `documentType` L4 (DE 683/25 + HTML HML oficial catalogado);
+3. **Ambos** — (1) e (2).
+
+**Excluir** do catálogo de tipos: qualquer figura/código que **não** sirva nem SAF-T nem FE (ex.: rótulos L1 sem código de canal; modalidades; inventários comerciais sem enum).
+
+**Não autoriza:** inventar códigos para «completar» um canal; bijecção L4↔L2; fecho MVP (`DEC-REG-003`); promoção `AO-DOC-*`.
+
+**Nota:** `FA` (FE sem `InvoiceType`) **inclui-se** (canal FE). Tipos só em `MovementType`/`WorkType`/`PurchaseType` **incluem-se** (canal SAF-T).
+
+**Evidência:** [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) secção C.7.
+
+---
+
+## DEC-PROD-003 — Activação de grupos e tipos na configuração POS
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / configuração |
+| Prazo máximo | — |
+| Responsável | Product Owner |
+| Decisão | 2026-07-26 |
+
+**Decisão:** a configuração por contexto POS (integrador / estabelecimento / terminal — âmbito exacto na modelação) permite:
+
+1. **Activar ou desactivar um grupo inteiro** dos 5 grupos `DEC-PROD-001`;
+2. **Activar ou desactivar tipos individuais** dentro de um grupo activo (tipos do catálogo `DEC-PROD-002` apenas).
+
+**Regras fail-closed**
+
+| Regra | Implicação |
+|---|---|
+| Grupo desactivo | Todos os tipos desse grupo ficam indisponíveis para emissão via esse POS |
+| Tipo activo | Exige grupo pai activo |
+| Fora do catálogo | Impossível activar (não inventar tipos) |
+| Pedido POS de tipo inactivo / grupo inactivo | Rejeição pelo módulo fiscal (autoridade) — o POS não emite |
+| Activar ≠ obrigação legal | Configuração de produto ≠ norma; não confirma `AO-DOC-*` |
+| Activar ≠ OpenAPI slice | Exposição contratual faseada (`DEC-REG-003`); modelo completo = `DEC-PROD-014` |
+
+**Não autoriza:** o POS a numerar/selar; bypass de canais SAF-T/FE; inventar mapeamento L4↔L2.
+
+**Dependências de implementação:** modelo de scope (empresa/estabelecimento/terminal/integrador); API/admin de configuração; enforcement na emissão. Fora do vertical slice até existir tarefa de configuração. Adesão FE do contribuinte: `DEC-PROD-004`.
+
+**Evidência de decisão:** este registo; inventário de grupos/tipos em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md).
+
+---
+
+## DEC-PROD-004 — Adesão FE (contribuinte) vs séries/config (estabelecimento)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio |
+| Prazo máximo | — |
+| Responsável | Product Owner + Domínio |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. **Adesão à FE AGT** pertence ao **cliente/contribuinte** vinculado ao **NIF** (`Taxpayer`) — não ao estabelecimento, não ao POS, não ao integrador.
+2. **Estabelecimento** mantém **séries** e **configuração própria** (inclui activação de grupos/tipos `DEC-PROD-003` no seu âmbito).
+3. Estado de adesão FE é **máquina de estados**, **não** booleano:
+
+| Estado | Significado (produto) |
+|---|---|
+| `not_enrolled` | Sem adesão FE registada para o contribuinte (nesse ambiente) |
+| `pending` | Adesão iniciada / em curso junto da AGT ou processo interno — **não** emitir FE como `active` |
+| `active` | Adesão utilizável para operações FE permitidas pelo ambiente |
+| `suspended` | Adesão existiu mas está suspensa — emissão FE bloqueada até reactivação |
+
+**Invariantes**
+
+| Regra | Implicação |
+|---|---|
+| 1 NIF → 1 `Taxpayer` | Adesão FE não se duplica por estabelecimento |
+| Estabelecimento sem NIF próprio | Herda elegibilidade FE do `Taxpayer` pai; séries/config são locais ao estabelecimento |
+| `active` no contribuinte | Condição necessária (não suficiente) para emissão FE; ainda exige séries/config activas no estabelecimento + regras oficiais |
+| `not_enrolled` / `pending` / `suspended` | Pedidos FE rejeitados (fail-closed) |
+| Ambiente | Estado modelado por `Environment` (`homologation` \| `production`) — sem partilha entre ambientes |
+| ≠ booleano | Proibido `fe_enabled: true/false` como modelo canónico |
+
+**Não autoriza:** inventar procedimento AGT de adesão; confirmar `AO-AGT-*` / `AO-ID-*`; colocar Basic Auth produtor no contribuinte (`ProducerCredential` permanece plataforma).
+
+**Evidência:** este registo; [`domain-model.md`](../04-domain/domain-model.md). Disponibilidade efectiva: `DEC-PROD-005`.
+
+---
+
+## DEC-PROD-005 — Disponibilidade efectiva para emissão
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio |
+| Prazo máximo | — |
+| Responsável | Product Owner + Domínio |
+| Decisão | 2026-07-26 |
+
+**Decisão:** um tipo só está **efectivamente disponível** para emissão quando **todas** as condições seguintes são verdadeiras (conjunção fail-closed — **AND**):
+
+| # | Gate | Fonte / decisão | Falha ⇒ |
+|---|---|---|---|
+| 1 | **Tipo canónico** no catálogo | `DEC-PROD-001` + `DEC-PROD-002` (grupo L3 + canal SAF-T e/ou FE) | rejeitar (tipo inexistente / excluído) |
+| 2 | **Grupo e tipo activos** no contexto POS/estabelecimento | `DEC-PROD-003` | rejeitar (inactivo) |
+| 3 | **Regime / NIF** do contribuinte elegível para o tipo | `Taxpayer` + regime fiscal aplicável | rejeitar (regime/NIF) |
+| 4 | **Adesão FE** adequada quando o canal FE é exigido | `DEC-PROD-004` — tipicamente `active` | rejeitar (`not_enrolled`/`pending`/`suspended`) |
+| 5 | **Série AGT válida** quando o canal/regra a exige | série do estabelecimento (`solicitarSerie` / regras oficiais) | rejeitar (série ausente/inválida) |
+| 6 | **Ambiente** correcto | `Environment` homologation ≠ production | rejeitar (ambiente) |
+| 7 | **Restrição sectorial** | ex. tipos segurador só se sector/regime o permitir | rejeitar (sector) |
+
+**Fórmula (produto):**
+
+`available = canonical ∧ group_type_active ∧ regime_nif ∧ fe_enrollment_ok ∧ series_ok_when_required ∧ environment_ok ∧ sector_ok`
+
+**Regras**
+
+- Qualquer gate falso ⇒ **indisponível**; sem emissão parcial.
+- «Série quando exigida»: tipos/canais que a norma ou FE obrigam a série AGT; se não exigida, o gate 5 é N/A (não inventar exigência).
+- Canal só-SAF-T sem FE: gate 4 pode ser N/A para esse pedido; canal FE: gate 4 obrigatório.
+- Activação POS (gate 2) **não** substitui gates 3–7.
+- Esta decisão **não** confirma requisitos `AO-*` nem fecha `DEC-REG-003` (quais tipos no MVP).
+
+**Evidência:** este registo; [`domain-model.md`](../04-domain/domain-model.md). Routing por canal: `DEC-PROD-006`.
+
+---
+
+## DEC-PROD-006 — Routing por canal (SAF-T vs FE)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio |
+| Prazo máximo | — |
+| Responsável | Product Owner + Domínio |
+| Decisão | 2026-07-26 |
+
+**Decisão:** o canal de saída depende da adesão FE (`DEC-PROD-004`) e do canal do tipo (`DEC-PROD-002`):
+
+| Situação | Comportamento |
+|---|---|
+| **Sem FE activa** (`not_enrolled` \| `pending` \| `suspended`) | Apenas fluxos **SAF-T** aplicáveis aos tipos com canal `SAF-T` ou `ambos` (sujeito a `DEC-PROD-005`). **Proibido** chamar endpoint FE AGT. |
+| **Com FE activa** (`active`) | Apenas documentos **elegíveis no endpoint AGT** **e** autorizados para o contribuinte/série (gates `DEC-PROD-005`). |
+| Tipo **SAF-T-only** | **Nunca** vai ao endpoint FE — mesmo com adesão `active`. |
+| Tipo **FE-only** (ex. `FA`) | Continua possível **só** no canal FE (quando FE `active` + restantes gates); **não** inventar estrutura SAF-T. |
+| Tipo **ambos** | Pode usar FE quando `active` e elegível; exportação/arquivo SAF-T conforme regras L2/L3 do grupo — **sem** bijecção L4↔L2. |
+
+**Fail-closed**
+
+- Pedido FE para tipo SAF-T-only ⇒ rejeitar.
+- Pedido FE sem adesão `active` ⇒ rejeitar.
+- Pedido FE para tipo não elegível no endpoint / série não autorizada ⇒ rejeitar.
+- Sem FE activa: não simular transmissão FE «offline» como substituto (contingência = `DEC-REG-004` / `AO-OFF-*`, não esta decisão).
+
+**Não autoriza:** inventar mapeamento FE→`InvoiceType` para FE-only; fechar C-DOC-003; confirmar `AO-AGT-*`.
+
+**Evidência:** este registo; [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) C.7; [`domain-model.md`](../04-domain/domain-model.md). Conceito canónico + adaptadores: `DEC-PROD-007`.
+
+---
+
+## DEC-PROD-007 — Conceito canónico e adaptadores por canal
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / API / domínio |
+| Prazo máximo | — |
+| Responsável | Product Owner + API Owner + Domínio |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. **Um conceito canónico** interno por tipo documental do catálogo (identidade de produto estável — não é L4 FE nem L2 SAF-T crus).
+2. **Adaptadores por canal** traduzem o canónico → representação do canal (`documentType` FE L4, enum/estrutura SAF-T L2/L3, futuros canais) sob `DEC-PROD-006` e disponibilidade `DEC-PROD-005`.
+3. O **POS envia código próprio** (alias/integrador) que o módulo resolve via **mapping configurado** para o conceito canónico.
+4. **Proibido:** POS enviar código fiscal cru (FE `FT`/`NC`/… ou SAF-T `InvoiceType`/…) **sem** mapping explícito para o canónico.
+
+**Fail-closed**
+
+| Caso | Comportamento |
+|---|---|
+| Código POS sem mapping | rejeitar |
+| Código fiscal cru no pedido POS | rejeitar (não «adivinhar» canónico) |
+| Canónico sem adaptador para o canal exigido | indisponível nesse canal |
+| Mapping ambíguo / multi-alvo sem desambiguação | rejeitar |
+
+**Não autoriza:** bijecção canónico↔L4↔L2; o POS a escolher L3 (`SalesInvoices` vs `Payments`); alargar OpenAPI MVP sem `DEC-REG-003`; inventar códigos fiscais.
+
+**Nota:** aliases OpenAPI actuais (`invoice` / `credit_note`) são candidatos a códigos de produto/mapping — **não** códigos AGT crus; formalização no contrato na revisão autorizada.
+
+**Evidência:** este registo; [`domain-model.md`](../04-domain/domain-model.md); camadas L1–L4 em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md). Modelo multi-POS: `DEC-PROD-008`.
+
+---
+
+## DEC-PROD-008 — Modelo POS: módulo autoridade; multi-POS via API
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / arquitectura |
+| Prazo máximo | — |
+| Responsável | Product Owner + Arquitectura |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. O **módulo fiscal** é a **única autoridade** de emissão e numeração fiscal (série/número, selagem, artefactos).
+2. **Vários POS** (terminais / integradores) acedem **apenas via API** do módulo — sem autoridade fiscal no POS.
+3. Alinha e **não altera** [`ADR-0001`](../02-architecture/adrs/ADR-0001-external-fiscal-module.md) nem a premissa `ASM-REG-001` (validação jurídica AGT permanece `DEC-REG-001`).
+
+**Fail-closed**
+
+| Proibido no POS | Obrigatório no módulo |
+|---|---|
+| Reservar / atribuir número fiscal | Atribuir série e número |
+| Emitir / «selar» documento fiscal localmente como autoridade | Validar intenção, persistir, assinar conforme regras |
+| Partilhar série entre escritores sem coordenação do módulo | Enforcement de exclusividade de escrita por série |
+| Tratar HTTP 2xx como aceite AGT | Devolver estado fiscal explícito |
+
+**Consequências de produto**
+
+- N POS → 1 módulo (cloud e/ou Edge); identidade por `Integrator` / `Terminal` / credencial API.
+- Configuração (`DEC-PROD-003`–`005`) e mapping (`DEC-PROD-007`) aplicam-se por contexto; numeração continua centralizada.
+- Edge: um escritor (`DEC-PROD-011` / `DEC-OPS-001`); POS só API local.
+
+**Evidência:** este registo; ADR-0001; [`scope.md`](../00-product/scope.md); [`domain-model.md`](../04-domain/domain-model.md). Estados documentais: `DEC-PROD-009`.
+
+---
+
+## DEC-PROD-009 — Estados do documento (ciclo de vida vs AGT)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio / API |
+| Prazo máximo | — |
+| Responsável | Product Owner + API Owner |
+| Decisão | 2026-07-26 |
+
+**Decisão:** estados de produto do documento fiscal (identificadores canónicos API em inglês; rótulos PT):
+
+| Estado | Rótulo | Significado |
+|---|---|---|
+| `sealed_locally` | selado localmente | Persistido/selado pelo módulo; **não** é aceitação AGT |
+| `submitted` | enviado | Submetido / em trânsito para a autoridade |
+| `received` | recebido | Autoridade acusou recepção / em processamento conhecido |
+| `accepted` | aceite | Aceite pela AGT (único estado que afirma aceitação fiscal pela autoridade) |
+| `rejected` | rejeitado | Rejeitado pela AGT (ou rejeição de validação pré-selagem, se modelada no mesmo enum — distinguir em erro/código) |
+
+**Regra absoluta:** **não** afirmar aceitação fiscal perante a AGT antes do estado `accepted`. Em particular:
+
+- `sealed_locally` ≠ aceite AGT ≠ «fiscalmente emitido» jurídico (`DEC-API-004` permanece aberta para o momento legal de emissão);
+- HTTP 2xx / `sealed_locally` **não** autoriza o POS a apresentar o documento como aceite pela AGT;
+- proibido reintroduzir `fiscally_issued` como sinónimo de selagem local.
+
+**Notas de modelação**
+
+- Subestados técnicos (`queued_for_authority`, `authority_outcome_unknown`, `contingency_pending`) podem existir na implementação/reconciliação; **não** substituem nem antecipam `accepted`.
+- Anulação/`cancelled`: continua `DEC-API-002` (fora deste enum até decisão).
+- Aplicação completa no OpenAPI/máquina pública = revisão contratual formal (hoje `createDocument` expõe `sealed_locally`).
+
+**Evidência:** este registo; [`document-state-machine.md`](../04-domain/document-state-machine.md). Offline técnico: `DEC-PROD-010`.
+
+---
+
+## DEC-PROD-010 — Offline técnico sem emissão certificada
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / arquitectura |
+| Prazo máximo | — |
+| Responsável | Product Owner + Arquitectura |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. **Implementar** capacidades técnicas de resiliência: **outbox**, **reenvio** seguro e **idempotência** (Edge/cloud), alinhadas ao slice e a `AO-IDEM-001`.
+2. **Não declarar** emissão offline / contingência como **certificada** ou conforme `AO-OFF-*` até existir **regra oficial** + fecho de `DEC-REG-004` / requisitos confirmados.
+3. Estado `contingency_pending` permanece **reservado**; não inventar fluxo legal de contingência.
+
+**Fail-closed**
+
+| Permitido (técnico) | Proibido (produto/compliance) |
+|---|---|
+| Outbox durável + worker de reenvio | Afirmar «emissão offline certificada AGT» |
+| Idempotência em retries / timeouts | Usar `sealed_locally` offline como `accepted` |
+| Reconciliação após restabelecer ligação | Inventar séries/números de contingência sem fonte |
+| Marcar documentos/submissões como pendentes de autoridade | Promover `AO-OFF-001`/`002` a confirmados só com engenharia |
+
+**Relação com `DEC-REG-004`:** adopta a opção técnica 2 (desenhar outbox/Edge **sem** declarar conformidade); o fecho regulatório continua opção 1 (texto oficial + AGT).
+
+**Evidência:** este registo; SealInTx/outbox no slice; [`document-state-machine.md`](../04-domain/document-state-machine.md). Edge escritor único: `DEC-PROD-011`.
+
+---
+
+## DEC-PROD-011 — Edge: um único processo fiscal escritor
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / Edge / operações |
+| Prazo máximo | — |
+| Responsável | Product Owner + Arquitectura |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. Em cada instalação **Fiscal Edge**: **um único processo fiscal escritor** (proprietário da escrita fiscal / SealInTx / numeração local).
+2. **Proibido** multi-instância Edge (ou multi-processo escritor) na **mesma série** **sem** coordenação formal.
+3. Vários POS no Edge → **só via API local** do único escritor (`DEC-PROD-008`).
+4. Fecha `DEC-OPS-001` na opção 1 (MVP). Opção 2 (lease/partição via cloud) fica como evolução futura **explícita**, não implícita.
+
+**Fail-closed**
+
+| Proibido | Obrigatório |
+|---|---|
+| Dois escritores na mesma série sem lease/coordenação | Um escritor por instalação Edge |
+| «Active-active» Edge na mesma série | Séries exclusivas do processo escritor |
+| POS a escrever na BD/série directamente | POS → API local do módulo |
+
+**Alinha:** DEC-STACK-001 (SQLite WAL, escritor único); [`edge-architecture.md`](../02-architecture/edge-architecture.md).
+
+**Evidência:** este registo; `DEC-OPS-001` decidida por referência. Chaves: `DEC-PROD-012`.
+
+---
+
+## DEC-PROD-012 — Política de produto para chaves fiscais
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** (constraints de produto; **fecho definitivo bloqueado por AGT**) |
+| Tipo | Produto / segurança |
+| Prazo máximo | — (constraints); definitivo após `DEC-REG-KEY-CUSTODY` |
+| Responsável | Product Owner + Segurança |
+| Decisão | 2026-07-26 |
+
+**Decisão (constraints obrigatórios de produto):**
+
+| Regra | Implicação |
+|---|---|
+| **Segregadas por contribuinte** | Material/`TaxpayerKeyRef` por NIF/`Taxpayer` (+ ambiente); sem partilha entre contribuintes |
+| **Não exportáveis quando possível** | Preferir KMS/HSM/keystore com privada non-exportable; sem exportação de privada para ficheiros/UI/logs |
+| **Nunca nos POS** | POS não recebe, armazena nem assina com chave fiscal do contribuinte (`DEC-PROD-008`) |
+| **Rotação auditada** | Toda rotação/revogação gera evento de auditoria imutável; sem rotação silenciosa |
+| **Definitivo aguarda AGT** | Local/custódia exacta (cloud vs Edge, HSM, permissão de custódia externa) **não** fechados — `DEC-REG-KEY-CUSTODY`, `DEC-SEC-001`, `DEC-SEC-EDGE-KEYS`, GAP-013 |
+
+**Fail-closed**
+
+- Privada em Git, imagem, POS, logs ou telemetria → **proibido**.
+- Provisionar `TaxpayerKeyRef` na plataforma como custódia definitiva **antes** de resposta AGT → **proibido**.
+- Slice: chave efémera de teste atrás de adaptador; **não** material de contribuinte real; **não** certificado.
+
+**Não altera** `ASM-REG-001`. Não confirma `AO-KEY-001` / `AO-CRYPTO-001`.
+
+**Evidência:** este registo; [`backoffice-architecture.md`](../02-architecture/backoffice-architecture.md). Auditoria: `DEC-PROD-013`.
+
+---
+
+## DEC-PROD-013 — Auditoria append-only; retenção normativa
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio / operações |
+| Prazo máximo | — (append-only); retenção final após norma consolidada |
+| Responsável | Product Owner + Operações + Compliance |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. O trilho de **auditoria** (e o livro fiscal de transições relevantes) é **append-only**: sem UPDATE/DELETE destrutivo de eventos; correcções = novos eventos.
+2. A **retenção final** (prazo legal de arquivo/purga) **depende da norma consolidada** aplicável — **não** inventar anos/prazos até citação oficial + revisão compliance.
+3. Até lá: preservar evidências; política de retenção técnica mínima operacional **sem** declarar conformidade com prazo fiscal.
+
+**Fail-closed**
+
+| Proibido | Obrigatório |
+|---|---|
+| Apagar/alterar eventos de auditoria ou documentos emitidos | Append de novos eventos / documentos retificativos |
+| Fixar prazo de retenção fiscal «por default» sem fonte | Marcar retenção como `pending_norm` até norma consolidada |
+| Promover `AO-AUD-001` a confirmado só com esta decisão | Ligar implementação a `AO-AUD-001` (candidato; matriz provisória) |
+
+**Evidência:** este registo; [`domain-model.md`](../04-domain/domain-model.md); `AO-AUD-001` no catálogo (não confirmado). Âmbito do modelo de tipos: `DEC-PROD-014`.
+
+---
+
+## DEC-PROD-014 — Âmbito do modelo de tipos (completo; implementação faseada)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio |
+| Prazo máximo | — |
+| Responsável | Product Owner |
+| Decisão | 2026-07-26 |
+
+**Decisão:**
+
+1. O **modelo de produto** inclui **todos** os tipos **legalmente aplicáveis** que pertençam a **SAF-T (AO)**, **FE AGT**, ou **ambos** (`DEC-PROD-002` + inventário L1/L2/L3/L4; 5 grupos `DEC-PROD-001`).
+2. A **implementação pode ser faseada** (slice/OpenAPI/activação defaults) **sem limitar o modelo** — o domínio/catálogo canónico não é truncado ao MVP.
+3. Tipos sem canal SAF-T nem FE continuam **excluídos** (`DEC-PROD-002`).
+4. «Legalmente aplicável» ≠ inventar códigos; lacunas C-DOC-* / ausência de enum = fail-closed até fonte/decisão.
+
+**Fail-closed**
+
+| Proibido | Obrigatório |
+|---|---|
+| Modelar só `invoice`/`credit_note` como catálogo completo | Catálogo = união canal SAF-T ∪ FE (legalmente aplicável) |
+| Remover tipos do modelo porque o slice não os emite | Fasear via activação (`DEC-PROD-003`) / disponibilidade (`DEC-PROD-005`) / OpenAPI |
+| Confirmar `AO-DOC-001` só com esta decisão | Manter inventário citado; C-DOC-* abertos |
+
+**Relação com `DEC-REG-003`:** passa a decidir **ordem de implementação / defaults do slice**, **não** o perímetro do modelo.
+
+**Evidência:** este registo; [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md). Esquema mínimo do catálogo: `DEC-PROD-015`.
+
+---
+
+## DEC-PROD-015 — Esquema mínimo do catálogo / matriz de tipos
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / domínio / compliance |
+| Prazo máximo | — |
+| Responsável | Product Owner + Domínio |
+| Decisão | 2026-07-26 |
+
+**Decisão:** cada entrada do catálogo/matriz de tipos **deve** conter **pelo menos**:
+
+| # | Campo | Conteúdo |
+|---|---|---|
+| 1 | `grupo` | Um dos 5 grupos L3 (`DEC-PROD-001`) |
+| 2 | `codigo_canonico` | Identidade canónica de produto (`DEC-PROD-007`) — **não** código AGT cru |
+| 3 | `designacao` | Designação humana |
+| 4 | `codigos_canal` | Códigos por canal (FE L4, SAF-T L2) quando existirem |
+| 5 | `estrutura_saft` | Estrutura SAF-T L3 (ex. `SalesInvoices`, `Payments`) |
+| 6 | `elegibilidade` | `SAF-T` \| `FE` \| `ambos` (`DEC-PROD-002`) |
+| 7 | `natureza_juridica` | Figura L1 / referência normativa (ou `n/a`) |
+| 8 | `restricao_sectorial` | Sector/regime ou `nenhuma` / `pending` |
+| 9 | `serie_necessaria` | Se série AGT/estabelecimento é exigida (`sim`/`não`/`pending`/`condicional`) |
+| 10 | `requisitos` | Requisitos de emissão/preenchimento (citas ou `pending`) |
+| 11 | `regras_rectificacao_anulacao` | Rectificação/anulação (citas ou `pending`) |
+| 12 | `estado_normativo` | Ex.: `hipótese` \| `conflito` \| `pending_validation` \| auxiliar `reviewed` |
+| 13 | `activo` | Estado de activação de produto/slice (`on`/`off`/`pending_dec_reg_003`) |
+
+**Fail-closed:** campo desconhecido → `pending` / `hipótese`; **não** inventar. Catálogo vivo em [`DOCUMENT-CATALOG-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-CATALOG-RM-REQ-001.md).
+
+**Evidência:** este registo + ficheiro do catálogo.
+
+---
+
+## DEC-REG-003 — Ordem de implementação / defaults do slice (tipos)
 
 | Campo | Valor |
 |---|---|
 | Estado | aberta |
-| Tipo | Regulatória + produto |
+| Tipo | Produto / entrega (já **não** limita o modelo — ver `DEC-PROD-014`) |
 | Prazo máximo | Dentro das 2–4 semanas internas |
 | Responsável | Product Owner + Compliance |
 
-**Opções:**
+**Contexto:** o modelo de tipos está decidido em **`DEC-PROD-014`** (completo por canal). Esta decisão escolhe **o que implementar primeiro** e defaults de activação/OpenAPI.
 
-1. MVP mínimo: fatura + nota de crédito (alinhado ao esqueleto OpenAPI).
-2. MVP alargado: incluir documentos de transporte / conferência se a fonte oficial exigir assinatura.
-3. Adiar tipos retificativos para após a primeira fatura ponta a ponta.
+**Opções (implementação):**
+
+1. Slice mínimo: fatura + nota de crédito (OpenAPI actual) — resto do catálogo modelado mas inactivo/não exposto.
+2. Slice alargado: incluir transporte / conferência cedo se a fonte exigir.
+3. Adiar retificativos na implementação (NC já no OpenAPI — não remover do modelo).
 
 | Opção | Vantagens | Riscos |
 |---|---|---|
-| 1 | Encaixa no vertical slice | Pode ser incompleto face ao diploma oficial |
-| 2 | Cobertura regulatória maior | Atrasa Fase 1 |
-| 3 | Entrega mais cedo | Dívida no OpenAPI e pacote AO |
+| 1 | Encaixa no vertical slice | Defaults estreitos; risco de confundir com perímetro do modelo |
+| 2 | Cobertura operacional maior | Atrasa Fase 1 |
+| 3 | Entrega mais cedo | Dívida de activação/API |
 
-**Recomendação:** opção 1 para o vertical slice; reavaliar opção 2 após inventário citado de tipos ([`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)) + fecho de C-DOC-* — **sem** alargar domínio/OpenAPI até decisão formal.
+**Recomendação:** opção 1 para o **primeiro** vertical slice de implementação; catálogo completo permanece no modelo (`DEC-PROD-014`).
 
-**Nota 2026-07-26:** fontes DP 71/25 + DE 683/25 + FE HML + SAF-T XSD já inventariadas com citações; `DEC-REG-003` permanece **aberta** (MVP ainda não escolhido formalmente).
+**Nota 2026-07-26:** modelo = **DEC-PROD-014**; esquema catálogo = **DEC-PROD-015**; `DEC-REG-003` = faseamento apenas.
 
-Relaciona: `AO-DOC-001`, `AO-DOC-002`.
+Relaciona: `AO-DOC-001`, `AO-DOC-002`, `DEC-PROD-001`–`015`.
 
 ---
 
@@ -119,7 +610,9 @@ Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 | 2 | Permite desenho e testes | Não declarar conformidade de `AO-OFF-*` |
 | 3 | Rápido | **Rejeitada** — viola regras do projeto |
 
-**Recomendação:** opção 2 para arquitetura futura; opção 1 para fecho de `AO-OFF-001` / `AO-OFF-002`. Contingência Edge completa **excluída** do primeiro vertical slice.
+**Recomendação:** opção 2 para arquitetura; opção 1 para fecho de `AO-OFF-001` / `AO-OFF-002`.
+
+**Nota 2026-07-26:** produto **`DEC-PROD-010`** — implementar outbox/reenvio/idempotência **sem** declarar emissão offline certificada até regra oficial (alinha opção 2 técnica; fecho `AO-OFF-*` continua bloqueado).
 
 ---
 
@@ -251,6 +744,8 @@ Relaciona: `AO-TAX-001`.
 
 **Recomendação:** não escolher 1–3 sem fonte oficial. O contrato usa o estado técnico `sealed_locally` (tarefa zero OpenAPI aplicada); DEC-API-004 permanece **aberta** para a semântica jurídica final.
 
+**Nota 2026-07-26:** ciclo de vida de produto (`sealed_locally` → `submitted` → `received` → `accepted` \| `rejected`) e proibição de afirmar aceitação antes da AGT = **`DEC-PROD-009`**. Isto **não** fecha sozinho qual opção 1–3 é a emissão jurídica.
+
 **Evidência para fechar:** diploma/orientação AGT + snapshot FE + ata de compliance.
 
 ---
@@ -274,6 +769,8 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 4. Cofre de CI para chaves falsas do vertical slice — **rejeitada** (custo sem benefício).
 
 **Recomendação:** opção 1 para MVP de infraestrutura genérica, sujeita a DEC-REG-KEY-CUSTODY para material do contribuinte. Segredos nunca no Git. No slice: JWS RS256 real; chave privada efémera **nunca** persistida nem commitada; fixtures públicas só com chave pública ou vetores estáticos não secretos, se necessário; marcado como não certificado — **sem** stub descartável e **sem** regras legais do 74/19 ainda desconhecidas.
+
+**Nota 2026-07-26:** constraints de produto **`DEC-PROD-012`** (segregação por contribuinte; non-exportable quando possível; nunca nos POS; rotação auditada). Fecho de opções 1–2 e local Edge/cloud continua a aguardar AGT.
 
 ---
 
@@ -300,6 +797,8 @@ Relaciona: `AO-CRYPTO-001`, `AO-KEY-001`.
 **Evidência para fechar:** orientação/escrito oficial AGT ou regra em diploma/manual versionado. Ver GAP-013 em [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) e [backoffice-architecture.md](../02-architecture/backoffice-architecture.md).
 
 **Dependentes:** DEC-SEC-EDGE-KEYS; provisionamento de `TaxpayerKeyRef` na plataforma.
+
+**Nota 2026-07-26:** constraints de produto já em **`DEC-PROD-012`**; esta decisão permanece **aberta** até AGT (definitivo).
 
 ---
 
@@ -335,20 +834,17 @@ Se DEC-REG-KEY-CUSTODY proibir custódia externa, E1/E3 com privada na cloud BWB
 
 | Campo | Valor |
 |---|---|
-| Estado | aberta |
+| Estado | **decidida** |
 | Tipo | Operacional / fiscal |
-| Prazo máximo | Antes da distribuição Edge (após o primeiro slice) |
-| Responsável | Arquitetura + Operações |
+| Prazo máximo | — |
+| Responsável | Arquitetura + Operações + Product Owner |
+| Decisão | 2026-07-26 (via `DEC-PROD-011`) |
 
-Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
+Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md); `DEC-PROD-011`.
 
-**Opções:**
+**Decisão:** opção **1** — uma instalação Edge = um processo fiscal escritor; séries em exclusividade; POS só via API local. Opção **3** rejeitada. Opção **2** (lease/partição) = evolução futura explícita, não MVP.
 
-1. Uma instalação Edge = um processo fiscal proprietário da escrita; séries atribuídas em exclusividade.
-2. Protocolo formal de partição/lease de séries via cloud.
-3. Multi-Edge na mesma série sem coordenação — **rejeitada**.
-
-**Recomendação:** opção 1 no MVP Edge; POS múltiplos apenas via API local. Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technical-stack-proposal.md)).
+Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technical-stack-proposal.md); DEC-STACK-001).
 
 ---
 
@@ -394,14 +890,15 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 
 ## Prioridade de decisão (abertas)
 
-1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante**).
+1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante** / AGT).
 2. **DEC-REG-002** — Decreto 74/19 + Rect. arquivados/`reviewed`; falta fecho AO-* + URL estável.
-3. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
-4. **DEC-SEC-EDGE-KEYS** — local da assinatura cloud/Edge (**bloqueante**; depende de DEC-REG-KEY-CUSTODY e contingência).
-5. **DEC-REG-003** — tipos documentais do MVP.
-6. **DEC-API-004** — momento jurídico da emissão/aceitação.
+3. **DEC-REG-001** — confirmação processual de `ASM-REG-001` (**AGT**).
+4. **DEC-SEC-EDGE-KEYS** — local da assinatura cloud/Edge (**bloqueante**; depende de DEC-REG-KEY-CUSTODY e contingência AGT).
+5. **DEC-REG-003** — ordem/defaults do slice (modelo = `DEC-PROD-014`; **não** é dependência AGT).
+6. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
+7. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, DEC-DEL-001, DEC-API-001, DEC-API-003, **DEC-TIME-001**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**.
 
 ---
 
