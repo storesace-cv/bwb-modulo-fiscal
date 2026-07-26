@@ -36,6 +36,10 @@ REQUIRED_CODES = [
 
 REQUIRED_TOKENS = [
     "não** confirma",
+    "Camadas",
+    "documento legal",
+    "tipo SAF-T",
+    "estrutura SAF-T",
     "AO-LEG-DP-71-25-2025",
     "AO-LEG-DE-683-25-2025",
     "11903",
@@ -47,6 +51,8 @@ REQUIRED_TOKENS = [
     "19169",
     "documentType",
     "InvoiceType",
+    "SalesInvoices",
+    "Payments",
     "C-DOC-001",
     "C-DOC-003",
     "C-SIGN-001",
@@ -99,6 +105,11 @@ def verify(root: Path) -> list[str]:
     for code in REQUIRED_CODES:
         if not re.search(rf"\b{code}\b", text):
             errors.append(f"código FE/SAF-T ausente: {code}")
+
+    # Four orthogonal layers must be named as L1–L4 (not just prose).
+    for layer in ("L1", "L2", "L3", "L4"):
+        if not re.search(rf"\b{layer}\b", text):
+            errors.append(f"camada ausente: {layer}")
 
     for bad in ("AO-DOC-001 confirmado", "tipos confirmados", "validated_agt"):
         if bad.lower() in text.lower() and "não" not in text.lower():

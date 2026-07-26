@@ -1,4 +1,4 @@
-# C-DOC-003 — códigos FE sem `InvoiceType` SAF-T (`FA`, `RC`, `RG`)
+# C-DOC-003 — L4 `documentType` FE ≠ L2 `InvoiceType` ≠ L3 estrutura (`FA`, `RC`, `RG`)
 
 | Campo | Valor |
 |---|---|
@@ -6,16 +6,18 @@
 | Data | 2026-07-26 |
 | Severidade | alta (exportação / dual-stack) |
 
-## Factos
+## Factos (quatro camadas)
 
-1. Enum FE (`documentType` em DE 683/25 + HTML HML) inclui **`FA`**, **`RC`**, **`RG`**.
-2. Elemento SAF-T `InvoiceType` em `SAFTAO1.01_01.xsd` (`e9a938e1…`, `pending_validation`, L2023–2065) **não** enumera `FA`, `RC` nem `RG`.
-3. DP 71/25 reconhece Factura Adiantamento e Recibo como figuras legais (Art.3 g)/o)).
-4. No mesmo XSD, `SAFTAOPaymentType` (**L2740–2754**) sob `SourceDocuments/Payments/Payment/PaymentType` enumera **`RC`**, **`RG`** e **`AR`** — caminho estrutural **distinto** de `SalesInvoices/InvoiceType`; **não** constitui mapeamento FE→SAF-T adoptado.
-5. `FA` continua **ausente** de `InvoiceType` e de `SAFTAOPaymentType`.
+1. **L4** FE `documentType` (DE 683/25 + HTML HML) inclui **`FA`**, **`RC`**, **`RG`**.
+2. **L2** SAF-T `InvoiceType` (`SalesInvoices`, L2023–2065, `e9a938e1…`, `pending_validation`) **não** enumera `FA`, `RC` nem `RG`.
+3. **L3** SAF-T: recibos tipicamente em `Payments/Payment`, **não** em `SalesInvoices/Invoice`.
+4. **L2** `SAFTAOPaymentType` (**L2740–2754**) sob L3 `Payments` enumera **`RC`**, **`RG`**, **`AR`** — **outro** enum e **outra** estrutura que `InvoiceType`.
+5. **L1** DP 71/25 reconhece Factura Adiantamento e Recibo (Art.3 g)/o)) — rótulos legais, **não** códigos.
+6. `FA` ausente de `InvoiceType` e de `SAFTAOPaymentType`.
 
 ## Não fazer
 
-- Não assumir que todo `documentType` FE exporta 1:1 para `InvoiceType`.
-- Não inventar mapeamento SAF-T para `FA`/`RC`/`RG` sem fonte oficial ou decisão compliance.
-- Não tratar a presença de `RC`/`RG` em `SAFTAOPaymentType` como fecho de C-DOC-003.
+- Não tratar L4=`RC` como L2=`InvoiceType` nem como prova de mapeamento.
+- Não tratar L2=`PaymentType=RC` como fecho de L4→SAF-T (são camadas distintas).
+- Não inventar estrutura L3 para `FA` sem fonte oficial / `DEC-REG-003`.
+- Não confundir L1 «Recibo» com L4 `RG`/`RC` nem com L2 `PaymentType`.

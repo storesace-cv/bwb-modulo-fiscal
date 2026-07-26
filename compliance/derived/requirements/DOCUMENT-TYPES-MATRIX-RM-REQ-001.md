@@ -2,7 +2,25 @@
 
 **Estado:** rascunho rastreável — **não** confirma `AO-DOC-001` / `AO-DOC-002` nem fecha `DEC-REG-003`.
 **Data:** 2026-07-26
-**Regra:** PDF original prevalece; OCR/`reviewed` e HTML FE são auxiliares. Códigos FE ≠ códigos SAF-T até mapeamento confirmado por compliance. Sem inventar tipos em falta.
+**Regra:** PDF original prevalece; OCR/`reviewed` e HTML FE são auxiliares. Sem inventar tipos em falta.
+
+## Camadas — não confundir
+
+Estas quatro camadas são **ortogonais**. Homónimos (ex.: «FT», «RC», «Recibo») **não** implicam equivalência.
+
+| # | Camada | O que é | Onde vive | Exemplos | **Não** é |
+|---|---|---|---|---|---|
+| L1 | **Documento legal** | Figura jurídica / obrigação de emissão | DP 71/25 (Art.3–4, 10, …); DE 74/19 (classes) | «Factura», «Nota de crédito», «Recibo» | Código JSON FE; enum XSD |
+| L2 | **Tipo SAF-T** | Enumeração de tipo **dentro** de um bloco XSD | `InvoiceType`, `SAFTAOPaymentType`, `PurchaseType`, … | `InvoiceType=FT`; `PaymentType=RC` | Estrutura XML; `documentType` FE |
+| L3 | **Estrutura SAF-T** | Bloco / tabela do ficheiro `AuditFile` | `SalesInvoices`, `Payments`, `MovementOfGoods`, `WorkingDocuments`, … | Recibo em `Payments/Payment`; venda em `SalesInvoices/Invoice` | Tipo legal; campo FE |
+| L4 | **`documentType` FE** | Campo JSON da API de facturação electrónica | DE 683 Anexo I + HTML HML (`registarFactura` / séries) | `documentType=FA\|FT\|RC\|…` | `InvoiceType`; estrutura SAF-T |
+
+**Regras fail-closed**
+
+1. L1 **não** enumera códigos de dois caracteres — só rótulos legais.
+2. L4 (`documentType`) **não** é L2 (`InvoiceType` / `PaymentType`).
+3. L2 **depende** de L3: o mesmo código pode existir em enums diferentes (`AR` em `InvoiceType` e em `SAFTAOPaymentType`) sem ser o mesmo conceito operacional.
+4. Cruzamentos L1↔L4↔L2↔L3 são **hipóteses** até `DEC-REG-003` + revisão compliance — ver C-DOC-001/002/003.
 
 ## Fontes cruzadas
 
@@ -19,7 +37,9 @@
 
 `private_commit` alinhado: `c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd` (legislação).
 
-## A. Definições legais (DP 71/25) — não são códigos FE
+## A. Camada L1 — documento legal (DP 71/25)
+
+**Não** são códigos FE nem enums SAF-T.
 
 Citação base: ART. **3.º** (Definições) · PDF p.**3–4** · gazeta **11903–11904** · `AO-LEG-DP-71-25-2025`.
 
@@ -55,11 +75,12 @@ Citação: ART. **4.º** n.º**9** · PDF p.**5** · gazeta **11905**.
 | Orçamento de venda ou serviço | p.5 | 11905 | Não factura |
 | Qualquer outro não regulado | p.5 | 11905 | Fail-closed: não inventar |
 
-## B. Códigos FE `documentType` (DE 683/25 + HTML HML)
+## B. Camada L4 — `documentType` da API FE (DE 683/25 + HTML HML)
 
-Campo JSON FE: **`documentType`** (string, minLength 2, maxLength 2), obrigatório no registo.
+Campo JSON FE: **`documentType`** (string, minLength 2, maxLength 2), obrigatório no registo / séries.
+Isto é a **API FE**, não o XSD SAF-T e não o rótulo legal do DP 71.
 
-| Código | Significado (fonte) | DE 683 OCR | FE HTML HML | Alinha a DP 71 (hipótese) |
+| Código L4 | Significado (fonte FE) | DE 683 OCR | FE HTML HML | L1 DP 71 (hipótese — **não** equivalência) |
 |---|---|---|---|---|
 | FA | Factura de Adiantamento | PDF p.**7** · gazeta **19169** | `servico_registar.html` · campo `documentType` | Art.3 g) |
 | FT | Factura | p.7 · 19169 | idem | Art.3 f) |
@@ -107,11 +128,24 @@ Citação consolidada: **Citação G** em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](P
 | `referenceInfo` obrigatório (devolução) | `referenceInfo` | NC (indicar factura base) | DE 683 PDF p.**8** · **19170** |
 | `documentCancelReason` se anulado | `documentCancelReason` | quando `documentStatus=A` | DE 683 PDF p.**6** · **19168**; remete Art.8 n.ºs 8–9 DP 71/25 |
 
-## C. Códigos SAF-T `InvoiceType` (XSD ASSOFT)
+## C. Camadas L2 + L3 — tipo SAF-T vs estrutura SAF-T (XSD ASSOFT)
 
-Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1…` · **`pending_validation`** · elemento `InvoiceType` **L2023–2065** · Citação D em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
+Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1…` · **`pending_validation`** · Citação D em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
 
-| Código | Documentação XSD | Enum XSD |
+### C.0 Estrutura SAF-T (L3) — onde o documento vive no XML
+
+| Estrutura L3 (`SourceDocuments/…`) | Conteúdo típico (XSD) | Tipo L2 associado | ≠ FE |
+|---|---|---|---|
+| `SalesInvoices/Invoice` | Documentos comerciais a clientes | `InvoiceType` (L2023–2065) | `documentType` L4 |
+| `Payments/Payment` | Recibos / avisos-recibo (pagamentos) | `SAFTAOPaymentType` / `PaymentType` (L2740–2754) | `documentType` L4 |
+| `MovementOfGoods` / `WorkingDocuments` | Guias / conferência (fora MVP emissão FE) | outros enums XSD | — |
+| `PurchaseInvoices` | Compras | `PurchaseType` (≠ `InvoiceType`) | — |
+
+**Facto crítico:** `RC`/`RG` em L2 `SAFTAOPaymentType` vivem na estrutura L3 **`Payments`**, **não** em `SalesInvoices/InvoiceType`. Isso **não** mapeia `documentType` FE `RC`/`RG` para `InvoiceType`.
+
+### C.1 Tipo SAF-T L2 — enum `InvoiceType` (só sob `SalesInvoices`)
+
+| Código L2 | Documentação XSD | Enum |
 |---|---|---|
 | FT | Factura | sim |
 | FR | Factura/recibo | sim |
@@ -129,39 +163,45 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 | LD | Imputação a co-seguradora líder | sim (segurador) |
 | RA | Resseguro aceite | sim (segurador) |
 
-**Ausentes no XSD `InvoiceType` face ao enum FE:** `FA`, `RC`, `RG` — conflito [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md).
+**Ausentes em `InvoiceType` face a L4 FE:** `FA`, `RC`, `RG` — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md).
 
-**Facto XSD (não é mapeamento adoptado):** `SAFTAOPaymentType` (`PaymentType` em `SourceDocuments/Payments`, **L2740–2754**) enumera **`RC`**, **`RG`** e **`AR`**. Isto **não** fecha dual-stack FE→`InvoiceType` nem autoriza inventar mapeamento para `FA`.
+### C.2 Tipo SAF-T L2 — enum `SAFTAOPaymentType` (só sob `Payments`)
 
-### C.1 Outros elementos SAF-T ligados a tipos / rectificação
-
-| Elemento | Linhas | Uso |
+| Código L2 | Documentação XSD | Estrutura L3 |
 |---|---|---|
-| `InvoiceNo` | L1974–2001 | Pattern tipo+série/n.º |
-| `InvoiceStatus` | L2003–2021 | N/S/A/R (anulado = A) |
-| `References` | L1004–1023 | Obrigatório quando `InvoiceType=NC` |
-| `Hash` | L1361–1367 | Chave documento; algoritmo fora do XSD (C-SIGN-001) |
-| `HashControl` | L1368–1374 | Controlo de chave; algoritmo fora do XSD |
-| `SAFTAOPaymentType` | L2740–2754 | RC/RG/AR em `Payments` (≠ `InvoiceType`) |
+| RC | Recibo emitido | `Payments` |
+| RG | Outros recibos emitidos | `Payments` |
+| AR | Aviso de cobrança/recibo | `Payments` |
 
-## D. Cruzamento consolidado (legal ↔ FE ↔ SAF-T ↔ OpenAPI)
+### C.3 Outros elementos SAF-T (estrutura / campos — não são L4)
 
-| Tipo (nome) | DP 71 | Código FE | Código SAF-T | OpenAPI BWB actual | Estado linha |
+| Elemento | Linhas | Camada | Uso |
+|---|---|---|---|
+| `InvoiceNo` | L1974–2001 | L3 campo | Pattern tipo+série/n.º **no XML SAF-T** |
+| `InvoiceStatus` | L2003–2021 | L3 campo | N/S/A/R |
+| `References` | L1004–1023 | L3 | Obrigatório quando `InvoiceType=NC` |
+| `Hash` / `HashControl` | L1361–1374 | L3 crypto SAF-T | ≠ JWS FE (C-SIGN-001) |
+
+## D. Cruzamento consolidado (hipótese — quatro colunas distintas)
+
+Colunas **não** são bijecções. Células vazias / ∅ = lacuna ou outra estrutura — **não** inventar.
+
+| L1 documento legal | L4 `documentType` FE | L2 tipo SAF-T | L3 estrutura SAF-T | OpenAPI BWB | Estado |
 |---|---|---|---|---|---|
-| Factura | Art.3 f) @11903 | FT | FT | `invoice` (**hipótese** de mapeamento) | `partial` citação; mapeamento OpenAPI **não** confirmado |
-| Factura-Recibo | Art.3 k) @11903 | FR | FR | — | citado; fora MVP OpenAPI |
-| Factura Global | Art.3 j) @11903 | FG | FG | — | citado |
-| Factura Genérica | Art.3 i) @11903 | GF (HTML; OCR 683 incompleto) | GF | — | C-DOC-001 |
-| Factura Adiantamento | Art.3 g) @11903 | FA | **∅** no `InvoiceType` | — | C-DOC-003 |
-| Aviso de Cobrança | Art.3 d) @11903 | AC | AC | — | citado |
-| Aviso Cobrança/Recibo | Art.6 n.º2 b) @11906 | AR | AR | — | citado |
-| Talão de Venda | Art.3 p) @11904 | TV | TV | — | citado |
-| Recibo | Art.3 o) @11904 | RC / RG | **∅** como InvoiceType | — | C-DOC-002/003 |
-| Nota de Crédito | Art.3 l) @11904 | NC | NC | `credit_note` (**hipótese**) | `partial` citação; mapeamento **não** confirmado |
-| Nota de Débito | Art.3 m) @11904 | ND | ND | — | citado; Art.4 n.º9: não é factura |
-| Autofacturação (FR) | Art.3 c) @11903 | AF | AF | — | citado |
-| Tipos segurador RE/RP/RA/CS/LD | — (não no Art.3) | RE, RP, RA, CS, LD | idem | — | só FE/SAF-T; fora Art.3 DP 71 |
-| Pró-forma / guias / orçamentos | Art.4 n.º9 @11905 | — | — | — | **excluídos** como factura |
+| Factura (Art.3 f) | FT | `InvoiceType=FT` | `SalesInvoices` | `invoice` (**hipótese**) | mapeamento **não** confirmado |
+| Factura-Recibo (Art.3 k) | FR | `InvoiceType=FR` | `SalesInvoices` | — | hipótese |
+| Factura Global (Art.3 j) | FG | `InvoiceType=FG` | `SalesInvoices` | — | hipótese |
+| Factura Genérica (Art.3 i) | GF (HTML; OCR 683 gap) | `InvoiceType=GF` | `SalesInvoices` | — | C-DOC-001 |
+| Factura Adiantamento (Art.3 g) | FA | **∅** `InvoiceType` | **∅** conhecido | — | C-DOC-003 |
+| Aviso de Cobrança (Art.3 d) | AC | `InvoiceType=AC` | `SalesInvoices` | — | hipótese |
+| Aviso Cobrança/Recibo | AR | `InvoiceType=AR` **e/ou** `PaymentType=AR` | `SalesInvoices` **e/ou** `Payments` | — | **duas** estruturas possíveis — sem decisão |
+| Talão de Venda (Art.3 p) | TV | `InvoiceType=TV` | `SalesInvoices` | — | hipótese |
+| Recibo (Art.3 o) | RC / RG | **∅** `InvoiceType`; `PaymentType=RC/RG` | tipicamente `Payments` | — | C-DOC-002/003; L3 ≠ L4 |
+| Nota de Crédito (Art.3 l) | NC | `InvoiceType=NC` | `SalesInvoices` (+ `References`) | `credit_note` (**hipótese**) | mapeamento **não** confirmado |
+| Nota de Débito (Art.3 m); Art.4 n.º9: não é factura | ND | `InvoiceType=ND` | `SalesInvoices` | — | hipótese |
+| Auto-Facturação (Art.3 c) | AF | `InvoiceType=AF` | `SalesInvoices` | — | hipótese |
+| (sem Art.3) segurador | RE, RP, RA, CS, LD | `InvoiceType` idem | `SalesInvoices` | — | só L2/L4 |
+| Excluídos Art.4 n.º9 | — | — | — | — | fora emissão factura |
 
 ## E. DE 74/19 + Rect. 10/19 — validação de software (conjunto normativo)
 
@@ -280,21 +320,23 @@ Art.10 n.º2: taxas diferentes → descrição separada · p.**9** · **11909**.
 | SAF-T comunicação facturas/recibos/outros | Art.25 | p.15 | 11915 | Liga a `AO-SAF-*` |
 | Spec FE por Decreto Executivo | Art.36 | p.19 | 11919 | Ponte para DE 683/25 |
 
-### F.5 Camadas FE / OpenAPI (não substituem Art.10)
+### F.5 Outras camadas (não substituem Art.10 / L1)
 
-| Âmbito | Fonte | Citação | Cobertura |
-|---|---|---|---|
-| Payload FE por tipo | DE 683 + HTML registar | p.7–8 · 19169–19170 | Parcial (B.1) |
-| Anexos II–III / Tabelas | DE 683 Citação G | p.31–65 · 19193–19227 | Modelo a posteriori + REST/QR + tabelas fiscais |
-| OpenAPI MVP | `invoice` / `credit_note` | OpenAPI draft | Subconjunto produto; **não** normativo AGT |
+| Camada | Âmbito | Fonte | Citação | Cobertura |
+|---|---|---|---|---|
+| L4 | Payload FE `documentType` | DE 683 + HTML registar | p.7–8 · 19169–19170 | Parcial (B.1) |
+| L4 | Anexos II–III / Tabelas | DE 683 Citação G | p.31–65 · 19193–19227 | Modelo a posteriori + REST/QR |
+| L2/L3 | Tipo + estrutura SAF-T | XSD ASSOFT | Citação D / secção C | **≠** L4 |
+| Produto | OpenAPI MVP | `invoice` / `credit_note` | OpenAPI draft | Subconjunto; **não** normativo AGT |
 
 ## G. Implicações explícitas (fail-closed)
 
-1. **Não** alargar enums de domínio/OpenAPI além de `invoice`/`credit_note` sem `DEC-REG-003` + revisão compliance.
-2. **Não** tratar OCR DE 683 p.7 como enum completo enquanto `GF` existir no HTML e faltar no OCR (C-DOC-001).
-3. **Não** assumir bijecção FE↔SAF-T (`FA`/`RC`/`RG`).
-4. `AO-DOC-001` permanece **não** confirmado; esta matriz é inventário citado.
-5. Precedência: DP 71/25 (regime) + DE 683/25 (FE) + 74/19+Rect (validação software); conflitos → `compliance/derived/conflicts/`.
+1. **Não** confundir L1 (rótulo legal) · L2 (enum SAF-T) · L3 (estrutura SAF-T) · L4 (`documentType` FE).
+2. **Não** alargar enums de domínio/OpenAPI além de `invoice`/`credit_note` sem `DEC-REG-003` + revisão compliance.
+3. **Não** tratar OCR DE 683 p.7 como enum L4 completo enquanto `GF` existir no HTML e faltar no OCR (C-DOC-001).
+4. **Não** assumir bijecção L4↔L2↔L3 (`FA`/`RC`/`RG`; `PaymentType` ≠ `InvoiceType`).
+5. `AO-DOC-001` permanece **não** confirmado; esta matriz é inventário citado por camada.
+6. Precedência: DP 71/25 (L1) + DE 683/25 (L4) + XSD (L2/L3) + 74/19+Rect (validação); conflitos → `compliance/derived/conflicts/`.
 
 ## Referências
 
