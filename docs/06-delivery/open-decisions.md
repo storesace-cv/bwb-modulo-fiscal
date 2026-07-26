@@ -44,7 +44,7 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 
 | Campo | Valor |
 |---|---|
-| Estado | bloqueada-por-lacuna |
+| Estado | parcialmente mitigada (arquivo + OCR `reviewed`; fecho AO-* / URL estável ainda abertos) |
 | Tipo | Regulatória |
 | Prazo máximo | Paralelo externo; waiver se indisponível no gate interno |
 | Responsável | Compliance |
@@ -61,9 +61,11 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 | 2 | Desbloqueia conector/simulador | Lacunas em assinatura, menções, séries |
 | 3 | Texto disponível localmente | **Inválida:** o ficheiro é «Proposta de Decreto Executivo» (2018), não o 74/19 publicado |
 
-**Recomendação:** opção 1. A opção 3 é **rejeitada** como fonte normativa. Consulta em `local/` apenas para familiarização, sem cópia automática para o repositório.
+**Recomendação:** opção 1. A opção 3 é **rejeitada** como fonte normativa.
 
-**Evidência:** SHA-256, URL/origem, data de obtenção, versão/rectificação.
+**Estado 2026-07-26:** opção 1 **cumprida no arquivo** — DE 74/19 `5b63c80e…` + Rect. 10/19 v2 `b3db14e2…` no privado (`c8a4e6e…`) com OCR `reviewed`; citações provisórias em Citação F / matriz de tipos. **Ainda aberto:** URL oficial estável Imprensa Nacional; promoção a AO-* confirmados; confronto PDF página a página residual.
+
+**Evidência:** SHA-256, paths privados, Rect. v2 (histórico `77b77f01…` só diagnostics).
 
 ---
 
@@ -393,7 +395,7 @@ Relaciona: [edge-architecture.md](../02-architecture/edge-architecture.md).
 ## Prioridade de decisão (abertas)
 
 1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante**).
-2. **DEC-REG-002** — Decreto 74/19 e rectificação oficiais.
+2. **DEC-REG-002** — Decreto 74/19 + Rect. arquivados/`reviewed`; falta fecho AO-* + URL estável.
 3. **DEC-REG-001** — confirmação processual de `ASM-REG-001`.
 4. **DEC-SEC-EDGE-KEYS** — local da assinatura cloud/Edge (**bloqueante**; depende de DEC-REG-KEY-CUSTODY e contingência).
 5. **DEC-REG-003** — tipos documentais do MVP.
