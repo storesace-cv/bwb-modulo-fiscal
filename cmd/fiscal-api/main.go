@@ -15,6 +15,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
@@ -24,6 +25,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/config"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/httpserver"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
 func main() {
@@ -102,13 +104,22 @@ func run() int {
 	}
 	regDialect := adminregistry.DialectSQLite
 	auditDialect := adminaudit.DialectSQLite
+	opsDialect := adminops.DialectSQLite
 	if dialect == persistence.DialectPostgres {
 		regDialect = adminregistry.DialectPostgres
 		auditDialect = adminaudit.DialectPostgres
+		opsDialect = adminops.DialectPostgres
+	}
+	secretsMeta, err := secretstore.NewMemorySimulator(nil)
+	if err != nil {
+		logger.Error("secretstore_init_failed", "error", err.Error())
+		return 1
 	}
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
-		Registry: adminregistry.New(sqlDB, regDialect, nil),
-		Audit:    adminaudit.New(sqlDB, auditDialect, nil),
+		Registry:    adminregistry.New(sqlDB, regDialect, nil),
+		Audit:       adminaudit.New(sqlDB, auditDialect, nil),
+		Ops:         adminops.New(sqlDB, opsDialect),
+		SecretsMeta: secretsMeta,
 	})
 
 	srv := httpserver.New(httpserver.Config{

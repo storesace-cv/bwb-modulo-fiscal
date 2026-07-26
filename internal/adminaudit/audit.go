@@ -99,6 +99,59 @@ func (s *Store) CountForTests(ctx context.Context) (int, error) {
 	return n, err
 }
 
+// ListRecent returns the newest audit events (sanitized; no secrets).
+func (s *Store) ListRecent(ctx context.Context, limit int) ([]Event, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	ph := "?"
+	if s.dialect == DialectPostgres {
+		ph = "$1"
+	}
+	q := `SELECT event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result, COALESCE(request_id, '')
+FROM ` + s.t("admin_audit_events") + `
+ORDER BY occurred_at DESC
+LIMIT ` + ph
+	rows, err := s.db.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("adminaudit: list: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Event, 0)
+	for rows.Next() {
+		var e Event
+		var occurred any
+		if err := rows.Scan(
+			&e.ID, &occurred, &e.ActorSubject, &e.ActorRoles,
+			&e.Action, &e.ResourceType, &e.ResourceID, &e.Result, &e.RequestID,
+		); err != nil {
+			return nil, err
+		}
+		e.OccurredAt, err = parseTime(occurred)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func parseTime(v any) (time.Time, error) {
+	switch x := v.(type) {
+	case time.Time:
+		return x.UTC(), nil
+	case string:
+		return time.Parse(time.RFC3339Nano, x)
+	case []byte:
+		return time.Parse(time.RFC3339Nano, string(x))
+	default:
+		return time.Time{}, fmt.Errorf("adminaudit: time tipo %T", v)
+	}
+}
+
 func (s *Store) t(name string) string {
 	if s.dialect == DialectPostgres {
 		return "fiscal." + name

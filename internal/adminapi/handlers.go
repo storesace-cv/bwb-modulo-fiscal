@@ -11,7 +11,9 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
 const (
@@ -19,10 +21,12 @@ const (
 	maxBodyBytes    = 1 << 20
 )
 
-// Handler serves admin cadastro endpoints.
+// Handler serves admin cadastro and ops visibility endpoints.
 type Handler struct {
-	Registry *adminregistry.Registry
-	Audit    *adminaudit.Store
+	Registry    *adminregistry.Registry
+	Audit       *adminaudit.Store
+	Ops         *adminops.Store
+	SecretsMeta secretstore.AdminView // optional; Metadata only — never Reveal
 }
 
 type problem struct {
@@ -104,6 +108,9 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeRoles(http.HandlerFunc(h.createScopeBinding))))
 	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readRoles(http.HandlerFunc(h.getScopeBinding))))
 	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeRoles(http.HandlerFunc(h.patchScopeBinding))))
+	mux.Handle("GET /admin/v1/audit-events", authMW(readRoles(http.HandlerFunc(h.listAuditEvents))))
+	mux.Handle("GET /admin/v1/ops/submissions", authMW(readRoles(http.HandlerFunc(h.listOpsSubmissions))))
+	mux.Handle("GET /admin/v1/secret-refs/metadata", authMW(readRoles(http.HandlerFunc(h.getSecretRefMetadata))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
