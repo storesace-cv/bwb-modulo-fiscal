@@ -173,6 +173,11 @@ func ClaimsFromContext(ctx context.Context) (Claims, bool) {
 	return c, ok
 }
 
+// ContextWithClaims stores Claims for RequirePermission / handlers (UI HTML auth).
+func ContextWithClaims(ctx context.Context, claims Claims) context.Context {
+	return context.WithValue(ctx, claimsKey, claims)
+}
+
 // ParseRoles parses comma-separated role names.
 func ParseRoles(raw string) ([]Role, error) {
 	parts := strings.Split(raw, ",")

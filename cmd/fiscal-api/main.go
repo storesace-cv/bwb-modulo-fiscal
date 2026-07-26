@@ -17,6 +17,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminui"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
@@ -124,13 +125,27 @@ func run() int {
 			return 1
 		}
 	}
+	registry := adminregistry.New(sqlDB, regDialect, nil)
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
-		Registry:    adminregistry.New(sqlDB, regDialect, nil),
+		Registry:    registry,
 		Audit:       adminaudit.New(sqlDB, auditDialect, nil),
 		Ops:         adminops.New(sqlDB, opsDialect),
 		SecretsMeta: secretsMeta,
 		SecAdm:      secGate,
 	})
+
+	uiHandler, err := adminui.New(registry, docsCfg.Env)
+	if err != nil {
+		logger.Error("adminui_init_failed", "error", err.Error())
+		return 1
+	}
+	injectSubject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
+	var injectRoles []adminauth.Role
+	if docsCfg.Env == config.EnvDevelopment() && strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE")) == "injected" {
+		injectRoles, _ = adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
+	}
+	uiAuth := adminui.BuildUIAuthenticator(adminAuthn, docsCfg.Env, injectSubject, injectRoles)
+	adminui.Mount(mux, uiAuth, uiHandler)
 
 	srv := httpserver.New(httpserver.Config{
 		Addr:              cfg.HTTPAddr,

@@ -1,0 +1,37 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · BWB Admin</title>
+  <link rel="stylesheet" href="/admin/ui/static/admin.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar para conteúdo</a>
+  <header class="top">
+    <div class="brand">
+      <a href="/admin/ui/" aria-label="BWB Admin — início">BWB Admin</a>
+      <span class="env" aria-label="ambiente">{{.EnvLabel}}</span>
+    </div>
+    <nav aria-label="Principal">
+      <ul>
+        <li><a href="/admin/ui/"{{if eq .Nav "dashboard"}} aria-current="page"{{end}}>Painel</a></li>
+        <li><a href="/admin/ui/taxpayers"{{if eq .Nav "taxpayers"}} aria-current="page"{{end}}>Contribuintes</a></li>
+        <li><a href="/admin/ui/establishments"{{if eq .Nav "establishments"}} aria-current="page"{{end}}>Estabelecimentos</a></li>
+        <li><a href="/admin/ui/bindings"{{if eq .Nav "bindings"}} aria-current="page"{{end}}>Bindings</a></li>
+      </ul>
+    </nav>
+    <p class="actor" aria-label="operador">{{.Subject}} · {{.RolesLabel}}</p>
+  </header>
+  <main id="main">
+    <h1>{{.Heading}}</h1>
+    {{if .Flash}}<p class="flash" role="status">{{.Flash}}</p>{{end}}
+    {{template "content" .}}
+  </main>
+  <footer>
+    <p>Plano A — sem segredos. API <code>/admin/v1</code>. IdP real ainda não ligado.</p>
+  </footer>
+</body>
+</html>
+{{end}}

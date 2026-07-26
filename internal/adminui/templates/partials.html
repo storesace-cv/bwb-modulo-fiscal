@@ -1,0 +1,87 @@
+{{define "taxpayer_table"}}
+{{if .}}
+<table>
+  <caption class="sr-only">Lista de contribuintes</caption>
+  <thead>
+    <tr>
+      <th scope="col">NIF</th>
+      <th scope="col">Nome</th>
+      <th scope="col">Estado</th>
+      <th scope="col">ID</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td>{{.NIF}}</td>
+      <td>{{.LegalName}}</td>
+      <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+      <td class="mono">{{.ID}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem contribuintes.</p>
+{{end}}
+{{end}}
+
+{{define "establishment_table"}}
+{{if .}}
+<table>
+  <caption class="sr-only">Lista de estabelecimentos</caption>
+  <thead>
+    <tr>
+      <th scope="col">Código</th>
+      <th scope="col">Nome</th>
+      <th scope="col">Estado</th>
+      <th scope="col">Contribuinte</th>
+      <th scope="col">ID</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td>{{.Code}}</td>
+      <td>{{.Name}}</td>
+      <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+      <td class="mono">{{.TaxpayerID}}</td>
+      <td class="mono">{{.ID}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem estabelecimentos.</p>
+{{end}}
+{{end}}
+
+{{define "binding_table"}}
+{{if .}}
+<table>
+  <caption class="sr-only">Lista de scope bindings</caption>
+  <thead>
+    <tr>
+      <th scope="col">Scope</th>
+      <th scope="col">Ambiente</th>
+      <th scope="col">Timezone</th>
+      <th scope="col">Série</th>
+      <th scope="col">Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td class="mono">{{.ScopeID}}</td>
+      <td>{{.Environment}}</td>
+      <td>{{.IANATimezone}}</td>
+      <td>{{.SeriesEffectiveCode}}</td>
+      <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem bindings.</p>
+{{end}}
+{{end}}

@@ -1,8 +1,8 @@
 # Arquitetura do backoffice operacional
 
-**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API cadastros `RM-BO-001` em código
+**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API admin + UI SSR `RM-UI-001`
 **Âmbito:** ops administrativas — fora do primeiro vertical slice POS
-**Stack:** alinhada a DEC-STACK-001 (API no monólito Go; UI posterior)
+**Stack:** DEC-STACK-001 — API + UI no monólito Go (`html/template` + `embed`); **sem** SPA/npm
 
 ## Posição no sistema
 
@@ -95,8 +95,19 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) + gate owner-only (`RM-SECADM-001`) — concluídos em código; HTTP SecAdm ainda futuro.
 4. Superfície Admin API (`DEC-BO-002` / `RM-BO-001`) — `/admin/v1` cadastros + auth injectável fail-closed + audit append-only; IdP real e UI ainda futuros.
 5. Séries/config não secreta, visibilidade ops, matriz permissões (`RM-BO-002`/`003`/`004`).
-6. UI backoffice mínimo (M7 / `RM-ARCH-005`).
+6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados.
 7. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
+
+### UI (RM-UI-*)
+
+| Princípio | Escolha |
+|---|---|
+| Render | Server-side Go templates (sem React/Vue) |
+| Auth | Mesmo `adminauth.Authenticator` que `/admin/v1`; produção fail-closed |
+| Dados | Mesmo `adminregistry` / ops (contrato admin); sem Bearer no browser |
+| CSP | `default-src 'none'; style-src 'self'; …` — sem scripts no slice 1 |
+| CSRF | N/A no slice 1 (só GET); tokens em formulários a partir de `RM-UI-002` |
+| Segredos | Nunca no HTML/logs/cookies |
 
 ## Referências
 
