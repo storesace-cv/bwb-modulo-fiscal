@@ -40,7 +40,7 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Fundação transacional (SealInTx / `sealed_locally`) concluída para o slice inicial; **motor regulamentar Angola / integração oficial AGT ainda não implementados**.
 - País activo: Angola. País futuro: Cabo Verde.
 - Contrato OpenAPI POS: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
-- Admin API: [`specs/openapi-admin/openapi.yaml`](specs/openapi-admin/openapi.yaml) (`0.1.1-draft`, `/admin/v1`).
+- Admin API: [`specs/openapi-admin/openapi.yaml`](specs/openapi-admin/openapi.yaml) (`0.1.2-draft`, `/admin/v1`).
 - Schema: `ExpectedVersion=6`.
 - Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.1-draft
+  version: 0.1.2-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -9,6 +9,7 @@ info:
     Authenticator injectável fail-closed (testes/dev explícito). Segredos NÃO
     fazem parte deste contrato — zona SecAdm owner-only (DEC-BO-001/002).
     0.1.1: PATCH scope-bindings (séries/timezone/ambiente metadados; RM-BO-002).
+    0.1.2: ops visibility + audit list + secret-ref metadata sanitizado (RM-BO-003).
     Não pronto para produção. ≠ credenciais AGT.
   license:
     name: MIT
@@ -191,6 +192,99 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: Lista eventos de auditoria admin (append-only, sem segredos)
+      tags: [Ops]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Lista de eventos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /ops/submissions:
+    get:
+      operationId: listOpsSubmissions
+      summary: Visibilidade ops de submissões (estados; sem corpos secretos)
+      tags: [Ops]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Resumos sanitizados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSummaryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /secret-refs/metadata:
+    get:
+      operationId: getSecretRefMetadata
+      summary: Metadados sanitizados de uma ref (nunca o segredo)
+      description: >
+        Plano A — fingerprint/status/ambiente apenas. Sem plaintext. Put/Rotate/Revoke
+        permanecem na zona SecAdm owner-only.
+      tags: [Ops]
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [homologation, production]
+        - name: subject_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Metadados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecretRefMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 components:
   securitySchemes:
     adminBearer:
@@ -365,6 +459,91 @@ components:
           type: string
           enum: [active, inactive]
         created_at:
+          type: string
+          format: date-time
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result]
+      properties:
+        event_id:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        actor_subject:
+          type: string
+        actor_roles:
+          type: string
+        action:
+          type: string
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        result:
+          type: string
+        request_id:
+          type: string
+    AuditEventList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+    SubmissionSummary:
+      type: object
+      additionalProperties: false
+      required: [submission_id, document_id, outbox_state, outbox_updated_at]
+      properties:
+        submission_id:
+          type: string
+        document_id:
+          type: string
+        outbox_state:
+          type: string
+        ledger_status:
+          type: string
+        latest_outcome:
+          type: string
+        outbox_updated_at:
+          type: string
+          format: date-time
+    SubmissionSummaryList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmissionSummary"
+    SecretRefMetadata:
+      type: object
+      additionalProperties: false
+      required: [kind, environment, subject_id, name, status, version]
+      properties:
+        kind:
+          type: string
+        environment:
+          type: string
+        subject_id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        fingerprint:
+          type: string
+        version:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+        last_verified_at:
           type: string
           format: date-time
     Problem:
