@@ -76,6 +76,14 @@ def verify(root: Path) -> list[str]:
         fail("matriz deve citar DP 71/25 Art.10 @11908–11909", errors)
     if "4931fd3c" not in text:
         fail("matriz deve referir sha256 do original DP 71/25 (4931fd3c…)", errors)
+    if "5b63c80e" not in text or "b3db14e2" not in text:
+        fail("matriz deve referir sha256 DE 74/19 (5b63c80e…) e Rect. v2 (b3db14e2…)", errors)
+    if "1576" not in text or "1582" not in text:
+        fail("matriz deve citar DE 74/19 gazetas 1576+ e n.º34 @1582+", errors)
+    if "1948" not in text or "1949" not in text:
+        fail("matriz deve citar Rect. 10/19 gazeta 1948–1949", errors)
+    if "C-SIGN-001" not in text:
+        fail("matriz deve referir C-SIGN-001 (SAF-T RSA ≠ JWS FE)", errors)
     if "GAP-002" not in text:
         fail("matriz deve referir GAP-002", errors)
     if "RM-SRC-004" not in text:
@@ -247,6 +255,22 @@ def verify(root: Path) -> list[str]:
         ol = off_rows[0].lower()
         if "não" not in ol or "satisfeito" not in ol:
             fail("AO-OFF-001: a linha deve declarar que o critério não fica satisfeito", errors)
+
+    # AO-OFF-002: partial — DE 74 integration / recovery series.
+    if rows.get("AO-OFF-002") != "partial":
+        fail("AO-OFF-002: deve estar `partial` (DE 74/19 Anexo I n.º7–9)", errors)
+    if "1579" not in text and "1580" not in text:
+        fail("citação AO-OFF-002 deve incluir gazeta 1579 ou 1580", errors)
+    check_partial_row("AO-OFF-002")
+    off2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-OFF-002\s*\|", ln)]
+    if off2_rows:
+        o2 = off2_rows[0].lower()
+        if "não" not in o2 or "satisfeito" not in o2:
+            fail("AO-OFF-002: a linha deve declarar que o critério não fica satisfeito", errors)
+
+    # DOC-002 / SEQ-001 must also mention DE 74 gazeta 1577 when citing immutability/series.
+    if "1577" not in text:
+        fail("matriz deve citar DE 74/19 @1577 (séries / doc assinado)", errors)
 
     return errors
 

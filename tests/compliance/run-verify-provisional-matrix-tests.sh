@@ -57,6 +57,7 @@ cat >"${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" <
 # Matriz provisória
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
 AO-LEG-RECT-10-19-2019 reviewed b3db14e2. AO-LEG-DP-71-25-2025 4931fd3c 11902–11920; p.21 DE 372/25 @11921.
+AO-LEG-DE-74-19-2019 5b63c80e 1576–1586; n.º34 @1582; Rect 1948–1949. C-SIGN-001.
 Art.10 @11908–11909. GAP-002. RM-SRC-004. DOCUMENT-TYPES-MATRIX-RM-REQ-001.
 DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
@@ -65,8 +66,8 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ASM-REG-001 | `scaffold` | — | x |
 | AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
 | AO-DOC-001 | `scaffold` | — | citação pendente |
-| AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 critério **não** fica satisfeito; **Não** confirmado |
-| AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 critério **não** fica satisfeito; **Não** confirmado |
+| AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 1577 critério **não** fica satisfeito; **Não** confirmado |
+| AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 1577 critério **não** fica satisfeito; **Não** confirmado |
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `scaffold` | — | citação pendente |
@@ -75,7 +76,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-AGT-001 | `blocked` | — | x |
 | AO-AGT-002 | `scaffold` | — | x |
 | AO-OFF-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.18 11911 11912 critério **não** fica satisfeito; **Não** confirmado |
-| AO-OFF-002 | `scaffold` | — | x |
+| AO-OFF-002 | `partial` | AO-LEG-DE-74-19-2019 | 1579 1580 critério **não** fica satisfeito; **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | x |
 | AO-SAF-001 | `pending_validation` | x | x |
 | AO-SAF-002 | `pending_validation` | x | x |
@@ -141,6 +142,14 @@ from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
 t = t.replace("| AO-OFF-001 | `partial`", "| AO-OFF-001 | `blocked`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-OFF-002 scaffold indevido" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-OFF-002 | `partial`", "| AO-OFF-002 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 

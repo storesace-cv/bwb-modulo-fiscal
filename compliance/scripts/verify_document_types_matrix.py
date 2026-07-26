@@ -49,10 +49,18 @@ REQUIRED_TOKENS = [
     "InvoiceType",
     "C-DOC-001",
     "C-DOC-003",
+    "C-SIGN-001",
+    "1576",
+    "1577",
+    "1582",
+    "1948",
+    "1949",
     "pending_validation",
     "DEC-REG-003",
     "4931fd3c",
     "b01e4581",
+    "5b63c80e",
+    "b3db14e2",
 ]
 
 

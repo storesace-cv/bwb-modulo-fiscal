@@ -136,18 +136,54 @@ Ficheiro: `SAFTAO1.01_01.xsd` · elemento `InvoiceType` · sha256 `e9a938e1…` 
 | Tipos segurador RE/RP/RA/CS/LD | — (não no Art.3) | RE, RP, RA, CS, LD | idem | — | só FE/SAF-T; fora Art.3 DP 71 |
 | Pró-forma / guias / orçamentos | Art.4 n.º9 @11905 | — | — | — | **excluídos** como factura |
 
-## E. DE 74/19 — classes para validação de software (não enum FE)
+## E. DE 74/19 + Rect. 10/19 — validação de software (conjunto normativo)
 
-Citação OCR auxiliar: anexo requisitos · PDF p.**2–3** · `AO-LEG-DE-74-19-2019` (`5b63c80e…`).
+Fontes: `AO-LEG-DE-74-19-2019` (`5b63c80e…`, 12p, OCR `reviewed`) + `AO-LEG-RECT-10-19-2019` v2 (`b3db14e2…`, 3p, OCR `reviewed`).  
+Gazeta DE 74: **1576–1586** (PDF p.2–12; p.1 = capa/sumário do fascículo). Gazeta Rect.: **1948–1949** (PDF p.2–3; p.1 = capa).  
+POLICY: requisitos derivados devem citar **ambos** quando aplicável. PDF original prevalece.
 
-| Classe (OCR) | PDF | Uso |
-|---|---|---|
-| Facturas e documentos rectificativos | p.2–3 | Assinatura / inalterabilidade / referências |
-| Guias de transporte / remessa / docs de transporte | p.2–3 | Movimentação; menção «não serve de factura» para não-facturas |
-| Documentos de conferência | p.2–3 | Conferência mercadorias/serviços |
-| Referência a documento origem (`OrderReferences`) / facturas (`BillingReferences`) | p.3 | Rectificativos e docs não-factura |
+### E.1 Rectificação n.º 10/19 (o que altera o 74/19)
 
-Rect. 10/19 v2 (gazeta 1948–1949): Anexo III **Modelo 08** (requerimento) — **não** lista tipos de documento de emissão.
+| # | Correcção (OCR auxiliar) | PDF | Gazeta |
+|---|---|---|---|
+| 1 | Art.1.º: aprova regras/requisitos **e** o modelo do requerimento (anexos parte integrante) — referência n.º1 Art.8 DP 312/18 | p.2 | 1948 |
+| 2 | Anexo II, 3.º passo: «SAF-T(**PT**)» → «SAF-T(**AO**)» | p.2 | 1948 |
+| 3 | Inclui **Anexo III** — Modelo do Requerimento (Modelo 08 / declaração produtor + chave pública) | p.2–3 | 1948–1949 |
+
+Anexo III **não** enumera tipos de emissão; é requerimento de validação de software.
+
+### E.2 DE 74/19 — classes de documentos (Anexo I)
+
+| Classe (OCR) | Norma anexo | PDF | Gazeta | Uso |
+|---|---|---|---|---|
+| Facturas e documentos rectificativos | n.º4 a) | p.2–3 | 1576–1577 | Assinatura / eficácia externa |
+| Guias transporte/remessa / docs transporte | n.º4 a) | p.2 | 1576 | Movimentação |
+| Docs conferência / consultas de mesa | n.º4 a) | p.2 | 1576 | Conferência cliente |
+| Não-factura: menção «Este documento não serve de factura» | n.º4 c) | p.3 | 1577 | Tabelas SAF-T 4.2–4.4 |
+| `OrderReferences` / `References` (Billing) | n.º4 d)–e) | p.3 | 1577 | Origem / rectificativos |
+| Tipos FT/NC/ND (exemplo estrutura) | anexo tabelar | p.11 | 1585 | OCR ruidoso; cruzar com FE/SAF-T enums |
+
+### E.3 DE 74/19 — invariantes críticas (Anexo I)
+
+| Tema | Norma | PDF | Gazeta | AO-* candidato |
+|---|---|---|---|---|
+| Exportação SAF-T(AO) + XSD | n.º1 | p.2 | 1576 | `AO-SAF-001` |
+| Chave assimétrica fabricante | n.º2 | p.2 | 1576 | `AO-KEY-*` / crypto SAF-T |
+| Sem alterar info fiscal sem evidência | n.º3 | p.2 | 1576 | `AO-DOC-002` |
+| Assinar docs eficácia externa (excepto recibos) | n.º4 a)–b) → n.º34 | p.2–3 | 1576–1577 | crypto SAF-T (**≠** FE JWS) |
+| Séries por estabelecimento/programa; sem repetir; univocidade | n.º4 g)–i) | p.3 | 1577 | `AO-SEQ-001` / `AO-ID-001` |
+| Série descontinuada: inibir, **não apagar** | n.º4 j) | p.3 | 1577 | `AO-DOC-002` / seq |
+| Doc assinado: **não alterar** informação | n.º4 l) | p.3 | 1577 | `AO-DOC-002` |
+| Encadeamento Hash por série/tipo | n.º5 e) | p.3–4 | 1577–1578 | crypto SAF-T; C-SIGN-001 |
+| Integração multi-sistema sem recalcular | n.º7 | p.5–6 | 1579–1580 | `AO-OFF-002` (parcial) |
+| Contingência tipográfica / recuperação séries | n.º8–9 | p.6 | 1580 | `AO-OFF-*` |
+| RSA + SHA-1 + campos assinados (InvoiceDate, SystemEntryDate, InvoiceNo, GrossTotal, Hash ant.) | n.º**34** | p.8–10 | 1582–1584 | crypto SAF-T; **≠** `jwsDocumentSignature` FE |
+
+### E.4 Limites
+
+- Mecanismo n.º34 é **SAF-T / validação de software**, não o JWS FE (ver [C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)).
+- OCR com ruído tipográfico forte (colunas); confrontar PDF antes de fechar AO-*.
+- p.12 do fascículo inclui início de Despacho 17/19 adjacente — **não** citar como DE 74/19.
 
 ## F. DP 71/25 — requisitos e ciclo de vida (citações página a página)
 
