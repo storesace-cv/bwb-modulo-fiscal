@@ -84,7 +84,7 @@ Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAu
 | Tipo L2 (vendas) | `InvoiceType` sob L3 `SalesInvoices` | L2023–2065 | **Sem** FA/RC/RG — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md); **≠** L4 FE |
 | Estado / anulado | `InvoiceStatus` N/S/A/R | L2003–2021 | “A” = anulado (candidato AO-SAF-002) |
 | Hash SAF-T | `Hash` (max 172) + `HashControl` | L1361–1367 / L1368–1374 / uso L491–492 | Algoritmo **não** está no XSD — DE 74 n.º34 @1582–1584; ≠ JWS FE ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)) |
-| Rectificativos | `References` (quando `InvoiceType=NC`) | L1004–1023 / uso L523 | Candidato AO-SAF-002; DE 74 n.º4 e) @1577 |
+| Rectificativos | `References` (obrigatório quando `InvoiceType=NC`) | L1004–1023 / uso L523 | Candidato AO-SAF-002; DE 74 n.º4 e) @1577 |
 | Tipo L2 + estrutura L3 (recibos) | `SAFTAOPaymentType` / `PaymentType` sob L3 `Payments` | L722–800 / L735 / **L2740–2754** | `RC`/`RG`/`AR` aqui **≠** L4 `documentType` e **≠** L2 `InvoiceType` (C-DOC-003) |
 | Impostos linha | `TaxType` IVA/IS/NS | L2379–2395 | IEC aparece como `IECAmount` / produto tipo “E”, **não** como `TaxType` enum |
 | Obrigação legal exportação | (fora do XSD) DE 74 Anexo I n.º1 | — | Gazeta **1576**; Rect. SAF-T(AO) @1948 |

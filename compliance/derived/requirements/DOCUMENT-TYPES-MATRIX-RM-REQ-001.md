@@ -194,7 +194,7 @@ Colunas **não** são bijecções. Células vazias / ∅ = lacuna ou outra estru
 | Factura Genérica (Art.3 i) | GF (HTML; OCR 683 gap) | `InvoiceType=GF` | `SalesInvoices` | — | C-DOC-001 |
 | Factura Adiantamento (Art.3 g) | FA | **∅** `InvoiceType` | **∅** conhecido | — | C-DOC-003 |
 | Aviso de Cobrança (Art.3 d) | AC | `InvoiceType=AC` | `SalesInvoices` | — | hipótese |
-| Aviso Cobrança/Recibo | AR | `InvoiceType=AR` **e/ou** `PaymentType=AR` | `SalesInvoices` **e/ou** `Payments` | — | **duas** estruturas possíveis — sem decisão |
+| Aviso Cobrança/Recibo (Art.3 d) + Art.6 n.º2 b) | AR | `InvoiceType=AR` **e/ou** `PaymentType=AR` | `SalesInvoices` **e/ou** `Payments` | — | **duas** estruturas possíveis — sem decisão |
 | Talão de Venda (Art.3 p) | TV | `InvoiceType=TV` | `SalesInvoices` | — | hipótese |
 | Recibo (Art.3 o) | RC / RG | **∅** `InvoiceType`; `PaymentType=RC/RG` | tipicamente `Payments` | — | C-DOC-002/003; L3 ≠ L4 |
 | Nota de Crédito (Art.3 l) | NC | `InvoiceType=NC` | `SalesInvoices` (+ `References`) | `credit_note` (**hipótese**) | mapeamento **não** confirmado |
