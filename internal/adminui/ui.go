@@ -96,8 +96,8 @@ type pageBase struct {
 	Subject    string
 	RolesLabel string
 	Flash      string
-	CanWrite  bool
-	CSRFToken string
+	CanWrite   bool
+	CSRFToken  string
 }
 
 type dashboardPage struct {
