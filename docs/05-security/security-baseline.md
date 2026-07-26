@@ -7,6 +7,21 @@
 - Privilégio mínimo e segregação entre suporte, operação e gestão de chaves/credenciais.
 - Credenciais de homologação nunca funcionam em produção; ambientes HML e PRD rigorosamente isolados.
 
+### Admin API RBAC (DEC-BO-002 / RM-BO-004)
+
+Contrato OIDC/JWT distinto do POS Bearer. Papéis: `owner` | `admin` | `operator` | `auditor`.
+Matriz canónica em código: [`internal/adminauth/rbac.go`](../../internal/adminauth/rbac.go).
+
+| Permissão | owner | admin | operator | auditor |
+|---|---|---|---|---|
+| `cadastro.write` | sim | sim | não | não |
+| `cadastro.read` / `ops.read` / `audit.read` / `secret_meta.read` | sim | sim | sim | sim |
+| `secadm.write` (Put/Rotate/Revoke) | **sim** | não | não | não |
+| Leitura de plaintext de segredo | **não existe** | — | — | — |
+
+- **MFA:** exigido em produção quando houver IdP real; **adiado** enquanto `Authenticator` for injectável/fail-closed (sem login local improvisado).
+- Operadores ≠ owner SecAdm; metadados sanitizados ≠ material secreto.
+
 ## Segredos e chaves
 
 - Abstração `SecretStore` (Secret Manager / KMS / HSM conforme fornecedor ainda por decidir).

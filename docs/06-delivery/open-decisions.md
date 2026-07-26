@@ -990,6 +990,7 @@ Gere e observa, **sem** material secreto:
 5. **Apenas `owner`** acede à zona de administração de integração/segredos (SecAdm / `RM-SECADM-*`).
 6. Enquanto não houver IdP real: `Authenticator` **injectável** e **fail-closed** por omissão; `FISCAL_ADMIN_AUTH_MODE=injected` só em `FISCAL_ENV=development` (testes/dev explícito). **Proibido** login local improvisado e credenciais reais AGT.
 7. Mutações admin geram auditoria **append-only** (`admin_audit_events`); segredos nunca na resposta.
+8. Matriz RBAC tipada (`adminauth.Allows` / RM-BO-004): só `owner` tem `secadm.write`; **não existe** permissão de revelar segredo. MFA de operador **adiado** até IdP real.
 
 **Evidência:** este registo; OpenAPI admin; `internal/adminauth`, `internal/adminapi`, `internal/adminaudit`.
 

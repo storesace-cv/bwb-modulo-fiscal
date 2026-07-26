@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Admin API: **RM-BO-004** — matriz RBAC tipada (`adminauth.Allows`); SecAdm write só `owner`; MFA adiado até IdP; sem ACL `secret.reveal`; OpenAPI admin `0.1.3-draft`.
 - Admin API: **RM-BO-003** — GET `/admin/v1/ops/submissions`, `/audit-events`, `/secret-refs/metadata` (só metadados); OpenAPI admin `0.1.2-draft`; sem plaintext/AGT/deploy.
 - Admin API: **RM-BO-002** — PATCH scope-bindings (séries/timezone/ambiente/status metadados); validação IANA; OpenAPI admin `0.1.1-draft`; audit append-only; sem segredos/AGT/deploy.
 - Admin API: **DEC-BO-002** / **RM-BO-001** — `/admin/v1` + OpenAPI admin `0.1.0-draft`; RBAC injectável fail-closed (`adminauth`); auditoria append-only (`0006`); cadastros HTTP sobre `adminregistry`; ≠ POS OpenAPI; sem IdP/credenciais AGT/deploy.
