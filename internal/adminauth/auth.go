@@ -1,6 +1,6 @@
-// Package adminauth implements DEC-BO-002 operator auth: OIDC/JWT RBAC contract
-// with an injectable Authenticator. Fail-closed when no authenticator is configured.
-// Distinct from POS Bearer credential_store. No improvised local login.
+// Package adminauth implements DEC-BO-002/003 operator auth: OIDC/JWT RBAC
+// with an injectable Authenticator. Modes: fail_closed, injected (dev), oidc_jwt.
+// Distinct from POS Bearer credential_store. No improvised local login; no token logging.
 package adminauth
 
 import (
