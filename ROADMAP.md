@@ -41,7 +41,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | POS `0.1.6-draft` · Admin `0.1.0-draft` ([specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml)) |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.1-draft` ([specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml)) |
 | Schema | `ExpectedVersion=6` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
@@ -266,7 +266,7 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
 | [x] | RM-BO-001 | Cadastros: contribuintes, estabelecimentos, scopes/bindings (plano A) | CONCLUÍDO | [specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml) · [internal/adminapi/handlers.go](internal/adminapi/handlers.go) · [internal/adminauth/auth.go](internal/adminauth/auth.go) · [internal/adminaudit/audit.go](internal/adminaudit/audit.go) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-002 + RM-BO-010 | `/admin/v1`; OpenAPI admin 0.1.0-draft; RBAC injectável fail-closed; audit append-only; sem segredos |
-| [ ] | RM-BO-002 | Séries e configuração não secreta; timezone; ambiente HML/PRD (metadados) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 | Ops de scope sem ler segredos |
+| [x] | RM-BO-002 | Séries e configuração não secreta; timezone; ambiente HML/PRD (metadados) | CONCLUÍDO | [specs/openapi-admin/openapi.yaml](specs/openapi-admin/openapi.yaml) · [internal/adminregistry/registry.go](internal/adminregistry/registry.go) · [internal/adminapi/handlers.go](internal/adminapi/handlers.go) · [CHANGELOG.md](CHANGELOG.md) | RM-BO-001 | PATCH `/admin/v1/scope-bindings/{id}`; IANA validado; audit; sem segredos |
 | [ ] | RM-BO-003 | Visibilidade ops: submissões, erros, reconciliação, auditoria; refs só metadados sanitizados | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 + RM-SECADM-002 | Sem corpos secretos na UI |
 | [ ] | RM-BO-004 | Permissões e MFA do plano A; sem ACL de leitura de segredos | PENDENTE | [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | DEC-BO-001 | Operadores ≠ owner SecAdm |
 | [x] | RM-BO-010 | Fundação backend Taxpayer / Establishment / ScopeBinding | CONCLUÍDO | [internal/adminregistry/registry.go](internal/adminregistry/registry.go) · [migrations/postgres/0005_admin_registry.up.sql](migrations/postgres/0005_admin_registry.up.sql) · [migrations/sqlite/0005_admin_registry.up.sql](migrations/sqlite/0005_admin_registry.up.sql) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Persistência cadastros; sem UI; sem segredos; ExpectedVersion=5 (depois `0006` audit) |

@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.0-draft
+  version: 0.1.1-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
     Bearer credential_store POS. Sem IdP real neste draft: implementação usa
     Authenticator injectável fail-closed (testes/dev explícito). Segredos NÃO
     fazem parte deste contrato — zona SecAdm owner-only (DEC-BO-001/002).
+    0.1.1: PATCH scope-bindings (séries/timezone/ambiente metadados; RM-BO-002).
     Não pronto para produção. ≠ credenciais AGT.
   license:
     name: MIT
@@ -160,6 +161,36 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateScopeBindingConfig
+      summary: Actualiza séries/timezone/ambiente/status (metadados não secretos)
+      description: >
+        Não altera taxpayer_id nem establishment_id. Ambiente é metadado
+        (homologation|production|development); não lê nem escreve segredos.
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/ScopeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScopeConfigRequest"
+      responses:
+        "200":
+          description: Binding actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScopeBinding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 components:
   securitySchemes:
     adminBearer:
@@ -288,6 +319,22 @@ components:
           type: string
           enum: [active, inactive]
           default: active
+    UpdateScopeConfigRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, iana_timezone, series_effective_code, status]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+          description: Metadado HML/PRD/dev — sem segredos
+        iana_timezone:
+          type: string
+        series_effective_code:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
     ScopeBinding:
       type: object
       additionalProperties: false

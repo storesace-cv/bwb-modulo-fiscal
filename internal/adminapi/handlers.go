@@ -73,6 +73,13 @@ type createScopeBindingReq struct {
 	Status              string `json:"status"`
 }
 
+type updateScopeConfigReq struct {
+	Environment         string `json:"environment"`
+	IANATimezone        string `json:"iana_timezone"`
+	SeriesEffectiveCode string `json:"series_effective_code"`
+	Status              string `json:"status"`
+}
+
 type scopeBindingResp struct {
 	ScopeID             string `json:"scope_id"`
 	TaxpayerID          string `json:"taxpayer_id"`
@@ -96,6 +103,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/establishments/{establishment_id}", authMW(readRoles(http.HandlerFunc(h.getEstablishment))))
 	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeRoles(http.HandlerFunc(h.createScopeBinding))))
 	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readRoles(http.HandlerFunc(h.getScopeBinding))))
+	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeRoles(http.HandlerFunc(h.patchScopeBinding))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
@@ -213,6 +221,32 @@ func (h *Handler) getScopeBinding(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
 		return
 	}
+	writeJSON(w, http.StatusOK, scopeBindingResp{
+		ScopeID: out.ScopeID, TaxpayerID: out.TaxpayerID, EstablishmentID: out.EstablishmentID,
+		Environment: out.Environment, IANATimezone: out.IANATimezone,
+		SeriesEffectiveCode: out.SeriesEffectiveCode, Status: out.Status,
+		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+	})
+}
+
+func (h *Handler) patchScopeBinding(w http.ResponseWriter, r *http.Request) {
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	scopeID := r.PathValue("scope_id")
+	var req updateScopeConfigReq
+	if err := decodeJSON(r, &req); err != nil {
+		h.audit(r, claims, "scope_binding.update_config", "scope_binding", scopeID, adminaudit.ResultError)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
+	out, err := h.Registry.UpdateScopeConfig(r.Context(), adminregistry.UpdateScopeConfigInput{
+		ScopeID: scopeID, Environment: req.Environment, IANATimezone: req.IANATimezone,
+		SeriesEffectiveCode: req.SeriesEffectiveCode, Status: req.Status,
+	})
+	if err != nil {
+		h.writeRegistryErr(w, r, claims, "scope_binding.update_config", "scope_binding", scopeID, err)
+		return
+	}
+	_ = h.Audit.Record(r.Context(), claims, "scope_binding.update_config", "scope_binding", out.ScopeID, adminaudit.ResultSuccess, requestID(r))
 	writeJSON(w, http.StatusOK, scopeBindingResp{
 		ScopeID: out.ScopeID, TaxpayerID: out.TaxpayerID, EstablishmentID: out.EstablishmentID,
 		Environment: out.Environment, IANATimezone: out.IANATimezone,
