@@ -39,8 +39,9 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Fontes fiscais **SRC-A** / **B0** / **B1** / **B2** concluídos no âmbito documentado; **OCR RM-SRC-004/RM-M2-C BLOQUEADOS** (falta Rect. 10/19 integral; 74/19+683/25 v2 com OCR reviewed); requisitos `AO-*` pendentes.
 - Fundação transacional (SealInTx / `sealed_locally`) concluída para o slice inicial; **motor regulamentar Angola / integração oficial AGT ainda não implementados**.
 - País activo: Angola. País futuro: Cabo Verde.
-- Contrato OpenAPI: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
-- Schema: `ExpectedVersion=5`.
+- Contrato OpenAPI POS: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
+- Admin API: [`specs/openapi-admin/openapi.yaml`](specs/openapi-admin/openapi.yaml) (`0.1.0-draft`, `/admin/v1`).
+- Schema: `ExpectedVersion=6`.
 - Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
 - Staging: [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).

@@ -9,8 +9,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminapi"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
@@ -90,6 +95,22 @@ func run() int {
 	mux.Handle("/v1/health", health.NewHandler(cfg.Version, buildinfo.Revision, cfg.FiscalPackage))
 	mux.Handle("/v1/documents", httpapi.WithRequestID(docs))
 
+	adminAuthn, err := buildAdminAuthenticator(docsCfg)
+	if err != nil {
+		logger.Error("admin_auth_config_invalid", "error", err.Error())
+		return 1
+	}
+	regDialect := adminregistry.DialectSQLite
+	auditDialect := adminaudit.DialectSQLite
+	if dialect == persistence.DialectPostgres {
+		regDialect = adminregistry.DialectPostgres
+		auditDialect = adminaudit.DialectPostgres
+	}
+	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
+		Registry: adminregistry.New(sqlDB, regDialect, nil),
+		Audit:    adminaudit.New(sqlDB, auditDialect, nil),
+	})
+
 	srv := httpserver.New(httpserver.Config{
 		Addr:              cfg.HTTPAddr,
 		ReadTimeout:       cfg.ReadTimeout,
@@ -125,6 +146,28 @@ func run() int {
 		}
 		return 0
 	}
+}
+
+func buildAdminAuthenticator(docsCfg config.DocumentsRuntime) (adminauth.Authenticator, error) {
+	mode := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE"))
+	if mode == "" || mode == "fail_closed" {
+		return adminauth.FailClosedAuthenticator{}, nil
+	}
+	if mode != "injected" {
+		return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=%q inválido (fail_closed|injected)", mode)
+	}
+	if docsCfg.Env != config.EnvDevelopment() {
+		return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=injected só permitido com FISCAL_ENV=development")
+	}
+	subject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
+	roles, err := adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
+	if err != nil {
+		return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_ROLES: %w", err)
+	}
+	if subject == "" {
+		return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_SUBJECT obrigatório quando mode=injected")
+	}
+	return adminauth.StaticAuthenticator{Claims: adminauth.Claims{Subject: subject, Roles: roles}}, nil
 }
 
 func buildAuthenticator(docsCfg config.DocumentsRuntime, sqlDB *sql.DB, dialect persistence.Dialect) (auth.Authenticator, httpapi.AuthAuditor, error) {

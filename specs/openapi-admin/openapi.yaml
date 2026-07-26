@@ -1,0 +1,368 @@
+openapi: 3.1.0
+info:
+  title: BWB Fiscal Admin API
+  version: 0.1.0-draft
+  description: >
+    Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
+    Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
+    Bearer credential_store POS. Sem IdP real neste draft: implementação usa
+    Authenticator injectável fail-closed (testes/dev explícito). Segredos NÃO
+    fazem parte deste contrato — zona SecAdm owner-only (DEC-BO-001/002).
+    Não pronto para produção. ≠ credenciais AGT.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://127.0.0.1:8080/admin/v1
+    description: Desenvolvimento local (Authenticator injectável; não é IdP)
+security:
+  - adminBearer: []
+paths:
+  /taxpayers:
+    post:
+      operationId: createTaxpayer
+      summary: Cria contribuinte (cadastro não secreto)
+      tags: [Cadastros]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaxpayerRequest"
+      responses:
+        "201":
+          description: Contribuinte criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Taxpayer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /taxpayers/{taxpayer_id}:
+    get:
+      operationId: getTaxpayer
+      summary: Obtém contribuinte por id
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/TaxpayerId"
+      responses:
+        "200":
+          description: Contribuinte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Taxpayer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /establishments:
+    post:
+      operationId: createEstablishment
+      summary: Cria estabelecimento sob um contribuinte
+      tags: [Cadastros]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEstablishmentRequest"
+      responses:
+        "201":
+          description: Estabelecimento criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Establishment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /establishments/{establishment_id}:
+    get:
+      operationId: getEstablishment
+      summary: Obtém estabelecimento por id
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      responses:
+        "200":
+          description: Estabelecimento
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Establishment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /scope-bindings:
+    post:
+      operationId: createScopeBinding
+      summary: Cria binding de scope (metadados não secretos)
+      tags: [Cadastros]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScopeBindingRequest"
+      responses:
+        "201":
+          description: Binding criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScopeBinding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /scope-bindings/{scope_id}:
+    get:
+      operationId: getScopeBinding
+      summary: Obtém scope binding por scope_id
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/ScopeId"
+      responses:
+        "200":
+          description: Binding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScopeBinding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        OIDC/JWT de operador (RBAC: owner|admin|operator|auditor). Distinto do
+        bearerAuth POS. Só owner acede SecAdm. Neste draft, o runtime de testes
+        injecta claims via Authenticator; sem IdP real.
+  parameters:
+    TaxpayerId:
+      name: taxpayer_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    EstablishmentId:
+      name: establishment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ScopeId:
+      name: scope_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  schemas:
+    CreateTaxpayerRequest:
+      type: object
+      additionalProperties: false
+      required: [nif, legal_name]
+      properties:
+        nif:
+          type: string
+          minLength: 1
+        legal_name:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+    Taxpayer:
+      type: object
+      additionalProperties: false
+      required: [taxpayer_id, nif, legal_name, status, created_at]
+      properties:
+        taxpayer_id:
+          type: string
+        nif:
+          type: string
+        legal_name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+          format: date-time
+    CreateEstablishmentRequest:
+      type: object
+      additionalProperties: false
+      required: [taxpayer_id, code, name]
+      properties:
+        taxpayer_id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+    Establishment:
+      type: object
+      additionalProperties: false
+      required: [establishment_id, taxpayer_id, code, name, status, created_at]
+      properties:
+        establishment_id:
+          type: string
+        taxpayer_id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+          format: date-time
+    CreateScopeBindingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - scope_id
+        - taxpayer_id
+        - establishment_id
+        - environment
+        - iana_timezone
+        - series_effective_code
+      properties:
+        scope_id:
+          type: string
+        taxpayer_id:
+          type: string
+        establishment_id:
+          type: string
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        iana_timezone:
+          type: string
+          example: Africa/Luanda
+        series_effective_code:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+    ScopeBinding:
+      type: object
+      additionalProperties: false
+      required:
+        - scope_id
+        - taxpayer_id
+        - establishment_id
+        - environment
+        - iana_timezone
+        - series_effective_code
+        - status
+        - created_at
+      properties:
+        scope_id:
+          type: string
+        taxpayer_id:
+          type: string
+        establishment_id:
+          type: string
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        iana_timezone:
+          type: string
+        series_effective_code:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, request_id]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        request_id:
+          type: string
+  responses:
+    Unauthorized:
+      description: Não autenticado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Autenticado sem papel suficiente
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Recurso inexistente
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: Conflito de unicidade
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unprocessable:
+      description: Validação falhou
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"

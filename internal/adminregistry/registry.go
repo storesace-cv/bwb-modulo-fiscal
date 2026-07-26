@@ -243,6 +243,43 @@ func (r *Registry) GetTaxpayer(ctx context.Context, id string) (Taxpayer, error)
 	return out, err
 }
 
+// GetEstablishment returns an establishment by id.
+func (r *Registry) GetEstablishment(ctx context.Context, id string) (Establishment, error) {
+	id = strings.TrimSpace(id)
+	var out Establishment
+	var created any
+	q := `SELECT establishment_id, taxpayer_id, code, name, status, created_at FROM ` + r.t("establishments") + ` WHERE establishment_id = ` + r.ph(1)
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&out.ID, &out.TaxpayerID, &out.Code, &out.Name, &out.Status, &created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Establishment{}, ErrNotFound
+	}
+	if err != nil {
+		return Establishment{}, err
+	}
+	out.CreatedAt, err = parseTime(created)
+	return out, err
+}
+
+// GetScopeBinding returns a scope binding by scope_id.
+func (r *Registry) GetScopeBinding(ctx context.Context, scopeID string) (ScopeBinding, error) {
+	scopeID = strings.TrimSpace(scopeID)
+	var out ScopeBinding
+	var created any
+	q := `SELECT scope_id, taxpayer_id, establishment_id, environment, iana_timezone, series_effective_code, status, created_at FROM ` + r.t("scope_bindings") + ` WHERE scope_id = ` + r.ph(1)
+	err := r.db.QueryRowContext(ctx, q, scopeID).Scan(
+		&out.ScopeID, &out.TaxpayerID, &out.EstablishmentID, &out.Environment,
+		&out.IANATimezone, &out.SeriesEffectiveCode, &out.Status, &created,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ScopeBinding{}, ErrNotFound
+	}
+	if err != nil {
+		return ScopeBinding{}, err
+	}
+	out.CreatedAt, err = parseTime(created)
+	return out, err
+}
+
 func (r *Registry) requireTaxpayer(ctx context.Context, id string) error {
 	_, err := r.GetTaxpayer(ctx, id)
 	return err

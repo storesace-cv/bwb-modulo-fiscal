@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Admin API: **DEC-BO-002** / **RM-BO-001** — `/admin/v1` + OpenAPI admin `0.1.0-draft`; RBAC injectável fail-closed (`adminauth`); auditoria append-only (`0006`); cadastros HTTP sobre `adminregistry`; ≠ POS OpenAPI; sem IdP/credenciais AGT/deploy.
 - Segurança: **RM-SECADM-001** — gate owner-only (`internal/secadm`) sobre AdminView write-only; operadores comuns falham fechado; sem MFA/UI/HTTP ainda.
 - Segurança: **RM-SECADM-002** — contrato write-only `internal/secretstore` (simulator AES-GCM em memória); metadados sanitizados; `AdminRevealDenied`; isolamento HML≠PRD; ≠ KMS/AGT real.
 - Backoffice: **RM-BO-010** — fundação `taxpayers` / `establishments` / `scope_bindings` (`internal/adminregistry`, migration `0005`, `ExpectedVersion=5`); plano A sem segredos; sem UI/deploy.
