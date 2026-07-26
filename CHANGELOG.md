@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Domínio/API: alinhamento a DEC-PROD-004/008/009/011 (enrollment, autoridade módulo, estados, Edge writer); sem declarar conformidade AGT.
 - Compliance: dependências AGT ([`agt-dependencies.md`](docs/01-compliance/agt-dependencies.md)) + **DEC-DEL-002** — credenciais/confirmação externa = `BLOQUEADO_EXTERNO`/`ADIADO` **sem** travar catálogo, domínio, simulador, contratos, persistência nem testes; sem inventar respostas AGT nem declarar conformidade; `RM-FE-001`/`RM-CERT-001` → ADIADO (M6/M9).
 - Produto: **DEC-PROD-001**–**015** (+ **DEC-OPS-001**) — modelo completo SAF-T/FE (5 grupos L3); esquema mínimo + seed [`DOCUMENT-CATALOG-RM-REQ-001.md`](compliance/derived/requirements/DOCUMENT-CATALOG-RM-REQ-001.md) + verifier CI; `DEC-REG-003` = faseamento; sem AO-* confirmados.
 - Compliance RM-REQ-001: matriz de tipos — quatro camadas ortogonais L1 (documento legal) · L2 (tipo SAF-T) · L3 (estrutura SAF-T) · L4 (`documentType` FE); C-DOC-003 reformulado; sem bijecção; sem AO-* confirmados.
