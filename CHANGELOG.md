@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Docs: dashboard `ROADMAP.md` alinhado a RM-SRC-004/RM-M2-C CONCLUÍDO (OCR `reviewed` ≠ AO-* confirmados).
 - Compliance RM-SRC-004 / RM-M2-C: Rect. 10/19 **v2** (`b3db14e2…`, 3p) + DP 71/25 (`4931fd3c…`; citar 11902–11920) OCR `reviewed` no privado ([bwb-fiscal-sources-ao#3](https://github.com/storesace-cv/bwb-fiscal-sources-ao/pull/3) @ `c8a4e6e`); histórico Rect. incompleto `77b77f01…` preservado só em diagnóstico privado.
 - Catálogo público: 21 fontes; `private_commit` alinhado a `c8a4e6e…`; verificador `EXPECTED_COLLECTION_COUNT=21` + page counts Rect=3 / DP71=21.
 - Matriz provisória: admite Rect v2 + DP71; DOC/SEQ-001/TAX → `scaffold` (citação pendente); sem AO-* confirmados.
