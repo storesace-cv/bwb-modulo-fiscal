@@ -226,7 +226,7 @@ Declarar sempre: «simulador — não é a AGT».
 - [ ] VS-T01…VS-T12 cobertos.
 - [ ] POS demo = CLI ou coleção (< 15 min).
 - [ ] Sem portal, webhooks ou frontend.
-- [ ] JWS RS256 real via adaptador; RSA efémero; não certificado.
+- [x] JWS RS256 real via adaptador; RSA efémero; não certificado (`RM-TX-007`; envelope técnico ≠ FE-RNG oficial).
 - [ ] At-least-once + deduplicação + reconciliação documentados.
 - [ ] Separação simulador vs AGT na config.
 - [ ] Scaffold alinhado a DEC-STACK-001 (Go + PostgreSQL cloud + SQLite WAL Edge), só após autorização.
