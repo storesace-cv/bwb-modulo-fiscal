@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import subprocess
 import sys
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
@@ -60,6 +63,10 @@ H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 ITEM_ID_RE = re.compile(r"^RM-[A-Z0-9]+(?:-[A-Z0-9]+)*$")
 RM_TOKEN_RE = re.compile(r"\bRM-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
 SECTION_NUM_RE = re.compile(r"^\d+\.\s+")
+REVIEWED_DATE_RE = re.compile(
+    r"^\*\*Estado revisto em:\*\*\s*(\d{4}-\d{2}-\d{2})\s*$",
+    re.MULTILINE,
+)
 
 
 class Failure(Exception):
@@ -268,6 +275,109 @@ def normalize_text(text: str) -> str:
     )
     text = re.sub(r"\s+", " ", text)
     return text
+
+
+def parse_reviewed_date(text: str, path: str) -> date:
+    matches = REVIEWED_DATE_RE.findall(text)
+    if not matches:
+        fail(path, "-", "campo «Estado revisto em» ausente ou malformado")
+    if len(matches) > 1:
+        fail(path, "-", "campo «Estado revisto em» duplicado")
+    raw = matches[0]
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        fail(path, "-", f"«Estado revisto em» inválido: {raw}")
+    raise AssertionError("unreachable")
+
+
+def strip_reviewed_date_lines(text: str) -> str:
+    """Normaliza o corpo do ROADMAP ignorando só a linha de revisão de estado."""
+    out: list[str] = []
+    for line in text.splitlines():
+        if REVIEWED_DATE_RE.match(line.strip()):
+            continue
+        out.append(line.rstrip())
+    return "\n".join(out).strip() + "\n"
+
+
+def _git_output(repo_root: Path, args: list[str]) -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout
+
+
+def resolve_review_base_ref(repo_root: Path, explicit: str | None) -> str | None:
+    if explicit:
+        return explicit
+    env_base = os.environ.get("ROADMAP_REVIEW_BASE", "").strip()
+    if env_base:
+        return env_base
+    gh_base = os.environ.get("GITHUB_BASE_REF", "").strip()
+    if gh_base:
+        return f"origin/{gh_base}"
+    # Prefer origin/main when available (PR/local); else main.
+    for candidate in ("origin/main", "main"):
+        probe = _git_output(repo_root, ["rev-parse", "--verify", candidate])
+        if probe is not None:
+            return candidate
+    return None
+
+
+def roadmap_material_change(
+    repo_root: Path, roadmap_path: Path, base_ref: str | None
+) -> bool | None:
+    """True se o ROADMAP mudou materialmente vs base; None se Git/base indisponível."""
+    if base_ref is None:
+        return None
+    inside = _git_output(repo_root, ["rev-parse", "--is-inside-work-tree"])
+    if inside is None or inside.strip() != "true":
+        return None
+    try:
+        rel = roadmap_path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        # Cópias mutadas fora da árvore (testes): comparar contra o canónico no Git.
+        rel = CANONICAL_NAME
+    merge = _git_output(repo_root, ["merge-base", "HEAD", base_ref])
+    if merge is None:
+        return None
+    merge_sha = merge.strip()
+    old = _git_output(repo_root, ["show", f"{merge_sha}:{rel}"])
+    if old is None:
+        # Ficheiro novo no branch → alteração material.
+        return True
+    new = roadmap_path.read_text(encoding="utf-8")
+    return strip_reviewed_date_lines(old) != strip_reviewed_date_lines(new)
+
+
+def validate_reviewed_date(
+    text: str,
+    path: str,
+    *,
+    material_change: bool | None,
+    today: date,
+    enforce_freshness: bool,
+) -> None:
+    reviewed = parse_reviewed_date(text, path)
+    if not enforce_freshness or material_change is not True:
+        return
+    if reviewed != today:
+        fail(
+            path,
+            "-",
+            "alteração material ao ROADMAP exige «Estado revisto em» "
+            f"= {today.isoformat()} (encontrado {reviewed.isoformat()})",
+        )
 
 
 def validate_sections(text: str, path: str) -> None:
@@ -541,7 +651,14 @@ def validate_rm_candidates(
         )
 
 
-def verify(repo_root: Path, roadmap_path: Path) -> None:
+def verify(
+    repo_root: Path,
+    roadmap_path: Path,
+    *,
+    today: date | None = None,
+    base_ref: str | None = None,
+    enforce_freshness: bool = True,
+) -> None:
     if roadmap_path.is_relative_to(repo_root):
         rel = str(roadmap_path.relative_to(repo_root))
     else:
@@ -556,6 +673,15 @@ def verify(repo_root: Path, roadmap_path: Path) -> None:
     validate_sections(text, rel)
     validate_distinctions(text, rel)
     validate_local_deps(text, rel)
+    resolved_base = resolve_review_base_ref(repo_root, base_ref)
+    material = roadmap_material_change(repo_root, roadmap_path, resolved_base)
+    validate_reviewed_date(
+        text,
+        rel,
+        material_change=material,
+        today=today or datetime.now(timezone.utc).date(),
+        enforce_freshness=enforce_freshness,
+    )
     anchors = collect_anchors(text)
     items, consumed = parse_items(text, rel)
     validate_rm_candidates(text, rel, items, consumed)
@@ -589,12 +715,40 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Caminho para ROADMAP.md (default: <repo-root>/ROADMAP.md)",
     )
+    parser.add_argument(
+        "--today",
+        default=None,
+        help="Data UTC YYYY-MM-DD para frescura de «Estado revisto em» (testes)",
+    )
+    parser.add_argument(
+        "--base-ref",
+        default=None,
+        help="Ref Git de comparação para alterações materiais (default: auto)",
+    )
+    parser.add_argument(
+        "--skip-reviewed-freshness",
+        action="store_true",
+        help="Não exigir data fresca em alterações materiais (só fixtures)",
+    )
     args = parser.parse_args(argv)
     script_dir = Path(__file__).resolve().parent
     repo_root = (args.repo_root or script_dir.parent).resolve()
     roadmap = (args.roadmap or (repo_root / CANONICAL_NAME)).resolve()
+    today: date | None = None
+    if args.today:
+        try:
+            today = date.fromisoformat(args.today)
+        except ValueError:
+            print(f"invalid --today: {args.today}", file=sys.stderr)
+            return 2
     try:
-        verify(repo_root, roadmap)
+        verify(
+            repo_root,
+            roadmap,
+            today=today,
+            base_ref=args.base_ref,
+            enforce_freshness=not args.skip_reviewed_freshness,
+        )
     except Failure as exc:
         print(str(exc), file=sys.stderr)
         return 1

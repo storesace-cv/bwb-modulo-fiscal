@@ -66,6 +66,8 @@ skeleton_head() {
   cat <<'EOF'
 # ROADMAP
 
+**Estado revisto em:** 2020-01-01
+
 `FISCAL_ENV=homologation` é designação técnica do ambiente sandbox BWB e não é homologação oficial AGT.
 SealInTx / `sealed_locally` não constituem emissão fiscal certificada pela AGT.
 RM-GOV-002: enquanto não houver ruleset, a política assistida não é tecnicamente impossível de contornar.
@@ -105,7 +107,9 @@ write_roadmap() {
 
 run_verify() {
   local d="$1"
-  python3 "${d}/scripts/verify_roadmap.py" --repo-root "${d}" --roadmap "${d}/ROADMAP.md"
+  # Fixtures sem histórico Git: validar estrutura; frescura coberta em testes dedicados.
+  python3 "${d}/scripts/verify_roadmap.py" --repo-root "${d}" --roadmap "${d}/ROADMAP.md" \
+    --skip-reviewed-freshness
 }
 
 # --- valid item ---
@@ -593,7 +597,95 @@ else
   python3 "${VERIFY}" --repo-root "${ROOT}" || true
 fi
 
-# --- 97 items analyzed ---
+# --- Estado revisto em obrigatório ---
+make_base "${TMP}/norev"
+write_roadmap "${TMP}/norev" '| Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
+|---|---|---|---|---|---|---|
+| [x] | RM-TEST-001 | Item válido | CONCLUÍDO | [AGENTS.md](AGENTS.md) | — | Done text |
+| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização humana settings GitHub | Ruleset activo |'
+# remove reviewed date line from fixture
+python3 - <<'PY' "${TMP}/norev/ROADMAP.md"
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = re.sub(r"^\*\*Estado revisto em:\*\*.*\n", "", text, count=1, flags=re.M)
+p.write_text(text, encoding="utf-8")
+PY
+if run_verify "${TMP}/norev" >/dev/null 2>"${TMP}/norev.err"; then bad "Estado revisto ausente"; else
+  if grep -qi 'Estado revisto' "${TMP}/norev.err"; then ok "Estado revisto ausente"; else bad "Estado revisto ausente (msg)"; fi
+fi
+
+# --- alteração material exige data fresca (Git local) ---
+REV_REPO="${TMP}/revgit"
+rm -rf "${REV_REPO}"
+mkdir -p "${REV_REPO}"
+make_base "${REV_REPO}"
+write_roadmap "${REV_REPO}" '| Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
+|---|---|---|---|---|---|---|
+| [x] | RM-TEST-001 | Item válido | CONCLUÍDO | [AGENTS.md](AGENTS.md) | — | Done text |
+| [ ] | RM-GOV-002 | Ruleset | BLOQUEADO | [#rm-gov-002-ruleset-de-main](#rm-gov-002-ruleset-de-main) | Autorização humana settings GitHub | Ruleset activo |'
+(
+  cd "${REV_REPO}"
+  git init -q
+  git config user.email "test@example.com"
+  git config user.name "Test"
+  git add .
+  git commit -q -m "base"
+  git branch -M main
+)
+# material change + stale date
+python3 - <<'PY' "${REV_REPO}/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("**Estado revisto em:** 2020-01-01", "**Estado revisto em:** 2020-01-01")
+text = text.replace("Item válido", "Item válido alterado")
+p.write_text(text, encoding="utf-8")
+PY
+if python3 "${REV_REPO}/scripts/verify_roadmap.py" --repo-root "${REV_REPO}" --base-ref main \
+  --today 2026-07-26 >/dev/null 2>"${TMP}/revstale.err"; then
+  bad "data desactualizada com alteração material"
+else
+  if grep -qi 'alteração material' "${TMP}/revstale.err"; then ok "data desactualizada com alteração material"; else bad "data desactualizada (msg)"; fi
+fi
+# same material change with fresh date → pass
+python3 - <<'PY' "${REV_REPO}/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("**Estado revisto em:** 2020-01-01", "**Estado revisto em:** 2026-07-26")
+p.write_text(text, encoding="utf-8")
+PY
+if python3 "${REV_REPO}/scripts/verify_roadmap.py" --repo-root "${REV_REPO}" --base-ref main \
+  --today 2026-07-26 >/dev/null; then
+  ok "data fresca com alteração material"
+else
+  bad "data fresca com alteração material"
+  python3 "${REV_REPO}/scripts/verify_roadmap.py" --repo-root "${REV_REPO}" --base-ref main --today 2026-07-26 || true
+fi
+# only date bump (no other body change) must not require matching --today against stale... wait:
+# only date change: strip_reviewed ignores date → no material → pass with old... we're changing TO fresh.
+# Test: only bump date from 2020 to 2026 without other changes — not material, pass even if --today differs
+(
+  cd "${REV_REPO}"
+  git add ROADMAP.md
+  git commit -q -m "fresh"
+)
+python3 - <<'PY' "${REV_REPO}/ROADMAP.md"
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = text.replace("**Estado revisto em:** 2026-07-26", "**Estado revisto em:** 2026-07-27")
+p.write_text(text, encoding="utf-8")
+PY
+if python3 "${REV_REPO}/scripts/verify_roadmap.py" --repo-root "${REV_REPO}" --base-ref main \
+  --today 2099-01-01 >/dev/null; then
+  ok "só data sem alteração material"
+else
+  bad "só data sem alteração material"
+fi
+
+# --- 99 items analyzed ---
 COUNT="$(python3 - <<'PY' "${ROOT}/ROADMAP.md"
 import pathlib, re, sys
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
