@@ -190,6 +190,48 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		assertAttemptResponseCount(t, ctx, sqlDB, postgres, rCrash.SubmissionID, 1, 1)
 	})
 
+	t.Run("VS-T09_slow_simulator_authority_processing", func(t *testing.T) {
+		scope := fmt.Sprintf("outbox-t09-%d", time.Now().UnixNano())
+		inner := simulator.New(simulator.OutcomeAccept)
+		entered := make(chan struct{})
+		release := make(chan struct{})
+		slow := &blockingAuthority{
+			inner:   inner,
+			entered: entered,
+			release: release,
+		}
+		r, err := store.SealInTx(ctx, sampleSealReq(scope, "ffffffff-ffff-4fff-8fff-fffffffffff1", "ext-slow", "L", "1.00"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		inner.Script(r.SubmissionID, simulator.OutcomeAccept)
+
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := store.ProcessNextAuthoritySubmission(ctx, slow, persistence.ProcessOpts{})
+			errCh <- err
+		}()
+
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout waiting for slow Submit")
+		}
+		assertLatestLedger(t, ctx, sqlDB, postgres, r.DocumentID, "authority_processing")
+		assertOutboxState(t, ctx, sqlDB, postgres, r.SubmissionID, "in_flight")
+
+		close(release)
+		select {
+		case err := <-errCh:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout waiting for process finish")
+		}
+		assertLatestLedger(t, ctx, sqlDB, postgres, r.DocumentID, "authority_accepted")
+	})
+
 	t.Run("JWS_ephemeral_verified_by_simulator", func(t *testing.T) {
 		scope := fmt.Sprintf("outbox-jws-%d", time.Now().UnixNano())
 		signer, err := fiscaljws.NewEphemeral(fiscaljws.DefaultRSABits)
@@ -293,4 +335,25 @@ func forceStaleInFlight(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgr
 	if _, err := sqlDB.ExecContext(ctx, rebind(postgres, q), past, past, submissionID); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// blockingAuthority holds Submit until release is closed (VS-T09).
+type blockingAuthority struct {
+	inner   *simulator.Client
+	entered chan struct{}
+	release chan struct{}
+	once    bool
+}
+
+func (b *blockingAuthority) Submit(ctx context.Context, req simulator.Request) (simulator.Result, error) {
+	if !b.once {
+		b.once = true
+		close(b.entered)
+		select {
+		case <-b.release:
+		case <-ctx.Done():
+			return simulator.Result{}, ctx.Err()
+		}
+	}
+	return b.inner.Submit(ctx, req)
 }

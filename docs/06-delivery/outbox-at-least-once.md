@@ -20,8 +20,10 @@
 
 | Situação | Comportamento |
 |---|---|
+| Claim / antes do Submit | Ledger → `authority_processing` (VS-T09); outbox `in_flight` |
 | `authority_accepted` / `authority_rejected` | Terminal no slice; número fiscal **não** é reutilizado |
 | `authority_outcome_unknown` | Persistido; exige reconciliação operacional futura — **não** antecipa aceite AGT |
+| Indisponibilidade / erro de transporte | Outbox `pending`; ledger reverte a `sealed_locally` se estava em processing |
 | Resposta/callback duplicado | Idempotência por `submission_id` + estado terminal |
 | Worker reinicia | Reclaim `in_flight` + nova tentativa; sem exactly-once |
 
