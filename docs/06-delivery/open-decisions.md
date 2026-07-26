@@ -864,6 +864,26 @@ Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technic
 
 ---
 
+## DEC-DEL-002 — Credenciais/confirmação AGT não travam trilho interno
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Entrega / governação |
+| Prazo máximo | — |
+| Responsável | Product Owner + Compliance |
+| Decisão | 2026-07-26 |
+
+**Decisão:** itens de **credenciais** e **confirmação externa** AGT classificam-se como **`BLOQUEADO_EXTERNO` / `ADIADO`** (ver [`agt-dependencies.md`](../01-compliance/agt-dependencies.md)).
+
+**Não travam:** catálogo, domínio, simulador, contratos (OpenAPI), persistência (SealInTx/outbox) nem testes/CI.
+
+**Não autorizam:** inventar respostas da AGT; declarar conformidade ou `AO-*` confirmados; tratar simulador como HML oficial.
+
+**ROADMAP:** estados canónicos continuam `BLOQUEADO` \| `ADIADO`; a etiqueta `BLOQUEADO_EXTERNO` vive no inventário AGT e na coluna Done/gate.
+
+---
+
 ## DEC-TIME-001 — Tempo fiscal (`issued_at`) vs tempo técnico (`created_at`)
 
 | Campo | Valor |
@@ -890,6 +910,8 @@ Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technic
 
 ## Prioridade de decisão (abertas)
 
+Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
+
 1. **DEC-REG-KEY-CUSTODY** — custódia externa da chave privada do contribuinte (**bloqueante** / AGT).
 2. **DEC-REG-002** — Decreto 74/19 + Rect. arquivados/`reviewed`; falta fecho AO-* + URL estável.
 3. **DEC-REG-001** — confirmação processual de `ASM-REG-001` (**AGT**).
@@ -898,7 +920,7 @@ Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technic
 6. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 7. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**.
 
 ---
 
