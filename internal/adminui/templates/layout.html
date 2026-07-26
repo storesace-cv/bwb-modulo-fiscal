@@ -22,6 +22,9 @@
         <li><a href="/admin/ui/bindings"{{if eq .Nav "bindings"}} aria-current="page"{{end}}>Bindings</a></li>
         <li><a href="/admin/ui/submissions"{{if eq .Nav "submissions"}} aria-current="page"{{end}}>Submissões</a></li>
         <li><a href="/admin/ui/audit"{{if eq .Nav "audit"}} aria-current="page"{{end}}>Auditoria</a></li>
+        {{if .IsOwner}}
+        <li><a href="/admin/ui/secadm/metadata"{{if eq .Nav "secadm"}} aria-current="page"{{end}}>SecAdm</a></li>
+        {{end}}
       </ul>
     </nav>
     <p class="actor" aria-label="operador">{{.Subject}} · {{.RolesLabel}}</p>

@@ -143,6 +143,7 @@ func run() int {
 	}
 	uiHandler.Ops = opsStore
 	uiHandler.Audit = auditStore
+	uiHandler.SecretsMeta = secretsMeta
 	injectSubject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
 	var injectRoles []adminauth.Role
 	if docsCfg.Env == config.EnvDevelopment() && strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE")) == "injected" {
