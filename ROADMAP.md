@@ -75,7 +75,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | Homologação oficial AGT | NÃO INICIADA |
 | Certificação AGT | NÃO INICIADA |
 | Produção comercial | NÃO INICIADA |
-| Backoffice | Planeado |
+| Backoffice | Separado: plano A funcional vs plano B segredos (`DEC-BO-001`); UI ainda NÃO |
 | Edge | Planeado |
 | Cabo Verde | ADIADO |
 
@@ -104,7 +104,8 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-ARCH-002 | API HTTP + Nginx + systemd | CONCLUÍDO | [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md) · [docs/07-operations/d2-staging-bootstrap-report.md](docs/07-operations/d2-staging-bootstrap-report.md) | — | Sandbox operacional |
 | [x] | RM-ARCH-003 | Migrations dual-engine PG/SQLite | CONCLUÍDO | [internal/platform/dbmigrate/migrate.go](internal/platform/dbmigrate/migrate.go) | — | ExpectedVersion=4 |
 | [x] | RM-ARCH-004 | Scopes multi-tenant e separação de papéis | CONCLUÍDO | [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | — | Plataforma / integradores / contribuintes / estabelecimentos / credenciais POS / chaves AGT / HML-PRD |
-| [ ] | RM-ARCH-005 | Backoffice operacional | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 | UI/ops mínimos em produção |
+| [x] | RM-ARCH-006 | Separação backoffice funcional vs zona segredos (`DEC-BO-001`) | CONCLUÍDO | [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [CHANGELOG.md](CHANGELOG.md) | — | Plano A ops; plano B owner write-only; metadados sanitizados |
+| [ ] | RM-ARCH-005 | Backoffice operacional (UI) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 + RM-BO-010 + RM-SECADM-002 | UI/ops mínimos em produção |
 
 ### 3.3 Motor transacional inicial
 
@@ -260,12 +261,17 @@ SealInTx / `sealed_locally` **não** constituem emissão fiscal certificada.
 
 ## 9. Backoffice
 
+Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffice funcional (cadastros, séries não secretas, estados, auditoria, metadados sanitizados); **plano B** = zona admin de integração/segredos (owner-only, write-only, cofre cifrado, HML≠PRD). Credenciais AGT, privadas, passwords, tokens e URLs privadas **nunca** no plano A.
+
 | Check | ID | Entrega | Estado | Evidência | Dependências / gate | Done |
 |---|---|---|---|---|---|---|
-| [ ] | RM-BO-001 | Gestão integradores, contribuintes, estabelecimentos, NIF, scopes | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 | Cadastros mínimos |
-| [ ] | RM-BO-002 | Séries, timezone, credenciais POS, ambientes HML/PRD | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 | Ops de scope sem ler segredos |
-| [ ] | RM-BO-003 | Referências AGT, submissões, erros, reconciliação, auditoria, SAF-T | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M6–M7 | Visibilidade operacional |
-| [ ] | RM-BO-004 | Permissões e MFA; segredos não legíveis na UI | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | DEC-REG-KEY-CUSTODY | UI sem privadas |
+| [ ] | RM-BO-001 | Cadastros: contribuintes, estabelecimentos, scopes/bindings (plano A) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md) | RM-BO-010 | API/UI cadastros sem segredos |
+| [ ] | RM-BO-002 | Séries e configuração não secreta; timezone; ambiente HML/PRD (metadados) | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 | Ops de scope sem ler segredos |
+| [ ] | RM-BO-003 | Visibilidade ops: submissões, erros, reconciliação, auditoria; refs só metadados sanitizados | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | RM-BO-010 + RM-SECADM-002 | Sem corpos secretos na UI |
+| [ ] | RM-BO-004 | Permissões e MFA do plano A; sem ACL de leitura de segredos | PENDENTE | [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | DEC-BO-001 | Operadores ≠ owner SecAdm |
+| [ ] | RM-BO-010 | Fundação backend Taxpayer / Establishment / ScopeBinding | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/04-domain/domain-model.md](docs/04-domain/domain-model.md) | DEC-BO-001 | Persistência cadastros; sem UI; sem segredos |
+| [ ] | RM-SECADM-001 | Zona admin integração/segredos: owner-only, HML≠PRD, auditoria | PENDENTE | [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | DEC-BO-001 | Superfície B distinta do plano A |
+| [ ] | RM-SECADM-002 | Contrato write-only SecretStore + simulator fail-closed + metadados | PENDENTE | [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | DEC-BO-001 | Sem credenciais reais; sem GET de segredo |
 
 ---
 
