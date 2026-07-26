@@ -13,6 +13,7 @@
 | `AO-LEG-DE-683-25-2025` | `reviewed` v2 (`b01e4581…`, 66p) | Pesquisa auxiliar; citar **apenas** gazeta 19164–19227 (PDF p.2–65) | PDF p.66 = Aviso BNA 4/25 @19228 — **não** citar como DE 683 |
 | `AO-LEG-DP-71-25-2025` | `reviewed` v1 (`4931fd3c…`, 21p) | Pesquisa auxiliar; citar **apenas** gazeta **11902–11920** (PDF p.2–20) | PDF p.21 = DE 372/25 @11921 — **não** citar como DP 71/25 |
 | `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | HTML `pending_validation` (`50ba18e0…`) | Algoritmo JWS/RS256 FE (≠ SAF-T) | Snapshot HML; não validado AGT; sem inventar campos |
+| `AO-FE-SNAP-HML-2026-07-25-REGISTAR` / `SOLICITAR` / `LISTAR` / `LISTAR-FATURAS` / `API` / `MODELO` | HTML `pending_validation` | Endpoints + `FE-RNG-*` + modelo assíncrono | Bytes no privado; sem inventar códigos/paths; ver Citação H |
 | `AO-SAFT-XSD-1.01_01` | schema `pending_validation` (`e9a938e1…`) | Referência técnica ASSOFT MIT | Não afirmado como validado pela AGT |
 
 ## Bloqueios explícitos (fail-closed)
@@ -153,22 +154,40 @@ Fonte: `AO-LEG-DE-683-25-2025` · sha256 `b01e45813eccc54790ce23ae64bba456473156
 
 Detalhe tipos FE: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md). Limites: OCR auxiliar (ex.: «ANEXO \|» = Anexo I); **não** inventar `FE-RNG-*`; JWS FE ≠ Hash SAF-T (C-SIGN-001); tabelas fiscais **não** fecham arredondamento/cálculo MVP; **não** confirma AO-*.
 
+### Citação H — documentação oficial FE HML (registar / listar / séries / FE-RNG)
+
+Fontes (`pending_validation`, bytes no privado `c93db4f…`):
+
+| source_id | SHA256 | Uso nesta citação |
+|---|---|---|
+| `AO-FE-SNAP-HML-2026-07-25-REGISTAR` | `eb430954…` | `POST …/v1/registarFactura`; inventário FE-RNG-002…031 + 061/068/069/073 |
+| `AO-FE-SNAP-HML-2026-07-25-SOLICITAR` | `f8fb22e7…` | `solicitarSerie` PRD; FE-RNG séries 049–060 / 080–081; refs 082/083 em `authorizedQuantity` |
+| `AO-FE-SNAP-HML-2026-07-25-LISTAR` | `5729f02c…` | `listarSeries` HML+PRD `/v1/listarSeries` |
+| `AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS` | `c748caca…` | `listarFacturas` (HML com `/ws/` — C-FE-001) |
+| `AO-FE-SNAP-HML-2026-07-25-API` | `06a9dbdf…` | Basic Auth; exemplo HML `registarFactura` |
+| `AO-FE-SNAP-HML-2026-07-25-MODELO` | `f851f512…` | Assíncrono: `requestID` + consulta estado |
+| `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | `50ba18e0…` | JWS RS256 (já Citação C) |
+
+Inventário completo: [`FE-SERVICES-MATRIX-RM-REQ-001.md`](FE-SERVICES-MATRIX-RM-REQ-001.md). Conflito paths: [C-FE-001](../conflicts/C-FE-001-fe-endpoint-path-inconsistency.md).
+
+Limites: HTML ≠ validação AGT; GAP-006 credenciais; **não** inventar `FE-RNG-001` isolado nem E-codes 082/083; **não** confirma AO-*.
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
-| AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + séries por estabelecimento Anexo I n.º4 i) @**1577**. Terminal **não** coberto; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
+| AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 + FE HML | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + DE74 @**1577** + FE `establishmentNumber` / **FE-RNG-080** (Citação H). Terminal **não** coberto; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
 | AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | Art.10 DP71 + enum FE Anexo I @**19169–19170** (Citação G) + classes 74/19 n.º4 @**1576–1577**; falta mapeamento validador + C-DOC-* + DEC-REG-003; critério do catálogo **não** fica satisfeito; **não** confirmado |
 | AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) + DE 683 | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**) + FE `documentStatus` A/C @**19168**. Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-LEG-DP-71-25-2025` | Ligação preliminar: DE 683 ART.4 @**19164** (séries AGT) + `solicitarSerie` @**19183–19184** + DP 71 Art.10 b)/Art.24 @**11908**/**11914**. O critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-SEQ-002 | `partial` | DE 683 + DP 71 + FE HML | Ligação preliminar: ART.4 @**19164** + `solicitarSerie` @**19183–19184** + FE `solicitarSerie`/`listarSeries` + FE-RNG-051/053/055–060 (Citação H); C-FE-001 paths abertos. Critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação (`submissionGUID` FE @**19166** é candidato, não fecho) |
 | AO-TAX-001 | `partial` | DE 683 Anexo I + Tabelas 2–6 | Ligação preliminar: `taxType`/`taxCode`/`taxExemptionCode` @**19171–19173** + Tabelas 2–6 @**19212–19227** (Citação G). Arredondamento/cálculo MVP e DEC-REG-003 **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-CRYPTO-001 | `partial` | DE 683 + FE HML (+ DE 74/19 só como contraste) | Ligação preliminar FE: `jwsDocumentSignature` @**19168** + RS256 snapshot (`pending_validation`). Encadeamento Hash SAF-T n.º34 @**1582–1584** é **outro** mecanismo (C-SIGN-001); **não** misturar. Critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 | Custódia de chave contribuinte em aberto |
-| AO-AGT-001 | `blocked` | FE HML/PRD oficiais | Credenciais/docs oficiais AGT pendentes |
-| AO-AGT-002 | `scaffold` | DE 683 Anexo II–III | Inventário REST @**19193–19194** (Citação G); máquina de estados produto — DEC-API-004; **não** confirmado |
+| AO-AGT-001 | `pending_validation` | FE HML snapshots (Citação H) | Endpoints + FE-RNG + Basic Auth citados (`eb430954…`/`f8fb22e7…`/…); C-FE-001 + GAP-006 credenciais abertos; critério do catálogo **não** fica satisfeito só com snapshots; **não** confirmado |
+| AO-AGT-002 | `partial` | FE MODELO + DE 683 | Ligação preliminar: assíncrono `requestID` + `obterEstado` (`f851f512…`, Citação H) + validação a posteriori Anexo II @**19193**. DEC-API-004 / estados completos **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-001 | `partial` | DP 71 + DE 683 | Ligação preliminar: Art.18 @**11911–11912** + FE `obterEstado`/`validationStatus` P (atraso >24h sem contingência) @**19179**/**19183**. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
@@ -179,13 +198,12 @@ Detalhe tipos FE: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-
 
 ## Próximos passos (este item)
 
-1. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
-2. Fechar C-DOC-003 (FA/RC/RG vs `InvoiceType`; hipótese `RC`→`Payments` **não** adoptada sem decisão).
-3. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
-4. AO-TAX-001: arredondamento/cálculo + revisão compliance — manter `partial` (não confirmado).
-5. Separar implementação crypto FE vs SAF-T (C-SIGN-001) — Hash XSD ≠ algoritmo n.º34.
-6. AO-ID-001: terminal ainda em falta — manter `partial`.
-7. Não promover nenhuma linha a confirmado; não alargar OpenAPI sem DEC-REG-003.
+1. Fechar C-FE-001 (paths HML `/ws/` vs `/v1`; URL solicitarSerie) + GAP-006 credenciais — manter `AO-AGT-001` `pending_validation`.
+2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
+3. Fechar C-DOC-003 (FA/RC/RG vs `InvoiceType`).
+4. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
+5. AO-ID-001: terminal ainda em falta — manter `partial`.
+6. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003.
 
 ## Referências
 
@@ -194,4 +212,5 @@ Detalhe tipos FE: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-
 - Gaps: [`docs/01-compliance/regulatory-gaps.md`](../../../docs/01-compliance/regulatory-gaps.md)
 - Aquisição Rect. (privado): `storesace-cv/bwb-fiscal-sources-ao` → `docs/ACQUISITION-RECT-10-19.md`
 - Tipos documentais: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)
+- Serviços FE / FE-RNG: [`FE-SERVICES-MATRIX-RM-REQ-001.md`](FE-SERVICES-MATRIX-RM-REQ-001.md)
 - Verificador: [`compliance/scripts/verify_provisional_matrix.py`](../../scripts/verify_provisional_matrix.py)

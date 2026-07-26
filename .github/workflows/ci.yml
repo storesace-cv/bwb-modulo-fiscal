@@ -59,6 +59,8 @@ jobs:
           bash tests/compliance/run-verify-provisional-matrix-tests.sh
           python3 compliance/scripts/verify_document_types_matrix.py
           bash tests/compliance/run-verify-document-types-matrix-tests.sh
+          python3 compliance/scripts/verify_fe_services_matrix.py
+          bash tests/compliance/run-verify-fe-services-matrix-tests.sh
           bash compliance/scripts/verify_no_local_deps.sh
 
       - name: ROADMAP structural validation
@@ -84,6 +86,7 @@ jobs:
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-catalog-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-provisional-matrix-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-document-types-matrix-tests.sh
+          shellcheck -e SC2015,SC2016 tests/compliance/run-verify-fe-services-matrix-tests.sh
 
       - name: Deploy D1 script tests
         run: |

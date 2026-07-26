@@ -390,6 +390,70 @@ def verify(root: Path) -> list[str]:
     if seq2_rows:
         if "19183" not in seq2_rows[0] and "solicitarSerie" not in seq2_rows[0]:
             fail("AO-SEQ-002: a linha deve citar solicitarSerie ou gazeta 19183", errors)
+        if "FE-RNG-" not in seq2_rows[0] and "listarSeries" not in seq2_rows[0]:
+            fail("AO-SEQ-002: a linha deve citar FE-RNG séries ou listarSeries", errors)
+
+    # Citação H — FE HML snapshots / FE-RNG (section-scoped).
+    m_h = re.search(
+        r"###\s+Citação H\b.*?(?=\n###\s|\n##\s|$)",
+        text,
+        flags=re.S,
+    )
+    if not m_h:
+        fail("matriz deve incluir secção ### Citação H (FE HML / FE-RNG)", errors)
+    else:
+        citation_h = m_h.group(0)
+        for token in (
+            "AO-FE-SNAP-HML-2026-07-25-REGISTAR",
+            "AO-FE-SNAP-HML-2026-07-25-SOLICITAR",
+            "AO-FE-SNAP-HML-2026-07-25-LISTAR",
+            "eb430954",
+            "f8fb22e7",
+            "5729f02c",
+            "FE-RNG-",
+            "registarFactura",
+            "solicitarSerie",
+            "listarSeries",
+            "C-FE-001",
+            "pending_validation",
+            "FE-SERVICES-MATRIX-RM-REQ-001",
+        ):
+            if token not in citation_h:
+                fail(f"Citação H deve incluir `{token}` na própria secção", errors)
+
+    if "FE-SERVICES-MATRIX-RM-REQ-001" not in text:
+        fail("matriz deve referir FE-SERVICES-MATRIX-RM-REQ-001", errors)
+
+    # AO-AGT-001: pending_validation — FE snapshots cited; never confirmed.
+    if rows.get("AO-AGT-001") != "pending_validation":
+        fail("AO-AGT-001: deve estar `pending_validation` (snapshots FE; GAP-006/C-FE-001)", errors)
+    agt1_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-AGT-001\s*\|", ln)]
+    if agt1_rows:
+        a1 = agt1_rows[0]
+        a1l = a1.lower()
+        if "não" not in a1l or "satisfeito" not in a1l:
+            fail("AO-AGT-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "FE-RNG" not in a1 and "eb430954" not in a1 and "Citação H" not in a1:
+            fail("AO-AGT-001: a linha deve citar FE-RNG / sha REGISTAR / Citação H", errors)
+        if "GAP-006" not in a1 and "C-FE-001" not in a1 and "credencial" not in a1l:
+            fail("AO-AGT-001: a linha deve mencionar GAP-006, C-FE-001 ou credenciais", errors)
+    else:
+        fail("linha de tabela AO-AGT-001 ausente", errors)
+
+    # AO-AGT-002: partial — async requestID / obterEstado.
+    if rows.get("AO-AGT-002") != "partial":
+        fail("AO-AGT-002: deve estar `partial` (modelo assíncrono FE)", errors)
+    check_partial_row("AO-AGT-002")
+    agt2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-AGT-002\s*\|", ln)]
+    if agt2_rows:
+        a2 = agt2_rows[0]
+        a2l = a2.lower()
+        if "requestid" not in a2l and "obterestado" not in a2l and "f851f512" not in a2:
+            fail("AO-AGT-002: a linha deve citar requestID, obterEstado ou sha MODELO", errors)
+        if "não" not in a2l or "satisfeito" not in a2l:
+            fail("AO-AGT-002: a linha deve declarar que o critério não fica satisfeito", errors)
+    else:
+        fail("linha de tabela AO-AGT-002 ausente", errors)
 
     return errors
 
