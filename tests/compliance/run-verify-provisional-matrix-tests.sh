@@ -19,7 +19,7 @@ else
   bad "repositório real"
 fi
 
-# Fixture: missing banner / Rect-dependent not blocked must fail
+# Fixture: missing banner / admissions must fail
 mkdir -p "${TMP}/compliance/derived/requirements"
 cat >"${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" <<'EOF'
 # bad
@@ -27,12 +27,12 @@ cat >"${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" <
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | x |
 | AO-ID-001 | `scaffold` | — | x |
-| AO-DOC-001 | `scaffold` | — | should be blocked |
-| AO-DOC-002 | `scaffold` | — | should be blocked |
-| AO-SEQ-001 | `scaffold` | — | should be blocked |
+| AO-DOC-001 | `scaffold` | — | x |
+| AO-DOC-002 | `scaffold` | — | x |
+| AO-SEQ-001 | `scaffold` | — | x |
 | AO-SEQ-002 | `scaffold` | — | x |
 | AO-IDEM-001 | `scaffold` | — | x |
-| AO-TAX-001 | `scaffold` | — | should be blocked |
+| AO-TAX-001 | `scaffold` | — | x |
 | AO-CRYPTO-001 | `blocked` | — | x |
 | AO-KEY-001 | `blocked` | — | x |
 | AO-AGT-001 | `blocked` | — | x |
@@ -56,19 +56,20 @@ fi
 cat >"${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" <<'EOF'
 # Matriz provisória
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
-AO-LEG-RECT-10-19-2019 excluída. GAP-002. RM-SRC-004 BLOQUEADO.
+AO-LEG-RECT-10-19-2019 reviewed b3db14e2. AO-LEG-DP-71-25-2025 4931fd3c 11902–11920; p.21 DE 372/25 @11921.
+GAP-002. RM-SRC-004.
 DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | x |
 | AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
-| AO-DOC-001 | `blocked` | — | Rect |
-| AO-DOC-002 | `blocked` | — | Rect |
-| AO-SEQ-001 | `blocked` | — | Rect |
+| AO-DOC-001 | `scaffold` | — | citação pendente |
+| AO-DOC-002 | `scaffold` | — | citação pendente |
+| AO-SEQ-001 | `scaffold` | — | citação pendente |
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
-| AO-TAX-001 | `blocked` | — | Rect |
+| AO-TAX-001 | `scaffold` | — | citação pendente |
 | AO-CRYPTO-001 | `partial` | AO-LEG-DE-683-25-2025 + AO-FE-SNAP-HML-2026-07-25-ESTRUTURA | jwsDocumentSignature 19168 RS256 pending_validation SAF-T encadeamento **não** citado; critério **não** fica satisfeito; **Não** confirmado |
 | AO-KEY-001 | `blocked` | — | x |
 | AO-AGT-001 | `blocked` | — | x |
@@ -111,19 +112,19 @@ t = t.replace("| AO-SEQ-002 | `partial`", "| AO-SEQ-002 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 
-mutate_real "AO-DOC-001 desbloqueado" '
+mutate_real "AO-DOC-001 promovido a partial sem citação" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-DOC-001 | `blocked`", "| AO-DOC-001 | `partial`")
+t = t.replace("| AO-DOC-001 | `scaffold`", "| AO-DOC-001 | `partial`")
 p.write_text(t, encoding="utf-8")
 '
 
-mutate_real "AO-SEQ-001 desbloqueado" '
+mutate_real "AO-SEQ-001 promovido a blocked indevido" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-SEQ-001 | `blocked`", "| AO-SEQ-001 | `scaffold`")
+t = t.replace("| AO-SEQ-001 | `scaffold`", "| AO-SEQ-001 | `blocked`")
 p.write_text(t, encoding="utf-8")
 '
 

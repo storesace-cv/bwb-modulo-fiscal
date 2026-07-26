@@ -1,13 +1,14 @@
 catalog_version: 1
 collection_id: arquivo_fiscal_ao-2026-07-25
 retrieved_at: '2026-07-25'
-description: 'Metadados arquivo_fiscal_ao. Originais B1 + OCR reviewed (74/19 v1, 683/25 v2) no privado.
-  FAIL-CLOSED: Rect. 10/19 sem original integral oficial (sem derivatives públicos). RM-SRC-004/RM-M2-C
-  BLOQUEADOS até 3 diplomas correctos reviewed. XSD SAFTAO1.01_01 pending_validation. PDF original =
-  única fonte normativa.'
+description: 'Metadados arquivo_fiscal_ao. Originais B1 + OCR reviewed (74/19 v1,
+  Rect. 10/19 v2, 683/25 v2, DP 71/25 v1) no privado. Rect v1 incorrecta preservada
+  só em diagnóstico privado. DP 71/25: citar só gazeta 11902–11920 (PDF p.21 = DE 372/25).
+  XSD SAFTAO1.01_01 pending_validation. PDF original = única fonte normativa.'
 sources:
 - id: AO-LEG-DE-74-19-2019
-  official_name: Decreto Executivo n.º 74/19 (Diário da República I Série n.º 30, 6 de Março de 2019)
+  official_name: Decreto Executivo n.º 74/19 (Diário da República I Série n.º 30,
+    6 de Março de 2019)
   authority: MINFIN / Diário da República
   type: legislation
   version: 74/19
@@ -26,7 +27,7 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_30_2019_DE_74-19.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: dbae3260df3b8865afd712ffc3e81925a63fb399
+  private_commit: c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd
   private_repository_path: originals/legislation/AO-LEG-DE-74-19-2019/original/Diario_Republica_I_30_2019_DE_74-19.pdf
   page_count: 12
   text_extractable: false
@@ -108,21 +109,21 @@ sources:
   affects:
   - docs/01-compliance/
   - compliance/derived/requirements/
-  notes: 'OCR v1 reviewed (ai_assisted, 2 passes) no privado — utilizável para pesquisa auxiliar. Conjunto
-    normativo com Rect. 10/19 CONTINUA BLOQUEADO: Rect. sem original correcto/`reviewed`. PDF original
-    sha256 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd. Não substitui o PDF original;
-    não fecha RM-SRC-004 sozinho.'
+  notes: 'OCR v1 reviewed (ai_assisted, 2 passes) no privado — utilizável para pesquisa
+    auxiliar. Conjunto com Rect. 10/19 v2 também `reviewed` (OCR ≠ AO-* confirmados).
+    PDF original sha256 5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd.
+    Não substitui o PDF original.'
 - id: AO-LEG-RECT-10-19-2019
-  official_name: Rectificação n.º 10/19 ao Decreto Executivo n.º 74/19 (Diário da República I Série n.º
-    40, 26 de Março de 2019)
+  official_name: Rectificação n.º 10/19 ao Decreto Executivo n.º 74/19 (Diário da
+    República I Série n.º 40, 26 de Março de 2019)
   authority: MINFIN / Diário da República
   type: legislation
   version: 10/19
   published_at: '2019-03-26'
-  retrieved_at: '2026-07-25'
-  source_url: https://files.lex.ao/presidente-da-republica/2019/decreto-presidencial-n-o-99-19-de-26-de-marco/download/decreto-presidencial-n-o-99-19-de-26-de-marco_presidente-da-republica_lex-ao.pdf
+  retrieved_at: '2026-07-26'
+  source_url: https://www.ucm.minfin.gov.ao
   url_status: pending_validation
-  sha256: 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5
+  sha256: b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014
   status: pending_validation
   supersedes: []
   superseded_by: []
@@ -133,36 +134,172 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: dbae3260df3b8865afd712ffc3e81925a63fb399
-  private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
-  page_count: 2
+  private_commit: c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd
+  private_repository_path: originals/legislation/AO-LEG-RECT-10-19-2019/v2/original/Diario_Republica_I_40_2019_Rectificacao_10-19.pdf
+  page_count: 3
   text_extractable: false
   conversion_required: true
   normative_role: normative_original
   required_future_derivatives:
   - searchable_pdf
   - markdown_text
-  derivatives: []
+  derivatives:
+  - kind: searchable_pdf
+    original_sha256: b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-26T02:22:36Z'
+    derivative_sha256: 4f84bc64fbed2eee22f424e878a7440a4f6bfd994a5b0ccaeac76409968e3e0c
+    page_count: 3
+    review_status: reviewed
+    pages_reviewed: &id001
+    - 1
+    - 2
+    - 3
+    low_confidence_or_errors: &id002
+    - layout_two_column_cover_page_1
+    - form_linearization_anexo_iii_page_3
+    human_corrections_ref: null
+    derivative_version: v2
+    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v2/searchable.pdf
+    versioned_path: null
+  - kind: markdown_text
+    original_sha256: b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-26T02:22:36Z'
+    derivative_sha256: 408760ba5157fbdfb989aab76a094f12224de963704aca2b1b10b8e93b0dca9c
+    page_count: 3
+    review_status: reviewed
+    pages_reviewed: *id001
+    low_confidence_or_errors: *id002
+    human_corrections_ref: null
+    derivative_version: v2
+    private_repository_path: derivatives/legislation/AO-LEG-RECT-10-19-2019/v2/text.md
+    versioned_path: null
   tags:
   - normativa_legal
   - redistribuicao_incerta
   - candidato_copia_versionada
   - image_only
-  - ocr_pending
+  - ocr_reviewed
   derived_requirements: []
   affects:
   - docs/01-compliance/
   - compliance/derived/requirements/
-  notes: 'ORIGINAL ARQUIVADO INCORRECTO/INCOMPLETO (sha256 77b77f015036569322bb01bc9baccaae323c8573dab1cc64dc14d19a8165a5a5):
-    PDF de 2 páginas do DR I/40/2019 contém apenas sumário com menção à Rectificação n.º 10/19; a página
-    2 é Decreto Presidencial n.º 99/19–100/19. URL catalogada LEX.AO aponta para DP 99/19 (url_status
-    pending_validation / desalinhada). OCR diagnóstico rejected existe apenas no repo privado sob derivatives/legislation/AO-LEG-RECT-10-19-2019/v1/
-    — NÃO utilizável como base de conhecimento nem para AO-*. Tentativas oficiais 2026-07-25 (UCM MINFIN
-    PDFs avulsos ≠ Rect. 10/19; Imprensa Nacional timeout/TLS; LEX.AO 404) documentadas no privado
-    docs/ACQUISITION-RECT-10-19.md. Aquisição oficial ainda necessária: DR I/40/2019 com texto integral
-    da Rectificação n.º 10/19 (MINFIN / Imprensa Nacional).'
+  notes: 'ORIGINAL v2 correcto (sha256 b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014,
+    3p). Gazeta 1948–1949 (PDF p.2–3) = Rectificação n.º 10/19 + Anexo III (Modelo
+    08). OCR v2 reviewed (ai_assisted, 2 passes) no privado. Histórico preservado:
+    incompleto 2p 77b77f01… + OCR v1 rejected em diagnostics/ (≠ KB). PDF original
+    prevalece.'
+- id: AO-LEG-DP-71-25-2025
+  official_name: Decreto Presidencial n.º 71/25 — Regime Jurídico das Facturas (Diário
+    da República I Série n.º 52, 20 de Março de 2025)
+  authority: Presidente da República / Diário da República
+  type: legislation
+  version: 71/25
+  published_at: '2025-03-20'
+  retrieved_at: '2026-07-26'
+  source_url: https://www.ucm.minfin.gov.ao
+  url_status: pending_validation
+  sha256: 4931fd3ce711ef2b22e7316c3dd296d8c7c81993c88e29c70e09baeb0d0e7f76
+  status: pending_validation
+  supersedes: []
+  superseded_by: []
+  related_to:
+  - AO-LEG-DE-683-25-2025
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_52_2025_03_20.pdf
+  versioned_path: null
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd
+  private_repository_path: originals/legislation/AO-LEG-DP-71-25-2025/original/Diario_Republica_I_52_2025_03_20.pdf
+  page_count: 21
+  text_extractable: false
+  conversion_required: true
+  normative_role: normative_original
+  required_future_derivatives:
+  - searchable_pdf
+  - markdown_text
+  derivatives:
+  - kind: searchable_pdf
+    original_sha256: 4931fd3ce711ef2b22e7316c3dd296d8c7c81993c88e29c70e09baeb0d0e7f76
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-26T02:33:56Z'
+    derivative_sha256: aaabb429d840441a8d7c5bfa9ea6ca97e1f06eb88983f830c183ebbd77732511
+    page_count: 21
+    review_status: reviewed
+    pages_reviewed: &id003
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    low_confidence_or_errors: &id004
+    - layout_two_column_possible
+    - pdf_p21_is_de_372_25_not_dp_71_25
+    - normative_range_gazeta_11902_11920_pdf_p2_p20
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DP-71-25-2025/v1/searchable.pdf
+    versioned_path: null
+  - kind: markdown_text
+    original_sha256: 4931fd3ce711ef2b22e7316c3dd296d8c7c81993c88e29c70e09baeb0d0e7f76
+    ocr_tool: ocrmypdf
+    ocr_tool_version: 16.13.1.dev0+gc54096742.d20251224
+    ocr_language: por
+    ocr_config: --language por --deskew --rotate-pages --force-ocr
+    generated_at: '2026-07-26T02:33:56Z'
+    derivative_sha256: a8720f9cbd27ab47b9510e4d44a14da4f17e7c40219895437b1e3fc9ff273ab7
+    page_count: 21
+    review_status: reviewed
+    pages_reviewed: *id003
+    low_confidence_or_errors: *id004
+    human_corrections_ref: null
+    derivative_version: v1
+    private_repository_path: derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md
+    versioned_path: null
+  tags:
+  - normativa_legal
+  - redistribuicao_incerta
+  - candidato_copia_versionada
+  - image_only
+  - ocr_reviewed
+  derived_requirements: []
+  affects:
+  - docs/01-compliance/
+  - compliance/derived/requirements/
+  notes: Fascículo DR I/52/2025 (21p, sha256 4931fd3ce711ef2b22e7316c3dd296d8c7c81993c88e29c70e09baeb0d0e7f76).
+    DP 71/25 = gazeta 11902–11920 (PDF p.2–20). PDF p.1 = capa/sumário; PDF p.21 =
+    início DE 372/25 @11921 — não citar como DP 71/25. OCR v1 reviewed (ai_assisted,
+    2 passes). PDF original prevalece.
 - id: AO-LEG-DE-683-25-2025
-  official_name: Decreto Executivo n.º 683/25 (Diário da República I Série n.º 159, 22 de Agosto de 2025)
+  official_name: Decreto Executivo n.º 683/25 (Diário da República I Série n.º 159,
+    22 de Agosto de 2025)
   authority: MINFIN / Diário da República
   type: legislation
   version: 683/25
@@ -180,7 +317,7 @@ sources:
   local_path: local/docs/documentacao oficial/arquivo_fiscal_ao/01_legislacao/Diario_Republica_I_159_2025_DE_683-25.pdf
   versioned_path: null
   private_repository: storesace-cv/bwb-fiscal-sources-ao
-  private_commit: dbae3260df3b8865afd712ffc3e81925a63fb399
+  private_commit: c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd
   private_repository_path: originals/legislation/AO-LEG-DE-683-25-2025/v2/original/Diario_Republica_I_159_2025_DE_683-25.pdf
   page_count: 66
   text_extractable: false
@@ -371,10 +508,11 @@ sources:
   - docs/01-compliance/
   - compliance/derived/requirements/
   notes: 'ORIGINAL CORRECTO v2 no privado (sha256 b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca,
-    66p; import autorizado my-bwb-app → bwb-fiscal-sources-ao; my-bwb-app intacto). Confirmação visual: capa
-    DR I/159/2025; p.2 = DE 683/25 @19164; PDF p.2–65 = DE+anexos (19164–19227); PDF p.66 = início Aviso BNA
-    4/25 @19228 (mesmo número — não citar como DE 683). OCR v2 reviewed (ai_assisted, 2 passes) publicado
-    como KB auxiliar. Original incorrecto 59a48189… + OCR v1 em diagnostics/ privado. URL oficial estável
+    66p; import autorizado my-bwb-app → bwb-fiscal-sources-ao; my-bwb-app intacto).
+    Confirmação visual: capa DR I/159/2025; p.2 = DE 683/25 @19164; PDF p.2–65 = DE+anexos
+    (19164–19227); PDF p.66 = início Aviso BNA 4/25 @19228 (mesmo número — não citar
+    como DE 683). OCR v2 reviewed (ai_assisted, 2 passes) publicado como KB auxiliar.
+    Original incorrecto 59a48189… + OCR v1 em diagnostics/ privado. URL oficial estável
     ainda pending_validation. RM-SRC-004/RM-M2-C continuam BLOQUEADOS pela Rect. 10/19.'
 - id: AO-SAFT-XSD-1.01_01
   official_name: SAF-T (AO) XSD SAFTAO1.01_01
@@ -403,8 +541,8 @@ sources:
   - docs/01-compliance/saft-ao.md
   notes: 'Cópia pública SRC-B2 sob MIT ASSOFT (+ LICENSE/NOTICE). Namespace urn:OECD:StandardAuditFile-Tax:AO_1.01_01;
     doc:Status=Development. NÃO afirmado como XSD validado/certificado pela AGT (pending_validation).
-    Snapshot upstream registado ed86c7d5a5ab21cf5ebb410507a5de04a86663f3. Mecanismos SAF-T são distintos
-    de JWS/RS256 da faturação electrónica.
+    Snapshot upstream registado ed86c7d5a5ab21cf5ebb410507a5de04a86663f3. Mecanismos
+    SAF-T são distintos de JWS/RS256 da faturação electrónica.
 
     '
 - id: AO-SAFT-ZIP-ASSOFT-MASTER
@@ -432,8 +570,8 @@ sources:
   - candidato_catalogo_sem_conteudo
   derived_requirements: []
   affects: []
-  notes: 'Arquivo auxiliar. Nunca dependência de runtime, testes ou CI. Preferir SAFTAO1.01_01.xsd extraído
-    (AO-SAFT-XSD-1.01_01).
+  notes: 'Arquivo auxiliar. Nunca dependência de runtime, testes ou CI. Preferir SAFTAO1.01_01.xsd
+    extraído (AO-SAFT-XSD-1.01_01).
 
     '
 - id: AO-FE-SNAP-HML-2026-07-25-INDEX
@@ -493,8 +631,8 @@ sources:
   derived_requirements: []
   affects:
   - compliance/fe/
-  notes: 'Contém exemplos de Basic Auth na documentação oficial. Nunca versionar credenciais reais. Separar
-    HML (sifphml) de PRD (sifp).
+  notes: 'Contém exemplos de Basic Auth na documentação oficial. Nunca versionar credenciais
+    reais. Separar HML (sifphml) de PRD (sifp).
 
     '
 - id: AO-FE-SNAP-HML-2026-07-25-ESTRUTURA
@@ -873,7 +1011,7 @@ sources:
   derived_requirements: []
   affects:
   - compliance/catalog/sources.yaml
-  notes: 'Integridade da recolha. O sha256 deste registo é o hash do próprio SHA256SUMS.txt (não listado
-    dentro do ficheiro).
+  notes: 'Integridade da recolha. O sha256 deste registo é o hash do próprio SHA256SUMS.txt
+    (não listado dentro do ficheiro).
 
     '
