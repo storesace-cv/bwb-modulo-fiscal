@@ -152,6 +152,8 @@ def verify(root: Path) -> list[str]:
 
     if rows.get("AO-SAF-001") != "pending_validation":
         fail("AO-SAF-001: deve estar `pending_validation`", errors)
+    if rows.get("AO-SAF-002") != "pending_validation":
+        fail("AO-SAF-002: deve estar `pending_validation`", errors)
     for token in (
         "AO-SAFT-XSD-1.01_01",
         "e9a938e1",
@@ -161,6 +163,40 @@ def verify(root: Path) -> list[str]:
     ):
         if token not in text:
             fail(f"citação AO-SAF-001 deve incluir `{token}`", errors)
+
+    citation_d = ""
+    m_d = re.search(
+        r"###\s+Citação D\b.*?(?=\n###\s|\n##\s|$)",
+        text,
+        flags=re.S,
+    )
+    if not m_d:
+        fail("matriz deve incluir secção ### Citação D (SAFTAO1.01_01.xsd)", errors)
+    else:
+        citation_d = m_d.group(0)
+        for token in (
+            "SAFTAO1.01_01.xsd",
+            "e9a938e1",
+            "AuditFile",
+            "InvoiceType",
+            "InvoiceNo",
+            "InvoiceStatus",
+            "References",
+            "HashControl",
+            "PaymentType",
+            "SAFTAOPaymentType",
+            "pending_validation",
+            "Development",
+            "C-DOC-003",
+            "C-SIGN-001",
+            "L2023",
+            "L1004",
+            "L1361",
+            "L2740",
+        ):
+            if token not in citation_d:
+                fail(f"Citação D deve incluir `{token}` na própria secção", errors)
+
     saf_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SAF-001\s*\|", ln)]
     if saf_rows:
         sl = saf_rows[0].lower()
@@ -170,6 +206,25 @@ def verify(root: Path) -> list[str]:
             fail("AO-SAF-001: afirmação de confirmação sem negação na linha", errors)
         if "não" not in sl or "satisfeito" not in sl:
             fail("AO-SAF-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "e9a938e1" not in saf_rows[0] and "L2023" not in saf_rows[0] and "InvoiceType" not in saf_rows[0]:
+            fail("AO-SAF-001: a linha deve citar XSD (hash ou InvoiceType/L2023)", errors)
+    else:
+        fail("linha de tabela AO-SAF-001 ausente", errors)
+
+    saf2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SAF-002\s*\|", ln)]
+    if saf2_rows:
+        s2 = saf2_rows[0]
+        s2l = s2.lower()
+        if "`pending_validation`" not in s2:
+            fail("AO-SAF-002: célula de estado deve ser `pending_validation`", errors)
+        if "não" not in s2l or "satisfeito" not in s2l:
+            fail("AO-SAF-002: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "References" not in s2 and "L1004" not in s2:
+            fail("AO-SAF-002: a linha deve citar References / L1004", errors)
+        if "1577" not in s2:
+            fail("AO-SAF-002: a linha deve citar DE 74/19 @1577", errors)
+    else:
+        fail("linha de tabela AO-SAF-002 ausente", errors)
 
     # AO-SEQ-002: partial citation to DE 683 ART.4 / gazeta 19164 — never confirmed.
     if rows.get("AO-SEQ-002") != "partial":

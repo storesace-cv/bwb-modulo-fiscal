@@ -67,6 +67,12 @@ REQUIRED_TOKENS = [
     "19193",
     "19194",
     "19227",
+    "L2023",
+    "PaymentType",
+    "SAFTAOPaymentType",
+    "L2740",
+    "References",
+    "InvoiceStatus",
 ]
 
 
