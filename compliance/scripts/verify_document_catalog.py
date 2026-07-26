@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 CATALOG_REL = Path("compliance/derived/requirements/DOCUMENT-CATALOG-RM-REQ-001.md")
+EMBED_REL = Path("internal/doctype/document_catalog.md")
 
 REQUIRED_HEADER_FIELDS = [
     "grupo",
@@ -31,6 +32,7 @@ REQUIRED_HEADER_FIELDS = [
 
 REQUIRED_TOKENS = [
     "DEC-PROD-015",
+    "DEC-REG-003",
     "não** confirma",
     "bwb.ao.",
     "SalesInvoices",
@@ -42,6 +44,12 @@ REQUIRED_TOKENS = [
     "C-DOC-003",
 ]
 
+# DEC-REG-003 slice defaults: exactly these two must be activo=on.
+SLICE_ACTIVE_ON = {
+    "bwb.ao.vendas.ft",
+    "bwb.ao.vendas.nc",
+}
+
 
 def verify(root: Path) -> list[str]:
     errors: list[str] = []
@@ -49,6 +57,14 @@ def verify(root: Path) -> list[str]:
     if not path.is_file():
         return [f"ausente: {CATALOG_REL.as_posix()}"]
     text = path.read_text(encoding="utf-8")
+
+    embed = root / EMBED_REL
+    if not embed.is_file():
+        errors.append(f"ausente embed Go: {EMBED_REL.as_posix()}")
+    elif embed.read_bytes() != path.read_bytes():
+        errors.append(
+            f"embed {EMBED_REL.as_posix()} deve ser byte-idêntico a {CATALOG_REL.as_posix()}"
+        )
 
     if "não** confirma" not in text and "não confirma" not in text:
         errors.append("catálogo deve declarar que não confirma AO-DOC-*")
@@ -79,6 +95,34 @@ def verify(root: Path) -> list[str]:
         errors.append("seed deve incluir bwb.ao.vendas.fa (FE-only)")
     if "bwb.ao.pagamentos.rc" not in text:
         errors.append("seed deve incluir bwb.ao.pagamentos.rc (Payments ≠ InvoiceType)")
+
+    # Parse seed rows: require DEC-REG-003 activo defaults.
+    on_ids: set[str] = set()
+    off_count = 0
+    for line in text.splitlines():
+        if not line.startswith("|") or "`bwb.ao." not in line:
+            continue
+        cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
+        if len(cells) < 13:
+            continue
+        canon = cells[1]
+        if not canon.startswith("bwb.ao."):
+            continue
+        activo = cells[-1]
+        if activo == "on":
+            on_ids.add(canon)
+        elif activo == "off":
+            off_count += 1
+        elif activo == "pending_dec_reg_003":
+            errors.append(f"seed {canon}: activo ainda pending_dec_reg_003 (DEC-REG-003 fechada)")
+        else:
+            errors.append(f"seed {canon}: activo inválido {activo!r}")
+    if on_ids != SLICE_ACTIVE_ON:
+        errors.append(
+            f"activo=on deve ser exactamente {sorted(SLICE_ACTIVE_ON)}; obtido {sorted(on_ids)}"
+        )
+    if off_count < 1:
+        errors.append("seed deve ter pelo menos um tipo com activo=off")
 
     for bad in ("AO-DOC-001 confirmado", "catálogo confirmado", "validated_agt"):
         if bad.lower() in text.lower():

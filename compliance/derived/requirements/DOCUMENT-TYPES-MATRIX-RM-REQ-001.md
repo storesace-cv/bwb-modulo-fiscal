@@ -1,8 +1,9 @@
 # Matriz normativa de tipos documentais (provisória)
 
-**Estado:** rascunho rastreável — **não** confirma `AO-DOC-001` / `AO-DOC-002`; `DEC-REG-003` = faseamento (não perímetro).
+**Estado:** rascunho rastreável — **não** confirma `AO-DOC-001` / `AO-DOC-002`; `DEC-REG-003` = defaults slice FT+NC (faseamento, não perímetro).
 **Data:** 2026-07-26
 **Modelo:** todos os legalmente aplicáveis com canal SAF-T e/ou FE (`DEC-PROD-014`); implementação faseada sem truncar.
+**Defaults slice (`DEC-REG-003`):** OpenAPI `invoice`/`credit_note` → `bwb.ao.vendas.ft`/`bwb.ao.vendas.nc` (`activo=on`); resto do seed `off`. Sem promover AO-DOC-*.
 **Catálogo L3:** exactamente **5** grupos (`DEC-PROD-001`).
 **Inclusão:** só tipos com canal SAF-T e/ou FE (`DEC-PROD-002`); excluir o que não sirva nenhum.
 **Config POS:** activar/desactivar grupo inteiro e tipos dentro do grupo (`DEC-PROD-003`) — produto; **não** confirma AO-*.
@@ -36,7 +37,7 @@ Estas quatro camadas são **ortogonais**. Homónimos (ex.: «FT», «RC», «Rec
 1. L1 **não** enumera códigos de dois caracteres — só rótulos legais.
 2. L4 (`documentType`) **não** é L2 (`InvoiceType` / `PaymentType`).
 3. L2 **depende** de L3: o mesmo código pode existir em enums diferentes (`AR` em `InvoiceType` e em `SAFTAOPaymentType`) sem ser o mesmo conceito operacional.
-4. Cruzamentos L1↔L4↔L2↔L3 são **hipóteses** até `DEC-REG-003` + revisão compliance — ver C-DOC-001/002/003.
+4. Cruzamentos L1↔L4↔L2↔L3 são **hipóteses** até revisão compliance — ver C-DOC-001/002/003; defaults de activação = `DEC-REG-003` (não confirma AO-*).
 5. API POS usa **canónico** / código próprio mapeado (`DEC-PROD-007`) — **não** L4/L2 crus sem mapping.
 
 ## Fontes cruzadas
