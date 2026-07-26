@@ -41,7 +41,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | POS `0.1.6-draft` · Admin `0.1.3-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.4-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
 | Schema | `ExpectedVersion=6` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
@@ -270,8 +270,9 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 | [x] | RM-BO-003 | Visibilidade ops: submissões, erros, reconciliação, auditoria; refs só metadados sanitizados | CONCLUÍDO | [internal/adminops/ops.go](internal/adminops/ops.go) · [internal/adminapi/ops_handlers.go](internal/adminapi/ops_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) | RM-BO-001 + RM-SECADM-002 | GET audit/ops/secret-refs metadata; sem corpos secretos |
 | [x] | RM-BO-004 | Permissões e MFA do plano A; sem ACL de leitura de segredos | CONCLUÍDO | [internal/adminauth/rbac.go](internal/adminauth/rbac.go) · [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 + DEC-BO-002 | Matriz RBAC tipada; MFA adiado até IdP; sem secret.reveal |
 | [x] | RM-BO-010 | Fundação backend Taxpayer / Establishment / ScopeBinding | CONCLUÍDO | [internal/adminregistry/registry.go](internal/adminregistry/registry.go) · [migrations/postgres/0005_admin_registry.up.sql](migrations/postgres/0005_admin_registry.up.sql) · [migrations/sqlite/0005_admin_registry.up.sql](migrations/sqlite/0005_admin_registry.up.sql) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Persistência cadastros; sem UI; sem segredos; ExpectedVersion=5 (depois `0006` audit) |
-| [x] | RM-SECADM-001 | Zona admin integração/segredos: owner-only, HML≠PRD, auditoria | CONCLUÍDO | [internal/secadm/gate.go](internal/secadm/gate.go) · [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Gate owner-only; HML≠PRD no store; auditoria HTTP/UI ainda futura |
+| [x] | RM-SECADM-001 | Zona admin integração/segredos: owner-only, HML≠PRD, auditoria | CONCLUÍDO | [internal/secadm/gate.go](internal/secadm/gate.go) · [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Gate owner-only; HML≠PRD no store; HTTP em RM-SECADM-003 |
 | [x] | RM-SECADM-002 | Contrato write-only SecretStore + simulator fail-closed + metadados | CONCLUÍDO | [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Sem GET admin; AES-GCM memória; HML≠PRD; sem credenciais reais |
+| [x] | RM-SECADM-003 | HTTP SecAdm Put/Rotate/Revoke write-only + audit | CONCLUÍDO | [internal/adminapi/secadm_handlers.go](internal/adminapi/secadm_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) | RM-SECADM-001 + RM-SECADM-002 + RM-BO-004 | `/admin/v1/secadm/*`; owner role+subject; sem plaintext na resposta; sem AGT real |
 
 ---
 

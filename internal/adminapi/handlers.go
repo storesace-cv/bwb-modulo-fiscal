@@ -13,6 +13,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
@@ -21,12 +22,13 @@ const (
 	maxBodyBytes    = 1 << 20
 )
 
-// Handler serves admin cadastro and ops visibility endpoints.
+// Handler serves admin cadastro, ops visibility and SecAdm write-only endpoints.
 type Handler struct {
 	Registry    *adminregistry.Registry
 	Audit       *adminaudit.Store
 	Ops         *adminops.Store
 	SecretsMeta secretstore.AdminView // optional; Metadata only — never Reveal
+	SecAdm      *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
 }
 
 type problem struct {
@@ -114,6 +116,11 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/audit-events", authMW(readAudit(http.HandlerFunc(h.listAuditEvents))))
 	mux.Handle("GET /admin/v1/ops/submissions", authMW(readOps(http.HandlerFunc(h.listOpsSubmissions))))
 	mux.Handle("GET /admin/v1/secret-refs/metadata", authMW(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
+
+	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)
+	mux.Handle("PUT /admin/v1/secadm/secret-refs", authMW(secadmWrite(http.HandlerFunc(h.secadmPut))))
+	mux.Handle("POST /admin/v1/secadm/secret-refs/rotate", authMW(secadmWrite(http.HandlerFunc(h.secadmRotate))))
+	mux.Handle("POST /admin/v1/secadm/secret-refs/revoke", authMW(secadmWrite(http.HandlerFunc(h.secadmRevoke))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {

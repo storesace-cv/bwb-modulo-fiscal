@@ -2,7 +2,8 @@
 
 ## 0.2.28-draft — 2026-07-26
 
-- Admin API: path canónico OpenAPI → [`specs/admin/openapi.yaml`](specs/admin/openapi.yaml) (DEC-BO-002 / RM-BO-001); deixa de usar `specs/openapi-admin/`; versão vigente `0.1.3-draft` (série desde `0.1.0-draft`); ≠ POS OpenAPI.
+- Segurança: **RM-SECADM-003** — HTTP SecAdm Put/Rotate/Revoke (`/admin/v1/secadm/*`); owner role+subject; audit append-only; resposta só metadados; OpenAPI admin `0.1.4-draft`; ≠ AGT real/deploy.
+- Admin API: path canónico OpenAPI → [`specs/admin/openapi.yaml`](specs/admin/openapi.yaml) (DEC-BO-002 / RM-BO-001); deixa de usar `specs/openapi-admin/`; série desde `0.1.0-draft`; ≠ POS OpenAPI.
 - Admin API: **RM-BO-004** — matriz RBAC tipada (`adminauth.Allows`); SecAdm write só `owner`; MFA adiado até IdP; sem ACL `secret.reveal`; OpenAPI admin `0.1.3-draft`.
 - Admin API: **RM-BO-003** — GET `/admin/v1/ops/submissions`, `/audit-events`, `/secret-refs/metadata` (só metadados); OpenAPI admin `0.1.2-draft`; sem plaintext/AGT/deploy.
 - Admin API: **RM-BO-002** — PATCH scope-bindings (séries/timezone/ambiente/status metadados); validação IANA; OpenAPI admin `0.1.1-draft`; audit append-only; sem segredos/AGT/deploy.

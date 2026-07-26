@@ -25,6 +25,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/config"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/httpserver"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
@@ -115,11 +116,20 @@ func run() int {
 		logger.Error("secretstore_init_failed", "error", err.Error())
 		return 1
 	}
+	var secGate *secadm.Gate
+	if ownerID := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_OWNER_SUBJECT")); ownerID != "" {
+		secGate, err = secadm.NewGate(ownerID, secretsMeta)
+		if err != nil {
+			logger.Error("secadm_gate_invalid", "error", err.Error())
+			return 1
+		}
+	}
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
 		Registry:    adminregistry.New(sqlDB, regDialect, nil),
 		Audit:       adminaudit.New(sqlDB, auditDialect, nil),
 		Ops:         adminops.New(sqlDB, opsDialect),
 		SecretsMeta: secretsMeta,
+		SecAdm:      secGate,
 	})
 
 	srv := httpserver.New(httpserver.Config{
