@@ -78,6 +78,8 @@ def verify(root: Path) -> list[str]:
         fail("matriz deve referir GAP-002", errors)
     if "RM-SRC-004" not in text:
         fail("matriz deve referir RM-SRC-004", errors)
+    if "DOCUMENT-TYPES-MATRIX-RM-REQ-001" not in text:
+        fail("matriz deve referir DOCUMENT-TYPES-MATRIX-RM-REQ-001 (inventário tipos)", errors)
     if "19164" not in text or "19227" not in text:
         fail("matriz deve limitar DE 683/25 a 19164–19227", errors)
     if "19228" not in text and "Aviso" not in text:

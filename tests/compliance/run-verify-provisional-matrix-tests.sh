@@ -57,7 +57,7 @@ cat >"${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" <
 # Matriz provisória
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
 AO-LEG-RECT-10-19-2019 reviewed b3db14e2. AO-LEG-DP-71-25-2025 4931fd3c 11902–11920; p.21 DE 372/25 @11921.
-GAP-002. RM-SRC-004.
+GAP-002. RM-SRC-004. DOCUMENT-TYPES-MATRIX-RM-REQ-001.
 DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |

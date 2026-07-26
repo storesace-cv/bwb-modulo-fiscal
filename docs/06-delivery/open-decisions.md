@@ -88,7 +88,9 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 | 2 | Cobertura regulatória maior | Atrasa Fase 1 |
 | 3 | Entrega mais cedo | Dívida no OpenAPI e pacote AO |
 
-**Recomendação:** opção 1 para o vertical slice; reavaliar opção 2 após G0-R1 (74/19 oficial).
+**Recomendação:** opção 1 para o vertical slice; reavaliar opção 2 após inventário citado de tipos ([`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)) + fecho de C-DOC-* — **sem** alargar domínio/OpenAPI até decisão formal.
+
+**Nota 2026-07-26:** fontes DP 71/25 + DE 683/25 + FE HML + SAF-T XSD já inventariadas com citações; `DEC-REG-003` permanece **aberta** (MVP ainda não escolhido formalmente).
 
 Relaciona: `AO-DOC-001`, `AO-DOC-002`.
 
