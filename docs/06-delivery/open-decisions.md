@@ -562,28 +562,28 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 
 | Campo | Valor |
 |---|---|
-| Estado | aberta |
+| Estado | **decidida** |
 | Tipo | Produto / entrega (já **não** limita o modelo — ver `DEC-PROD-014`) |
-| Prazo máximo | Dentro das 2–4 semanas internas |
+| Prazo máximo | — |
 | Responsável | Product Owner + Compliance |
+| Decisão | 2026-07-26 |
 
 **Contexto:** o modelo de tipos está decidido em **`DEC-PROD-014`** (completo por canal). Esta decisão escolhe **o que implementar primeiro** e defaults de activação/OpenAPI.
 
-**Opções (implementação):**
+**Decisão:** opção **1** — slice mínimo activo = **Factura** + **Nota de Crédito**.
 
-1. Slice mínimo: fatura + nota de crédito (OpenAPI actual) — resto do catálogo modelado mas inactivo/não exposto.
-2. Slice alargado: incluir transporte / conferência cedo se a fonte exigir.
-3. Adiar retificativos na implementação (NC já no OpenAPI — não remover do modelo).
-
-| Opção | Vantagens | Riscos |
+| OpenAPI `document_type` | `codigo_canonico` | Catálogo `activo` |
 |---|---|---|
-| 1 | Encaixa no vertical slice | Defaults estreitos; risco de confundir com perímetro do modelo |
-| 2 | Cobertura operacional maior | Atrasa Fase 1 |
-| 3 | Entrega mais cedo | Dívida de activação/API |
+| `invoice` | `bwb.ao.vendas.ft` | `on` |
+| `credit_note` | `bwb.ao.vendas.nc` | `on` |
 
-**Recomendação:** opção 1 para o **primeiro** vertical slice de implementação; catálogo completo permanece no modelo (`DEC-PROD-014`).
+Restantes entradas do seed: modeladas com `activo=off` (não expostas neste slice). Catálogo completo permanece no modelo (`DEC-PROD-014`).
 
-**Nota 2026-07-26:** modelo = **DEC-PROD-014**; esquema catálogo = **DEC-PROD-015**; `DEC-REG-003` = faseamento apenas.
+**Não autoriza:** truncar o modelo; promover `AO-DOC-*`; inventar regras NC de referência; credenciais/deploy AGT.
+
+**Evidência:** este registo; [`DOCUMENT-CATALOG-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-CATALOG-RM-REQ-001.md); pacote `internal/doctype`.
+
+**Nota:** modelo = **DEC-PROD-014**; esquema = **DEC-PROD-015**; `DEC-REG-003` = faseamento apenas.
 
 Relaciona: `AO-DOC-001`, `AO-DOC-002`, `DEC-PROD-001`–`015`.
 
@@ -916,11 +916,10 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 2. **DEC-REG-002** — Decreto 74/19 + Rect. arquivados/`reviewed`; falta fecho AO-* + URL estável.
 3. **DEC-REG-001** — confirmação processual de `ASM-REG-001` (**AGT**).
 4. **DEC-SEC-EDGE-KEYS** — local da assinatura cloud/Edge (**bloqueante**; depende de DEC-REG-KEY-CUSTODY e contingência AGT).
-5. **DEC-REG-003** — ordem/defaults do slice (modelo = `DEC-PROD-014`; **não** é dependência AGT).
-6. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
-7. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
+5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
+6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**.
 
 ---
 

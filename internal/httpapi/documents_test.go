@@ -122,6 +122,31 @@ func runDocumentsHTTPSuite(t *testing.T, store *persistence.Store) {
 		}
 	})
 
+	t.Run("201_credit_note", func(t *testing.T) {
+		key := "12121212-1212-4121-8121-121212121212"
+		body := strings.Replace(minimalBody("ext-http-nc", "R"), `"document_type": "invoice"`, `"document_type": "credit_note"`, 1)
+		code, raw, _ := doPOST(t, h, key, body, devToken, "application/json")
+		if code != http.StatusCreated {
+			t.Fatalf("status=%d body=%s", code, raw)
+		}
+		var a httpapi.CreateDocumentResponse
+		if err := json.Unmarshal(raw, &a); err != nil {
+			t.Fatal(err)
+		}
+		if a.Status != "sealed_locally" || a.ExternalID != "ext-http-nc" {
+			t.Fatalf("%+v", a)
+		}
+	})
+
+	t.Run("422_document_type_unknown", func(t *testing.T) {
+		body := strings.Replace(minimalBody("ext-bad-type", "R"), `"document_type": "invoice"`, `"document_type": "receipt"`, 1)
+		code, raw, _ := doPOST(t, h, "13131313-1313-4131-8131-131313131313", body, devToken, "application/json")
+		assertProblem(t, code, raw, http.StatusUnprocessableEntity, "FISCAL_VALIDATION_FAILED")
+		if !strings.Contains(string(raw), "document_type") {
+			t.Fatalf("%s", raw)
+		}
+	})
+
 	t.Run("series_not_controlled_by_requested", func(t *testing.T) {
 		key := "33333333-3333-4333-8333-333333333333"
 		code, raw, _ := doPOST(t, h, key, minimalBody("ext-http-series", "POS-CHOICE"), devToken, "application/json")

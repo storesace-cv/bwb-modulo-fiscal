@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/doctype"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/money"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
@@ -325,7 +326,7 @@ func mapIntent(scopeID string, body documentIntentBody, issued fiscaltime.Normal
 	if len(body.ExternalID) > 100 {
 		errs = append(errs, fieldError{Field: "external_id", Code: "MAX_LENGTH", Message: "máximo 100 caracteres"})
 	}
-	if body.DocumentType != "invoice" && body.DocumentType != "credit_note" {
+	if _, err := doctype.ResolveAPI(body.DocumentType); err != nil {
 		errs = append(errs, fieldError{Field: "document_type", Code: "INVALID_ENUM", Message: "valor não permitido"})
 	}
 	if body.Currency != "AOA" {
