@@ -22,6 +22,7 @@
 | `FISCAL_ADMIN_AUTH_MODE` | `fail_closed` | Admin `/admin/v1`: `fail_closed` (omissão) ou `injected` **só** com `FISCAL_ENV=development` |
 | `FISCAL_ADMIN_INJECT_SUBJECT` | — | Subject injectado (obrigatório se mode=injected) |
 | `FISCAL_ADMIN_INJECT_ROLES` | — | Roles CSV: `owner,admin,operator,auditor` (se mode=injected) |
+| `FISCAL_ADMIN_OWNER_SUBJECT` | — | Subject autorizado para SecAdm write-only; se vazio, `/admin/v1/secadm/*` → 503 |
 
 ## Variáveis de base de dados (`fiscal-migrate` / testes)
 
