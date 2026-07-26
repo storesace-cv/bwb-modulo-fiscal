@@ -61,6 +61,12 @@ REQUIRED_TOKENS = [
     "b01e4581",
     "5b63c80e",
     "b3db14e2",
+    "Citação G",
+    "Anexo II",
+    "Anexo III",
+    "19193",
+    "19194",
+    "19227",
 ]
 
 

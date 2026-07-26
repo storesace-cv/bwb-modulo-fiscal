@@ -60,6 +60,8 @@ AO-LEG-RECT-10-19-2019 reviewed b3db14e2. AO-LEG-DP-71-25-2025 4931fd3c 11902–
 AO-LEG-DE-74-19-2019 5b63c80e 1576–1586; n.º34 @1582; Rect 1948–1949. C-SIGN-001.
 Art.10 @11908–11909. GAP-002. RM-SRC-004. DOCUMENT-TYPES-MATRIX-RM-REQ-001.
 DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
+### Citação G — DE 683 Anexos
+Anexo I registarFactura taxType 19166; Anexo II 19193; Anexo III 19194 solicitarSerie; Tabelas 19212–19223.
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
@@ -68,9 +70,9 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-DOC-001 | `scaffold` | — | citação pendente |
 | AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 @1577 critério **não** fica satisfeito; **Não** confirmado |
 | AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 @1577 critério **não** fica satisfeito; **Não** confirmado |
-| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
+| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 solicitarSerie @19183 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
-| AO-TAX-001 | `scaffold` | — | citação pendente |
+| AO-TAX-001 | `partial` | AO-LEG-DE-683-25-2025 | taxType 19171 Tabela 19212–19227 critério **não** fica satisfeito; **Não** confirmado |
 | AO-CRYPTO-001 | `partial` | AO-LEG-DE-683-25-2025 + AO-FE-SNAP-HML-2026-07-25-ESTRUTURA | jwsDocumentSignature 19168 RS256 pending_validation SAF-T encadeamento **não** citado; critério **não** fica satisfeito; **Não** confirmado |
 | AO-KEY-001 | `blocked` | — | x |
 | AO-AGT-001 | `blocked` | — | x |
@@ -119,6 +121,45 @@ p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-0
 t = p.read_text(encoding="utf-8")
 t = t.replace("| AO-DOC-001 | `scaffold`", "| AO-DOC-001 | `partial`")
 p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-TAX-001 scaffold indevido" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-TAX-001 | `partial`", "| AO-TAX-001 | `scaffold`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-TAX-001 sem taxType" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8").replace("taxType", "taxKind")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-TAX-001 sem 19212 na linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-TAX-001 |"):
+        bad = line.replace("19212", "xxxxx").replace("19227", "yyyyy")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "Citação G sem Anexo III na secção" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+# Strip Anexo III only inside Citação G; keep later mentions if any.
+import re
+def strip_g(m):
+    return m.group(0).replace("Anexo III", "Anexo X").replace("19194", "xxxxx")
+t2 = re.sub(r"###\s+Citação G\b.*?(?=\n###\s|\n##\s|$)", strip_g, t, count=1, flags=re.S)
+p.write_text(t2, encoding="utf-8")
 '
 
 mutate_real "AO-SEQ-001 scaffold indevido" '

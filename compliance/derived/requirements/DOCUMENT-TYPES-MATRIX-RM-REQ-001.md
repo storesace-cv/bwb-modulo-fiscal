@@ -80,9 +80,23 @@ Campo JSON FE: **`documentType`** (string, minLength 2, maxLength 2), obrigatór
 | CS | Imputação a Co-seguradoras | p.7 · 19169 | idem | Segurador |
 | LD | Imputação a Co-seguradora Líder | p.7 · 19169 | idem | Segurador |
 
-Repetições do enum no mesmo diploma (OCR): PDF p.**22** · **19184** (pedido série); p.**24–26** · **19186–19188** (consultas) — mesma família de códigos (OCR parcial em algumas páginas).
-
 Campo também assinado em JWS: `documentType` ∈ lista de campos de `jwsDocumentSignature` · DE 683 PDF p.**6** · gazeta **19168** · e snapshot `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA`.
+
+Repetições do enum no mesmo diploma (OCR): PDF p.**22** · **19184** (pedido série); p.**24–26** · **19186–19188** (consultas) — mesma família de códigos (OCR parcial em algumas páginas; p.22/26 usam rótulo RG «Outros Recibos Emitidos»).
+
+### B.0 Estrutura DE 683/25 (Artigos + Anexos + Tabelas)
+
+Citação consolidada: **Citação G** em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
+
+| Bloco | Conteúdo (OCR auxiliar) | PDF | Gazeta |
+|---|---|---|---|
+| Art.1–6 | Objecto; Anexos I–III integrantes; séries geradas pela AGT; vigência | p.2–3 | **19164–19165** |
+| Anexo I | Estrutura JSON FE + serviços (`registarFactura` … `validarDocumento`) | p.4–30 | **19166–19192** |
+| Anexo II | Modelo validação **a posteriori**; lotes; rejeição ⇒ inexistência fiscal | p.31 | **19193** |
+| Anexo III | REST/JSON; QR Code impresso (`documentNo` na URL portal) | p.32–33 | **19194–19195** |
+| Tabelas 1–6 | CAE; taxas IEC/IS; isenções IVA/IS/IEC | p.33–65 | **19195–19227** |
+
+**Não** inventar códigos `FE-RNG-*` a partir do OCR do QR; URL/portal ≠ especificação RNG completa.
 
 ### B.1 Regras de preenchimento FE ligadas ao tipo (não MVP completo)
 
@@ -258,6 +272,7 @@ Art.10 n.º2: taxas diferentes → descrição separada · p.**9** · **11909**.
 | Âmbito | Fonte | Citação | Cobertura |
 |---|---|---|---|
 | Payload FE por tipo | DE 683 + HTML registar | p.7–8 · 19169–19170 | Parcial (B.1) |
+| Anexos II–III / Tabelas | DE 683 Citação G | p.31–65 · 19193–19227 | Modelo a posteriori + REST/QR + tabelas fiscais |
 | OpenAPI MVP | `invoice` / `credit_note` | OpenAPI draft | Subconjunto produto; **não** normativo AGT |
 
 ## G. Implicações explícitas (fail-closed)

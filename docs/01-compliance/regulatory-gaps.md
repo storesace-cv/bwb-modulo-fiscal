@@ -26,10 +26,10 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 | GAP-003 | Modelo 8 (processo de produtores) | Área autenticada; acesso não demonstrado | Submissão/certificação, rotação de chaves comunicada à AGT | Cópia autorizada ou captura de requisitos atuais + referência de versão; **sem** dados pessoais desnecessários no Git |
 | GAP-004 | XSD oficial SAF-T (AO) | **Parcialmente mitigado:** XSD ASSOFT + LICENSE/NOTICE em `compliance/saft-ao/schemas/` (`AO-SAFT-XSD-1.01_01`, MIT, `pending_validation`); **não** afirmado como validado pela AGT; ZIP permanece `local_only` | `AO-SAF-001`, `AO-SAF-002`, gerador/validador | Confirmação AGT + validação independente |
 | GAP-005 | Especificação técnica FE versionada (snapshot) | 13 HTML em `local/` + metadados no catálogo; snapshot **não** no Git público (bytes no privado B1) | `AO-AGT-001`, conector, JWS/RSA, erros | Snapshot autorizado no Git público ou ponteiros + inventários HML/PRD |
-| GAP-014 | Decreto Executivo n.º 683/25 (PDF oficial) | Original **correcto** + OCR v2 `reviewed` no privado/público (`b01e4581…`, 66p); PDF p.66 = início Aviso 4/25 @19228 (mesmo DR — não citar como DE); incorrecto `59a48189…` em `diagnostics/`; URL oficial estável ainda `pending_validation` | Precedência legislativa posterior | Confirmar URL MINFIN/Imprensa Nacional estável; ao citar DE 683 usar páginas 19164–19227 |
+| GAP-014 | Decreto Executivo n.º 683/25 (PDF oficial) | Original **correcto** + OCR v2 `reviewed` (`b01e4581…`); Citação G provisória (Art.1–6 + Anexos I–III + Tabelas @**19164–19227**); p.66 = Aviso 4/25 @19228 (não citar como DE); incorrecto `59a48189…` só diagnostics; URL estável ainda `pending_validation` | Precedência legislativa posterior / `AO-TAX-001` / FE | URL estável; fecho AO-* sem inventar; confronto PDF residual |
 | GAP-006 | Credenciais e ambiente de homologação | Pedido formal ainda não concluído (conforme inventário) | Testes de integração reais com AGT | Credenciais apenas em gestor de segredos; registo de ambiente (HML) sem segredos no Git |
 | GAP-007 | Confirmação processual de `ASM-REG-001` | Premissa de produto; sem evidência AGT | Modelo de certificação comercial | Resposta/ata AGT ou aceite formal de risco + plano B (ADR-0001) |
-| GAP-008 | Catálogo oficial completo de tipos documentais / impostos / isenções aplicáveis ao MVP | **Parcial:** inventário citado em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) (DP 71 Art.3 + FE `documentType` + SAF-T `InvoiceType`); conflitos C-DOC-001/002/003 abertos; campos por tipo incompletos; OpenAPI só `invoice`/`credit_note` | `AO-DOC-001`, `AO-TAX-001`, `DEC-REG-003` | Fechar conflitos + Art.10 página a página + decisão MVP; **sem** confirmar AO-* só com inventário |
+| GAP-008 | Catálogo oficial completo de tipos documentais / impostos / isenções aplicáveis ao MVP | **Parcial:** inventário tipos + Citação G (DE 683 Anexos/Tabelas); `AO-TAX-001` `partial` (campos FE + Tabelas 2–6); conflitos C-DOC-001/002/003 abertos; arredondamento/cálculo MVP incompleto; OpenAPI só `invoice`/`credit_note` | `AO-DOC-001`, `AO-TAX-001`, `DEC-REG-003` | Fechar conflitos + DEC-REG-003 + cálculo; **sem** confirmar AO-* só com inventário |
 | GAP-009 | Regras oficiais de contingência / faturação offline | Não fechadas | `AO-OFF-001`, `AO-OFF-002`, Edge | Texto oficial ou orientação AGT escrita |
 | GAP-010 | Vetores / resultados de testes oficiais AGT | Não disponíveis | Declaração de conformidade | Relatórios oficiais ou harness alinhado aos testes publicados |
 | GAP-011 | Portal do Contribuinte / guias operacionais estáveis | Manutenção / timeout em 2026-07-20 | Orientação operacional | Reconsulta + arquivo permitido de conteúdo/versão |
@@ -41,8 +41,8 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 ### O que falta
 
 - URL oficial estável (MINFIN/Imprensa Nacional) da Rect. 10/19 e do DP 71/25 — residual de proveniência.
-- DE 683/25: original correcto v2 + OCR `reviewed` já no arquivo; falta URL oficial estável (GAP-014 residual).
-- Extração `AO-*` com citação página a página a partir do conjunto 74/19+Rect. v2 (+ DP 71/25 onde aplicável); OCR `reviewed` ≠ requisito confirmado.
+- DE 683/25: Citação G (Anexos/Tabelas) provisória; falta URL oficial estável (GAP-014 residual) e fecho AO-* confirmados.
+- Extração `AO-*` confirmados a partir do conjunto 74/19+Rect. + DP 71/25 + DE 683; OCR `reviewed` ≠ requisito confirmado.
 - Histórico: manter `77b77f01…` / OCR v1 rejected apenas em diagnóstico privado (nunca reintroduzir como KB).
 
 ### O que **não** fecha esta lacuna

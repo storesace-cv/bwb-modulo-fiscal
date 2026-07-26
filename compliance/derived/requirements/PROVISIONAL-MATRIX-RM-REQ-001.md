@@ -111,23 +111,52 @@ Fontes: `AO-LEG-DE-74-19-2019` · sha256 `5b63c80e358bd5eda60302a5f6d2adac3c2381
 
 Limite: n.º34 = assinatura **SAF-T** (≠ JWS FE RS256) — [C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md). OCR auxiliar; **não** confirma AO-*.
 
+### Citação G — DE 683/25 (estrutura + Anexos I–III + Tabelas)
+
+Fonte: `AO-LEG-DE-683-25-2025` · sha256 `b01e45813eccc54790ce23ae64bba4564731566476bb3dec0105c15ad4f223ca` · OCR v2 `reviewed` · citar só gazeta **19164–19227** (PDF p.2–65); **não** citar p.66 / Aviso 4/25 @19228.
+
+| Tema | Norma / secção | PDF | Gazeta |
+|---|---|---|---|
+| Objecto; Anexos I–III partes integrantes; actualizações AGT; séries AGT; vigência | Art.1–6 | p.2–3 | **19164–19165** |
+| Anexo I — Estrutura de Dados (`registarFactura` e serviços) | Anexo I (início) | p.4 | **19166** |
+| `documentNo` (formato alinhado SAF-T AO); software / lote ≤30 | Anexo I | p.5 | **19167** |
+| `documentStatus` / anulação / `jwsDocumentSignature` | Anexo I | p.6 | **19168** |
+| Enum `documentType` + regras por tipo | Anexo I | p.7–8 | **19169–19170** |
+| Impostos FE: `taxType` IVA/IS/IEC/NS; `taxCode`; isenções → Tabelas 4–6 | Anexo I | p.9–11 | **19171–19173** |
+| Totais / retenções (`taxPayable`, `withholdingTax*`) | Anexo I | p.12–13 | **19174–19175** |
+| `obterEstado` (V/I/P; atraso >24h sem contingência) | Anexo I | p.14–17 | **19176–19179** |
+| `listarFacturas` / `consultarFactura` | Anexo I | p.17–21 | **19179–19183** |
+| `solicitarSerie` (`seriesCode`/`seriesYear`/`documentType`) | Anexo I | p.21–22 | **19183–19184** |
+| `listarSeries` + `seriesStatus` A/U/F; `invoicingMethod` FEPC/FESF/SF | Anexo I | p.23–27 | **19185–19189** |
+| `validarDocumento` (adquirente) | Anexo I | p.27–30 | **19189–19192** |
+| Anexo II — modelo validação **a posteriori**; lotes; rejeição ⇒ docs inexistentes fiscalmente | Anexo II | p.31 | **19193** |
+| Anexo III — REST JSON (`registarFactura`, `obterEstado`, `listarFacturas`, `consultarFactura`, `solicitarSerie`, `listarSeries`, `validarDocumento`) | Anexo III | p.32 | **19194** |
+| QR Code impresso (URL portal + `documentNo`; ECC 15%; logo AGT <20%) | Anexo III | p.32–33 | **19194–19195** |
+| Tabela 1 CAE (referência INE) | Tabelas Anexo I | p.33–50 | **19195–19212** |
+| Tabela 2 taxas IEC | Tabelas Anexo I | p.50–56 | **19212–19218** |
+| Tabela 3 verbas/taxas IS | Tabelas Anexo I | p.56–61 | **19218–19223** |
+| Tabela 4 isenções IVA | Tabelas Anexo I | p.61–64 | **19223–19226** |
+| Tabelas 5–6 isenções IS / IEC | Tabelas Anexo I | p.64–65 | **19226–19227** |
+
+Detalhe tipos FE: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md). Limites: OCR auxiliar (ex.: «ANEXO \|» = Anexo I); **não** inventar `FE-RNG-*`; JWS FE ≠ Hash SAF-T (C-SIGN-001); tabelas fiscais **não** fecham arredondamento/cálculo MVP; **não** confirma AO-*.
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + séries por estabelecimento Anexo I n.º4 i) @**1577**. Terminal **não** coberto; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
-| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | Art.10 DP71 + classes 74/19 n.º4 @**1576–1577**; falta mapeamento validador + C-DOC-*; critério do catálogo **não** fica satisfeito; **não** confirmado |
-| AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**). Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-SEQ-001 | `partial` | DP 71 + DE 74/19 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** (séries univocas / numeração contínua). Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-LEG-DP-71-25-2025` | Ligação preliminar: DE 683 ART.4 @**19164** (séries AGT) + DP 71 Art.10 b)/Art.24 @**11908**/**11914** (séries por tipo / comunicação). O critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação |
-| AO-TAX-001 | `scaffold` | Rect. / 74/19 / fontes oficiais | Fontes OCR disponíveis; cálculo fiscal exige citação página a página — **não** confirmado |
+| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | Art.10 DP71 + enum FE Anexo I @**19169–19170** (Citação G) + classes 74/19 n.º4 @**1576–1577**; falta mapeamento validador + C-DOC-* + DEC-REG-003; critério do catálogo **não** fica satisfeito; **não** confirmado |
+| AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) + DE 683 | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**) + FE `documentStatus` A/C @**19168**. Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-LEG-DP-71-25-2025` | Ligação preliminar: DE 683 ART.4 @**19164** (séries AGT) + `solicitarSerie` @**19183–19184** + DP 71 Art.10 b)/Art.24 @**11908**/**11914**. O critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação (`submissionGUID` FE @**19166** é candidato, não fecho) |
+| AO-TAX-001 | `partial` | DE 683 Anexo I + Tabelas 2–6 | Ligação preliminar: `taxType`/`taxCode`/`taxExemptionCode` @**19171–19173** + Tabelas 2–6 @**19212–19227** (Citação G). Arredondamento/cálculo MVP e DEC-REG-003 **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-CRYPTO-001 | `partial` | DE 683 + FE HML (+ DE 74/19 só como contraste) | Ligação preliminar FE: `jwsDocumentSignature` @**19168** + RS256 snapshot (`pending_validation`). Encadeamento Hash SAF-T n.º34 @**1582–1584** é **outro** mecanismo (C-SIGN-001); **não** misturar. Critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 | Custódia de chave contribuinte em aberto |
 | AO-AGT-001 | `blocked` | FE HML/PRD oficiais | Credenciais/docs oficiais AGT pendentes |
-| AO-AGT-002 | `scaffold` | — | Máquina de estados — DEC-API-004 |
-| AO-OFF-001 | `partial` | `AO-LEG-DP-71-25-2025` | Ligação preliminar: Art.18 @**11911–11912** (offline / tipografia Art.7 n.º6) + menção contingência. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com Art.18. **Não** confirmado |
+| AO-AGT-002 | `scaffold` | DE 683 Anexo II–III | Inventário REST @**19193–19194** (Citação G); máquina de estados produto — DEC-API-004; **não** confirmado |
+| AO-OFF-001 | `partial` | DP 71 + DE 683 | Ligação preliminar: Art.18 @**11911–11912** + FE `obterEstado`/`validationStatus` P (atraso >24h sem contingência) @**19179**/**19183**. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
 | AO-SAF-001 | `pending_validation` | XSD + DE 74/19 n.º1 | XSD (`e9a938e1…`) + obrigação exportação Anexo I n.º1 @**1576** (Rect. corrige SAF-T AO); validação AGT pendente; critério do catálogo **não** fica satisfeito só com schema+citação; **não** confirmado |
@@ -137,12 +166,13 @@ Limite: n.º34 = assinatura **SAF-T** (≠ JWS FE RS256) — [C-SIGN-001](../con
 
 ## Próximos passos (este item)
 
-1. Confrontar PDF DE 74 p.2–10 e Rect. p.2–3 nas citações F (OCR ruidoso).
-2. AO-DOC-001 / AO-TAX-001: mapear validadores — manter `scaffold`.
-3. Separar implementação crypto FE vs SAF-T (C-SIGN-001) — manter `AO-CRYPTO-001` `partial`.
-4. AO-ID-001: terminal ainda em falta — manter `partial`.
-5. Não promover nenhuma linha a confirmado; não alargar OpenAPI sem DEC-REG-003.
-6. Actualizar DEC-REG-002 (arquivo obtido; fecho AO-* ainda aberto).
+1. Confrontar PDF DE 683 p.2–65 nas citações G (OCR ruidoso; GF lacuna C-DOC-001).
+2. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
+3. AO-TAX-001: arredondamento/cálculo + revisão compliance — manter `partial` (não confirmado).
+4. Separar implementação crypto FE vs SAF-T (C-SIGN-001) — manter `AO-CRYPTO-001` `partial`.
+5. AO-ID-001: terminal ainda em falta — manter `partial`.
+6. Não promover nenhuma linha a confirmado; não alargar OpenAPI sem DEC-REG-003.
+7. QR/`FE-RNG-*`: só após snapshot/docs oficiais — **não** inventar códigos a partir do OCR.
 
 ## Referências
 
