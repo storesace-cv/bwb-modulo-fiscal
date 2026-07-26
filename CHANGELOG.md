@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Segurança: **RM-SECADM-002** — contrato write-only `internal/secretstore` (simulator AES-GCM em memória); metadados sanitizados; `AdminRevealDenied`; isolamento HML≠PRD; ≠ KMS/AGT real.
 - Backoffice: **RM-BO-010** — fundação `taxpayers` / `establishments` / `scope_bindings` (`internal/adminregistry`, migration `0005`, `ExpectedVersion=5`); plano A sem segredos; sem UI/deploy.
 - Arquitectura/produto: **DEC-BO-001** / **RM-ARCH-006** — backoffice funcional (plano A) vs zona admin integração/segredos owner write-only (plano B); metadados sanitizados; IDs `RM-BO-010`, `RM-SECADM-001`/`002`; sem credenciais reais/deploy.
 - Persistência: **RM-TX-010** — VS-T09: ledger `authority_processing` antes do Submit (simulador lento); unavailable reverte a `sealed_locally`; ≠ AGT oficial.
