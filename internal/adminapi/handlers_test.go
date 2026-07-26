@@ -100,6 +100,25 @@ func TestAdminCadastrosHappyPathAndRBAC(t *testing.T) {
 		t.Fatalf("get taxpayer %d", rr.Code)
 	}
 
+	listTP := httptest.NewRequest(http.MethodGet, "/admin/v1/taxpayers?limit=10", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, listTP)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list taxpayers %d", rr.Code)
+	}
+	patchTP := httptest.NewRequest(http.MethodPatch, "/admin/v1/taxpayers/"+tpID, bytes.NewBufferString(`{"status":"inactive"}`))
+	patchTP.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, patchTP)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("patch taxpayer %d %s", rr.Code, rr.Body.String())
+	}
+	var patchedTP map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &patchedTP)
+	if patchedTP["status"] != "inactive" {
+		t.Fatalf("status=%v", patchedTP["status"])
+	}
+
 	n, err := audit.CountForTests(ctx)
 	if err != nil || n < 4 {
 		t.Fatalf("audit count=%d err=%v", n, err)
