@@ -112,6 +112,16 @@ type CreateScopeBindingInput struct {
 	Status              string
 }
 
+// UpdateScopeConfigInput updates non-secret series/timezone/environment/status (RM-BO-002).
+// TaxpayerID and EstablishmentID are immutable after create.
+type UpdateScopeConfigInput struct {
+	ScopeID             string
+	Environment         string
+	IANATimezone        string
+	SeriesEffectiveCode string
+	Status              string
+}
+
 // CreateTaxpayer inserts a taxpayer. Never accepts secret fields.
 func (r *Registry) CreateTaxpayer(ctx context.Context, in CreateTaxpayerInput) (Taxpayer, error) {
 	nif := strings.TrimSpace(in.NIF)
@@ -193,13 +203,14 @@ func (r *Registry) CreateScopeBinding(ctx context.Context, in CreateScopeBinding
 	if scopeID == "" || tp == "" || est == "" || env == "" || tz == "" || series == "" {
 		return ScopeBinding{}, fmt.Errorf("%w: campos obrigatórios em falta", ErrValidation)
 	}
-	switch env {
-	case EnvHomologation, EnvProduction, EnvDevelopment:
-	default:
-		return ScopeBinding{}, fmt.Errorf("%w: environment inválido", ErrValidation)
+	if err := validateEnvironment(env); err != nil {
+		return ScopeBinding{}, err
 	}
-	if status != StatusActive && status != StatusInactive {
-		return ScopeBinding{}, fmt.Errorf("%w: status inválido", ErrValidation)
+	if err := validateStatus(status); err != nil {
+		return ScopeBinding{}, err
+	}
+	if err := validateIANATimezone(tz); err != nil {
+		return ScopeBinding{}, err
 	}
 	owner, err := r.establishmentTaxpayer(ctx, est)
 	if err != nil {
@@ -223,6 +234,50 @@ func (r *Registry) CreateScopeBinding(ctx context.Context, in CreateScopeBinding
 		ScopeID: scopeID, TaxpayerID: tp, EstablishmentID: est,
 		Environment: env, IANATimezone: tz, SeriesEffectiveCode: series,
 		Status: status, CreatedAt: now,
+	}, nil
+}
+
+// UpdateScopeConfig patches non-secret configuration on an existing binding (RM-BO-002).
+// Never accepts or returns secrets. Environment is metadata only (HML≠PRD isolation is logical).
+func (r *Registry) UpdateScopeConfig(ctx context.Context, in UpdateScopeConfigInput) (ScopeBinding, error) {
+	scopeID := strings.TrimSpace(in.ScopeID)
+	env := strings.TrimSpace(in.Environment)
+	tz := strings.TrimSpace(in.IANATimezone)
+	series := strings.TrimSpace(in.SeriesEffectiveCode)
+	status := strings.TrimSpace(in.Status)
+	if scopeID == "" || env == "" || tz == "" || series == "" || status == "" {
+		return ScopeBinding{}, fmt.Errorf("%w: campos obrigatórios em falta", ErrValidation)
+	}
+	if err := validateEnvironment(env); err != nil {
+		return ScopeBinding{}, err
+	}
+	if err := validateStatus(status); err != nil {
+		return ScopeBinding{}, err
+	}
+	if err := validateIANATimezone(tz); err != nil {
+		return ScopeBinding{}, err
+	}
+	cur, err := r.GetScopeBinding(ctx, scopeID)
+	if err != nil {
+		return ScopeBinding{}, err
+	}
+	q := `UPDATE ` + r.t("scope_bindings") + ` SET environment = ` + r.p(1) +
+		`, iana_timezone = ` + r.p(2) +
+		`, series_effective_code = ` + r.p(3) +
+		`, status = ` + r.p(4) +
+		` WHERE scope_id = ` + r.p(5)
+	res, err := r.db.ExecContext(ctx, q, env, tz, series, status, scopeID)
+	if err != nil {
+		return ScopeBinding{}, fmt.Errorf("adminregistry: update scope_binding: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ScopeBinding{}, ErrNotFound
+	}
+	return ScopeBinding{
+		ScopeID: cur.ScopeID, TaxpayerID: cur.TaxpayerID, EstablishmentID: cur.EstablishmentID,
+		Environment: env, IANATimezone: tz, SeriesEffectiveCode: series,
+		Status: status, CreatedAt: cur.CreatedAt,
 	}, nil
 }
 
@@ -317,6 +372,14 @@ func (r *Registry) ph(n int) string {
 	return strings.Join(parts, ", ")
 }
 
+// p returns a single placeholder ($n or ?).
+func (r *Registry) p(n int) string {
+	if r.dialect == DialectPostgres {
+		return fmt.Sprintf("$%d", n)
+	}
+	return "?"
+}
+
 func (r *Registry) timeArg(t time.Time) any {
 	if r.dialect == DialectPostgres {
 		return t
@@ -354,4 +417,27 @@ func isUniqueViolation(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate") || strings.Contains(msg, "constraint")
+}
+
+func validateEnvironment(env string) error {
+	switch env {
+	case EnvHomologation, EnvProduction, EnvDevelopment:
+		return nil
+	default:
+		return fmt.Errorf("%w: environment inválido", ErrValidation)
+	}
+}
+
+func validateStatus(status string) error {
+	if status != StatusActive && status != StatusInactive {
+		return fmt.Errorf("%w: status inválido", ErrValidation)
+	}
+	return nil
+}
+
+func validateIANATimezone(tz string) error {
+	if _, err := time.LoadLocation(tz); err != nil {
+		return fmt.Errorf("%w: iana_timezone inválido", ErrValidation)
+	}
+	return nil
 }

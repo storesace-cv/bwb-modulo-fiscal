@@ -77,6 +77,22 @@ func TestAdminCadastrosHappyPathAndRBAC(t *testing.T) {
 		t.Fatalf("create bind status=%d body=%s", rr.Code, rr.Body.String())
 	}
 
+	patch := httptest.NewRequest(http.MethodPatch, "/admin/v1/scope-bindings/scope-admin-1", bytes.NewBufferString(
+		`{"environment":"production","iana_timezone":"Africa/Luanda","series_effective_code":"B","status":"active"}`))
+	patch.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, patch)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("patch bind status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	var patched map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &patched); err != nil {
+		t.Fatal(err)
+	}
+	if patched["series_effective_code"] != "B" || patched["environment"] != "production" {
+		t.Fatalf("patch body=%v", patched)
+	}
+
 	getTP := httptest.NewRequest(http.MethodGet, "/admin/v1/taxpayers/"+tpID, nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, getTP)
@@ -85,7 +101,7 @@ func TestAdminCadastrosHappyPathAndRBAC(t *testing.T) {
 	}
 
 	n, err := audit.CountForTests(ctx)
-	if err != nil || n < 3 {
+	if err != nil || n < 4 {
 		t.Fatalf("audit count=%d err=%v", n, err)
 	}
 

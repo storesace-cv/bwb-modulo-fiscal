@@ -77,6 +77,20 @@ func runRegistrySuite(t *testing.T, ctx context.Context, reg *adminregistry.Regi
 		if bind.ScopeID != "scope-demo-1" || bind.Environment != adminregistry.EnvHomologation {
 			t.Fatalf("%+v", bind)
 		}
+		updated, err := reg.UpdateScopeConfig(ctx, adminregistry.UpdateScopeConfigInput{
+			ScopeID: bind.ScopeID, Environment: adminregistry.EnvProduction,
+			IANATimezone: "Europe/Lisbon", SeriesEffectiveCode: "B", Status: adminregistry.StatusInactive,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated.Environment != adminregistry.EnvProduction || updated.SeriesEffectiveCode != "B" ||
+			updated.IANATimezone != "Europe/Lisbon" || updated.Status != adminregistry.StatusInactive {
+			t.Fatalf("update: %+v", updated)
+		}
+		if updated.TaxpayerID != tp.ID || updated.EstablishmentID != est.ID {
+			t.Fatalf("immutable ids changed: %+v", updated)
+		}
 		got, err := reg.GetTaxpayer(ctx, tp.ID)
 		if err != nil || got.NIF != "5000000001" {
 			t.Fatalf("%+v %v", got, err)
@@ -127,6 +141,27 @@ func runRegistrySuite(t *testing.T, ctx context.Context, reg *adminregistry.Regi
 		_, err := reg.CreateTaxpayer(ctx, adminregistry.CreateTaxpayerInput{NIF: "  ", LegalName: "X"})
 		if !errors.Is(err, adminregistry.ErrValidation) {
 			t.Fatalf("got %v", err)
+		}
+	})
+
+	t.Run("invalid_timezone_rejected", func(t *testing.T) {
+		tp, err := reg.CreateTaxpayer(ctx, adminregistry.CreateTaxpayerInput{NIF: "5000000005", LegalName: "TZ"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		est, err := reg.CreateEstablishment(ctx, adminregistry.CreateEstablishmentInput{
+			TaxpayerID: tp.ID, Code: "TZ1", Name: "TZ",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = reg.CreateScopeBinding(ctx, adminregistry.CreateScopeBindingInput{
+			ScopeID: "scope-bad-tz", TaxpayerID: tp.ID, EstablishmentID: est.ID,
+			Environment: adminregistry.EnvHomologation, IANATimezone: "Not/AZone",
+			SeriesEffectiveCode: "A",
+		})
+		if !errors.Is(err, adminregistry.ErrValidation) {
+			t.Fatalf("want ErrValidation, got %v", err)
 		}
 	})
 }
