@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Backoffice UI: **RM-UI-003** — páginas SSR submissões/reconciliação + auditoria admin; sem corpos secretos/deploy.
 - Backoffice UI: **RM-UI-002** — formulários SSR + CSRF (contribuintes/estabelecimentos/bindings/séries); sem JS/segredos/deploy.
 - Backoffice UI: **RM-UI-001** / **RM-ARCH-005** (EM_CURSO) — SSR Go em `/admin/ui/` (shell + dashboard read-only); CSP sem scripts; auth `adminauth` fail-closed + cookie dev opcional; sem SPA/IdP/segredos/deploy.
 - Admin API: **RM-BO-005** — GET listagens taxpayers/establishments/scope-bindings + PATCH status; OpenAPI admin `0.1.5-draft`; audit; sem segredos/AGT/deploy.

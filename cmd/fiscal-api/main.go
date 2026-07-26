@@ -126,10 +126,12 @@ func run() int {
 		}
 	}
 	registry := adminregistry.New(sqlDB, regDialect, nil)
+	auditStore := adminaudit.New(sqlDB, auditDialect, nil)
+	opsStore := adminops.New(sqlDB, opsDialect)
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
 		Registry:    registry,
-		Audit:       adminaudit.New(sqlDB, auditDialect, nil),
-		Ops:         adminops.New(sqlDB, opsDialect),
+		Audit:       auditStore,
+		Ops:         opsStore,
 		SecretsMeta: secretsMeta,
 		SecAdm:      secGate,
 	})
@@ -139,6 +141,8 @@ func run() int {
 		logger.Error("adminui_init_failed", "error", err.Error())
 		return 1
 	}
+	uiHandler.Ops = opsStore
+	uiHandler.Audit = auditStore
 	injectSubject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
 	var injectRoles []adminauth.Role
 	if docsCfg.Env == config.EnvDevelopment() && strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE")) == "injected" {

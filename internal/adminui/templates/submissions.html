@@ -1,0 +1,32 @@
+{{define "content"}}
+<p class="hint">Estados de outbox/ledger/outcome — sem corpos de documento nem segredos.</p>
+{{if .Items}}
+<table>
+  <caption class="sr-only">Submissões</caption>
+  <thead>
+    <tr>
+      <th scope="col">Submission</th>
+      <th scope="col">Documento</th>
+      <th scope="col">Outbox</th>
+      <th scope="col">Ledger</th>
+      <th scope="col">Outcome</th>
+      <th scope="col">Actualizado</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Items}}
+    <tr>
+      <td class="mono">{{.SubmissionID}}</td>
+      <td class="mono">{{.DocumentID}}</td>
+      <td>{{.OutboxState}}</td>
+      <td>{{.LedgerStatus}}</td>
+      <td>{{.LatestOutcome}}</td>
+      <td>{{.OutboxUpdatedAt.UTC.Format "2006-01-02 15:04:05"}}Z</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem submissões no outbox.</p>
+{{end}}
+{{end}}
