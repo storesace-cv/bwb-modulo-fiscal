@@ -1,0 +1,37 @@
+{{define "content"}}
+<p class="hint">Zona owner — <strong>apenas metadados</strong> (estado, fingerprint, versão). O valor do segredo nunca é pedido nem mostrado nesta página de consulta.</p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/ui/secadm/metadata">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="kind">Kind</label>
+    <input id="kind" name="kind" value="{{.Kind}}" required placeholder="producer_credential">
+  </p>
+  <p>
+    <label for="environment">Ambiente</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation"{{if eq .Environment "homologation"}} selected{{end}}>homologation</option>
+      <option value="production"{{if eq .Environment "production"}} selected{{end}}>production</option>
+    </select>
+  </p>
+  <p>
+    <label for="subject_id">Subject ID</label>
+    <input id="subject_id" name="subject_id" value="{{.SubjectID}}" required placeholder="platform">
+  </p>
+  <p>
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{.Name}}" required placeholder="agt">
+  </p>
+  <p><button type="submit">Consultar metadados</button></p>
+</form>
+{{if .HasResult}}
+<section aria-labelledby="meta-heading">
+  <h2 id="meta-heading">Resultado</h2>
+  <dl>
+    <dt>Status</dt><dd>{{.Status}}</dd>
+    <dt>Fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
+    <dt>Version</dt><dd>{{.Version}}</dd>
+  </dl>
+</section>
+{{end}}
+{{end}}

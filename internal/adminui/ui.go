@@ -17,6 +17,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
 //go:embed templates/*.html static/*
@@ -29,11 +30,12 @@ const (
 
 // Handler serves /admin/ui pages.
 type Handler struct {
-	Registry *adminregistry.Registry
-	Ops      *adminops.Store
-	Audit    *adminaudit.Store
-	EnvLabel string
-	CSRF     *CSRFStore
+	Registry    *adminregistry.Registry
+	Ops         *adminops.Store
+	Audit       *adminaudit.Store
+	SecretsMeta secretstore.AdminView // Metadata only — never Reveal
+	EnvLabel    string
+	CSRF        *CSRFStore
 }
 
 // New builds a Handler. Ops/Audit may be nil (pages return empty/unavailable).
@@ -75,6 +77,11 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/bindings", wrapRead(http.HandlerFunc(h.bindings)))
 	mux.Handle("GET /admin/ui/submissions", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.submissions)))
 	mux.Handle("GET /admin/ui/audit", wrapPerm(adminauth.PermAuditRead, http.HandlerFunc(h.auditEvents)))
+	wrapOwner := func(next http.Handler) http.Handler {
+		return securityHeaders(authMW(htmlRequireOwnerSecAdm(next)))
+	}
+	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
+	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
 
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))
@@ -97,6 +104,7 @@ type pageBase struct {
 	RolesLabel string
 	Flash      string
 	CanWrite   bool
+	IsOwner    bool
 	CSRFToken  string
 }
 
@@ -135,6 +143,7 @@ func (h *Handler) base(r *http.Request, title, heading, nav string) pageBase {
 		Title: title, Heading: heading, Nav: nav,
 		EnvLabel: h.EnvLabel, Subject: claims.Subject, RolesLabel: strings.Join(roles, ", "),
 		CanWrite: adminauth.Allows(claims, adminauth.PermCadastroWrite),
+		IsOwner:  adminauth.Allows(claims, adminauth.PermSecAdmWrite),
 	}
 }
 
