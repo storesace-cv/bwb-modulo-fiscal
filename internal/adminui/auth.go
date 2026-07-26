@@ -59,23 +59,26 @@ func (c ChainAuthenticator) Authenticate(ctx context.Context, r *http.Request) (
 	return adminauth.Claims{}, last
 }
 
-// BuildUIAuthenticator wraps API admin authenticator with optional dev cookie bridge.
-func BuildUIAuthenticator(apiAuth adminauth.Authenticator, env string, injectSubject string, injectRoles []adminauth.Role) adminauth.Authenticator {
+// BuildUIAuthenticator chains session cookie, optional API Bearer, and optional dev cookie.
+// JWT is never stored in the browser; session cookies are opaque server-side IDs (RM-UI-005).
+func BuildUIAuthenticator(apiAuth adminauth.Authenticator, sessions *SessionStore, env string, injectSubject string, injectRoles []adminauth.Role) adminauth.Authenticator {
 	if apiAuth == nil {
 		apiAuth = adminauth.FailClosedAuthenticator{}
 	}
+	chain := ChainAuthenticator{}
+	if sessions != nil {
+		chain = append(chain, SessionAuthenticator{Store: sessions})
+	}
+	chain = append(chain, apiAuth)
 	devCookie := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_UI_DEV_COOKIE"))
 	if env == "development" && len(devCookie) >= 32 && injectSubject != "" && len(injectRoles) > 0 {
-		return ChainAuthenticator{
-			apiAuth,
-			DevCookieAuthenticator{
-				AllowDev:  true,
-				CookieVal: devCookie,
-				Claims:    adminauth.Claims{Subject: injectSubject, Roles: injectRoles},
-			},
-		}
+		chain = append(chain, DevCookieAuthenticator{
+			AllowDev:  true,
+			CookieVal: devCookie,
+			Claims:    adminauth.Claims{Subject: injectSubject, Roles: injectRoles},
+		})
 	}
-	return apiAuth
+	return chain
 }
 
 func htmlAuthMiddleware(authn adminauth.Authenticator) func(http.Handler) http.Handler {

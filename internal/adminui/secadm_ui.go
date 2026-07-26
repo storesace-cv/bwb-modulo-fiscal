@@ -30,7 +30,7 @@ func (h *Handler) secadmMetaForm(w http.ResponseWriter, r *http.Request) {
 		tok, _ = h.CSRF.Issue(w)
 	}
 	h.render(w, "secadm_meta.html", secadmMetaPage{
-		pageBase:  h.base(r, "SecAdm metadados", "Metadados de refs (owner)", "secadm"),
+		pageBase:  h.baseWithCSRF(w, r, "SecAdm metadados", "Metadados de refs (owner)", "secadm"),
 		CSRFToken: tok,
 	})
 }
@@ -41,7 +41,7 @@ func (h *Handler) secadmMetaLookup(w http.ResponseWriter, r *http.Request) {
 	}
 	tok, _ := h.CSRF.Issue(w)
 	page := secadmMetaPage{
-		pageBase:    h.base(r, "SecAdm metadados", "Metadados de refs (owner)", "secadm"),
+		pageBase:    h.baseWithCSRF(w, r, "SecAdm metadados", "Metadados de refs (owner)", "secadm"),
 		CSRFToken:   tok,
 		Kind:        strings.TrimSpace(r.FormValue("kind")),
 		Environment: strings.TrimSpace(r.FormValue("environment")),

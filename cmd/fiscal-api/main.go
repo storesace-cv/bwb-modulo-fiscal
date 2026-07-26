@@ -144,12 +144,16 @@ func run() int {
 	uiHandler.Ops = opsStore
 	uiHandler.Audit = auditStore
 	uiHandler.SecretsMeta = secretsMeta
+	uiHandler.TokenAuth = adminAuthn
+	if uiHandler.CSRF != nil {
+		uiHandler.CSRF.SetSecure(uiHandler.CookieSecure)
+	}
 	injectSubject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
 	var injectRoles []adminauth.Role
 	if docsCfg.Env == config.EnvDevelopment() && strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE")) == "injected" {
 		injectRoles, _ = adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
 	}
-	uiAuth := adminui.BuildUIAuthenticator(adminAuthn, docsCfg.Env, injectSubject, injectRoles)
+	uiAuth := adminui.BuildUIAuthenticator(adminAuthn, uiHandler.Sessions, docsCfg.Env, injectSubject, injectRoles)
 	adminui.Mount(mux, uiAuth, uiHandler)
 
 	srv := httpserver.New(httpserver.Config{

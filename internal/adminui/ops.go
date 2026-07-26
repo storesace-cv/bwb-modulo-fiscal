@@ -20,7 +20,7 @@ type auditPage struct {
 }
 
 func (h *Handler) submissions(w http.ResponseWriter, r *http.Request) {
-	page := submissionsPage{pageBase: h.base(r, "Submissões", "Submissões e reconciliação", "submissions")}
+	page := submissionsPage{pageBase: h.baseWithCSRF(w, r, "Submissões", "Submissões e reconciliação", "submissions")}
 	if h.Ops != nil {
 		items, err := h.Ops.ListSubmissionSummaries(r.Context(), listLimit)
 		if err != nil {
@@ -35,7 +35,7 @@ func (h *Handler) submissions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) auditEvents(w http.ResponseWriter, r *http.Request) {
-	page := auditPage{pageBase: h.base(r, "Auditoria", "Auditoria admin", "audit")}
+	page := auditPage{pageBase: h.baseWithCSRF(w, r, "Auditoria", "Auditoria admin", "audit")}
 	h.recordUIAccess(r, "ui.audit.read", "audit_ui", "events", adminaudit.ResultSuccess)
 	if h.Audit != nil {
 		items, err := h.Audit.ListRecent(r.Context(), listLimit)

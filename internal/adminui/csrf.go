@@ -22,6 +22,7 @@ type CSRFStore struct {
 	tokens  map[string]time.Time
 	now     func() time.Time
 	maxSize int
+	secure  bool
 }
 
 // NewCSRFStore returns an in-memory CSRF store (process-local; fine for single instance).
@@ -30,6 +31,13 @@ func NewCSRFStore(now func() time.Time) *CSRFStore {
 		now = time.Now
 	}
 	return &CSRFStore{tokens: make(map[string]time.Time), now: now, maxSize: 4096}
+}
+
+// SetSecure toggles the Secure flag on CSRF cookies (true outside local http).
+func (s *CSRFStore) SetSecure(secure bool) {
+	if s != nil {
+		s.secure = secure
+	}
 }
 
 // Issue creates a token and sets the CSRF cookie (HttpOnly=false so form can echo;
@@ -51,7 +59,7 @@ func (s *CSRFStore) Issue(w http.ResponseWriter) (string, error) {
 		Path:     "/admin/ui",
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
-		Secure:   false, // local http; TLS terminators set Secure in front proxy later
+		Secure:   s.secure,
 	})
 	return tok, nil
 }
