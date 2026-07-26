@@ -1,0 +1,22 @@
+{{define "content"}}
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/ui/taxpayers">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="nif">NIF</label>
+    <input id="nif" name="nif" required autocomplete="off">
+  </p>
+  <p>
+    <label for="legal_name">Nome legal</label>
+    <input id="legal_name" name="legal_name" required autocomplete="organization">
+  </p>
+  <p>
+    <label for="status">Estado</label>
+    <select id="status" name="status">
+      <option value="active">active</option>
+      <option value="inactive">inactive</option>
+    </select>
+  </p>
+  <p><button type="submit">Criar</button> <a href="/admin/ui/taxpayers">Cancelar</a></p>
+</form>
+{{end}}

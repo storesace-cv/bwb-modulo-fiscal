@@ -6,18 +6,18 @@
     <li><span class="n">{{.EstablishmentCount}}</span> estabelecimentos</li>
     <li><span class="n">{{.BindingCount}}</span> bindings</li>
   </ul>
-  <p class="hint">Vista read-only. Mutações e SecAdm chegam nos slices seguintes.</p>
+  <p class="hint">Mutações (com CSRF) disponíveis para quem tem <code>cadastro.write</code>.</p>
 </section>
 <section aria-labelledby="tp-heading">
   <h2 id="tp-heading">Contribuintes recentes</h2>
-  {{template "taxpayer_table" .Taxpayers}}
+  {{template "taxpayer_table" .}}
 </section>
 <section aria-labelledby="est-heading">
   <h2 id="est-heading">Estabelecimentos recentes</h2>
-  {{template "establishment_table" .Establishments}}
+  {{template "establishment_table" .}}
 </section>
 <section aria-labelledby="bind-heading">
   <h2 id="bind-heading">Bindings recentes</h2>
-  {{template "binding_table" .Bindings}}
+  {{template "binding_table" .}}
 </section>
 {{end}}

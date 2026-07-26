@@ -25,10 +25,11 @@ const (
 	listLimit  = 50
 )
 
-// Handler serves /admin/ui pages (read-only in RM-UI-001).
+// Handler serves /admin/ui pages.
 type Handler struct {
 	Registry *adminregistry.Registry
 	EnvLabel string
+	CSRF     *CSRFStore
 }
 
 // New builds a Handler.
@@ -39,7 +40,7 @@ func New(reg *adminregistry.Registry, envLabel string) (*Handler, error) {
 	if strings.TrimSpace(envLabel) == "" {
 		envLabel = "unknown"
 	}
-	return &Handler{Registry: reg, EnvLabel: envLabel}, nil
+	return &Handler{Registry: reg, EnvLabel: envLabel, CSRF: NewCSRFStore(nil)}, nil
 }
 
 // Mount registers UI routes. Static CSS is public; pages require auth + cadastro.read.
@@ -55,13 +56,27 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 
 	authMW := htmlAuthMiddleware(authn)
 	read := adminauth.RequirePermission(adminauth.PermCadastroRead)
-	wrap := func(next http.Handler) http.Handler {
+	wrapRead := func(next http.Handler) http.Handler {
 		return securityHeaders(authMW(read(next)))
 	}
-	mux.Handle("GET /admin/ui/", wrap(http.HandlerFunc(h.dashboard)))
-	mux.Handle("GET /admin/ui/taxpayers", wrap(http.HandlerFunc(h.taxpayers)))
-	mux.Handle("GET /admin/ui/establishments", wrap(http.HandlerFunc(h.establishments)))
-	mux.Handle("GET /admin/ui/bindings", wrap(http.HandlerFunc(h.bindings)))
+	wrapWrite := func(next http.Handler) http.Handler {
+		return securityHeaders(authMW(htmlRequireWrite(next)))
+	}
+	mux.Handle("GET /admin/ui/", wrapRead(http.HandlerFunc(h.dashboard)))
+	mux.Handle("GET /admin/ui/taxpayers", wrapRead(http.HandlerFunc(h.taxpayers)))
+	mux.Handle("GET /admin/ui/establishments", wrapRead(http.HandlerFunc(h.establishments)))
+	mux.Handle("GET /admin/ui/bindings", wrapRead(http.HandlerFunc(h.bindings)))
+
+	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
+	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))
+	mux.Handle("POST /admin/ui/taxpayers/{taxpayer_id}/status", wrapWrite(http.HandlerFunc(h.patchTaxpayerForm)))
+	mux.Handle("GET /admin/ui/establishments/new", wrapWrite(http.HandlerFunc(h.newEstablishmentForm)))
+	mux.Handle("POST /admin/ui/establishments", wrapWrite(http.HandlerFunc(h.createEstablishmentForm)))
+	mux.Handle("POST /admin/ui/establishments/{establishment_id}/status", wrapWrite(http.HandlerFunc(h.patchEstablishmentForm)))
+	mux.Handle("GET /admin/ui/bindings/new", wrapWrite(http.HandlerFunc(h.newBindingForm)))
+	mux.Handle("POST /admin/ui/bindings", wrapWrite(http.HandlerFunc(h.createBindingForm)))
+	mux.Handle("GET /admin/ui/bindings/{scope_id}/edit", wrapWrite(http.HandlerFunc(h.editBindingForm)))
+	mux.Handle("POST /admin/ui/bindings/{scope_id}", wrapWrite(http.HandlerFunc(h.patchBindingForm)))
 }
 
 type pageBase struct {
@@ -72,6 +87,8 @@ type pageBase struct {
 	Subject    string
 	RolesLabel string
 	Flash      string
+	CanWrite   bool
+	CSRFToken  string
 }
 
 type dashboardPage struct {
@@ -108,7 +125,19 @@ func (h *Handler) base(r *http.Request, title, heading, nav string) pageBase {
 	return pageBase{
 		Title: title, Heading: heading, Nav: nav,
 		EnvLabel: h.EnvLabel, Subject: claims.Subject, RolesLabel: strings.Join(roles, ", "),
+		CanWrite: adminauth.Allows(claims, adminauth.PermCadastroWrite),
 	}
+}
+
+func (h *Handler) baseWithCSRF(w http.ResponseWriter, r *http.Request, title, heading, nav string) pageBase {
+	b := h.base(r, title, heading, nav)
+	if h.CSRF != nil && b.CanWrite {
+		tok, err := h.CSRF.Issue(w)
+		if err == nil {
+			b.CSRFToken = tok
+		}
+	}
+	return b
 }
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +161,7 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, "dashboard.html", dashboardPage{
-		pageBase:           h.base(r, "Painel", "Painel operacional", "dashboard"),
+		pageBase:           h.baseWithCSRF(w, r, "Painel", "Painel operacional", "dashboard"),
 		TaxpayerCount:      len(tps),
 		EstablishmentCount: len(ests),
 		BindingCount:       len(binds),
@@ -149,7 +178,7 @@ func (h *Handler) taxpayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, "taxpayers.html", taxpayersPage{
-		pageBase:  h.base(r, "Contribuintes", "Contribuintes", "taxpayers"),
+		pageBase:  h.baseWithCSRF(w, r, "Contribuintes", "Contribuintes", "taxpayers"),
 		Taxpayers: tps,
 	})
 }
@@ -161,7 +190,7 @@ func (h *Handler) establishments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, "establishments.html", establishmentsPage{
-		pageBase:       h.base(r, "Estabelecimentos", "Estabelecimentos", "establishments"),
+		pageBase:       h.baseWithCSRF(w, r, "Estabelecimentos", "Estabelecimentos", "establishments"),
 		Establishments: ests,
 	})
 }
@@ -173,7 +202,7 @@ func (h *Handler) bindings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, "bindings.html", bindingsPage{
-		pageBase: h.base(r, "Bindings", "Scope bindings", "bindings"),
+		pageBase: h.baseWithCSRF(w, r, "Bindings", "Scope bindings", "bindings"),
 		Bindings: binds,
 	})
 }

@@ -1,3 +1,6 @@
 {{define "content"}}
-{{template "establishment_table" .Establishments}}
+{{if .CanWrite}}
+<p><a class="btn" href="/admin/ui/establishments/new">Novo estabelecimento</a></p>
+{{end}}
+{{template "establishment_table" .}}
 {{end}}

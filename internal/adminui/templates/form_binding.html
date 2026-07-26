@@ -1,0 +1,50 @@
+{{define "content"}}
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/ui/bindings">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="scope_id">Scope ID</label>
+    <input id="scope_id" name="scope_id" required class="mono">
+  </p>
+  <p>
+    <label for="taxpayer_id">Contribuinte</label>
+    <select id="taxpayer_id" name="taxpayer_id" required>
+      {{range .Taxpayers}}
+      <option value="{{.ID}}">{{.NIF}} — {{.LegalName}}</option>
+      {{end}}
+    </select>
+  </p>
+  <p>
+    <label for="establishment_id">Estabelecimento</label>
+    <select id="establishment_id" name="establishment_id" required>
+      {{range .Establishments}}
+      <option value="{{.ID}}">{{.Code}} — {{.Name}}</option>
+      {{end}}
+    </select>
+  </p>
+  <p>
+    <label for="environment">Ambiente</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation">homologation</option>
+      <option value="production">production</option>
+      <option value="development">development</option>
+    </select>
+  </p>
+  <p>
+    <label for="iana_timezone">Timezone IANA</label>
+    <input id="iana_timezone" name="iana_timezone" value="Africa/Luanda" required>
+  </p>
+  <p>
+    <label for="series_effective_code">Série efectiva</label>
+    <input id="series_effective_code" name="series_effective_code" required>
+  </p>
+  <p>
+    <label for="status">Estado</label>
+    <select id="status" name="status">
+      <option value="active">active</option>
+      <option value="inactive">inactive</option>
+    </select>
+  </p>
+  <p><button type="submit">Criar</button> <a href="/admin/ui/bindings">Cancelar</a></p>
+</form>
+{{end}}
