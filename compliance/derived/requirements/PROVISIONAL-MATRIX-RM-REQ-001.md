@@ -77,23 +77,40 @@ Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAu
 
 Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a conformidade de exportação; critério do catálogo **não** fica satisfeito só com o schema versionado; **não** confirmado.
 
+### Citação E — DP 71/25 (regime de facturas; tipos e requisitos)
+
+Fonte: `AO-LEG-DP-71-25-2025` · sha256 `4931fd3ce711ef2b22e7316c3dd296d8c7c81993c88e29c70e09baeb0d0e7f76` · OCR v1 `reviewed` · citar só gazeta **11902–11920**.
+
+| Tema | Norma | PDF | Gazeta |
+|---|---|---|---|
+| Definições de tipos (Factura, FR, FG, FA, NC, ND, Recibo, Talão, …) | Art.3 | p.3–4 | 11903–11904 |
+| Exclusões «não são factura» | Art.4 n.º9 | p.5 | 11905 |
+| Requisitos obrigatórios a)–j) | Art.10 n.º1 | p.8–9 | 11908–11909 |
+| NC / recibo: excepções ao Art.10 | Art.10 n.º5–6 | p.9 | 11909 |
+| Numeração por tipo + séries | Art.10 n.º1 b) | p.8 | 11908 |
+| Inelegibilidade de eliminação pós-emissão (software) | Art.3 n) | p.4 | 11904 |
+| Contingência FE | Art.18 | p.11–12 | 11911–11912 |
+| Estabelecimentos / séries a comunicar | Art.24 n.º1 | p.14 | 11914 |
+
+Detalhe e cruzamento FE/SAF-T: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md). Limite: OCR auxiliar; **não** confirma AO-*; Art.10 g) com tipografia OCR ruidosa («9)»).
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
-| AO-ID-001 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: `taxRegistrationNumber` @**19166** (PDF p.4) + `softwareValidationNumber`/`productVersion` @**19167** (PDF p.5). Estabelecimento/terminal **não** cobertos nesta citação; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
-| AO-DOC-001 | `scaffold` | DP 71/25 + DE 683/25 + FE HML + SAF-T XSD | Inventário de tipos com citações em [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md); campos obrigatórios por tipo **ainda** incompletos; critério do catálogo **não** fica satisfeito; **não** confirmado |
-| AO-DOC-002 | `scaffold` | DE 74/19 + Rect. 10/19 v2 | Imutabilidade/regras de emissão: citação consolidada pendente — **não** confirmado |
-| AO-SEQ-001 | `scaffold` | DE 74/19 (+ Rect.) / DE 683/25 | Sequencialidade: split formal de fontes e citação página a página pendentes — **não** confirmado |
-| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: ART. 4.º / gazeta **19164** (PDF p.2) — séries FE geradas pela AGT. O critério do catálogo («POS não atribui o número fiscal final») **não** fica satisfeito só com esta citação; cruzamento com DP 71/25 (`reviewed`, 11902–11920) ainda sem citação página a página. **Não** confirmado |
+| AO-ID-001 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-LEG-DP-71-25-2025` | Ligação preliminar: `taxRegistrationNumber` @**19166** + software @**19167** (DE 683); estabelecimento candidato Art.24 @**11914** (DP 71). Terminal **não** coberto; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
+| AO-DOC-001 | `scaffold` | DP 71/25 + DE 683/25 + FE HML + SAF-T XSD | Art.10 a)–j) citados @**11908–11909** + excepções por tipo (F.2–F.3); falta mapeamento campo→validador e fecho C-DOC-*; critério do catálogo **não** fica satisfeito; **não** confirmado |
+| AO-DOC-002 | `partial` | `AO-LEG-DP-71-25-2025` | Ligação preliminar: Art.3 n) @**11904** (software não permite eliminação após emissão) + rectificação via NC Art.8 @**11907**. Critério do catálogo **não** fica satisfeito só com estas citações (faltam 74/19+Rect. e testes). **Não** confirmado |
+| AO-SEQ-001 | `partial` | `AO-LEG-DP-71-25-2025` | Ligação preliminar: Art.10 n.º1 b) @**11908** — numeração sequencial/cronológica por tipo de documento e séries. Unicidade concorrente / recuperação **não** demonstradas; critério do catálogo **não** fica satisfeito só com Art.10 b). **Não** confirmado |
+| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-LEG-DP-71-25-2025` | Ligação preliminar: DE 683 ART.4 @**19164** (séries AGT) + DP 71 Art.10 b)/Art.24 @**11908**/**11914** (séries por tipo / comunicação). O critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação |
 | AO-TAX-001 | `scaffold` | Rect. / 74/19 / fontes oficiais | Fontes OCR disponíveis; cálculo fiscal exige citação página a página — **não** confirmado |
 | AO-CRYPTO-001 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | Ligação preliminar: `jwsDocumentSignature` @**19168** (PDF p.6) + RS256 no snapshot FE (`pending_validation`). JWS FE ≠ SAF-T; encadeamento **não** citado; critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 | Custódia de chave contribuinte em aberto |
 | AO-AGT-001 | `blocked` | FE HML/PRD oficiais | Credenciais/docs oficiais AGT pendentes |
 | AO-AGT-002 | `scaffold` | — | Máquina de estados — DEC-API-004 |
-| AO-OFF-001 | `blocked` | Contingência oficial | Fonte oficial de contingência pendente |
+| AO-OFF-001 | `partial` | `AO-LEG-DP-71-25-2025` | Ligação preliminar: Art.18 @**11911–11912** (offline / tipografia Art.7 n.º6) + menção contingência. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com Art.18. **Não** confirmado |
 | AO-OFF-002 | `scaffold` | — | Sync sem renumerar — produto + legal |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
 | AO-SAF-001 | `pending_validation` | `AO-SAFT-XSD-1.01_01` | XSD versionado (`e9a938e1…`, `AuditFile`, NS AO_1.01_01); validação AGT pendente; critério do catálogo **não** fica satisfeito só com o schema; **não** confirmado |
@@ -103,14 +120,13 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 
 ## Próximos passos (este item)
 
-1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. v2 ou docs oficiais) — manter `partial`.
-2. Cruzar AO-SEQ-002 com DP 71/25 (gazeta 11902–11920; não citar p.21/DE 372/25); manter `partial`.
-3. AO-CRYPTO-001: confrontar lista de campos assinados PDF↔snapshot FE; manter `partial` até revisão compliance (sem inventar encadeamento).
-4. AO-SAF-001: manter `pending_validation` até validação AGT; não promover a `partial`/`confirmado` só com XSD ASSOFT.
-5. Fechar conflitos C-DOC-001/002/003 (GF OCR, rótulo RG, FE↔SAF-T) e completar Art.10 DP 71 página a página para campos por tipo — manter AO-DOC-001 `scaffold` até critérios do catálogo.
-6. Extrair citações para AO-SEQ-001 / AO-TAX-001 / AO-DOC-002 (imutabilidade) sem promover a confirmado.
-7. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis; não alargar OpenAPI `document_type` sem DEC-REG-003.
-8. Fechar RM-REQ-001 só com matriz rastreável e gate de revisão compliance (OCR fechado; confirmação AO-* ainda aberta).
+1. AO-ID-001: cruzar Art.24 com identificação de **terminal** (sem inventar) — manter `partial`.
+2. AO-DOC-001: mapear Art.10 a)–j) + excepções n.º5–6 para validadores; fechar C-DOC-*; manter `scaffold` até critérios do catálogo.
+3. AO-DOC-002 / AO-SEQ-001 / AO-OFF-001: confrontar PDF original nas páginas citadas + 74/19 onde aplicável; manter `partial`.
+4. AO-TAX-001: extrair regras de cálculo (não só Art.10 e/f) — manter `scaffold`.
+5. AO-CRYPTO-001 / AO-SAF-001: manter estados actuais até validação AGT / revisão compliance.
+6. Não promover nenhuma linha a confirmado sem revisão de compliance; não alargar OpenAPI `document_type` sem DEC-REG-003.
+7. Fechar RM-REQ-001 só com matriz rastreável e gate de revisão compliance.
 
 ## Referências
 

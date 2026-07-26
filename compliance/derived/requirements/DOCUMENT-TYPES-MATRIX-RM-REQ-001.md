@@ -149,14 +149,78 @@ Citação OCR auxiliar: anexo requisitos · PDF p.**2–3** · `AO-LEG-DE-74-19-
 
 Rect. 10/19 v2 (gazeta 1948–1949): Anexo III **Modelo 08** (requerimento) — **não** lista tipos de documento de emissão.
 
-## F. Campos obrigatórios por tipo (extrato — incompleto para AO-DOC-001)
+## F. DP 71/25 — requisitos e ciclo de vida (citações página a página)
 
-Critério de `AO-DOC-001` («campos obrigatórios por tipo») **não** fica satisfeito só com esta matriz.
+Critério de `AO-DOC-001` («campos obrigatórios por tipo» + validação operacional) **não** fica satisfeito só com este inventário. PDF original prevalece; OCR `ai_assisted`.
+
+### F.1 Índice de artigos relevantes (só 11902–11920)
+
+| Artigo | Tema | PDF | Gazeta |
+|---|---|---|---|
+| 1–2 | Objecto / âmbito | p.2 | 11902 |
+| 3 | Definições (tipos) | p.3–4 | 11903–11904 |
+| 4 | Emissão; exclusões «não factura» | p.4–5 | 11904–11905 |
+| 5 | Dispensa + talão | p.5–6 | 11905–11906 |
+| 6 | Recibos | p.6 | 11906 |
+| 7 | Processamento / software / tipografia | p.6–7 | 11906–11907 |
+| 8 | Prazo, rectificação, anulação (NC) | p.7–8 | 11907–11908 |
+| 9 | Portal do Contribuinte | p.8 | 11908 |
+| **10** | **Requisitos obrigatórios + excepções por tipo** | **p.8–9** | **11908–11909** |
+| 11–15 | Auto-facturação | p.9–11 | 11909–11911 |
+| 16–17 | FE sujeição / emissão tempo real | p.11 | 11911 |
+| 18 | Contingência FE | p.11–12 | 11911–11912 |
+| 19–20 | Autenticidade; remete Art.10 | p.12 | 11912 |
+| 21 | Manifestação NC electrónica | p.12 | 11912 |
+| 24 | Estabelecimentos / softwares / séries | p.14–15 | 11914–11915 |
+| 25 | Comunicação SAF-T | p.15 | 11915 |
+| 36 | Spec técnica → Decreto Executivo (683/25) | p.19 | 11919 |
+| 42 | Entrada em vigor (6 meses após publicação) | p.20 | 11920 |
+
+### F.2 Art.10.º n.º1 — requisitos obrigatórios da factura
+
+Fonte: `AO-LEG-DP-71-25-2025` · sha256 `4931fd3c…` · OCR v1 `reviewed`.
+
+| Alínea | Conteúdo (OCR auxiliar) | PDF | Gazeta |
+|---|---|---|---|
+| a) | Nome/firma/NIF/sede do fornecedor **e** do adquirente (quando no exercício de actividade) | p.8 | 11908 |
+| b) | Numeração sequencial e cronológica **por tipo de documento** e ano económico; uma ou mais séries | p.8 | 11908 |
+| c) | Discriminação bens/serviços, quantidades; embalagens não transaccionáveis | p.8 | 11908 |
+| d) | Preço unitário e total em moeda nacional (+ extenso); excepções import/export | p.8 | 11908 |
+| e) | Taxas de imposto e montante, quando devido | p.8 | 11908 |
+| f) | Motivo de não liquidação + norma legal | p.8 | 11908 |
+| g) | Data, hora e local de colocação/prestação; pagamentos antecipados se aplicável (OCR tipografa «9)» — confrontar PDF) | p.9 | 11909 |
+| h) | Redacção em português | p.9 | 11909 |
+| i) | Data da emissão | p.9 | 11909 |
+| j) | Software AGT + código hash + gráfica/tipografia + n.º certificação/validação | p.9 | 11909 |
+
+Art.10 n.º2: taxas diferentes → descrição separada · p.**9** · **11909**.
+
+### F.3 Art.10.º — aplicação / excepções por tipo
+
+| Tipo / figura | Norma | Excepção vs n.º1 | PDF | Gazeta |
+|---|---|---|---|---|
+| Factura genérica, factura-recibo, aviso de cobrança, factura global | Art.10 n.º4 | Devem respeitar n.º1 completo | p.9 | 11909 |
+| Nota de crédito | Art.10 n.º5 | Excepção **alíneas g)** | p.9 | 11909 |
+| Recibo | Art.10 n.º6 | Excepção **alíneas c) e g)** | p.9 | 11909 |
+| Auto-facturação (factura/recibo) | Art.10 n.º3 + Art.12 | Série **diferente** da factura de vendas (alíena b); menção «Auto-Facturação» | p.9 | 11909 |
+| Factura entidade estrangeira | Art.10 n.º7 | Tradução PT | p.9 | 11909 |
+| NC (conteúdo adicional) | Art.8 n.º4–5 | Motivo; «anulação»/«rectificação»; doc. anulado; prova conhecimento adquirente | p.7 | 11907 |
+| FA regularização | Art.8 n.º10 | Via notas de crédito | p.8 | 11908 |
+
+### F.4 Outras citações DP 71 ligadas a tipos / emissão
+
+| Tema | Norma | PDF | Gazeta | Nota |
+|---|---|---|---|---|
+| Software não permite eliminação após emissão | Art.3 n) | p.4 | 11904 | Candidato `AO-DOC-002` (parcial) |
+| Contingência offline / tipografia | Art.18 + Art.7 n.º6 | p.11–12 / p.7 | 11911–11912 / 11907 | Candidato `AO-OFF-001` (parcial) |
+| Comunicação estabelecimento + séries | Art.24 n.º1 a)–c) | p.14 | 11914 | Lacuna terminal em `AO-ID-001` |
+| SAF-T comunicação facturas/recibos/outros | Art.25 | p.15 | 11915 | Liga a `AO-SAF-*` |
+| Spec FE por Decreto Executivo | Art.36 | p.19 | 11919 | Ponte para DE 683/25 |
+
+### F.5 Camadas FE / OpenAPI (não substituem Art.10)
 
 | Âmbito | Fonte | Citação | Cobertura |
 |---|---|---|---|
-| Requisitos gerais de factura | DP 71 Art.**10.º** n.º1 | PDF p.**8** · gazeta **11908** (início; alíneas podem continuar p. seguintes — confrontar PDF) | Alíneas a)–j) parcialmente no OCR; **não** expandido campo-a-campo neste PR |
-| NC / recibo: excepções aos requisitos | DP 71 Art.10 n.º5–6 | PDF após Art.10 n.º1 (confirmar página exacta no original) | Pendente citação página fechada |
 | Payload FE por tipo | DE 683 + HTML registar | p.7–8 · 19169–19170 | Parcial (B.1) |
 | OpenAPI MVP | `invoice` / `credit_note` | OpenAPI draft | Subconjunto produto; **não** normativo AGT |
 
