@@ -1,5 +1,5 @@
 {{define "taxpayer_table"}}
-{{if .}}
+{{if .Taxpayers}}
 <table>
   <caption class="sr-only">Lista de contribuintes</caption>
   <thead>
@@ -8,15 +8,29 @@
       <th scope="col">Nome</th>
       <th scope="col">Estado</th>
       <th scope="col">ID</th>
+      {{if .CanWrite}}<th scope="col">Acções</th>{{end}}
     </tr>
   </thead>
   <tbody>
-  {{range .}}
+  {{range .Taxpayers}}
     <tr>
       <td>{{.NIF}}</td>
       <td>{{.LegalName}}</td>
       <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
       <td class="mono">{{.ID}}</td>
+      {{if $.CanWrite}}
+      <td>
+        <form method="post" action="/admin/ui/taxpayers/{{.ID}}/status" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <label class="sr-only" for="st-{{.ID}}">Estado</label>
+          <select id="st-{{.ID}}" name="status">
+            <option value="active"{{if eq .Status "active"}} selected{{end}}>active</option>
+            <option value="inactive"{{if eq .Status "inactive"}} selected{{end}}>inactive</option>
+          </select>
+          <button type="submit">Guardar</button>
+        </form>
+      </td>
+      {{end}}
     </tr>
   {{end}}
   </tbody>
@@ -27,7 +41,7 @@
 {{end}}
 
 {{define "establishment_table"}}
-{{if .}}
+{{if .Establishments}}
 <table>
   <caption class="sr-only">Lista de estabelecimentos</caption>
   <thead>
@@ -37,16 +51,30 @@
       <th scope="col">Estado</th>
       <th scope="col">Contribuinte</th>
       <th scope="col">ID</th>
+      {{if .CanWrite}}<th scope="col">Acções</th>{{end}}
     </tr>
   </thead>
   <tbody>
-  {{range .}}
+  {{range .Establishments}}
     <tr>
       <td>{{.Code}}</td>
       <td>{{.Name}}</td>
       <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
       <td class="mono">{{.TaxpayerID}}</td>
       <td class="mono">{{.ID}}</td>
+      {{if $.CanWrite}}
+      <td>
+        <form method="post" action="/admin/ui/establishments/{{.ID}}/status" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <label class="sr-only" for="est-{{.ID}}">Estado</label>
+          <select id="est-{{.ID}}" name="status">
+            <option value="active"{{if eq .Status "active"}} selected{{end}}>active</option>
+            <option value="inactive"{{if eq .Status "inactive"}} selected{{end}}>inactive</option>
+          </select>
+          <button type="submit">Guardar</button>
+        </form>
+      </td>
+      {{end}}
     </tr>
   {{end}}
   </tbody>
@@ -57,7 +85,7 @@
 {{end}}
 
 {{define "binding_table"}}
-{{if .}}
+{{if .Bindings}}
 <table>
   <caption class="sr-only">Lista de scope bindings</caption>
   <thead>
@@ -67,16 +95,20 @@
       <th scope="col">Timezone</th>
       <th scope="col">Série</th>
       <th scope="col">Estado</th>
+      {{if .CanWrite}}<th scope="col">Acções</th>{{end}}
     </tr>
   </thead>
   <tbody>
-  {{range .}}
+  {{range .Bindings}}
     <tr>
       <td class="mono">{{.ScopeID}}</td>
       <td>{{.Environment}}</td>
       <td>{{.IANATimezone}}</td>
       <td>{{.SeriesEffectiveCode}}</td>
       <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+      {{if $.CanWrite}}
+      <td><a href="/admin/ui/bindings/{{.ScopeID}}/edit">Editar config</a></td>
+      {{end}}
     </tr>
   {{end}}
   </tbody>

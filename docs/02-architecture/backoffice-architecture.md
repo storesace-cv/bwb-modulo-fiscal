@@ -106,7 +106,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 | Auth | Mesmo `adminauth.Authenticator` que `/admin/v1`; produção fail-closed |
 | Dados | Mesmo `adminregistry` / ops (contrato admin); sem Bearer no browser |
 | CSP | `default-src 'none'; style-src 'self'; …` — sem scripts no slice 1 |
-| CSRF | N/A no slice 1 (só GET); tokens em formulários a partir de `RM-UI-002` |
+| CSRF | Cookie HttpOnly + campo form one-time (`RM-UI-002`); SameSite=Strict |
 | Segredos | Nunca no HTML/logs/cookies |
 
 ## Referências

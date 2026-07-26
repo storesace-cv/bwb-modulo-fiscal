@@ -1,3 +1,6 @@
 {{define "content"}}
-{{template "binding_table" .Bindings}}
+{{if .CanWrite}}
+<p><a class="btn" href="/admin/ui/bindings/new">Novo binding</a></p>
+{{end}}
+{{template "binding_table" .}}
 {{end}}

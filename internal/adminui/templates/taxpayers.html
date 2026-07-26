@@ -1,3 +1,6 @@
 {{define "content"}}
-{{template "taxpayer_table" .Taxpayers}}
+{{if .CanWrite}}
+<p><a class="btn" href="/admin/ui/taxpayers/new">Novo contribuinte</a></p>
+{{end}}
+{{template "taxpayer_table" .}}
 {{end}}

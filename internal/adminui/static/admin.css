@@ -138,3 +138,30 @@ th { font-size: 0.85rem; color: var(--muted); }
   outline-offset: 2px;
 }
 code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.btn, button {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 0.3rem;
+  padding: 0.4rem 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+.btn:hover, button:hover { filter: brightness(1.05); }
+form p { margin: 0.75rem 0; }
+label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+input, select {
+  width: min(100%, 28rem);
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  font: inherit;
+  background: #fff;
+}
+form.inline { display: flex; gap: 0.35rem; align-items: center; }
+form.inline select { width: auto; }
+.flash.error { color: #8b1e1e; background: #fdecec; padding: 0.5rem 0.75rem; border-radius: 0.3rem; }
+/* Dashboard tables use page context via parent — keep compact */
+section table { margin-bottom: 1rem; }
