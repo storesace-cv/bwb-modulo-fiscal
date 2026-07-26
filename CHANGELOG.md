@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Compliance RM-REQ-001: DE 683/25 Art.1–6 + Anexos I–III + Tabelas 1–6 (Citação G @19164–19227); AO-TAX-001 → `partial` (`taxType` @19171 + Tabelas 2–6); SEQ-002/`solicitarSerie` @19183–19184; DOC-001 permanece `scaffold`; sem AO-* confirmados; sem inventar `FE-RNG-*`.
 - Compliance RM-REQ-001: DE 74/19 + Rect. 10/19 (Citação F @1576–1584 / 1948–1949); C-SIGN-001 (SAF-T RSA ≠ JWS FE); OFF-002 → `partial`; DEC-REG-002 parcialmente mitigada; sem AO-* confirmados.
 - Compliance RM-REQ-001: DP 71/25 Art.10 a)–j) @11908–11909 + excepções por tipo; SEQ-001/DOC-002/OFF-001 → `partial`; DOC-001 permanece `scaffold`; sem AO-* confirmados.
 - Compliance RM-REQ-001: matriz de tipos documentais com citações DP 71/25 · DE 683/25 · FE HML · SAF-T XSD ([`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)); conflitos C-DOC-001/002/003; AO-DOC-001 permanece `scaffold` (sem confirmação).

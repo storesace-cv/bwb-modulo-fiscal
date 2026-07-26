@@ -35,10 +35,9 @@ REQUIRED_IDS = [
     "AO-UPD-001",
 ]
 
-# Still without page-level field mapping / tax calculation citations.
+# Still without closed validator/MVP mapping (tax fields cited → AO-TAX-001 partial).
 CITATION_PENDING_SCAFFOLD = [
     "AO-DOC-001",
-    "AO-TAX-001",
 ]
 
 ALLOWED_STATUSES = {"scaffold", "partial", "blocked", "pending_validation"}
@@ -94,6 +93,23 @@ def verify(root: Path) -> list[str]:
         fail("matriz deve limitar DE 683/25 a 19164–19227", errors)
     if "19228" not in text and "Aviso" not in text:
         fail("matriz deve alertar p.66 / Aviso 4/25", errors)
+    if "Citação G" not in text and "### Citação G" not in text:
+        fail("matriz deve incluir Citação G (DE 683/25 Anexos)", errors)
+    for token in (
+        "Anexo I",
+        "Anexo II",
+        "Anexo III",
+        "19166",
+        "19193",
+        "19194",
+        "19212",
+        "19223",
+        "solicitarSerie",
+        "registarFactura",
+        "taxType",
+    ):
+        if token not in text:
+            fail(f"Citação G / DE 683 deve incluir `{token}`", errors)
 
     rows = {m.group(1): m.group(2).strip() for m in ROW_RE.finditer(text)}
     missing = [i for i in REQUIRED_IDS if i not in rows]
@@ -279,6 +295,29 @@ def verify(root: Path) -> list[str]:
             continue
         if "1577" not in row_ln[0]:
             fail(f"{rid}: a linha da tabela deve citar DE 74/19 @1577", errors)
+
+    # AO-TAX-001: partial — FE tax fields + Tabelas 2–6; never confirmed / no full calc.
+    if rows.get("AO-TAX-001") != "partial":
+        fail("AO-TAX-001: deve estar `partial` (DE 683 taxType + Tabelas 2–6)", errors)
+    check_partial_row("AO-TAX-001")
+    for token in ("taxType", "19171", "19212", "19227", "Tabela"):
+        if token not in text:
+            fail(f"citação AO-TAX-001 deve incluir `{token}`", errors)
+    tax_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-TAX-001\s*\|", ln)]
+    if tax_rows:
+        tl = tax_rows[0].lower()
+        if "não" not in tl or "satisfeito" not in tl:
+            fail("AO-TAX-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "19212" not in tax_rows[0] and "19227" not in tax_rows[0] and "19171" not in tax_rows[0]:
+            fail("AO-TAX-001: a linha da tabela deve citar gazeta FE impostos/tabelas", errors)
+    else:
+        fail("linha de tabela AO-TAX-001 ausente", errors)
+
+    # AO-SEQ-002 row should cite solicitarSerie / series service pages when expanded.
+    seq2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SEQ-002\s*\|", ln)]
+    if seq2_rows:
+        if "19183" not in seq2_rows[0] and "solicitarSerie" not in seq2_rows[0]:
+            fail("AO-SEQ-002: a linha deve citar solicitarSerie ou gazeta 19183", errors)
 
     return errors
 
