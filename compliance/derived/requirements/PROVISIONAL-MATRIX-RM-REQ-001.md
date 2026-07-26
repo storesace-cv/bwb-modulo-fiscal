@@ -96,7 +96,7 @@ Detalhe e cruzamento FE/SAF-T: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-
 
 ### Citação F — DE 74/19 + Rect. 10/19 (conjunto; validação de software)
 
-Fontes: `AO-LEG-DE-74-19-2019` · sha256 `5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd` · OCR v1 `reviewed` · gazeta **1576–1586** (PDF p.2–12); **não** citar p.12 Despacho 17/19 adjacente como 74/19.  
+Fontes: `AO-LEG-DE-74-19-2019` · sha256 `5b63c80e358bd5eda60302a5f6d2adac3c23815de7fc8f496b0b8bdb909d9abd` · OCR v1 `reviewed` · gazeta **1576–1586** (PDF p.2–12); **não** citar p.12 Despacho 17/19 adjacente como 74/19.
 `AO-LEG-RECT-10-19-2019` · sha256 `b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014` · OCR v2 `reviewed` · gazeta **1948–1949** (PDF p.2–3).
 
 | Tema | Norma | PDF | Gazeta |

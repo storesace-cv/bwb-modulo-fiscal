@@ -138,8 +138,8 @@ Ficheiro: `SAFTAO1.01_01.xsd` · elemento `InvoiceType` · sha256 `e9a938e1…` 
 
 ## E. DE 74/19 + Rect. 10/19 — validação de software (conjunto normativo)
 
-Fontes: `AO-LEG-DE-74-19-2019` (`5b63c80e…`, 12p, OCR `reviewed`) + `AO-LEG-RECT-10-19-2019` v2 (`b3db14e2…`, 3p, OCR `reviewed`).  
-Gazeta DE 74: **1576–1586** (PDF p.2–12; p.1 = capa/sumário do fascículo). Gazeta Rect.: **1948–1949** (PDF p.2–3; p.1 = capa).  
+Fontes: `AO-LEG-DE-74-19-2019` (`5b63c80e…`, 12p, OCR `reviewed`) + `AO-LEG-RECT-10-19-2019` v2 (`b3db14e2…`, 3p, OCR `reviewed`).
+Gazeta DE 74: **1576–1586** (PDF p.2–12; p.1 = capa/sumário do fascículo). Gazeta Rect.: **1948–1949** (PDF p.2–3; p.1 = capa).
 POLICY: requisitos derivados devem citar **ambos** quando aplicável. PDF original prevalece.
 
 ### E.1 Rectificação n.º 10/19 (o que altera o 74/19)
