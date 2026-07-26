@@ -64,6 +64,8 @@ DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
 SAFTAO1.01_01.xsd e9a938e1 AuditFile InvoiceType InvoiceNo InvoiceStatus References Hash HashControl PaymentType SAFTAOPaymentType pending_validation Development C-DOC-003 C-SIGN-001 L2023 L1004 L1361 L2740
 ### Citação G — DE 683 Anexos
 Anexo I registarFactura taxType 19166; Anexo II 19193; Anexo III 19194 solicitarSerie; Tabelas 19212–19223.
+### Citação H — FE HML FE-RNG
+AO-FE-SNAP-HML-2026-07-25-REGISTAR eb430954 AO-FE-SNAP-HML-2026-07-25-SOLICITAR f8fb22e7 AO-FE-SNAP-HML-2026-07-25-LISTAR 5729f02c FE-RNG-051 registarFactura solicitarSerie listarSeries C-FE-001 pending_validation FE-SERVICES-MATRIX-RM-REQ-001
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
@@ -72,13 +74,13 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-DOC-001 | `scaffold` | — | citação pendente |
 | AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 @1577 critério **não** fica satisfeito; **Não** confirmado |
 | AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 @1577 critério **não** fica satisfeito; **Não** confirmado |
-| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 solicitarSerie @19183 b01e4581 **Não** confirmado |
+| AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 solicitarSerie @19183 FE-RNG-051 listarSeries b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `partial` | AO-LEG-DE-683-25-2025 | taxType 19171 Tabela 19212–19227 critério **não** fica satisfeito; **Não** confirmado |
 | AO-CRYPTO-001 | `partial` | AO-LEG-DE-683-25-2025 + AO-FE-SNAP-HML-2026-07-25-ESTRUTURA | jwsDocumentSignature 19168 RS256 pending_validation SAF-T encadeamento **não** citado; critério **não** fica satisfeito; **Não** confirmado |
 | AO-KEY-001 | `blocked` | — | x |
-| AO-AGT-001 | `blocked` | — | x |
-| AO-AGT-002 | `scaffold` | — | x |
+| AO-AGT-001 | `pending_validation` | FE | FE-RNG eb430954 Citação H C-FE-001 GAP-006 critério **não** fica satisfeito; **não** confirmado |
+| AO-AGT-002 | `partial` | FE | requestID obterEstado f851f512 critério **não** fica satisfeito; **Não** confirmado |
 | AO-OFF-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.18 11911 11912 critério **não** fica satisfeito; **Não** confirmado |
 | AO-OFF-002 | `partial` | AO-LEG-DE-74-19-2019 | @1580 critério **não** fica satisfeito; **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | x |
@@ -317,6 +319,37 @@ def strip_hash(m):
     # Remove standalone Hash but keep HashControl.
     return re.sub(r"(?<![A-Za-z])Hash(?![A-Za-z])", "Digest", m.group(0))
 t2 = re.sub(r"###\s+Citação D\b.*?(?=\n###\s|\n##\s|$)", strip_hash, t, count=1, flags=re.S)
+p.write_text(t2, encoding="utf-8")
+'
+
+mutate_real "AO-AGT-001 blocked indevido" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+t = t.replace("| AO-AGT-001 | `pending_validation`", "| AO-AGT-001 | `blocked`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-AGT-001 sem Não confirmado" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-AGT-001 |"):
+        bad = line.replace("**não** confirmado", "confirmado").replace("não confirmado", "confirmado")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "Citação H sem FE-RNG na secção" '
+from pathlib import Path
+import re
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+def strip_h(m):
+    return m.group(0).replace("FE-RNG-", "ERR-").replace("C-FE-001", "C-XX-001")
+t2 = re.sub(r"###\s+Citação H\b.*?(?=\n###\s|\n##\s|$)", strip_h, t, count=1, flags=re.S)
 p.write_text(t2, encoding="utf-8")
 '
 
