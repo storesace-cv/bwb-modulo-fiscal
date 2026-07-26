@@ -19,11 +19,18 @@
 | `FISCAL_HTTP_IDLE_TIMEOUT` | `60s` | Timeout idle |
 | `FISCAL_HTTP_SHUTDOWN_TIMEOUT` | `10s` | Graceful shutdown |
 | `FISCAL_AUTHORITY` | `simulator` | Transporte outbox: só `simulator` activo; `agt-hml`/`agt-prd` reservados e **fail-closed** (≠ HML/PRD AGT; sem credenciais) |
-| `FISCAL_ADMIN_AUTH_MODE` | `fail_closed` | Admin `/admin/v1`: `fail_closed` (omissão) ou `injected` **só** com `FISCAL_ENV=development` |
+| `FISCAL_ADMIN_AUTH_MODE` | `fail_closed` | Admin: `fail_closed` (omissão), `injected` **só** `development`, ou `oidc_jwt` (RM-BO-006) |
 | `FISCAL_ADMIN_INJECT_SUBJECT` | — | Subject injectado (obrigatório se mode=injected) |
 | `FISCAL_ADMIN_INJECT_ROLES` | — | Roles CSV: `owner,admin,operator,auditor` (se mode=injected) |
-| `FISCAL_ADMIN_OWNER_SUBJECT` | — | Subject autorizado para SecAdm write-only; se vazio, `/admin/v1/secadm/*` → 503 |
-| `FISCAL_ADMIN_UI_DEV_COOKIE` | — | Só `development`+`injected`: valor ≥32 bytes da cookie HttpOnly `fiscal_admin_ui_session` para browser local (sem formulário de login; ≠ IdP) |
+| `FISCAL_ADMIN_OIDC_ISSUER` | — | `iss` exacto (obrigatório se `oidc_jwt`) |
+| `FISCAL_ADMIN_OIDC_AUDIENCE` | — | `aud` exacto (obrigatório se `oidc_jwt`) |
+| `FISCAL_ADMIN_OIDC_JWKS_URL` | — | URL JWKS **https** (obrigatório se `oidc_jwt`) |
+| `FISCAL_ADMIN_OIDC_ALGS` | `RS256` | Allowlist CSV (ex. `RS256` ou `RS256,ES256`) |
+| `FISCAL_ADMIN_OIDC_ROLE_CLAIM` | `groups` | Claim com grupos/roles do IdP |
+| `FISCAL_ADMIN_OIDC_ROLE_MAP` | — | Mapa `valor:role` CSV (ex. `bwb-admins:admin,bwb-ops:operator`); sem elevação implícita |
+| `FISCAL_ADMIN_OIDC_OWNER_SUBJECTS` | — | Allowlist de `sub` para role `owner` (obrigatório se o mapa inclui owner) |
+| `FISCAL_ADMIN_OWNER_SUBJECT` | — | Subject autorizado para SecAdm write-only gate; se vazio, `/admin/v1/secadm/*` → 503 |
+| `FISCAL_ADMIN_UI_DEV_COOKIE` | — | Só `development`+`injected`: valor ≥32 bytes da cookie HttpOnly `fiscal_admin_ui_session` para browser local (sem formulário de login; ≠ IdP; sessão real = RM-UI-005) |
 
 ### Backoffice UI (M7 / RM-UI-001…004)
 

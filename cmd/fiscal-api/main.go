@@ -194,21 +194,33 @@ func buildAdminAuthenticator(docsCfg config.DocumentsRuntime) (adminauth.Authent
 	if mode == "" || mode == "fail_closed" {
 		return adminauth.FailClosedAuthenticator{}, nil
 	}
-	if mode != "injected" {
-		return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=%q inválido (fail_closed|injected)", mode)
+	switch mode {
+	case "injected":
+		if docsCfg.Env != config.EnvDevelopment() {
+			return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=injected só permitido com FISCAL_ENV=development")
+		}
+		subject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
+		roles, err := adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
+		if err != nil {
+			return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_ROLES: %w", err)
+		}
+		if subject == "" {
+			return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_SUBJECT obrigatório quando mode=injected")
+		}
+		return adminauth.StaticAuthenticator{Claims: adminauth.Claims{Subject: subject, Roles: roles}}, nil
+	case "oidc_jwt":
+		cfg, err := adminauth.OIDCConfigFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=oidc_jwt: %w", err)
+		}
+		authn, err := adminauth.NewOIDCAuthenticator(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=oidc_jwt: %w", err)
+		}
+		return authn, nil
+	default:
+		return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=%q inválido (fail_closed|injected|oidc_jwt)", mode)
 	}
-	if docsCfg.Env != config.EnvDevelopment() {
-		return nil, fmt.Errorf("FISCAL_ADMIN_AUTH_MODE=injected só permitido com FISCAL_ENV=development")
-	}
-	subject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
-	roles, err := adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
-	if err != nil {
-		return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_ROLES: %w", err)
-	}
-	if subject == "" {
-		return nil, fmt.Errorf("FISCAL_ADMIN_INJECT_SUBJECT obrigatório quando mode=injected")
-	}
-	return adminauth.StaticAuthenticator{Claims: adminauth.Claims{Subject: subject, Roles: roles}}, nil
 }
 
 func buildAuthenticator(docsCfg config.DocumentsRuntime, sqlDB *sql.DB, dialect persistence.Dialect) (auth.Authenticator, httpapi.AuthAuditor, error) {

@@ -19,7 +19,8 @@ Matriz canónica em código: [`internal/adminauth/rbac.go`](../../internal/admin
 | `secadm.write` (Put/Rotate/Revoke) | **sim** | não | não | não |
 | Leitura de plaintext de segredo | **não existe** | — | — | — |
 
-- **MFA:** exigido em produção quando houver IdP real; **adiado** enquanto `Authenticator` for injectável/fail-closed (sem login local improvisado).
+- **OIDC/JWT (RM-BO-006 / DEC-BO-003):** `FISCAL_ADMIN_AUTH_MODE=oidc_jwt` — Bearer + JWKS https; `iss`/`aud` exactos; alg allowlist; mapa de grupos→roles; `owner` só com subject allowlist; fail-closed sem config. Tokens nunca em logs.
+- **MFA interactivo:** exigido em produção com IdP real; **adiado** até fluxo de sessão browser (`RM-UI-005`). Sem login local improvisado.
 - Operadores ≠ owner SecAdm; metadados sanitizados ≠ material secreto.
 
 ## Segredos e chaves

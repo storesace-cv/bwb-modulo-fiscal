@@ -996,6 +996,30 @@ Gere e observa, **sem** material secreto:
 
 ---
 
+## DEC-BO-003 — Validação OIDC/JWT provider-neutral (Admin API)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Segurança / API |
+| Prazo máximo | — |
+| Responsável | Arquitectura + Segurança |
+| Decisão | 2026-07-27 |
+
+**Decisão:**
+
+1. Adaptador **provider-neutral** em `adminauth` (`FISCAL_ADMIN_AUTH_MODE=oidc_jwt`): Bearer JWT + JWKS; **sem** SDK de fornecedor IdP.
+2. Validação fail-closed: `iss` e `aud` **exactos**; `exp`/`nbf`/`iat`/`sub` obrigatórios conforme implementação; relógio injectável; limites de tamanho/timeouts JWKS.
+3. Allowlist explícita de algoritmos (omissão `RS256`); rejeitar `alg=none` e chave incompatível (anti key-confusion).
+4. JWKS só `https` em runtime de produção/config env; `http` apenas em testes (`AllowHTTPJWKS`).
+5. Roles só via **mapa configurável** claim→`owner|admin|operator|auditor` (sem elevação implícita). `owner` exige **subject allowlist** explícita.
+6. Tokens/JWKS raw **nunca** em logs. Sessão browser (cookie Secure+HttpOnly+SameSite, CSRF, logout, sem JWT no browser) fica em `RM-UI-005`.
+7. Modos: `fail_closed` (omissão), `injected` só `development`, `oidc_jwt` com config completa.
+
+**Evidência:** este registo; `internal/adminauth/oidc*.go`; `RM-BO-006`; OpenAPI admin `0.1.6-draft`.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
@@ -1007,7 +1031,7 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**, **DEC-BO-003**.
 
 ---
 
