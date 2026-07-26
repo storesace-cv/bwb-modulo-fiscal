@@ -35,8 +35,8 @@ REQUIRED_IDS = [
     "AO-UPD-001",
 ]
 
-# Must stay blocked while Rect. 10/19 original is incorrect / absent.
-RECT_DEPENDENT_BLOCKED = [
+# Citation page-by-page still pending — must not jump to partial/confirmed.
+CITATION_PENDING_SCAFFOLD = [
     "AO-DOC-001",
     "AO-DOC-002",
     "AO-SEQ-001",
@@ -66,12 +66,18 @@ def verify(root: Path) -> list[str]:
 
     if "não** é matriz AO-* confirmada" not in text and "não é matriz AO-* confirmada" not in text:
         fail("matriz deve declarar explicitamente que não é confirmada", errors)
-    if "AO-LEG-RECT-10-19-2019" not in text:
-        fail("matriz deve mencionar AO-LEG-RECT-10-19-2019 como excluída", errors)
+    if "AO-LEG-RECT-10-19-2019" not in text or "b3db14e2" not in text:
+        fail("matriz deve admitir AO-LEG-RECT-10-19-2019 reviewed v2 (b3db14e2…)", errors)
+    if "AO-LEG-DP-71-25-2025" not in text or "4931fd3c" not in text:
+        fail("matriz deve admitir AO-LEG-DP-71-25-2025 reviewed (4931fd3c…)", errors)
+    if "11902" not in text or "11920" not in text:
+        fail("matriz deve limitar DP 71/25 a 11902–11920", errors)
+    if "11921" not in text and "372/25" not in text:
+        fail("matriz deve alertar p.21 / DE 372/25 fora do intervalo DP 71/25", errors)
     if "GAP-002" not in text:
         fail("matriz deve referir GAP-002", errors)
-    if "RM-SRC-004" not in text or "BLOQUEADO" not in text:
-        fail("matriz deve manter RM-SRC-004 BLOQUEADO", errors)
+    if "RM-SRC-004" not in text:
+        fail("matriz deve referir RM-SRC-004", errors)
     if "19164" not in text or "19227" not in text:
         fail("matriz deve limitar DE 683/25 a 19164–19227", errors)
     if "19228" not in text and "Aviso" not in text:
@@ -99,10 +105,14 @@ def verify(root: Path) -> list[str]:
         fail(f"afirmação indevida de confirmação: {line.strip()[:120]}", errors)
         break
 
-    for rid in RECT_DEPENDENT_BLOCKED:
+    for rid in CITATION_PENDING_SCAFFOLD:
         st = rows.get(rid)
-        if st != "blocked":
-            fail(f"{rid}: deve estar `blocked` (dependência Rect. 10/19 / fontes incompletas)", errors)
+        if st != "scaffold":
+            fail(
+                f"{rid}: deve estar `scaffold` até citação página a página "
+                "(fontes OCR reviewed ≠ AO-* confirmados)",
+                errors,
+            )
 
     if rows.get("AO-SAF-001") != "pending_validation":
         fail("AO-SAF-001: deve estar `pending_validation`", errors)

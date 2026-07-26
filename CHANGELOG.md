@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.28-draft — 2026-07-26
+
+- Compliance RM-SRC-004 / RM-M2-C: Rect. 10/19 **v2** (`b3db14e2…`, 3p) + DP 71/25 (`4931fd3c…`; citar 11902–11920) OCR `reviewed` no privado ([bwb-fiscal-sources-ao#3](https://github.com/storesace-cv/bwb-fiscal-sources-ao/pull/3) @ `c8a4e6e`); histórico Rect. incompleto `77b77f01…` preservado só em diagnóstico privado.
+- Catálogo público: 21 fontes; `private_commit` alinhado a `c8a4e6e…`; verificador `EXPECTED_COLLECTION_COUNT=21` + page counts Rect=3 / DP71=21.
+- Matriz provisória: admite Rect v2 + DP71; DOC/SEQ-001/TAX → `scaffold` (citação pendente); sem AO-* confirmados.
+- ROADMAP: RM-SRC-004 e RM-M2-C → CONCLUÍDO; RM-REQ-001 permanece EM_CURSO; GAP-002 parcialmente mitigado.
+
 ## 0.2.27-draft — 2026-07-25
 
 - Compliance RM-REQ-001: AO-SAF-001 — citação técnica do XSD ASSOFT (`AuditFile`, NS AO_1.01_01, sha256 `e9a938e1…`) mantendo `pending_validation`; sem AO-* confirmados.

@@ -1,26 +1,27 @@
 # Matriz provisória RM-REQ-001
 
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
-**Data:** 2026-07-25
+**Data:** 2026-07-26
 **Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation` — **não** há AO-* confirmados.
 
 ## Fontes admitidas neste rascunho
 
 | source_id | Estado OCR / schema | Uso permitido aqui | Limite |
 |---|---|---|---|
-| `AO-LEG-DE-74-19-2019` | `reviewed` v1 (`5b63c80e…`, 12p) | Pesquisa auxiliar; citação futura com página do PDF original | Conjunto normativo incompleto sem Rect. 10/19 — **não** confirmar texto consolidado |
+| `AO-LEG-DE-74-19-2019` | `reviewed` v1 (`5b63c80e…`, 12p) | Pesquisa auxiliar; citação futura com página do PDF original | Texto consolidado 74+Rect. exige citação página a página; **não** confirmado |
+| `AO-LEG-RECT-10-19-2019` | `reviewed` v2 (`b3db14e2…`, 3p) | Pesquisa auxiliar; gazeta **1948–1949** (PDF p.2–3); capa PDF p.1 | v1 incorrecta `77b77f01…` só diagnóstico privado (≠ KB); **não** confirmar AO-* só com OCR |
 | `AO-LEG-DE-683-25-2025` | `reviewed` v2 (`b01e4581…`, 66p) | Pesquisa auxiliar; citar **apenas** gazeta 19164–19227 (PDF p.2–65) | PDF p.66 = Aviso BNA 4/25 @19228 — **não** citar como DE 683 |
+| `AO-LEG-DP-71-25-2025` | `reviewed` v1 (`4931fd3c…`, 21p) | Pesquisa auxiliar; citar **apenas** gazeta **11902–11920** (PDF p.2–20) | PDF p.21 = DE 372/25 @11921 — **não** citar como DP 71/25 |
 | `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | HTML `pending_validation` (`50ba18e0…`) | Algoritmo JWS/RS256 FE (≠ SAF-T) | Snapshot HML; não validado AGT; sem inventar campos |
 | `AO-SAFT-XSD-1.01_01` | schema `pending_validation` (`e9a938e1…`) | Referência técnica ASSOFT MIT | Não afirmado como validado pela AGT |
-| `AO-LEG-RECT-10-19-2019` | `rejected` / excluída (`77b77f01…`) | **Não usar** | Original incorrecto/incompleto; GAP-002 |
 
 ## Bloqueios explícitos (fail-closed)
 
-1. **Rectificação n.º 10/19** — sem original integral oficial; qualquer linha que dependa do texto consolidado DE 74/19 + Rect. permanece `blocked`.
-2. **RM-SRC-004 / RM-M2-C** — continuam `BLOQUEADO` (conjunto 74+Rect+683 incompleto).
-3. Esta matriz **não** inventa regras fiscais e **não** promove linhas a «confirmado».
-4. `reviewed` OCR é KB auxiliar; só após citação página a página + revisão compliance pode sustentar AO-* confirmados (ainda não neste PR).
-5. `partial` ≠ confirmado: ligação preliminar sujeita a revisão; o critério de aceitação do catálogo pode ser mais amplo do que a citação.
+1. **RM-SRC-004 / RM-M2-C** — OCR do conjunto 74+Rect+683 `reviewed` (Rect. v2); DP 71/25 também `reviewed` — gate de fontes OCR fechado; **não** equivale a AO-* confirmados.
+2. Esta matriz **não** inventa regras fiscais e **não** promove linhas a «confirmado».
+3. `reviewed` OCR é KB auxiliar; só após citação página a página + revisão compliance pode sustentar AO-* confirmados (ainda não neste PR).
+4. `partial` ≠ confirmado: ligação preliminar sujeita a revisão; o critério de aceitação do catálogo pode ser mais amplo do que a citação.
+5. GAP-002 residual: URL oficial estável da Rect. / Imprensa Nacional ainda pode estar `pending_validation`; histórico rejected permanece excluído da KB.
 
 ## Legenda de estado da linha
 
@@ -28,7 +29,7 @@
 |---|---|
 | `scaffold` | ID do catálogo inicial; sem ligação normativa página a página; **não** confirmado |
 | `partial` | Ligação preliminar a fonte `reviewed` com página candidata; sujeita a revisão; **não** confirmado |
-| `blocked` | Dependente da Rect. 10/19 e/ou de fonte oficial ainda inacessível |
+| `blocked` | Dependente de fonte oficial ainda inacessível (ex.: GAP-013, credenciais AGT) |
 | `pending_validation` | Artefacto técnico presente sem validação AGT |
 
 Estados proibidos neste ficheiro: `confirmed`, `confirmado`, `validated_agt`.
@@ -45,7 +46,7 @@ Trecho OCR (pesquisa; tipografia/OCR podem ter ruído — PDF original prevalece
 
 > Para efeitos do disposto na alínea b) do n.o 1 do artigo 10.oe alínea c) do n.o 1 do artigo 24.8, ambos do Decreto Presidencial n.o 71/25, de 20 de Março, que aprova o Regime Jurídico das Facturas, as séries utilizadas pelos contribuintes que emitem facturas em softwares de facturação electrónica são geradas pela Administração Geral Tributária.
 
-Path privado: `derivatives/legislation/AO-LEG-DE-683-25-2025/v2/text.md` (`private_commit` `dbae3260df3b8865afd712ffc3e81925a63fb399`).
+Path privado: `derivatives/legislation/AO-LEG-DE-683-25-2025/v2/text.md` (`private_commit` `c8a4e6e8ec2772ff50ad1c8762842b983edbbbfd`).
 
 ### Citação B — identificação contribuinte / software (AO-ID-001)
 
@@ -82,12 +83,12 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: `taxRegistrationNumber` @**19166** (PDF p.4) + `softwareValidationNumber`/`productVersion` @**19167** (PDF p.5). Estabelecimento/terminal **não** cobertos nesta citação; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
-| AO-DOC-001 | `blocked` | DE 74/19 + Rect. 10/19 | Campos/tipos dependem do conjunto normativo 74+Rect (GAP-002) |
-| AO-DOC-002 | `blocked` | DE 74/19 + Rect. 10/19 | Imutabilidade/regras de emissão exigem texto consolidado 74+Rect antes de confirmar |
-| AO-SEQ-001 | `blocked` | DE 74/19 (+ Rect.) / DE 683/25 | Sequencialidade no âmbito 74/19 depende do conjunto com Rect.; não misturar com 683 sem split formal |
-| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: ART. 4.º / gazeta **19164** (PDF p.2) — séries FE geradas pela AGT. O critério do catálogo («POS não atribui o número fiscal final») **não** fica satisfeito só com esta citação; falta cruzamento com DP 71/25 e revisão compliance. **Não** confirmado |
+| AO-DOC-001 | `scaffold` | DE 74/19 + Rect. 10/19 v2 | Fontes OCR `reviewed` disponíveis; falta citação página a página + revisão compliance — **não** confirmado |
+| AO-DOC-002 | `scaffold` | DE 74/19 + Rect. 10/19 v2 | Imutabilidade/regras de emissão: citação consolidada pendente — **não** confirmado |
+| AO-SEQ-001 | `scaffold` | DE 74/19 (+ Rect.) / DE 683/25 | Sequencialidade: split formal de fontes e citação página a página pendentes — **não** confirmado |
+| AO-SEQ-002 | `partial` | `AO-LEG-DE-683-25-2025` | Ligação preliminar: ART. 4.º / gazeta **19164** (PDF p.2) — séries FE geradas pela AGT. O critério do catálogo («POS não atribui o número fiscal final») **não** fica satisfeito só com esta citação; cruzamento com DP 71/25 (`reviewed`, 11902–11920) ainda sem citação página a página. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação |
-| AO-TAX-001 | `blocked` | Rect. / fontes oficiais | Cálculo fiscal exige fontes oficiais completas e texto consolidado |
+| AO-TAX-001 | `scaffold` | Rect. / 74/19 / fontes oficiais | Fontes OCR disponíveis; cálculo fiscal exige citação página a página — **não** confirmado |
 | AO-CRYPTO-001 | `partial` | `AO-LEG-DE-683-25-2025` + `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | Ligação preliminar: `jwsDocumentSignature` @**19168** (PDF p.6) + RS256 no snapshot FE (`pending_validation`). JWS FE ≠ SAF-T; encadeamento **não** citado; critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 | Custódia de chave contribuinte em aberto |
 | AO-AGT-001 | `blocked` | FE HML/PRD oficiais | Credenciais/docs oficiais AGT pendentes |
@@ -96,20 +97,19 @@ Limite: presença do XSD ASSOFT **não** equivale a validação AGT nem a confor
 | AO-OFF-002 | `scaffold` | — | Sync sem renumerar — produto + legal |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
 | AO-SAF-001 | `pending_validation` | `AO-SAFT-XSD-1.01_01` | XSD versionado (`e9a938e1…`, `AuditFile`, NS AO_1.01_01); validação AGT pendente; critério do catálogo **não** fica satisfeito só com o schema; **não** confirmado |
-| AO-SAF-002 | `pending_validation` | XSD + legislação completa | Anulados/retificativos — sem fecho sem fontes completas / Rect. |
+| AO-SAF-002 | `pending_validation` | XSD + legislação completa | Anulados/retificativos — citação página a página + validação AGT pendentes |
 | AO-OPS-001 | `scaffold` | — | Ops/DR |
 | AO-UPD-001 | `scaffold` | — | Updates Edge assinados |
 
 ## Próximos passos (este item)
 
-1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. ou docs oficiais) — manter `partial`.
-2. Cruzar AO-SEQ-002 com DP 71/25 (quando catalogada/`reviewed`); manter `partial`.
+1. Completar AO-ID-001 com fontes que cubram estabelecimento/terminal (sem inventar; DE 74/19+Rect. v2 ou docs oficiais) — manter `partial`.
+2. Cruzar AO-SEQ-002 com DP 71/25 (gazeta 11902–11920; não citar p.21/DE 372/25); manter `partial`.
 3. AO-CRYPTO-001: confrontar lista de campos assinados PDF↔snapshot FE; manter `partial` até revisão compliance (sem inventar encadeamento).
 4. AO-SAF-001: manter `pending_validation` até validação AGT; não promover a `partial`/`confirmado` só com XSD ASSOFT.
-5. Parar promoção de novas linhas `scaffold` sem fonte suficiente (DP 71/25, Rect. 10/19, GAP-013, DEC-*, credenciais AGT).
-6. Manter AO-DOC-* / AO-SEQ-001 / AO-TAX-* e afins em `blocked` até GAP-002.
-7. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
-8. Fechar RM-REQ-001 só com matriz rastreável e gate `RM-SRC-004` (ou decisão explícita de scope reduzido).
+5. Extrair citações página a página para AO-DOC-* / AO-SEQ-001 / AO-TAX-001 a partir de 74+Rect v2 (sem promover a confirmado sem compliance).
+6. Não promover nenhuma linha a confirmado sem revisão de compliance + critérios testáveis.
+7. Fechar RM-REQ-001 só com matriz rastreável e gate de revisão compliance (RM-SRC-004 OCR fechado; confirmação AO-* ainda aberta).
 
 ## Referências
 
