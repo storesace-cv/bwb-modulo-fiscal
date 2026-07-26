@@ -6,7 +6,7 @@
 
 ## Posição no sistema
 
-O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS: prefixo **`/admin/v1`**, OpenAPI [`specs/openapi-admin/openapi.yaml`](../../specs/openapi-admin/openapi.yaml) `0.1.0-draft` (≠ POS `0.1.x`). Auth operadores OIDC/JWT RBAC (`owner|admin|operator|auditor`); só `owner` em SecAdm. Sem microserviços.
+O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS: prefixo **`/admin/v1`**, OpenAPI [`specs/admin/openapi.yaml`](../../specs/admin/openapi.yaml) (`0.1.0-draft`→`0.1.3-draft`; ≠ POS `0.1.x`). Auth operadores OIDC/JWT RBAC (`owner|admin|operator|auditor`); só `owner` em SecAdm. Sem microserviços.
 
 ```mermaid
 flowchart TB
