@@ -144,6 +144,29 @@ func RequireAnyRole(roles ...Role) func(http.Handler) http.Handler {
 	}
 }
 
+// RequirePermission rejects with 403 unless Allows(claims, perm).
+// Prefer this over RequireAnyRole for Admin API routes (canonical matrix).
+func RequirePermission(perm Permission) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"type":"about:blank","title":"Unauthorized","status":401,"code":"ADMIN_UNAUTHORIZED","request_id":""}`))
+				return
+			}
+			if !Allows(claims, perm) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"type":"about:blank","title":"Forbidden","status":403,"code":"ADMIN_FORBIDDEN","request_id":""}`))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // ClaimsFromContext returns Claims previously set by Middleware.
 func ClaimsFromContext(ctx context.Context) (Claims, bool) {
 	c, ok := ctx.Value(claimsKey).(Claims)

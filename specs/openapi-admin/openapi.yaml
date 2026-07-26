@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.2-draft
+  version: 0.1.3-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -10,6 +10,7 @@ info:
     fazem parte deste contrato — zona SecAdm owner-only (DEC-BO-001/002).
     0.1.1: PATCH scope-bindings (séries/timezone/ambiente metadados; RM-BO-002).
     0.1.2: ops visibility + audit list + secret-ref metadata sanitizado (RM-BO-003).
+    0.1.3: matriz RBAC documentada; MFA adiado até IdP; sem ACL secret.reveal (RM-BO-004).
     Não pronto para produção. ≠ credenciais AGT.
   license:
     name: MIT

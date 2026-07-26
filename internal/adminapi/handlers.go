@@ -98,19 +98,22 @@ type scopeBindingResp struct {
 // Mount registers /admin/v1 routes on mux with auth middleware.
 func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	authMW := adminauth.Middleware(authn)
-	writeRoles := adminauth.RequireAnyRole(adminauth.RoleOwner, adminauth.RoleAdmin)
-	readRoles := adminauth.RequireAnyRole(adminauth.RoleOwner, adminauth.RoleAdmin, adminauth.RoleOperator, adminauth.RoleAuditor)
+	writeCadastro := adminauth.RequirePermission(adminauth.PermCadastroWrite)
+	readCadastro := adminauth.RequirePermission(adminauth.PermCadastroRead)
+	readAudit := adminauth.RequirePermission(adminauth.PermAuditRead)
+	readOps := adminauth.RequirePermission(adminauth.PermOpsRead)
+	readSecretMeta := adminauth.RequirePermission(adminauth.PermSecretMetaRead)
 
-	mux.Handle("POST /admin/v1/taxpayers", authMW(writeRoles(http.HandlerFunc(h.createTaxpayer))))
-	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", authMW(readRoles(http.HandlerFunc(h.getTaxpayer))))
-	mux.Handle("POST /admin/v1/establishments", authMW(writeRoles(http.HandlerFunc(h.createEstablishment))))
-	mux.Handle("GET /admin/v1/establishments/{establishment_id}", authMW(readRoles(http.HandlerFunc(h.getEstablishment))))
-	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeRoles(http.HandlerFunc(h.createScopeBinding))))
-	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readRoles(http.HandlerFunc(h.getScopeBinding))))
-	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeRoles(http.HandlerFunc(h.patchScopeBinding))))
-	mux.Handle("GET /admin/v1/audit-events", authMW(readRoles(http.HandlerFunc(h.listAuditEvents))))
-	mux.Handle("GET /admin/v1/ops/submissions", authMW(readRoles(http.HandlerFunc(h.listOpsSubmissions))))
-	mux.Handle("GET /admin/v1/secret-refs/metadata", authMW(readRoles(http.HandlerFunc(h.getSecretRefMetadata))))
+	mux.Handle("POST /admin/v1/taxpayers", authMW(writeCadastro(http.HandlerFunc(h.createTaxpayer))))
+	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", authMW(readCadastro(http.HandlerFunc(h.getTaxpayer))))
+	mux.Handle("POST /admin/v1/establishments", authMW(writeCadastro(http.HandlerFunc(h.createEstablishment))))
+	mux.Handle("GET /admin/v1/establishments/{establishment_id}", authMW(readCadastro(http.HandlerFunc(h.getEstablishment))))
+	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeCadastro(http.HandlerFunc(h.createScopeBinding))))
+	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readCadastro(http.HandlerFunc(h.getScopeBinding))))
+	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeCadastro(http.HandlerFunc(h.patchScopeBinding))))
+	mux.Handle("GET /admin/v1/audit-events", authMW(readAudit(http.HandlerFunc(h.listAuditEvents))))
+	mux.Handle("GET /admin/v1/ops/submissions", authMW(readOps(http.HandlerFunc(h.listOpsSubmissions))))
+	mux.Handle("GET /admin/v1/secret-refs/metadata", authMW(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
