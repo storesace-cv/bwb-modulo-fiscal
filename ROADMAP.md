@@ -69,7 +69,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | Motor regulamentar Angola | NÃO IMPLEMENTADO |
 | Integração oficial AGT | NÃO IMPLEMENTADA |
 | SAF-T AO | NÃO IMPLEMENTADO |
-| Assinatura / JWS AGT | NÃO IMPLEMENTADA |
+| Assinatura / JWS AGT | Adaptador efémero de slice (outbox→simulador); **não** certificado / ≠ FE-RNG oficial |
 | Faturação electrónica AGT | NÃO INTEGRADA |
 | Homologação BWB (`FISCAL_ENV=homologation`) | Ambiente técnico sandbox — **não** é homologação AGT |
 | Homologação oficial AGT | NÃO INICIADA |
@@ -116,6 +116,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-TX-004 | Timezone IANA, Africa/Luanda, hora fiscal vs técnica, microssegundos | CONCLUÍDO | [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | — | DEC-TIME-001 |
 | [x] | RM-TX-005 | Estados neutros + SealInTx (selagem local) | CONCLUÍDO | [specs/openapi/openapi.yaml](specs/openapi/openapi.yaml) | — | `sealed_locally` ≠ emissão certificada AGT |
 | [x] | RM-TX-006 | Outbox worker + simulador AGT (VS-T08/10/11) | CONCLUÍDO | [PR #52](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/52) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [internal/authority/simulator/simulator.go](internal/authority/simulator/simulator.go) · [docs/06-delivery/authority-schema-deferred.md](docs/06-delivery/authority-schema-deferred.md) · [CHANGELOG.md](CHANGELOG.md) | — | Simulador ≠ HML AGT; sem credenciais/deploy |
+| [x] | RM-TX-007 | JWS RS256 efémero no outbox→simulador | CONCLUÍDO | [internal/fiscaljws/fiscaljws.go](internal/fiscaljws/fiscaljws.go) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [CHANGELOG.md](CHANGELOG.md) | — | Envelope técnico; não certificado; ≠ FE-RNG / FE certificado oficial |
 
 ### 3.4 API POS
 

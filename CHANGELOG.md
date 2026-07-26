@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Persistência/crypto: **RM-TX-007** — adaptador JWS RS256 com RSA efémera (`internal/fiscaljws`) no caminho outbox→simulador; envelope técnico; privado nunca persistido; **não** certificado; **≠** FE-RNG/`RM-FE-002`; sem credenciais/deploy.
 - Persistência: **RM-TX-006** — migration `0004` (`authority_attempts`/`authority_responses`); worker outbox + simulador AGT interno (VS-T08/10/11); `ExpectedVersion=4`; simulador ≠ HML AGT; sem credenciais/deploy/servidor.
 - Motor/produto: **DEC-REG-003** decidida — defaults do slice `invoice`/`credit_note` → `bwb.ao.vendas.ft`/`nc` (`activo=on`); restante seed `off`; registo fail-closed [`internal/doctype`](internal/doctype/); sem AO-* confirmados; sem deploy/servidor.
 - Domínio/API: alinhamento a DEC-PROD-004/008/009/011 (enrollment, autoridade módulo, estados, Edge writer); sem declarar conformidade AGT.

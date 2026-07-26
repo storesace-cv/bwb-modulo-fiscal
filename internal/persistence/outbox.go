@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/simulator"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaljws"
 )
 
 const (
@@ -33,7 +34,7 @@ var (
 
 // AuthorityClient is the simulator/AGT transport seam (slice uses simulator only).
 type AuthorityClient interface {
-	Submit(ctx context.Context, submissionID string) (simulator.Result, error)
+	Submit(ctx context.Context, req simulator.Request) (simulator.Result, error)
 }
 
 // OutboxProcessResult summarizes one worker pass.
@@ -43,23 +44,30 @@ type OutboxProcessResult struct {
 	AttemptNo    int64
 	Outcome      string // ledger to_status or "retried_unavailable"
 	OutboxState  string
+	JWSAttached  bool
+}
+
+// ProcessOpts configures one outbox worker pass.
+type ProcessOpts struct {
+	// Signer, when non-nil, attaches a technical RS256 JWS envelope (ephemeral; not FE-certified).
+	Signer *fiscaljws.Signer
 }
 
 // ProcessNextAuthoritySubmission claims one outbox row, calls the authority, and records attempt/response.
 // Simulator unavailable → outbox returns to pending with backoff; never authority_accepted.
 // Already-succeeded submissions are skipped (at-least-once safe).
-func (s *Store) ProcessNextAuthoritySubmission(ctx context.Context, client AuthorityClient) (*OutboxProcessResult, error) {
+func (s *Store) ProcessNextAuthoritySubmission(ctx context.Context, client AuthorityClient, opts ProcessOpts) (*OutboxProcessResult, error) {
 	if client == nil {
 		return nil, fmt.Errorf("persistence: nil authority client")
 	}
 	postgres := s.dialect == DialectPostgres
 	if postgres {
-		return s.processOutboxPostgres(ctx, client)
+		return s.processOutboxPostgres(ctx, client, opts)
 	}
-	return s.processOutboxSQLite(ctx, client)
+	return s.processOutboxSQLite(ctx, client, opts)
 }
 
-func (s *Store) processOutboxPostgres(ctx context.Context, client AuthorityClient) (*OutboxProcessResult, error) {
+func (s *Store) processOutboxPostgres(ctx context.Context, client AuthorityClient, opts ProcessOpts) (*OutboxProcessResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("persistence: begin: %w", err)
@@ -79,10 +87,10 @@ func (s *Store) processOutboxPostgres(ctx context.Context, client AuthorityClien
 		return nil, fmt.Errorf("persistence: commit claim: %w", err)
 	}
 	committed = true
-	return s.finishOutbox(ctx, client, claim, true)
+	return s.finishOutbox(ctx, client, claim, true, opts)
 }
 
-func (s *Store) processOutboxSQLite(ctx context.Context, client AuthorityClient) (*OutboxProcessResult, error) {
+func (s *Store) processOutboxSQLite(ctx context.Context, client AuthorityClient, opts ProcessOpts) (*OutboxProcessResult, error) {
 	claim, err := func() (outboxClaim, error) {
 		conn, err := s.db.Conn(ctx)
 		if err != nil {
@@ -112,7 +120,7 @@ func (s *Store) processOutboxSQLite(ctx context.Context, client AuthorityClient)
 	if err != nil {
 		return nil, err
 	}
-	return s.finishOutbox(ctx, client, claim, false)
+	return s.finishOutbox(ctx, client, claim, false, opts)
 }
 
 type outboxClaim struct {
@@ -181,8 +189,23 @@ func (s *Store) claimOutbox(ctx context.Context, q querier, postgres bool) (outb
 	return claim, nil
 }
 
-func (s *Store) finishOutbox(ctx context.Context, client AuthorityClient, claim outboxClaim, postgres bool) (*OutboxProcessResult, error) {
-	simRes, err := client.Submit(ctx, claim.SubmissionID)
+func (s *Store) finishOutbox(ctx context.Context, client AuthorityClient, claim outboxClaim, postgres bool, opts ProcessOpts) (*OutboxProcessResult, error) {
+	req := simulator.Request{
+		SubmissionID: claim.SubmissionID,
+		DocumentID:   claim.DocumentID,
+	}
+	jwsAttached := false
+	if opts.Signer != nil {
+		compact, err := opts.Signer.SignEnvelope(claim.SubmissionID, claim.DocumentID, s.stamp().UTC())
+		if err != nil {
+			_ = s.releaseOutboxUnavailable(ctx, claim, postgres)
+			return nil, fmt.Errorf("persistence: sign JWS: %w", err)
+		}
+		req.JWS = compact
+		jwsAttached = true
+	}
+
+	simRes, err := client.Submit(ctx, req)
 	if errors.Is(err, simulator.ErrUnavailable) {
 		if err := s.releaseOutboxUnavailable(ctx, claim, postgres); err != nil {
 			return nil, err
@@ -192,6 +215,7 @@ func (s *Store) finishOutbox(ctx context.Context, client AuthorityClient, claim 
 			DocumentID:   claim.DocumentID,
 			Outcome:      "retried_unavailable",
 			OutboxState:  outboxPending,
+			JWSAttached:  jwsAttached,
 		}, nil
 	}
 	if err != nil {
@@ -204,7 +228,11 @@ func (s *Store) finishOutbox(ctx context.Context, client AuthorityClient, claim 
 		_ = s.releaseOutboxUnavailable(ctx, claim, postgres)
 		return nil, err
 	}
-	return s.persistAuthoritySuccess(ctx, claim, simRes, ledgerTo, postgres)
+	out, err := s.persistAuthoritySuccess(ctx, claim, simRes, ledgerTo, postgres)
+	if out != nil {
+		out.JWSAttached = jwsAttached
+	}
+	return out, err
 }
 
 func mapSimulatorOutcome(o simulator.Outcome) (string, error) {

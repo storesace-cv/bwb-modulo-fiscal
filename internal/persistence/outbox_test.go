@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/simulator"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaljws"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/dbmigrate"
@@ -56,7 +57,7 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 			t.Fatal(err)
 		}
 		sim.Script(r.SubmissionID, simulator.OutcomeAccept)
-		out, err := store.ProcessNextAuthoritySubmission(ctx, sim)
+		out, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +72,7 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 			t.Fatal(err)
 		}
 		sim.Script(r2.SubmissionID, simulator.OutcomeReject)
-		out, err = store.ProcessNextAuthoritySubmission(ctx, sim)
+		out, err = store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -89,7 +90,7 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		}
 		// Drain leftover outbox so peer subtests are isolated.
 		sim.Script(r3.SubmissionID, simulator.OutcomeAccept)
-		if _, err := store.ProcessNextAuthoritySubmission(ctx, sim); err != nil {
+		if _, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{}); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -101,7 +102,7 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := store.ProcessNextAuthoritySubmission(ctx, sim)
+		out, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +116,7 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		// Force available_at to past for immediate retry.
 		forceOutboxAvailable(t, ctx, sqlDB, postgres, r.SubmissionID)
 		sim.Script(r.SubmissionID, simulator.OutcomeAccept)
-		out, err = store.ProcessNextAuthoritySubmission(ctx, sim)
+		out, err = store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,13 +136,13 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 			t.Fatal(err)
 		}
 		sim.Script(r.SubmissionID, simulator.OutcomeAccept)
-		if _, err := store.ProcessNextAuthoritySubmission(ctx, sim); err != nil {
+		if _, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{}); err != nil {
 			t.Fatal(err)
 		}
 		attemptsBefore, _ := countAttemptsResponses(t, ctx, sqlDB, postgres, r.SubmissionID)
 		// Force pending again illegally then process — terminal ledger should short-circuit.
 		forceOutboxState(t, ctx, sqlDB, postgres, r.SubmissionID, "pending")
-		out, err := store.ProcessNextAuthoritySubmission(ctx, sim)
+		out, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -154,9 +155,31 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		}
 	})
 
+	t.Run("JWS_ephemeral_verified_by_simulator", func(t *testing.T) {
+		scope := fmt.Sprintf("outbox-jws-%d", time.Now().UnixNano())
+		signer, err := fiscaljws.NewEphemeral(fiscaljws.DefaultRSABits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sim := simulator.New(simulator.OutcomeAccept)
+		sim.VerifyPublic = signer.PublicKey()
+		r, err := store.SealInTx(ctx, sampleSealReq(scope, "dddddddd-dddd-4ddd-8ddd-ddddddddddd1", "ext-jws", "J", "1.00"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{Signer: signer})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !out.JWSAttached || out.Outcome != "authority_accepted" {
+			t.Fatalf("%+v", out)
+		}
+		assertLatestLedger(t, ctx, sqlDB, postgres, r.DocumentID, "authority_accepted")
+	})
+
 	t.Run("empty_outbox", func(t *testing.T) {
 		sim := simulator.New(simulator.OutcomeAccept)
-		_, err := store.ProcessNextAuthoritySubmission(ctx, sim)
+		_, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
 		if !errors.Is(err, persistence.ErrOutboxEmpty) {
 			t.Fatalf("err=%v", err)
 		}
