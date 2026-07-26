@@ -41,6 +41,7 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - País activo: Angola. País futuro: Cabo Verde.
 - Contrato OpenAPI POS: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
 - Admin API: [`specs/admin/openapi.yaml`](specs/admin/openapi.yaml) (`0.1.5-draft`, `/admin/v1`).
+- Backoffice UI (M7): `/admin/ui/` — SSR Go (`internal/adminui`); slice 1 read-only.
 - Schema: `ExpectedVersion=6`.
 - Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).

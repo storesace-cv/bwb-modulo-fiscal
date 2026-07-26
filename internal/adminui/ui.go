@@ -1,0 +1,209 @@
+// Package adminui serves the M7 backoffice (RM-ARCH-005 / RM-UI-001).
+//
+// Server-rendered HTML (Go html/template + embed) in the fiscal-api monolith —
+// aligned with DEC-STACK-001. No SPA, no secrets in the browser.
+// Auth uses adminauth.Authenticator (OIDC/JWT contract); production fail-closed.
+package adminui
+
+import (
+	"embed"
+	"fmt"
+	"html/template"
+	"io/fs"
+	"net/http"
+	"strings"
+
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+)
+
+//go:embed templates/*.html static/*
+var embedded embed.FS
+
+const (
+	cookieName = "fiscal_admin_ui_session"
+	listLimit  = 50
+)
+
+// Handler serves /admin/ui pages (read-only in RM-UI-001).
+type Handler struct {
+	Registry *adminregistry.Registry
+	EnvLabel string
+}
+
+// New builds a Handler.
+func New(reg *adminregistry.Registry, envLabel string) (*Handler, error) {
+	if reg == nil {
+		return nil, fmt.Errorf("adminui: registry nil")
+	}
+	if strings.TrimSpace(envLabel) == "" {
+		envLabel = "unknown"
+	}
+	return &Handler{Registry: reg, EnvLabel: envLabel}, nil
+}
+
+// Mount registers UI routes. Static CSS is public; pages require auth + cadastro.read.
+func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
+	if h == nil {
+		return
+	}
+	staticFS, err := fs.Sub(embedded, "static")
+	if err != nil {
+		panic("adminui: static embed: " + err.Error())
+	}
+	mux.Handle("GET /admin/ui/static/", securityHeaders(http.StripPrefix("/admin/ui/static/", http.FileServer(http.FS(staticFS)))))
+
+	authMW := htmlAuthMiddleware(authn)
+	read := adminauth.RequirePermission(adminauth.PermCadastroRead)
+	wrap := func(next http.Handler) http.Handler {
+		return securityHeaders(authMW(read(next)))
+	}
+	mux.Handle("GET /admin/ui/", wrap(http.HandlerFunc(h.dashboard)))
+	mux.Handle("GET /admin/ui/taxpayers", wrap(http.HandlerFunc(h.taxpayers)))
+	mux.Handle("GET /admin/ui/establishments", wrap(http.HandlerFunc(h.establishments)))
+	mux.Handle("GET /admin/ui/bindings", wrap(http.HandlerFunc(h.bindings)))
+}
+
+type pageBase struct {
+	Title      string
+	Heading    string
+	Nav        string
+	EnvLabel   string
+	Subject    string
+	RolesLabel string
+	Flash      string
+}
+
+type dashboardPage struct {
+	pageBase
+	TaxpayerCount      int
+	EstablishmentCount int
+	BindingCount       int
+	Taxpayers          []adminregistry.Taxpayer
+	Establishments     []adminregistry.Establishment
+	Bindings           []adminregistry.ScopeBinding
+}
+
+type taxpayersPage struct {
+	pageBase
+	Taxpayers []adminregistry.Taxpayer
+}
+
+type establishmentsPage struct {
+	pageBase
+	Establishments []adminregistry.Establishment
+}
+
+type bindingsPage struct {
+	pageBase
+	Bindings []adminregistry.ScopeBinding
+}
+
+func (h *Handler) base(r *http.Request, title, heading, nav string) pageBase {
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	roles := make([]string, 0, len(claims.Roles))
+	for _, role := range claims.Roles {
+		roles = append(roles, string(role))
+	}
+	return pageBase{
+		Title: title, Heading: heading, Nav: nav,
+		EnvLabel: h.EnvLabel, Subject: claims.Subject, RolesLabel: strings.Join(roles, ", "),
+	}
+}
+
+func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/admin/ui/" && r.URL.Path != "/admin/ui" {
+		http.NotFound(w, r)
+		return
+	}
+	tps, err := h.Registry.ListTaxpayers(r.Context(), listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	ests, err := h.Registry.ListEstablishments(r.Context(), "", listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	binds, err := h.Registry.ListScopeBindings(r.Context(), listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	h.render(w, "dashboard.html", dashboardPage{
+		pageBase:           h.base(r, "Painel", "Painel operacional", "dashboard"),
+		TaxpayerCount:      len(tps),
+		EstablishmentCount: len(ests),
+		BindingCount:       len(binds),
+		Taxpayers:          tps,
+		Establishments:     ests,
+		Bindings:           binds,
+	})
+}
+
+func (h *Handler) taxpayers(w http.ResponseWriter, r *http.Request) {
+	tps, err := h.Registry.ListTaxpayers(r.Context(), listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	h.render(w, "taxpayers.html", taxpayersPage{
+		pageBase:  h.base(r, "Contribuintes", "Contribuintes", "taxpayers"),
+		Taxpayers: tps,
+	})
+}
+
+func (h *Handler) establishments(w http.ResponseWriter, r *http.Request) {
+	ests, err := h.Registry.ListEstablishments(r.Context(), "", listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	h.render(w, "establishments.html", establishmentsPage{
+		pageBase:       h.base(r, "Estabelecimentos", "Estabelecimentos", "establishments"),
+		Establishments: ests,
+	})
+}
+
+func (h *Handler) bindings(w http.ResponseWriter, r *http.Request) {
+	binds, err := h.Registry.ListScopeBindings(r.Context(), listLimit)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	h.render(w, "bindings.html", bindingsPage{
+		pageBase: h.base(r, "Bindings", "Scope bindings", "bindings"),
+		Bindings: binds,
+	})
+}
+
+func (h *Handler) render(w http.ResponseWriter, pageFile string, data any) {
+	t, err := template.ParseFS(embedded,
+		"templates/layout.html",
+		"templates/partials.html",
+		"templates/"+pageFile,
+	)
+	if err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := t.ExecuteTemplate(w, "layout", data); err != nil {
+		http.Error(w, "erro interno", http.StatusInternalServerError)
+		return
+	}
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; "+
+				"frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}

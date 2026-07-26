@@ -23,6 +23,13 @@
 | `FISCAL_ADMIN_INJECT_SUBJECT` | — | Subject injectado (obrigatório se mode=injected) |
 | `FISCAL_ADMIN_INJECT_ROLES` | — | Roles CSV: `owner,admin,operator,auditor` (se mode=injected) |
 | `FISCAL_ADMIN_OWNER_SUBJECT` | — | Subject autorizado para SecAdm write-only; se vazio, `/admin/v1/secadm/*` → 503 |
+| `FISCAL_ADMIN_UI_DEV_COOKIE` | — | Só `development`+`injected`: valor ≥32 bytes da cookie HttpOnly `fiscal_admin_ui_session` para browser local (sem formulário de login; ≠ IdP) |
+
+### Backoffice UI (M7 / RM-UI-001)
+
+- URL local: `http://127.0.0.1:8080/admin/ui/` (SSR Go; sem SPA; CSP `script-src` ausente / sem JS).
+- Produção: auth fail-closed até IdP OIDC/JWT real.
+- Dev browser (opcional): com `FISCAL_ADMIN_AUTH_MODE=injected` e `FISCAL_ADMIN_UI_DEV_COOKIE`, definir cookie HttpOnly (ex. via DevTools Application → Cookies, ou `curl` com `--cookie`) igual ao valor da env — **não** é login local improvisado nem credencial AGT.
 
 ## Variáveis de base de dados (`fiscal-migrate` / testes)
 

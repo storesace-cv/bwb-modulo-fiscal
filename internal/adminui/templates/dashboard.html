@@ -1,0 +1,23 @@
+{{define "content"}}
+<section aria-labelledby="sum-heading">
+  <h2 id="sum-heading">Resumo</h2>
+  <ul class="stats">
+    <li><span class="n">{{.TaxpayerCount}}</span> contribuintes</li>
+    <li><span class="n">{{.EstablishmentCount}}</span> estabelecimentos</li>
+    <li><span class="n">{{.BindingCount}}</span> bindings</li>
+  </ul>
+  <p class="hint">Vista read-only. Mutações e SecAdm chegam nos slices seguintes.</p>
+</section>
+<section aria-labelledby="tp-heading">
+  <h2 id="tp-heading">Contribuintes recentes</h2>
+  {{template "taxpayer_table" .Taxpayers}}
+</section>
+<section aria-labelledby="est-heading">
+  <h2 id="est-heading">Estabelecimentos recentes</h2>
+  {{template "establishment_table" .Establishments}}
+</section>
+<section aria-labelledby="bind-heading">
+  <h2 id="bind-heading">Bindings recentes</h2>
+  {{template "binding_table" .Bindings}}
+</section>
+{{end}}
