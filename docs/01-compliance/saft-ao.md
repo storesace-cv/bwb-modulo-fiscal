@@ -15,6 +15,15 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
+## Fundação estrutural (RM-SAFT-001)
+
+- Pacote Go [`internal/saftao`](../../internal/saftao/): skeleton `AuditFile` + inventário de elementos do XSD embutido.
+- XSD: `source_id` **AO-SAFT-XSD-1.01_01** (`compliance/catalog/sources.yaml`), status **`pending_validation`** — **não** afirmado como XSD validado/certificado pela AGT.
+- Integridade: SHA-256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631` (NOTICE + catálogo).
+- Namespace: `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · versão `1.01_01`.
+- Mecanismo SAF-T ≠ JWS/RS256 da faturação electrónica.
+- Esta fundação **não** gera ficheiro de produção, **não** valida semanticamente contra AGT e **não** fecha requisitos `AO-*`.
+
 ## Decisões iniciais
 
 - Persistir desde a emissão todos os campos necessários ao SAF-T.
