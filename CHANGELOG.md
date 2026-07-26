@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Persistência: **RM-TX-010** — VS-T09: ledger `authority_processing` antes do Submit (simulador lento); unavailable reverte a `sealed_locally`; ≠ AGT oficial.
 - Config: **RM-TX-009** — `FISCAL_AUTHORITY` (`simulator` default; `agt-hml`/`agt-prd` reservados fail-closed); ≠ HML/PRD AGT; sem credenciais/deploy.
 - Persistência: **RM-TX-008** — semântica at-least-once/dedup/reconciliação do outbox→simulador documentada; VS-T12 (reclaim `in_flight` + `authority_outcome_unknown`); ≠ AGT oficial / exactly-once.
 - Docs/CI: «Estado revisto em» = `2026-07-26`; `verify_roadmap` rejeita alterações materiais ao ROADMAP com data desactualizada (diff vs base Git).

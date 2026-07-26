@@ -190,6 +190,11 @@ func (s *Store) claimOutbox(ctx context.Context, q querier, postgres bool) (outb
 }
 
 func (s *Store) finishOutbox(ctx context.Context, client AuthorityClient, claim outboxClaim, postgres bool, opts ProcessOpts) (*OutboxProcessResult, error) {
+	if err := s.markAuthorityProcessing(ctx, claim, postgres); err != nil {
+		_ = s.releaseOutboxUnavailable(ctx, claim, postgres)
+		return nil, err
+	}
+
 	req := simulator.Request{
 		SubmissionID: claim.SubmissionID,
 		DocumentID:   claim.DocumentID,
@@ -258,10 +263,89 @@ func (s *Store) releaseOutboxUnavailable(ctx context.Context, claim outboxClaim,
 			nowArg = formatUTCMicro(now)
 			availArg = formatUTCMicro(avail)
 		}
-		_, err := q.ExecContext(ctx,
+		if _, err := q.ExecContext(ctx,
 			`UPDATE `+t("outbox_messages")+` SET state = `+ph(postgres, 1)+`, available_at = `+ph(postgres, 2)+`, updated_at = `+ph(postgres, 3)+`
 			 WHERE id = `+ph(postgres, 4)+` AND state = `+ph(postgres, 5),
 			outboxPending, availArg, nowArg, claim.ID, outboxInFlight,
+		); err != nil {
+			return err
+		}
+		// VS-T08: after transport failure, tip returns to sealed_locally (not accepted).
+		var latest string
+		err := q.QueryRowContext(ctx,
+			`SELECT to_status FROM `+t("ledger_events")+` WHERE document_id = `+ph(postgres, 1)+` ORDER BY seq DESC LIMIT 1`,
+			claim.DocumentID,
+		).Scan(&latest)
+		if err != nil {
+			return fmt.Errorf("persistence: latest ledger on release: %w", err)
+		}
+		if latest != ledgerAuthorityProcessing {
+			return nil
+		}
+		var nextSeq int64
+		if err := q.QueryRowContext(ctx,
+			`SELECT COALESCE(MAX(seq), 0) + 1 FROM `+t("ledger_events")+` WHERE document_id = `+ph(postgres, 1),
+			claim.DocumentID,
+		).Scan(&nextSeq); err != nil {
+			return err
+		}
+		id, err := newID()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO `+t("ledger_events")+` (
+				id, document_id, seq, event_type, from_status, to_status, created_at
+			) VALUES (`+placeholders(postgres, 7)+`)`,
+			id, claim.DocumentID, nextSeq, "status_transition", ledgerAuthorityProcessing, ledgerSealedLocally, nowArg,
+		)
+		return err
+	})
+}
+
+// markAuthorityProcessing records authority_processing before the transport call (VS-T09).
+func (s *Store) markAuthorityProcessing(ctx context.Context, claim outboxClaim, postgres bool) error {
+	return s.withQuerier(ctx, postgres, func(q querier) error {
+		t := tablePrefix(postgres)
+		now := s.stamp().UTC().Truncate(time.Microsecond)
+		var nowArg any = now
+		if !postgres {
+			nowArg = formatUTCMicro(now)
+		}
+		var latest string
+		err := q.QueryRowContext(ctx,
+			`SELECT to_status FROM `+t("ledger_events")+` WHERE document_id = `+ph(postgres, 1)+` ORDER BY seq DESC LIMIT 1`,
+			claim.DocumentID,
+		).Scan(&latest)
+		if err != nil {
+			return fmt.Errorf("persistence: latest ledger: %w", err)
+		}
+		switch latest {
+		case ledgerAuthorityProcessing:
+			return nil
+		case ledgerSealedLocally:
+			// continue
+		case ledgerAuthorityAccepted, ledgerAuthorityRejected, ledgerAuthorityUnknown:
+			return nil
+		default:
+			return fmt.Errorf("persistence: estado ledger inesperado antes de processing %q", latest)
+		}
+		var nextSeq int64
+		if err := q.QueryRowContext(ctx,
+			`SELECT COALESCE(MAX(seq), 0) + 1 FROM `+t("ledger_events")+` WHERE document_id = `+ph(postgres, 1),
+			claim.DocumentID,
+		).Scan(&nextSeq); err != nil {
+			return err
+		}
+		id, err := newID()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO `+t("ledger_events")+` (
+				id, document_id, seq, event_type, from_status, to_status, created_at
+			) VALUES (`+placeholders(postgres, 7)+`)`,
+			id, claim.DocumentID, nextSeq, "status_transition", ledgerSealedLocally, ledgerAuthorityProcessing, nowArg,
 		)
 		return err
 	})

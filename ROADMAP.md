@@ -119,6 +119,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-TX-007 | JWS RS256 efémero no outbox→simulador | CONCLUÍDO | [internal/fiscaljws/fiscaljws.go](internal/fiscaljws/fiscaljws.go) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [CHANGELOG.md](CHANGELOG.md) | — | Envelope técnico; não certificado; ≠ FE-RNG / FE certificado oficial |
 | [x] | RM-TX-008 | At-least-once, deduplicação e reconciliação (slice) | CONCLUÍDO | [docs/06-delivery/outbox-at-least-once.md](docs/06-delivery/outbox-at-least-once.md) · [internal/persistence/outbox_test.go](internal/persistence/outbox_test.go) · [CHANGELOG.md](CHANGELOG.md) | — | VS-T12; simulador ≠ AGT; sem exactly-once |
 | [x] | RM-TX-009 | Config `FISCAL_AUTHORITY` (simulator vs AGT reservado) | CONCLUÍDO | [internal/platform/config/config.go](internal/platform/config/config.go) · [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md) · [CHANGELOG.md](CHANGELOG.md) | — | Só `simulator`; `agt-hml`/`agt-prd` fail-closed; sem credenciais/deploy |
+| [x] | RM-TX-010 | VS-T09: `authority_processing` sob simulador lento | CONCLUÍDO | [internal/persistence/outbox.go](internal/persistence/outbox.go) · [internal/persistence/outbox_test.go](internal/persistence/outbox_test.go) · [CHANGELOG.md](CHANGELOG.md) | — | Processing antes do Submit; unavailable reverte a `sealed_locally` |
 
 ### 3.4 API POS
 
