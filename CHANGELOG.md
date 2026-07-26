@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Persistência: **RM-TX-008** — semântica at-least-once/dedup/reconciliação do outbox→simulador documentada; VS-T12 (reclaim `in_flight` + `authority_outcome_unknown`); ≠ AGT oficial / exactly-once.
 - Docs/CI: «Estado revisto em» = `2026-07-26`; `verify_roadmap` rejeita alterações materiais ao ROADMAP com data desactualizada (diff vs base Git).
 - Persistência/crypto: **RM-TX-007** — adaptador JWS RS256 com RSA efémera (`internal/fiscaljws`) no caminho outbox→simulador; envelope técnico; privado nunca persistido; **não** certificado; **≠** FE-RNG/`RM-FE-002`; sem credenciais/deploy.
 - Persistência: **RM-TX-006** — migration `0004` (`authority_attempts`/`authority_responses`); worker outbox + simulador AGT interno (VS-T08/10/11); `ExpectedVersion=4`; simulador ≠ HML AGT; sem credenciais/deploy/servidor.

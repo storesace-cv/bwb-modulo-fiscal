@@ -199,7 +199,7 @@ Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem anál
 | VS-T09 | Simulador lento | `authority_processing`; POS não reemite |
 | VS-T10 | Simulador rejeita | `authority_rejected`; número **não** reutilizado — **coberto** |
 | VS-T11 | Resposta/callback duplicado do simulador | Idempotência / deduplicação por id estável — **coberto** (ledger terminal) |
-| VS-T12 | Worker reinicia a meio / resultado desconhecido | Entrega **at-least-once**; deduplicação por id estável de submissão; persistência tentativa/resposta; **reconciliação**; **sem** exactly-once |
+| VS-T12 | Worker reinicia a meio / resultado desconhecido | Entrega **at-least-once**; deduplicação por id estável de submissão; persistência tentativa/resposta; **reconciliação**; **sem** exactly-once — **coberto** (`VS-T12_reclaim_inflight_and_unknown`) |
 
 ## Distinção: simulador AGT vs integração oficial
 
@@ -227,7 +227,7 @@ Declarar sempre: «simulador — não é a AGT».
 - [ ] POS demo = CLI ou coleção (< 15 min).
 - [ ] Sem portal, webhooks ou frontend.
 - [x] JWS RS256 real via adaptador; RSA efémero; não certificado (`RM-TX-007`; envelope técnico ≠ FE-RNG oficial).
-- [ ] At-least-once + deduplicação + reconciliação documentados.
+- [x] At-least-once + deduplicação + reconciliação documentados (`RM-TX-008`; [outbox-at-least-once.md](outbox-at-least-once.md)).
 - [ ] Separação simulador vs AGT na config.
 - [ ] Scaffold alinhado a DEC-STACK-001 (Go + PostgreSQL cloud + SQLite WAL Edge), só após autorização.
 

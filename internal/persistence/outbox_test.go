@@ -155,6 +155,41 @@ func runOutboxSimulatorSuite(t *testing.T, ctx context.Context, store *persisten
 		}
 	})
 
+	t.Run("VS-T12_reclaim_inflight_and_unknown", func(t *testing.T) {
+		scope := fmt.Sprintf("outbox-t12-%d", time.Now().UnixNano())
+		sim := simulator.New(simulator.OutcomeAccept)
+
+		rUnknown, err := store.SealInTx(ctx, sampleSealReq(scope, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1", "ext-unk", "K", "1.00"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sim.Script(rUnknown.SubmissionID, simulator.OutcomeUnknown)
+		out, err := store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.Outcome != "authority_outcome_unknown" || out.OutboxState != "succeeded" {
+			t.Fatalf("unknown: %+v", out)
+		}
+		assertLatestLedger(t, ctx, sqlDB, postgres, rUnknown.DocumentID, "authority_outcome_unknown")
+
+		rCrash, err := store.SealInTx(ctx, sampleSealReq(scope, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2", "ext-crash", "K", "2.00"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		forceStaleInFlight(t, ctx, sqlDB, postgres, rCrash.SubmissionID)
+		sim.Script(rCrash.SubmissionID, simulator.OutcomeAccept)
+		out, err = store.ProcessNextAuthoritySubmission(ctx, sim, persistence.ProcessOpts{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.Outcome != "authority_accepted" || out.OutboxState != "succeeded" {
+			t.Fatalf("reclaim: %+v", out)
+		}
+		assertLatestLedger(t, ctx, sqlDB, postgres, rCrash.DocumentID, "authority_accepted")
+		assertAttemptResponseCount(t, ctx, sqlDB, postgres, rCrash.SubmissionID, 1, 1)
+	})
+
 	t.Run("JWS_ephemeral_verified_by_simulator", func(t *testing.T) {
 		scope := fmt.Sprintf("outbox-jws-%d", time.Now().UnixNano())
 		signer, err := fiscaljws.NewEphemeral(fiscaljws.DefaultRSABits)
@@ -247,6 +282,15 @@ func forceOutboxState(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres
 	past := time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05.000000Z07:00")
 	q := `UPDATE ` + tbl(postgres, "outbox_messages") + ` SET state = ?, available_at = ? WHERE submission_id = ?`
 	if _, err := sqlDB.ExecContext(ctx, rebind(postgres, q), state, past, submissionID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func forceStaleInFlight(t *testing.T, ctx context.Context, sqlDB *sql.DB, postgres bool, submissionID string) {
+	t.Helper()
+	past := time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05.000000Z07:00")
+	q := `UPDATE ` + tbl(postgres, "outbox_messages") + ` SET state = 'in_flight', updated_at = ?, available_at = ? WHERE submission_id = ?`
+	if _, err := sqlDB.ExecContext(ctx, rebind(postgres, q), past, past, submissionID); err != nil {
 		t.Fatal(err)
 	}
 }
