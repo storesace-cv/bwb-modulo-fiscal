@@ -3,10 +3,23 @@
 - **AGT** — Administração Geral Tributária de Angola.
 - **POS** — sistema de ponto de venda que inicia a operação comercial.
 - **Módulo fiscal** — componente BWB responsável pelo processamento fiscal.
-- **Fiscal Edge** — distribuição local Linux do módulo fiscal.
+- **Fiscal Edge** — distribuição local Linux do módulo fiscal; **um processo fiscal escritor** por instalação; sem multi-instância na mesma série sem coordenação (`DEC-PROD-011`).
 - **Documento canónico** — representação interna neutra da intenção comercial.
 - **Documento fiscal** — resultado imutável após atribuição de identidade fiscal.
 - **Série** — sequência fiscal configurada para um tipo/contexto de documento.
+- **Grupo documental** — um dos 5 grupos funcionais SAF-T do catálogo (`DEC-PROD-001`: vendas, movimentação, conferência/trabalho, pagamentos/recibos, compras).
+- **Activação POS** — configuração que liga/desliga grupos inteiros e tipos individuais dentro do grupo (`DEC-PROD-003`); só tipos do catálogo (`DEC-PROD-002`); o módulo fiscal rejeita pedidos inactivos.
+- **Adesão FE** — estado do contribuinte (NIF) face à facturação electrónica AGT (`DEC-PROD-004`): `not_enrolled` \| `pending` \| `active` \| `suspended` (não booleano); séries/config ficam no estabelecimento.
+- **Disponibilidade efectiva** — tipo emitível só se todos os gates `DEC-PROD-005` forem verdadeiros (canónico ∧ activo ∧ regime/NIF ∧ adesão FE ∧ série quando exigida ∧ ambiente ∧ sector).
+- **Routing de canal** — sem FE `active`: só SAF-T aplicável; com FE `active`: só elegíveis no endpoint AGT + autorizados; SAF-T-only nunca no FE; FE-only só no FE (`DEC-PROD-006`).
+- **Tipo canónico** — identidade interna do catálogo; adaptadores geram códigos FE/SAF-T; o POS envia alias próprio mapeado, nunca código fiscal cru sem mapping (`DEC-PROD-007`).
+- **Autoridade de emissão** — só o módulo fiscal atribui série/número e produz o documento fiscal; vários POS integram pela API (`DEC-PROD-008`, ADR-0001).
+- **Estados do documento** — `sealed_locally` → `submitted` → `received` → `accepted` \| `rejected` (`DEC-PROD-009`); só `accepted` afirma aceitação AGT.
+- **Offline técnico** — outbox, reenvio e idempotência permitidos; emissão offline certificada **proibida** até regra oficial (`DEC-PROD-010`, `DEC-REG-004`).
+- **Chaves fiscais** — segregadas por contribuinte; non-exportable quando possível; nunca no POS; rotação auditada; custódia definitiva aguarda AGT (`DEC-PROD-012`, `DEC-REG-KEY-CUSTODY`).
+- **Auditoria append-only** — eventos e trilho imutáveis por adição; retenção final só após norma consolidada (`DEC-PROD-013`).
+- **Modelo de tipos** — todos os tipos legalmente aplicáveis com canal SAF-T e/ou FE; implementação pode ser faseada sem truncar o catálogo (`DEC-PROD-014`).
+- **Catálogo documental** — matriz com esquema mínimo `DEC-PROD-015` (grupo, canónico, canais, estrutura SAF-T, elegibilidade, natureza, sector, série, requisitos, rectificação/anulação, estado normativo, activo).
 - **Idempotência** — repetição segura do mesmo pedido sem duplicar emissão.
 - **Outbox** — fila transacional durável para transmissão assíncrona.
 - **Contingência** — emissão durante indisponibilidade de comunicação, nos limites legais.

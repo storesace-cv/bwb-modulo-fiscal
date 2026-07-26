@@ -38,6 +38,8 @@ flowchart TB
 | `ProducerCredential` | Plataforma BWB/produtor + ambiente | Basic Auth AGT do produtor; não pertence a tenant/contribuinte |
 | `ProducerKeyRef` | Plataforma BWB/produtor + ambiente | Par RSA do produtor; privada sob custódia do produtor |
 | `TaxpayerKeyRef` | Contribuinte + ambiente | Par RSA do contribuinte (`jwsDocumentSignature` / `jwsSignature`); só no `SecretStore` da plataforma se DEC-REG-KEY-CUSTODY permitir |
+| Adesão FE (estado) | Contribuinte + ambiente | `not_enrolled` \| `pending` \| `active` \| `suspended` (`DEC-PROD-004`); **não** booleano; **não** por estabelecimento |
+| Séries / activação tipos | Estabelecimento (+ config POS) | Configuração própria do estabelecimento (`DEC-PROD-003`/`004`) |
 
 Documentação FE pública (snapshot/confirmação em homologação; **não** substitui artefactos restritos):
 
@@ -53,6 +55,7 @@ Documentação FE pública (snapshot/confirmação em homologação; **não** su
 - Fingerprints só a partir de chave pública ou metadados seguros do provisionamento.
 - Autorização do contribuinte **necessária** mas **insuficiente** sem permissão oficial AGT — ver DEC-REG-KEY-CUSTODY.
 - Se custódia externa for proibida: chave só no ambiente do contribuinte/Edge ou mecanismo oficial de delegação/assinatura remota.
+- Constraints de produto (`DEC-PROD-012`): segregação por contribuinte; non-exportable quando possível; **nunca nos POS**; rotação auditada; fecho definitivo aguarda AGT.
 
 ## Edge e assinatura (aberto)
 
