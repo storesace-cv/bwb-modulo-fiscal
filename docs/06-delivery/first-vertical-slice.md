@@ -228,7 +228,7 @@ Declarar sempre: «simulador — não é a AGT».
 - [ ] Sem portal, webhooks ou frontend.
 - [x] JWS RS256 real via adaptador; RSA efémero; não certificado (`RM-TX-007`; envelope técnico ≠ FE-RNG oficial).
 - [x] At-least-once + deduplicação + reconciliação documentados (`RM-TX-008`; [outbox-at-least-once.md](outbox-at-least-once.md)).
-- [ ] Separação simulador vs AGT na config.
+- [x] Separação simulador vs AGT na config (`RM-TX-009`; `FISCAL_AUTHORITY=simulator`; `agt-hml`/`agt-prd` fail-closed).
 - [ ] Scaffold alinhado a DEC-STACK-001 (Go + PostgreSQL cloud + SQLite WAL Edge), só após autorização.
 
 ## Dependências da Fase 0

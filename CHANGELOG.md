@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Config: **RM-TX-009** — `FISCAL_AUTHORITY` (`simulator` default; `agt-hml`/`agt-prd` reservados fail-closed); ≠ HML/PRD AGT; sem credenciais/deploy.
 - Persistência: **RM-TX-008** — semântica at-least-once/dedup/reconciliação do outbox→simulador documentada; VS-T12 (reclaim `in_flight` + `authority_outcome_unknown`); ≠ AGT oficial / exactly-once.
 - Docs/CI: «Estado revisto em» = `2026-07-26`; `verify_roadmap` rejeita alterações materiais ao ROADMAP com data desactualizada (diff vs base Git).
 - Persistência/crypto: **RM-TX-007** — adaptador JWS RS256 com RSA efémera (`internal/fiscaljws`) no caminho outbox→simulador; envelope técnico; privado nunca persistido; **não** certificado; **≠** FE-RNG/`RM-FE-002`; sem credenciais/deploy.

@@ -4,6 +4,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Fatalf("ShutdownTimeout = %v, want 10s", cfg.ShutdownTimeout)
+	}
+	if cfg.Authority != config.AuthoritySimulator {
+		t.Fatalf("Authority = %q, want %s", cfg.Authority, config.AuthoritySimulator)
 	}
 }
 
@@ -81,6 +85,49 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.ShutdownTimeout != 2500*time.Millisecond {
 		t.Fatalf("ShutdownTimeout = %v", cfg.ShutdownTimeout)
+	}
+}
+
+func TestAuthoritySimulatorOK(t *testing.T) {
+	clearFiscalEnv(t)
+	t.Setenv("FISCAL_AUTHORITY", "simulator")
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Authority != config.AuthoritySimulator {
+		t.Fatalf("%q", cfg.Authority)
+	}
+}
+
+func TestAuthorityAGTHMLRejected(t *testing.T) {
+	clearFiscalEnv(t)
+	t.Setenv("FISCAL_AUTHORITY", "agt-hml")
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for agt-hml")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "FISCAL_AUTHORITY") || !strings.Contains(msg, "agt-hml") || !strings.Contains(msg, "simulator") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestAuthorityAGTPRDRejected(t *testing.T) {
+	clearFiscalEnv(t)
+	t.Setenv("FISCAL_AUTHORITY", "agt-prd")
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for agt-prd")
+	}
+}
+
+func TestAuthorityInvalidRejected(t *testing.T) {
+	clearFiscalEnv(t)
+	t.Setenv("FISCAL_AUTHORITY", "prod-fake")
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
