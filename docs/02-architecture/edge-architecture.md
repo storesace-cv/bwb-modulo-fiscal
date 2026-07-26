@@ -19,8 +19,10 @@
 
 ## Restrições
 
-- Um único proprietário de cada série num dado instante.
-- Não permitir dois Edge independentes a emitir na mesma série sem protocolo formal de partição.
+- **Um único processo fiscal escritor** por instalação Edge (`DEC-PROD-011` / `DEC-OPS-001`).
+- Um único proprietário de cada série num dado instante; séries exclusivas desse escritor.
+- **Proibido** multi-instância na mesma série sem coordenação formal (lease/partição = evolução futura explícita, não MVP).
+- Vários POS → só API local do escritor.
 - Relógio monitorizado; desvios relevantes bloqueiam ou degradam conforme regra aprovada.
 - Base de dados e chaves cifradas em repouso.
 - Credenciais únicas por instalação, nunca imagens clonadas com o mesmo segredo.

@@ -1,7 +1,23 @@
 # Matriz normativa de tipos documentais (provisória)
 
-**Estado:** rascunho rastreável — **não** confirma `AO-DOC-001` / `AO-DOC-002` nem fecha `DEC-REG-003`.
+**Estado:** rascunho rastreável — **não** confirma `AO-DOC-001` / `AO-DOC-002`; `DEC-REG-003` = faseamento (não perímetro).
 **Data:** 2026-07-26
+**Modelo:** todos os legalmente aplicáveis com canal SAF-T e/ou FE (`DEC-PROD-014`); implementação faseada sem truncar.
+**Catálogo L3:** exactamente **5** grupos (`DEC-PROD-001`).
+**Inclusão:** só tipos com canal SAF-T e/ou FE (`DEC-PROD-002`); excluir o que não sirva nenhum.
+**Config POS:** activar/desactivar grupo inteiro e tipos dentro do grupo (`DEC-PROD-003`) — produto; **não** confirma AO-*.
+**Adesão FE:** estado no contribuinte/NIF (`DEC-PROD-004`: `not_enrolled|pending|active|suspended`); séries no estabelecimento.
+**Disponibilidade:** conjunção `DEC-PROD-005` (canónico + activo + regime/NIF + FE + série + ambiente + sector).
+**Routing:** `DEC-PROD-006` — sem FE activa só SAF-T; SAF-T-only ∉ endpoint FE; FE-only só FE.
+**Canónico:** um conceito interno + adaptadores por canal; POS só com mapping (`DEC-PROD-007`).
+**Autoridade:** módulo emite/numera; N POS só API (`DEC-PROD-008`).
+**Estados:** `sealed_locally`…`accepted`/`rejected` — sem aceitação AGT antes de `accepted` (`DEC-PROD-009`).
+**Offline:** outbox/reenvio/idempotência; sem emissão offline certificada (`DEC-PROD-010`).
+**Edge:** um escritor fiscal; sem multi-instância na mesma série sem coordenação (`DEC-PROD-011`).
+**Chaves:** por contribuinte; non-exportable quando possível; nunca POS; rotação auditada; definitivo AGT (`DEC-PROD-012`).
+**Auditoria:** append-only; retenção final = norma consolidada (`DEC-PROD-013`).
+**Perímetro modelo:** completo por canal (`DEC-PROD-014`); slice ≠ modelo.
+**Catálogo canónico:** esquema mínimo + seed em [`DOCUMENT-CATALOG-RM-REQ-001.md`](DOCUMENT-CATALOG-RM-REQ-001.md) (`DEC-PROD-015`).
 **Regra:** PDF original prevalece; OCR/`reviewed` e HTML FE são auxiliares. Sem inventar tipos em falta.
 
 ## Camadas — não confundir
@@ -21,6 +37,7 @@ Estas quatro camadas são **ortogonais**. Homónimos (ex.: «FT», «RC», «Rec
 2. L4 (`documentType`) **não** é L2 (`InvoiceType` / `PaymentType`).
 3. L2 **depende** de L3: o mesmo código pode existir em enums diferentes (`AR` em `InvoiceType` e em `SAFTAOPaymentType`) sem ser o mesmo conceito operacional.
 4. Cruzamentos L1↔L4↔L2↔L3 são **hipóteses** até `DEC-REG-003` + revisão compliance — ver C-DOC-001/002/003.
+5. API POS usa **canónico** / código próprio mapeado (`DEC-PROD-007`) — **não** L4/L2 crus sem mapping.
 
 ## Fontes cruzadas
 
@@ -128,44 +145,74 @@ Citação consolidada: **Citação G** em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](P
 | `referenceInfo` obrigatório (devolução) | `referenceInfo` | NC (indicar factura base) | DE 683 PDF p.**8** · **19170** |
 | `documentCancelReason` se anulado | `documentCancelReason` | quando `documentStatus=A` | DE 683 PDF p.**6** · **19168**; remete Art.8 n.ºs 8–9 DP 71/25 |
 
-## C. Camadas L2 + L3 — tipo SAF-T vs estrutura SAF-T (XSD ASSOFT)
+## C. Camadas L2 + L3 — catálogo em 5 grupos funcionais SAF-T
 
 Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1…` · **`pending_validation`** · Citação D em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
 
-### C.0 Estrutura SAF-T (L3) — onde o documento vive no XML
+**Decisão de produto:** [`DEC-PROD-001`](../../../docs/06-delivery/open-decisions.md) — o catálogo organiza-se **exactamente** nestes **5** grupos (L3). Homónimos L2 entre grupos **não** são o mesmo conceito (`GR` em `MovementType` ≠ `GR` em `WorkType`; `RC` em `PaymentType` ≠ `RC` em `PurchaseType`).
 
-| Estrutura L3 (`SourceDocuments/…`) | Conteúdo típico (XSD) | Tipo L2 associado | ≠ FE |
-|---|---|---|---|
-| `SalesInvoices/Invoice` | Documentos comerciais a clientes | `InvoiceType` (L2023–2065) | `documentType` L4 |
-| `Payments/Payment` | Recibos / avisos-recibo (pagamentos) | `SAFTAOPaymentType` / `PaymentType` (L2740–2754) | `documentType` L4 |
-| `MovementOfGoods` / `WorkingDocuments` | Guias / conferência (fora MVP emissão FE) | outros enums XSD | — |
-| `PurchaseInvoices` | Compras | `PurchaseType` (≠ `InvoiceType`) | — |
+### C.0 Índice canónico — 5 grupos (L3)
 
-**Facto crítico:** `RC`/`RG` em L2 `SAFTAOPaymentType` vivem na estrutura L3 **`Payments`**, **não** em `SalesInvoices/InvoiceType`. Isso **não** mapeia `documentType` FE `RC`/`RG` para `InvoiceType`.
+| # | Grupo funcional | Estrutura L3 | Elemento | Tipo L2 | Linhas XSD (tipo) | ≠ |
+|---|---|---|---|---|---|---|
+| 1 | **Vendas** | `SalesInvoices` | `Invoice` | `InvoiceType` | L2023–2065 | L4 `documentType` |
+| 2 | **Movimentação de mercadorias** | `MovementOfGoods` | `StockMovement` | `MovementType` | L2089–2107 | L4 FE |
+| 3 | **Conferência / trabalho** | `WorkingDocuments` | `WorkDocument` | `WorkType` | L2482–2525 | L4 FE |
+| 4 | **Pagamentos / recibos** | `Payments` | `Payment` | `SAFTAOPaymentType` / `PaymentType` | L2740–2754 | L4 FE; ≠ `InvoiceType` |
+| 5 | **Compras** | `PurchaseInvoices` | `Invoice` | `PurchaseType` | L2230–2265 | ≠ `InvoiceType` vendas |
 
-### C.1 Tipo SAF-T L2 — enum `InvoiceType` (só sob `SalesInvoices`)
+**Facto crítico:** `RC`/`RG` do grupo 4 vivem em L3 **`Payments`**, **não** em `SalesInvoices`. Isso **não** mapeia L4 FE → L2 `InvoiceType` ([C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md)).
 
-| Código L2 | Documentação XSD | Enum |
-|---|---|---|
-| FT | Factura | sim |
-| FR | Factura/recibo | sim |
-| GF | Factura genérica | sim |
-| FG | Factura global | sim |
-| AC | Aviso de cobrança | sim |
-| AR | Aviso de cobrança/recibo | sim |
-| ND | Nota de débito | sim |
-| NC | Nota de crédito | sim |
-| AF | Factura/recibo (autofacturação) | sim |
-| TV | Talão de venda | sim |
-| RP | Prémio ou recibo de prémio | sim (segurador) |
-| RE | Estorno ou recibo de estorno | sim (segurador) |
-| CS | Imputação a co-seguradoras | sim (segurador) |
-| LD | Imputação a co-seguradora líder | sim (segurador) |
-| RA | Resseguro aceite | sim (segurador) |
+### C.1 Grupo 1 — Vendas (`InvoiceType`)
 
-**Ausentes em `InvoiceType` face a L4 FE:** `FA`, `RC`, `RG` — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md).
+| Código L2 | Documentação XSD |
+|---|---|
+| FT | Factura |
+| FR | Factura/recibo |
+| GF | Factura genérica |
+| FG | Factura global |
+| AC | Aviso de cobrança |
+| AR | Aviso de cobrança/recibo |
+| ND | Nota de débito |
+| NC | Nota de crédito |
+| AF | Factura/recibo (autofacturação) |
+| TV | Talão de venda |
+| RP | Prémio ou recibo de prémio (segurador) |
+| RE | Estorno ou recibo de estorno (segurador) |
+| CS | Imputação a co-seguradoras (segurador) |
+| LD | Imputação a co-seguradora líder (segurador) |
+| RA | Resseguro aceite (segurador) |
 
-### C.2 Tipo SAF-T L2 — enum `SAFTAOPaymentType` (só sob `Payments`)
+**Ausentes face a L4 FE:** `FA`, `RC`, `RG` — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md).
+
+### C.2 Grupo 2 — Movimentação de mercadorias (`MovementType`)
+
+| Código L2 | Documentação XSD |
+|---|---|
+| GR | Guia de remessa |
+| GT | Guia de transporte (inclui guias globais) |
+| GA | Guia de movimentação de activos fixos próprios |
+| GD | Guia ou nota de devolução |
+
+### C.3 Grupo 3 — Conferência / trabalho (`WorkType`)
+
+| Código L2 | Documentação XSD |
+|---|---|
+| CM | Consultas de mesa |
+| CC | Crédito de consignação |
+| GR | Guia de remessa |
+| NR | Nota de remessa |
+| FO | Folhas de obra |
+| NE | Nota de encomenda |
+| OU | Outros |
+| OR | Orçamentos |
+| PF | Pró-forma |
+| DC | Conferência de mercadorias / serviços |
+| RP / RE / CS / LD / RA | Segurador (quando aplicável; ver XSD) |
+| PP | (enum XSD; documentação OCR/XSD a confrontar) |
+| GC | Guia de consignação |
+
+### C.4 Grupo 4 — Pagamentos / recibos (`SAFTAOPaymentType`)
 
 | Código L2 | Documentação XSD | Estrutura L3 |
 |---|---|---|
@@ -173,7 +220,25 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 | RG | Outros recibos emitidos | `Payments` |
 | AR | Aviso de cobrança/recibo | `Payments` |
 
-### C.3 Outros elementos SAF-T (estrutura / campos — não são L4)
+### C.5 Grupo 5 — Compras (`PurchaseType`)
+
+| Código L2 | Documentação XSD |
+|---|---|
+| FT | Factura |
+| FR | Factura/recibo |
+| GF | Factura genérica |
+| FG | Factura global |
+| AC | Aviso de cobrança |
+| AR | Aviso de cobrança/recibo |
+| AF | Factura/recibo (autofacturação) |
+| TV | Talão de venda |
+| NL | Nota de liquidação |
+| NC | Nota de crédito |
+| RC | Recibo (só regime de caixa — anotação XSD) |
+
+**≠** grupo 1: mesmo código L2 sob `PurchaseType` **não** é `InvoiceType` de vendas.
+
+### C.6 Outros elementos SAF-T (campos — não são L4 nem grupo funcional)
 
 | Elemento | Linhas | Camada | Uso |
 |---|---|---|---|
@@ -182,25 +247,108 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 | `References` | L1004–1023 | L3 | Obrigatório quando `InvoiceType=NC` |
 | `Hash` / `HashControl` | L1361–1374 | L3 crypto SAF-T | ≠ JWS FE (C-SIGN-001) |
 
-## D. Cruzamento consolidado (hipótese — quatro colunas distintas)
+### C.7 Canal de utilização — inclusão / exclusão (`DEC-PROD-002`)
 
-Colunas **não** são bijecções. Células vazias / ∅ = lacuna ou outra estrutura — **não** inventar.
+**Regra:** incluir só se canal ∈ {`SAF-T`, `FE`, `ambos`}. Excluir se canal = `nenhum`.
 
-| L1 documento legal | L4 `documentType` FE | L2 tipo SAF-T | L3 estrutura SAF-T | OpenAPI BWB | Estado |
+| Canal | Critério (facto de fonte) |
+|---|---|
+| `FE` | Código em L4 `documentType` (DE 683 + HTML HML) |
+| `SAF-T` | Código em enum L2 de um dos 5 grupos (`DEC-PROD-001`) |
+| `ambos` | `FE` ∧ `SAF-T` (mesmo código pode viver em L2/L3 distintos — **não** bijecção) |
+| `nenhum` → **excluído** | Sem L4 e sem L2 — fora do catálogo de tipos |
+
+#### Incluídos — canal `ambos` (homónimo L4 ∩ algum L2; grupo L3 pode diferir)
+
+| Código | L4 FE | L2 (grupo) | Nota |
+|---|---|---|---|
+| FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1) | GF: C-DOC-001 (OCR) |
+| AR | sim | `InvoiceType` (1) e/ou `PaymentType` (4) | grupo único por emissão — aberto |
+| RE, RP, RA, CS, LD | sim | `InvoiceType` (1); também `WorkType` (3) p/ alguns | segurador |
+| RC | sim | `PaymentType` (4); também `PurchaseType` (5) regime caixa | **≠** `InvoiceType` (C-DOC-003) |
+| RG | sim | `PaymentType` (4) | C-DOC-002/003 |
+
+#### Incluídos — canal `FE` apenas
+
+| Código | L4 FE | L2 SAF-T | Nota |
+|---|---|---|---|
+| FA | sim | **∅** `InvoiceType` / `PaymentType` / … | C-DOC-003 — **incluir** (serve FE) |
+
+#### Incluídos — canal `SAF-T` apenas (sem L4 FE catalogado)
+
+| Grupo L3 | Códigos L2 | Nota |
+|---|---|---|
+| 2 Movimentação | GR, GT, GA, GD | `MovementType` |
+| 3 Conferência | CM, CC, GR, NR, FO, NE, OU, OR, PF, DC, PP, GC (+ segurador se só em WorkType) | `WorkType`; PF/OR/NE ≠ «factura» L1 |
+| 5 Compras | NL (+ demais `PurchaseType` já cobertos noutros canais como homónimos) | `NL` sem L4 FE |
+
+#### Excluídos — canal `nenhum` (não entram no catálogo de tipos)
+
+| Figura | Motivo |
+|---|---|
+| «Factura Electrónica» (Art.3 h) | Modalidade L1, não código FE/SAF-T |
+| «Documento Fiscalmente Relevante» (Art.3 e) | Género residual L1, não código |
+| Bordereaux bancários; requisição de fundos; «nota de preço» / «nota de pagamento» sem enum | Art.4 n.º9 / sem L4 nem L2 |
+| Qualquer inventário comercial / OpenAPI alias sem código de canal | Produto ≠ canal fiscal |
+| Códigos inventados para «fechar» C-DOC-* | Proibido |
+
+**Fail-closed:** ausência de código num canal **não** autoriza inventar o outro.
+
+#### Routing operacional (`DEC-PROD-006`)
+
+| Canal do tipo | Sem FE `active` | Com FE `active` |
+|---|---|---|
+| `SAF-T` | fluxos SAF-T aplicáveis | SAF-T aplicável; **nunca** endpoint FE |
+| `FE` | **indisponível** para FE | só se elegível endpoint + contribuinte/série |
+| `ambos` | só lado SAF-T aplicável | FE se elegível; SAF-T conforme L2/L3 (≠ bijecção) |
+
+### C.8 Configuração POS — activação (`DEC-PROD-003`)
+
+| Nível | Operação | Efeito |
+|---|---|---|
+| Grupo (1–5) | activar / desactivar | Desactivar grupo ⇒ todos os tipos do grupo indisponíveis nesse POS |
+| Tipo (catálogo) | activar / desactivar | Tipo activo ⇒ grupo pai activo; fora do catálogo ⇒ impossível |
+
+Enforcement: módulo fiscal (não o POS). Activação **não** alarga OpenAPI nem fecha `DEC-REG-003`. Defaults de activação no MVP = decisão futura.
+
+### C.9 Disponibilidade efectiva (`DEC-PROD-005`)
+
+`available = canonical ∧ group_type_active ∧ regime_nif ∧ fe_ok ∧ series_ok_when_required ∧ environment_ok ∧ sector_ok`
+
+Qualquer gate falso ⇒ indisponível. Activação POS ≠ disponibilidade completa. Detalhe: [`open-decisions.md`](../../../docs/06-delivery/open-decisions.md) `DEC-PROD-005`.
+
+### C.10 Conceito canónico + adaptadores (`DEC-PROD-007`)
+
+```
+POS code  --mapping-->  CanonicalDocumentType  --adapter-->  FE L4 / SAF-T L2+L3
+```
+
+- Um canónico por entrada de catálogo; adaptadores **por canal** (não o POS escolhe o enum fiscal).
+- Sem mapping ⇒ rejeitar. Código fiscal cru no pedido POS ⇒ rejeitar.
+- OpenAPI `invoice`/`credit_note` = aliases de produto (candidatos a mapping), **não** códigos AGT.
+
+## D. Cruzamento consolidado (hipótese — L1/L4/L2 + grupo L3)
+
+Colunas **não** são bijecções. Grupo L3 = um dos **5** de DEC-PROD-001. Células vazias / ∅ = lacuna — **não** inventar. MVP = `DEC-REG-003` (ainda aberta).
+
+| L1 documento legal | L4 FE | L2 tipo | Grupo L3 (1–5) | OpenAPI BWB | Estado |
 |---|---|---|---|---|---|
-| Factura (Art.3 f) | FT | `InvoiceType=FT` | `SalesInvoices` | `invoice` (**hipótese**) | mapeamento **não** confirmado |
-| Factura-Recibo (Art.3 k) | FR | `InvoiceType=FR` | `SalesInvoices` | — | hipótese |
-| Factura Global (Art.3 j) | FG | `InvoiceType=FG` | `SalesInvoices` | — | hipótese |
-| Factura Genérica (Art.3 i) | GF (HTML; OCR 683 gap) | `InvoiceType=GF` | `SalesInvoices` | — | C-DOC-001 |
-| Factura Adiantamento (Art.3 g) | FA | **∅** `InvoiceType` | **∅** conhecido | — | C-DOC-003 |
-| Aviso de Cobrança (Art.3 d) | AC | `InvoiceType=AC` | `SalesInvoices` | — | hipótese |
-| Aviso Cobrança/Recibo (Art.3 d) + Art.6 n.º2 b) | AR | `InvoiceType=AR` **e/ou** `PaymentType=AR` | `SalesInvoices` **e/ou** `Payments` | — | **duas** estruturas possíveis — sem decisão |
-| Talão de Venda (Art.3 p) | TV | `InvoiceType=TV` | `SalesInvoices` | — | hipótese |
-| Recibo (Art.3 o) | RC / RG | **∅** `InvoiceType`; `PaymentType=RC/RG` | tipicamente `Payments` | — | C-DOC-002/003; L3 ≠ L4 |
-| Nota de Crédito (Art.3 l) | NC | `InvoiceType=NC` | `SalesInvoices` (+ `References`) | `credit_note` (**hipótese**) | mapeamento **não** confirmado |
-| Nota de Débito (Art.3 m); Art.4 n.º9: não é factura | ND | `InvoiceType=ND` | `SalesInvoices` | — | hipótese |
-| Auto-Facturação (Art.3 c) | AF | `InvoiceType=AF` | `SalesInvoices` | — | hipótese |
-| (sem Art.3) segurador | RE, RP, RA, CS, LD | `InvoiceType` idem | `SalesInvoices` | — | só L2/L4 |
+| Factura (Art.3 f) | FT | `InvoiceType=FT` | 1 Vendas | `invoice` (**hipótese**) | **não** confirmado |
+| Factura-Recibo (Art.3 k) | FR | `InvoiceType=FR` | 1 Vendas | — | hipótese |
+| Factura Global (Art.3 j) | FG | `InvoiceType=FG` | 1 Vendas | — | hipótese |
+| Factura Genérica (Art.3 i) | GF (HTML; OCR gap) | `InvoiceType=GF` | 1 Vendas | — | C-DOC-001 |
+| Factura Adiantamento (Art.3 g) | FA | **∅** `InvoiceType` | **∅** | — | C-DOC-003 |
+| Aviso de Cobrança (Art.3 d) | AC | `InvoiceType=AC` | 1 Vendas | — | hipótese |
+| Aviso Cobrança/Recibo (Art.3 d)+Art.6 n.º2 b) | AR | `InvoiceType` e/ou `PaymentType` | **1 e/ou 4** | — | sem decisão de grupo único |
+| Talão de Venda (Art.3 p) | TV | `InvoiceType=TV` | 1 Vendas | — | hipótese |
+| Recibo (Art.3 o) | RC / RG | `PaymentType=RC/RG` | **4** Pagamentos | — | C-DOC-002/003 |
+| Nota de Crédito (Art.3 l) | NC | `InvoiceType=NC` | 1 Vendas | `credit_note` (**hipótese**) | **não** confirmado |
+| Nota de Débito (Art.3 m) | ND | `InvoiceType=ND` | 1 Vendas | — | hipótese |
+| Auto-Facturação (Art.3 c) | AF | `InvoiceType=AF` | 1 Vendas | — | hipótese |
+| (sem Art.3) segurador | RE, RP, RA, CS, LD | `InvoiceType` | 1 Vendas | — | só L2/L4 |
+| Guias / transporte (Art.4 n.º9 exclui como factura) | — | `MovementType` | **2** Movimentação | — | inventário L2; fora MVP até DEC-REG-003 |
+| Conferência / pró-forma / etc. | — | `WorkType` | **3** Conferência | — | inventário L2; fora MVP até DEC-REG-003 |
+| Compras (lado fornecedor) | — | `PurchaseType` | **5** Compras | — | inventário L2; fora emissão FE típica |
 | Excluídos Art.4 n.º9 | — | — | — | — | fora emissão factura |
 
 ## E. DE 74/19 + Rect. 10/19 — validação de software (conjunto normativo)
@@ -332,14 +480,27 @@ Art.10 n.º2: taxas diferentes → descrição separada · p.**9** · **11909**.
 ## G. Implicações explícitas (fail-closed)
 
 1. **Não** confundir L1 (rótulo legal) · L2 (enum SAF-T) · L3 (estrutura SAF-T) · L4 (`documentType` FE).
-2. **Não** alargar enums de domínio/OpenAPI além de `invoice`/`credit_note` sem `DEC-REG-003` + revisão compliance.
-3. **Não** tratar OCR DE 683 p.7 como enum L4 completo enquanto `GF` existir no HTML e faltar no OCR (C-DOC-001).
-4. **Não** assumir bijecção L4↔L2↔L3 (`FA`/`RC`/`RG`; `PaymentType` ≠ `InvoiceType`).
-5. `AO-DOC-001` permanece **não** confirmado; esta matriz é inventário citado por camada.
-6. Precedência: DP 71/25 (L1) + DE 683/25 (L4) + XSD (L2/L3) + 74/19+Rect (validação); conflitos → `compliance/derived/conflicts/`.
+2. Catálogo = **exactamente 5** grupos L3 (`DEC-PROD-001`); **não** inventar 6.º grupo.
+3. Incluir só canal SAF-T e/ou FE (`DEC-PROD-002`); **excluir** canal `nenhum`; **não** inventar códigos para o outro canal.
+4. Config POS (`DEC-PROD-003`): grupo e tipos activáveis; pedido inactivo ⇒ rejeição pelo módulo; **não** o POS numera.
+5. Disponibilidade efectiva (`DEC-PROD-005`): **todos** os gates; activação sozinha **não** basta.
+6. Routing (`DEC-PROD-006`): SAF-T-only ∉ FE; FE-only só FE; sem FE `active` ⇒ só SAF-T aplicável.
+7. Canónico + adaptadores (`DEC-PROD-007`): POS só código mapeado; **nunca** código fiscal cru sem mapping.
+8. Módulo = única autoridade de emissão/numeração; N POS via API (`DEC-PROD-008`).
+9. Estados doc. (`DEC-PROD-009`): não afirmar aceitação AGT antes de `accepted`.
+10. Offline (`DEC-PROD-010`): outbox/reenvio/idempotência; **não** declarar emissão offline certificada.
+11. Edge (`DEC-PROD-011`): um processo fiscal escritor; sem multi-instância na mesma série sem coordenação.
+12. Chaves (`DEC-PROD-012`): segregadas; non-exportable quando possível; nunca POS; rotação auditada; definitivo AGT.
+13. Auditoria (`DEC-PROD-013`): append-only; retenção final só com norma consolidada.
+14. Modelo completo SAF-T∪FE (`DEC-PROD-014`); **não** truncar catálogo ao OpenAPI slice; faseamento = `DEC-REG-003`.
+15. **Não** alargar OpenAPI público sem revisão; slice actual `invoice`/`credit_note` ≠ perímetro do modelo.
+16. **Não** tratar OCR DE 683 p.7 como enum L4 completo enquanto `GF` existir no HTML e faltar no OCR (C-DOC-001).
+17. **Não** assumir bijecção L4↔L2↔L3 (`FA`/`RC`/`RG`; `PaymentType` ≠ `InvoiceType` ≠ `PurchaseType`).
+18. `AO-DOC-001` permanece **não** confirmado; esta matriz é inventário citado por camada/grupo/canal.
+19. Precedência: DP 71/25 (L1) + DE 683/25 (L4) + XSD (L2/L3) + 74/19+Rect (validação); conflitos → `compliance/derived/conflicts/`.
 
 ## Referências
 
 - Matriz AO-* provisória: [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md)
 - Conflitos: [`../conflicts/C-DOC-001-fe-gf-ocr-gap.md`](../conflicts/C-DOC-001-fe-gf-ocr-gap.md), [`../conflicts/C-DOC-002-rg-label.md`](../conflicts/C-DOC-002-rg-label.md), [`../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md`](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md)
-- Decisão tipos MVP: `DEC-REG-003` em [`docs/06-delivery/open-decisions.md`](../../../docs/06-delivery/open-decisions.md)
+- Modelo/catálogo: `DEC-PROD-001`–`015`; catálogo: [`DOCUMENT-CATALOG-RM-REQ-001.md`](DOCUMENT-CATALOG-RM-REQ-001.md); `DEC-REG-003` = ordem slice

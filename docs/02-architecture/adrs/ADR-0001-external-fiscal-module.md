@@ -2,11 +2,11 @@
 
 - Estado: Aceite como premissa do projeto
 - Data: 2026-07-20
-- Relacionado: ASM-REG-001
+- Relacionado: ASM-REG-001, DEC-PROD-008
 
 ## Contexto
 
-Vários POS devem integrar uma única plataforma fiscal sem certificação individual.
+Vários POS devem integrar uma única plataforma fiscal sem certificação individual. Confirmação de produto: `DEC-PROD-008` (2026-07-26).
 
 ## Decisão
 

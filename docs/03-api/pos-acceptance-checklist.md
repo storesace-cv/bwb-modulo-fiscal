@@ -1,7 +1,7 @@
 # Checklist de aceitação — integração POS
 
 Usar com o kit `scripts/integration/pos-sandbox-kit.sh` e o OpenAPI `0.1.6-draft`.
-`sealed_locally` **não** certifica emissão AGT.
+`sealed_locally` **não** certifica emissão/aceitação AGT (`DEC-PROD-009`); só `accepted` afirma aceitação.
 
 ## Segurança
 - [ ] Token só em ficheiro `0600` (ou canal seguro BWB); nunca git/logs/argv
@@ -27,6 +27,10 @@ Usar com o kit `scripts/integration/pos-sandbox-kit.sh` e o OpenAPI `0.1.6-draft
 ## Token
 - [ ] Rotação/revogação alinhada com BWB
 - [ ] `token_revoked_401` marcado só com evidência BWB (`--revoked-token-file`)
+
+## Estados (`DEC-PROD-009`)
+- [ ] UI/integração **não** apresenta `sealed_locally` / HTTP 2xx como aceite AGT
+- [ ] Fluxo distingue enviado / recebido / aceite / rejeitado quando a API os expuser
 
 ## Evidências mínimas
 - [ ] Relatório sanitizado do kit (sem tokens, bodies, NIF/identificadores fiscais)
