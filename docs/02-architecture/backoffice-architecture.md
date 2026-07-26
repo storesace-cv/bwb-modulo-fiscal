@@ -6,7 +6,7 @@
 
 ## Posição no sistema
 
-O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS: prefixo **`/admin/v1`**, OpenAPI [`specs/admin/openapi.yaml`](../../specs/admin/openapi.yaml) (`0.1.0-draft`→`0.1.6-draft`; ≠ POS `0.1.x`). Auth operadores OIDC/JWT RBAC (`owner|admin|operator|auditor`) via `adminauth` (`oidc_jwt` / DEC-BO-003); só `owner` em SecAdm. UI browser: sessão servidor em `RM-UI-005` (sem JWT em localStorage). Sem microserviços.
+O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS: prefixo **`/admin/v1`**, OpenAPI [`specs/admin/openapi.yaml`](../../specs/admin/openapi.yaml) (`0.1.0-draft`→`0.1.6-draft`; ≠ POS `0.1.x`). Auth operadores OIDC/JWT RBAC (`owner|admin|operator|auditor`) via `adminauth` (`oidc_jwt` / DEC-BO-003); só `owner` em SecAdm. UI browser: sessão opaca servidor (`RM-UI-005` — cookie HttpOnly/SameSite; Bearer só na troca servidor; sem JWT em localStorage). Sem microserviços.
 
 ```mermaid
 flowchart TB

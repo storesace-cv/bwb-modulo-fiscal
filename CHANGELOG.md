@@ -2,7 +2,8 @@
 
 ## 0.2.29-draft — 2026-07-27
 
-- Admin auth: **RM-BO-006** / **DEC-BO-003** — adaptador OIDC/JWT provider-neutral (`FISCAL_ADMIN_AUTH_MODE=oidc_jwt`); JWKS https; iss/aud exactos; alg allowlist; role map; owner subject allowlist; fail-closed; OpenAPI admin `0.1.6-draft`; JWKS local só em testes; ≠ fornecedor IdP / sessão browser (`RM-UI-005`) / deploy.
+- Backoffice UI: **RM-UI-005** — sessão browser opaca (`fiscal_admin_session` HttpOnly+SameSite+Secure fora de development); `POST /admin/ui/auth/session` (Bearer→cookie); logout CSRF; sem JWT/localStorage; redirect IdP interactivo ainda não ligado.
+- Admin auth: **RM-BO-006** / **DEC-BO-003** — adaptador OIDC/JWT provider-neutral (`FISCAL_ADMIN_AUTH_MODE=oidc_jwt`); JWKS https; iss/aud exactos; alg allowlist; role map; owner subject allowlist; fail-closed; OpenAPI admin `0.1.6-draft`; JWKS local só em testes; ≠ fornecedor IdP / deploy.
 
 ## 0.2.28-draft — 2026-07-26
 

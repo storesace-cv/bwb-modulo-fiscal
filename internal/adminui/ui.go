@@ -30,12 +30,15 @@ const (
 
 // Handler serves /admin/ui pages.
 type Handler struct {
-	Registry    *adminregistry.Registry
-	Ops         *adminops.Store
-	Audit       *adminaudit.Store
-	SecretsMeta secretstore.AdminView // Metadata only — never Reveal
-	EnvLabel    string
-	CSRF        *CSRFStore
+	Registry     *adminregistry.Registry
+	Ops          *adminops.Store
+	Audit        *adminaudit.Store
+	SecretsMeta  secretstore.AdminView // Metadata only — never Reveal
+	Sessions     *SessionStore
+	TokenAuth    adminauth.Authenticator // Bearer validator for session mint (oidc_jwt)
+	EnvLabel     string
+	CSRF         *CSRFStore
+	CookieSecure bool
 }
 
 // New builds a Handler. Ops/Audit may be nil (pages return empty/unavailable).
@@ -46,7 +49,14 @@ func New(reg *adminregistry.Registry, envLabel string) (*Handler, error) {
 	if strings.TrimSpace(envLabel) == "" {
 		envLabel = "unknown"
 	}
-	return &Handler{Registry: reg, EnvLabel: envLabel, CSRF: NewCSRFStore(nil)}, nil
+	secure := envLabel != "development"
+	return &Handler{
+		Registry:     reg,
+		EnvLabel:     envLabel,
+		CSRF:         NewCSRFStore(nil),
+		Sessions:     NewSessionStore(nil, secure),
+		CookieSecure: secure,
+	}, nil
 }
 
 // Mount registers UI routes. Static CSS is public; pages require auth + cadastro.read.
@@ -59,6 +69,10 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 		panic("adminui: static embed: " + err.Error())
 	}
 	mux.Handle("GET /admin/ui/static/", securityHeaders(http.StripPrefix("/admin/ui/static/", http.FileServer(http.FS(staticFS)))))
+
+	// Public auth endpoints (no session required).
+	mux.Handle("GET /admin/ui/login", securityHeaders(http.HandlerFunc(h.loginPage)))
+	mux.Handle("POST /admin/ui/auth/session", securityHeaders(http.HandlerFunc(h.createSession)))
 
 	authMW := htmlAuthMiddleware(authn)
 	read := adminauth.RequirePermission(adminauth.PermCadastroRead)
@@ -82,6 +96,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	}
 	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
 	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
+	mux.Handle("POST /admin/ui/auth/logout", securityHeaders(authMW(http.HandlerFunc(h.logout))))
 
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))
@@ -149,7 +164,7 @@ func (h *Handler) base(r *http.Request, title, heading, nav string) pageBase {
 
 func (h *Handler) baseWithCSRF(w http.ResponseWriter, r *http.Request, title, heading, nav string) pageBase {
 	b := h.base(r, title, heading, nav)
-	if h.CSRF != nil && b.CanWrite {
+	if h.CSRF != nil {
 		tok, err := h.CSRF.Issue(w)
 		if err == nil {
 			b.CSRFToken = tok

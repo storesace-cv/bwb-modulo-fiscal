@@ -1,0 +1,12 @@
+{{define "content"}}
+<p class="hint">
+  Sessão servidor (RM-UI-005): cookie <code>HttpOnly</code> + <code>SameSite=Strict</code>;
+  o JWT Bearer <strong>não</strong> fica no browser. Troca: <code>POST /admin/ui/auth/session</code>
+  com header <code>Authorization: Bearer …</code> (validado por <code>oidc_jwt</code> / RM-BO-006).
+  Redirect interactivo IdP fica para configuração de authorize URL — sem login local improvisado.
+</p>
+<form method="post" action="/admin/ui/auth/logout" style="display:none" aria-hidden="true">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+</form>
+<p>Ambiente: <code>{{.EnvLabel}}</code></p>
+{{end}}

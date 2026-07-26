@@ -28,6 +28,12 @@
       </ul>
     </nav>
     <p class="actor" aria-label="operador">{{.Subject}} · {{.RolesLabel}}</p>
+    {{if and .Subject .CSRFToken}}
+    <form method="post" action="/admin/ui/auth/logout" class="logout">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit">Sair</button>
+    </form>
+    {{end}}
   </header>
   <main id="main">
     <h1>{{.Heading}}</h1>
