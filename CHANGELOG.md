@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Admin API: **RM-BO-005** — GET listagens taxpayers/establishments/scope-bindings + PATCH status; OpenAPI admin `0.1.5-draft`; audit; sem segredos/AGT/deploy.
 - Segurança: **RM-SECADM-003** — HTTP SecAdm Put/Rotate/Revoke (`/admin/v1/secadm/*`); owner role+subject; audit append-only; resposta só metadados; OpenAPI admin `0.1.4-draft`; ≠ AGT real/deploy.
 - Admin API: path canónico OpenAPI → [`specs/admin/openapi.yaml`](specs/admin/openapi.yaml) (DEC-BO-002 / RM-BO-001); deixa de usar `specs/openapi-admin/`; série desde `0.1.0-draft`; ≠ POS OpenAPI.
 - Admin API: **RM-BO-004** — matriz RBAC tipada (`adminauth.Allows`); SecAdm write só `owner`; MFA adiado até IdP; sem ACL `secret.reveal`; OpenAPI admin `0.1.3-draft`.

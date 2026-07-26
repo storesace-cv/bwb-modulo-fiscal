@@ -107,10 +107,15 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	readSecretMeta := adminauth.RequirePermission(adminauth.PermSecretMetaRead)
 
 	mux.Handle("POST /admin/v1/taxpayers", authMW(writeCadastro(http.HandlerFunc(h.createTaxpayer))))
+	mux.Handle("GET /admin/v1/taxpayers", authMW(readCadastro(http.HandlerFunc(h.listTaxpayers))))
 	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", authMW(readCadastro(http.HandlerFunc(h.getTaxpayer))))
+	mux.Handle("PATCH /admin/v1/taxpayers/{taxpayer_id}", authMW(writeCadastro(http.HandlerFunc(h.patchTaxpayer))))
 	mux.Handle("POST /admin/v1/establishments", authMW(writeCadastro(http.HandlerFunc(h.createEstablishment))))
+	mux.Handle("GET /admin/v1/establishments", authMW(readCadastro(http.HandlerFunc(h.listEstablishments))))
 	mux.Handle("GET /admin/v1/establishments/{establishment_id}", authMW(readCadastro(http.HandlerFunc(h.getEstablishment))))
+	mux.Handle("PATCH /admin/v1/establishments/{establishment_id}", authMW(writeCadastro(http.HandlerFunc(h.patchEstablishment))))
 	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeCadastro(http.HandlerFunc(h.createScopeBinding))))
+	mux.Handle("GET /admin/v1/scope-bindings", authMW(readCadastro(http.HandlerFunc(h.listScopeBindings))))
 	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readCadastro(http.HandlerFunc(h.getScopeBinding))))
 	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeCadastro(http.HandlerFunc(h.patchScopeBinding))))
 	mux.Handle("GET /admin/v1/audit-events", authMW(readAudit(http.HandlerFunc(h.listAuditEvents))))
@@ -162,6 +167,48 @@ func (h *Handler) getTaxpayer(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) listTaxpayers(w http.ResponseWriter, r *http.Request) {
+	limit := adminops.ClampLimit(r.URL.Query().Get("limit"))
+	rows, err := h.Registry.ListTaxpayers(r.Context(), limit)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	items := make([]taxpayerResp, 0, len(rows))
+	for _, out := range rows {
+		items = append(items, taxpayerResp{
+			TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
+			CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+type patchStatusReq struct {
+	Status string `json:"status"`
+}
+
+func (h *Handler) patchTaxpayer(w http.ResponseWriter, r *http.Request) {
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	id := r.PathValue("taxpayer_id")
+	var req patchStatusReq
+	if err := decodeJSON(r, &req); err != nil {
+		h.audit(r, claims, "taxpayer.update_status", "taxpayer", id, adminaudit.ResultError)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
+	out, err := h.Registry.UpdateTaxpayerStatus(r.Context(), id, req.Status)
+	if err != nil {
+		h.writeRegistryErr(w, r, claims, "taxpayer.update_status", "taxpayer", id, err)
+		return
+	}
+	_ = h.Audit.Record(r.Context(), claims, "taxpayer.update_status", "taxpayer", out.ID, adminaudit.ResultSuccess, requestID(r))
+	writeJSON(w, http.StatusOK, taxpayerResp{
+		TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
+		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+	})
+}
+
 func (h *Handler) createEstablishment(w http.ResponseWriter, r *http.Request) {
 	claims, _ := adminauth.ClaimsFromContext(r.Context())
 	var req createEstablishmentReq
@@ -199,6 +246,64 @@ func (h *Handler) getEstablishment(w http.ResponseWriter, r *http.Request) {
 		EstablishmentID: out.ID, TaxpayerID: out.TaxpayerID, Code: out.Code, Name: out.Name, Status: out.Status,
 		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
 	})
+}
+
+func (h *Handler) listEstablishments(w http.ResponseWriter, r *http.Request) {
+	limit := adminops.ClampLimit(r.URL.Query().Get("limit"))
+	tp := r.URL.Query().Get("taxpayer_id")
+	rows, err := h.Registry.ListEstablishments(r.Context(), tp, limit)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	items := make([]establishmentResp, 0, len(rows))
+	for _, out := range rows {
+		items = append(items, establishmentResp{
+			EstablishmentID: out.ID, TaxpayerID: out.TaxpayerID, Code: out.Code, Name: out.Name, Status: out.Status,
+			CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) patchEstablishment(w http.ResponseWriter, r *http.Request) {
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	id := r.PathValue("establishment_id")
+	var req patchStatusReq
+	if err := decodeJSON(r, &req); err != nil {
+		h.audit(r, claims, "establishment.update_status", "establishment", id, adminaudit.ResultError)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
+	out, err := h.Registry.UpdateEstablishmentStatus(r.Context(), id, req.Status)
+	if err != nil {
+		h.writeRegistryErr(w, r, claims, "establishment.update_status", "establishment", id, err)
+		return
+	}
+	_ = h.Audit.Record(r.Context(), claims, "establishment.update_status", "establishment", out.ID, adminaudit.ResultSuccess, requestID(r))
+	writeJSON(w, http.StatusOK, establishmentResp{
+		EstablishmentID: out.ID, TaxpayerID: out.TaxpayerID, Code: out.Code, Name: out.Name, Status: out.Status,
+		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+	})
+}
+
+func (h *Handler) listScopeBindings(w http.ResponseWriter, r *http.Request) {
+	limit := adminops.ClampLimit(r.URL.Query().Get("limit"))
+	rows, err := h.Registry.ListScopeBindings(r.Context(), limit)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	items := make([]scopeBindingResp, 0, len(rows))
+	for _, out := range rows {
+		items = append(items, scopeBindingResp{
+			ScopeID: out.ScopeID, TaxpayerID: out.TaxpayerID, EstablishmentID: out.EstablishmentID,
+			Environment: out.Environment, IANATimezone: out.IANATimezone,
+			SeriesEffectiveCode: out.SeriesEffectiveCode, Status: out.Status,
+			CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h *Handler) createScopeBinding(w http.ResponseWriter, r *http.Request) {

@@ -281,6 +281,152 @@ func (r *Registry) UpdateScopeConfig(ctx context.Context, in UpdateScopeConfigIn
 	}, nil
 }
 
+// UpdateTaxpayerStatus sets active/inactive (RM-BO-005). No secrets.
+func (r *Registry) UpdateTaxpayerStatus(ctx context.Context, id, status string) (Taxpayer, error) {
+	id = strings.TrimSpace(id)
+	status = strings.TrimSpace(status)
+	if id == "" {
+		return Taxpayer{}, fmt.Errorf("%w: taxpayer_id obrigatório", ErrValidation)
+	}
+	if err := validateStatus(status); err != nil {
+		return Taxpayer{}, err
+	}
+	cur, err := r.GetTaxpayer(ctx, id)
+	if err != nil {
+		return Taxpayer{}, err
+	}
+	q := `UPDATE ` + r.t("taxpayers") + ` SET status = ` + r.p(1) + ` WHERE taxpayer_id = ` + r.p(2)
+	if _, err := r.db.ExecContext(ctx, q, status, id); err != nil {
+		return Taxpayer{}, fmt.Errorf("adminregistry: update taxpayer: %w", err)
+	}
+	cur.Status = status
+	return cur, nil
+}
+
+// UpdateEstablishmentStatus sets active/inactive (RM-BO-005). No secrets.
+func (r *Registry) UpdateEstablishmentStatus(ctx context.Context, id, status string) (Establishment, error) {
+	id = strings.TrimSpace(id)
+	status = strings.TrimSpace(status)
+	if id == "" {
+		return Establishment{}, fmt.Errorf("%w: establishment_id obrigatório", ErrValidation)
+	}
+	if err := validateStatus(status); err != nil {
+		return Establishment{}, err
+	}
+	cur, err := r.GetEstablishment(ctx, id)
+	if err != nil {
+		return Establishment{}, err
+	}
+	q := `UPDATE ` + r.t("establishments") + ` SET status = ` + r.p(1) + ` WHERE establishment_id = ` + r.p(2)
+	if _, err := r.db.ExecContext(ctx, q, status, id); err != nil {
+		return Establishment{}, fmt.Errorf("adminregistry: update establishment: %w", err)
+	}
+	cur.Status = status
+	return cur, nil
+}
+
+// ListTaxpayers returns taxpayers newest-first (limit clamped).
+func (r *Registry) ListTaxpayers(ctx context.Context, limit int) ([]Taxpayer, error) {
+	limit = clampList(limit)
+	q := `SELECT taxpayer_id, nif, legal_name, status, created_at FROM ` + r.t("taxpayers") +
+		` ORDER BY created_at DESC LIMIT ` + r.p(1)
+	rows, err := r.db.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]Taxpayer, 0)
+	for rows.Next() {
+		var t Taxpayer
+		var created any
+		if err := rows.Scan(&t.ID, &t.NIF, &t.LegalName, &t.Status, &created); err != nil {
+			return nil, err
+		}
+		t.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// ListEstablishments returns establishments; optional taxpayer filter.
+func (r *Registry) ListEstablishments(ctx context.Context, taxpayerID string, limit int) ([]Establishment, error) {
+	limit = clampList(limit)
+	taxpayerID = strings.TrimSpace(taxpayerID)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if taxpayerID == "" {
+		q := `SELECT establishment_id, taxpayer_id, code, name, status, created_at FROM ` + r.t("establishments") +
+			` ORDER BY created_at DESC LIMIT ` + r.p(1)
+		rows, err = r.db.QueryContext(ctx, q, limit)
+	} else {
+		q := `SELECT establishment_id, taxpayer_id, code, name, status, created_at FROM ` + r.t("establishments") +
+			` WHERE taxpayer_id = ` + r.p(1) + ` ORDER BY created_at DESC LIMIT ` + r.p(2)
+		rows, err = r.db.QueryContext(ctx, q, taxpayerID, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]Establishment, 0)
+	for rows.Next() {
+		var e Establishment
+		var created any
+		if err := rows.Scan(&e.ID, &e.TaxpayerID, &e.Code, &e.Name, &e.Status, &created); err != nil {
+			return nil, err
+		}
+		e.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// ListScopeBindings returns scope bindings newest-first.
+func (r *Registry) ListScopeBindings(ctx context.Context, limit int) ([]ScopeBinding, error) {
+	limit = clampList(limit)
+	q := `SELECT scope_id, taxpayer_id, establishment_id, environment, iana_timezone, series_effective_code, status, created_at FROM ` +
+		r.t("scope_bindings") + ` ORDER BY created_at DESC LIMIT ` + r.p(1)
+	rows, err := r.db.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]ScopeBinding, 0)
+	for rows.Next() {
+		var b ScopeBinding
+		var created any
+		if err := rows.Scan(
+			&b.ScopeID, &b.TaxpayerID, &b.EstablishmentID, &b.Environment,
+			&b.IANATimezone, &b.SeriesEffectiveCode, &b.Status, &created,
+		); err != nil {
+			return nil, err
+		}
+		b.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+func clampList(limit int) int {
+	if limit <= 0 {
+		return 50
+	}
+	if limit > 200 {
+		return 200
+	}
+	return limit
+}
+
 // GetTaxpayer returns a taxpayer by id.
 func (r *Registry) GetTaxpayer(ctx context.Context, id string) (Taxpayer, error) {
 	id = strings.TrimSpace(id)

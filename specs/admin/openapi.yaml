@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.4-draft
+  version: 0.1.5-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -12,6 +12,7 @@ info:
     0.1.2: ops visibility + audit list + secret-ref metadata sanitizado (RM-BO-003).
     0.1.3: matriz RBAC documentada; MFA adiado até IdP; sem ACL secret.reveal (RM-BO-004).
     0.1.4: SecAdm HTTP Put/Rotate/Revoke owner-only; respostas só metadados (RM-SECADM-003).
+    0.1.5: listagens cadastro + PATCH status taxpayer/establishment (RM-BO-005).
     Não pronto para produção. ≠ credenciais AGT.
   license:
     name: MIT
@@ -23,6 +24,29 @@ security:
   - adminBearer: []
 paths:
   /taxpayers:
+    get:
+      operationId: listTaxpayers
+      summary: Lista contribuintes (metadados não secretos)
+      tags: [Cadastros]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxpayerList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: createTaxpayer
       summary: Cria contribuinte (cadastro não secreto)
@@ -68,7 +92,61 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTaxpayerStatus
+      summary: Actualiza status active/inactive
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/TaxpayerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+      responses:
+        "200":
+          description: Contribuinte actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Taxpayer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /establishments:
+    get:
+      operationId: listEstablishments
+      summary: Lista estabelecimentos
+      tags: [Cadastros]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: taxpayer_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstablishmentList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: createEstablishment
       summary: Cria estabelecimento sob um contribuinte
@@ -116,7 +194,57 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateEstablishmentStatus
+      summary: Actualiza status active/inactive
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+      responses:
+        "200":
+          description: Estabelecimento actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Establishment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /scope-bindings:
+    get:
+      operationId: listScopeBindings
+      summary: Lista scope bindings (metadados não secretos)
+      tags: [Cadastros]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScopeBindingList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: createScopeBinding
       summary: Cria binding de scope (metadados não secretos)
@@ -398,6 +526,14 @@ components:
         type: string
         minLength: 1
   schemas:
+    UpdateStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, inactive]
     CreateTaxpayerRequest:
       type: object
       additionalProperties: false
@@ -430,6 +566,15 @@ components:
         created_at:
           type: string
           format: date-time
+    TaxpayerList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Taxpayer"
     CreateEstablishmentRequest:
       type: object
       additionalProperties: false
@@ -464,6 +609,15 @@ components:
         created_at:
           type: string
           format: date-time
+    EstablishmentList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Establishment"
     CreateScopeBindingRequest:
       type: object
       additionalProperties: false
@@ -541,6 +695,15 @@ components:
         created_at:
           type: string
           format: date-time
+    ScopeBindingList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScopeBinding"
     AuditEvent:
       type: object
       additionalProperties: false
