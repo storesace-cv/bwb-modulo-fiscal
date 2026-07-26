@@ -1,6 +1,6 @@
 # Outbox: at-least-once, deduplicação e reconciliação (slice)
 
-**Âmbito:** worker outbox → **simulador** AGT interno (`RM-TX-006`/`RM-TX-007`/`RM-TX-008`).  
+**Âmbito:** worker outbox → **simulador** AGT interno (`RM-TX-006`/`RM-TX-007`/`RM-TX-008`).
 **Não** é integração HML/PRD AGT; **não** constitui evidência de conformidade nem exactly-once.
 
 ## Entrega at-least-once
