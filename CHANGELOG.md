@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Compliance RM-REQ-001: matriz de tipos — quatro camadas ortogonais L1 (documento legal) · L2 (tipo SAF-T) · L3 (estrutura SAF-T) · L4 (`documentType` FE); C-DOC-003 reformulado; sem bijecção; sem AO-* confirmados.
 - Compliance RM-REQ-001: Citação H — docs FE HML (`registarFactura`/`solicitarSerie`/`listarSeries`/`listarFacturas`/`obterEstado`) + inventário `FE-RNG-*` extractado; AO-AGT-001 → `pending_validation`; AO-AGT-002 → `partial` (`requestID`); C-FE-001 (paths `/ws/` vs `/v1`); sem inventar códigos; sem AO-* confirmados.
 - Compliance RM-REQ-001: Citação D expandida sobre `SAFTAO1.01_01.xsd` (`e9a938e1…`; p.ex. `AuditFile`, `InvoiceNo`, `InvoiceType`, `InvoiceStatus`, `References`, `Hash`/`HashControl`, `SAFTAOPaymentType`/`PaymentType`); AO-SAF-001/002 mantêm `pending_validation`; C-DOC-003 actualizado (`RC`/`RG` em Payments ≠ `InvoiceType`); sem AO-* confirmados.
 - Compliance RM-REQ-001: DE 683/25 Art.1–6 + Anexos I–III + Tabelas 1–6 (Citação G @19164–19227); AO-TAX-001 → `partial` (`taxType` @19171 + Tabelas 2–6); SEQ-002/`solicitarSerie` @19183–19184; DOC-001 permanece `scaffold`; sem AO-* confirmados; sem inventar `FE-RNG-*`.

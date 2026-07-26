@@ -80,12 +80,12 @@ Identidade técnica (não normativa AGT): `targetNamespace` `urn:OECD:StandardAu
 |---|---|---|---|
 | Raiz / MasterFiles / SourceDocuments | `AuditFile` → `Header`, `MasterFiles`, `GeneralLedgerEntries?`, `SourceDocuments?` | L42–58 | Estrutura mínima do ficheiro |
 | Vendas | `SourceDocuments/SalesInvoices/Invoice` | L445–542 | Inclui `InvoiceNo`, `DocumentStatus`, `Hash`, `HashControl`, `InvoiceType`, `Line` |
-| Numeração | `InvoiceNo` pattern `[^ ]+ [^/^ ]+/[0-9]+` | L1974–2001 | Ex.: `FT S001/1`; alinhável a DE 683 `documentNo` (formato SAF-T) |
-| Tipos venda | `InvoiceType` enum FT/FR/GF/FG/AC/AR/ND/NC/AF/TV + segurador RP/RE/CS/LD/RA | L2023–2065 | **Sem** FA/RC/RG — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md) |
+| Numeração (campo L3) | `InvoiceNo` pattern `[^ ]+ [^/^ ]+/[0-9]+` | L1974–2001 | Ex.: `FT S001/1`; **≠** L4 `documentType`; formato citado também em DE 683 `documentNo` |
+| Tipo L2 (vendas) | `InvoiceType` sob L3 `SalesInvoices` | L2023–2065 | **Sem** FA/RC/RG — [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md); **≠** L4 FE |
 | Estado / anulado | `InvoiceStatus` N/S/A/R | L2003–2021 | “A” = anulado (candidato AO-SAF-002) |
-| Hash SAF-T | `Hash` (max 172) + `HashControl` | L1361–1367 / L1368–1374 / uso L491–492 | Algoritmo **não** está no XSD — ver DE 74 n.º34 @1582–1584; ≠ JWS FE ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)) |
-| Rectificativos | `References` (obrigatório quando `InvoiceType=NC`) | L1004–1023 / uso L523 | Candidato AO-SAF-002; liga a DE 74 n.º4 e) @1577 |
-| Recibos (Payments) | `Payment` + `SAFTAOPaymentType` (`PaymentType`) | L722–800 / L735 / **L2740–2754** | Enum **`RC`/`RG`/`AR`** em Payments — **não** resolve mapeamento FE→`InvoiceType` (C-DOC-003) |
+| Hash SAF-T | `Hash` (max 172) + `HashControl` | L1361–1367 / L1368–1374 / uso L491–492 | Algoritmo **não** está no XSD — DE 74 n.º34 @1582–1584; ≠ JWS FE ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)) |
+| Rectificativos | `References` (obrigatório quando `InvoiceType=NC`) | L1004–1023 / uso L523 | Candidato AO-SAF-002; DE 74 n.º4 e) @1577 |
+| Tipo L2 + estrutura L3 (recibos) | `SAFTAOPaymentType` / `PaymentType` sob L3 `Payments` | L722–800 / L735 / **L2740–2754** | `RC`/`RG`/`AR` aqui **≠** L4 `documentType` e **≠** L2 `InvoiceType` (C-DOC-003) |
 | Impostos linha | `TaxType` IVA/IS/NS | L2379–2395 | IEC aparece como `IECAmount` / produto tipo “E”, **não** como `TaxType` enum |
 | Obrigação legal exportação | (fora do XSD) DE 74 Anexo I n.º1 | — | Gazeta **1576**; Rect. SAF-T(AO) @1948 |
 
@@ -97,7 +97,7 @@ Fonte: `AO-LEG-DP-71-25-2025` · sha256 `4931fd3ce711ef2b22e7316c3dd296d8c7c8199
 
 | Tema | Norma | PDF | Gazeta |
 |---|---|---|---|
-| Definições de tipos (Factura, FR, FG, FA, NC, ND, Recibo, Talão, …) | Art.3 | p.3–4 | 11903–11904 |
+| Definições **legais** L1 (Factura, Recibo, NC, ND, Talão, … — **não** códigos FE/SAF-T) | Art.3 | p.3–4 | 11903–11904 |
 | Exclusões «não são factura» | Art.4 n.º9 | p.5 | 11905 |
 | Requisitos obrigatórios a)–j) | Art.10 n.º1 | p.8–9 | 11908–11909 |
 | NC / recibo: excepções ao Art.10 | Art.10 n.º5–6 | p.9 | 11909 |
@@ -135,7 +135,7 @@ Fonte: `AO-LEG-DE-683-25-2025` · sha256 `b01e45813eccc54790ce23ae64bba456473156
 | Anexo I — Estrutura de Dados (`registarFactura` e serviços) | Anexo I (início) | p.4 | **19166** |
 | `documentNo` (formato alinhado SAF-T AO); software / lote ≤30 | Anexo I | p.5 | **19167** |
 | `documentStatus` / anulação / `jwsDocumentSignature` | Anexo I | p.6 | **19168** |
-| Enum `documentType` + regras por tipo | Anexo I | p.7–8 | **19169–19170** |
+| L4 FE `documentType` + regras por tipo (**≠** L2 `InvoiceType`) | Anexo I | p.7–8 | **19169–19170** |
 | Impostos FE: `taxType` IVA/IS/IEC/NS; `taxCode`; isenções → Tabelas 4–6 | Anexo I | p.9–11 | **19171–19173** |
 | Totais / retenções (`taxPayable`, `withholdingTax*`) | Anexo I | p.12–13 | **19174–19175** |
 | `obterEstado` (V/I/P; atraso >24h sem contingência) | Anexo I | p.14–17 | **19176–19179** |
@@ -178,7 +178,7 @@ Limites: HTML ≠ validação AGT; GAP-006 credenciais; **não** inventar `FE-RN
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 + FE HML | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + DE74 @**1577** + FE `establishmentNumber` / **FE-RNG-080** (Citação H). Terminal **não** coberto; critério do catálogo **não** fica satisfeito só com estes campos. **Não** confirmado |
-| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | Art.10 DP71 + enum FE Anexo I @**19169–19170** (Citação G) + classes 74/19 n.º4 @**1576–1577**; falta mapeamento validador + C-DOC-* + DEC-REG-003; critério do catálogo **não** fica satisfeito; **não** confirmado |
+| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | L1 Art.10 + L4 `documentType` @**19169–19170** + L2/L3 SAF-T + classes 74/19 @**1576–1577**; **não** confundir camadas; falta DEC-REG-003 + C-DOC-*; critério **não** fica satisfeito; **não** confirmado |
 | AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) + DE 683 | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**) + FE `documentStatus` A/C @**19168**. Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-002 | `partial` | DE 683 + DP 71 + FE HML | Ligação preliminar: ART.4 @**19164** + `solicitarSerie` @**19183–19184** + FE `solicitarSerie`/`listarSeries` + FE-RNG-051/053/055–060 (Citação H); C-FE-001 paths abertos. Critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
@@ -192,7 +192,7 @@ Limites: HTML ≠ validação AGT; GAP-006 credenciais; **não** inventar `FE-RN
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | Auditoria append-only — arquitectura |
 | AO-SAF-001 | `pending_validation` | XSD + DE 74/19 n.º1 | Citação D: `AuditFile`/`SalesInvoices`/`InvoiceNo`/`InvoiceType`/`Hash` (`e9a938e1…`, L42–58 / L445+ / L1974–2001 / L2023–2065 / L1361–1367) + exportação Anexo I n.º1 @**1576**; AGT pendente; critério do catálogo **não** fica satisfeito só com schema+citação; **não** confirmado |
-| AO-SAF-002 | `pending_validation` | DE 74/19 + XSD | Citação D: `InvoiceStatus=A` (L2003–2021) + `References` p/ NC (L1004–1023) + DE74 n.º4 e) @**1577**; `SAFTAOPaymentType` RC/RG (L2740–2754) ≠ fecho FE→`InvoiceType`; AGT / amostragem pendentes; critério do catálogo **não** fica satisfeito só com estas citações; **não** confirmado |
+| AO-SAF-002 | `pending_validation` | DE 74/19 + XSD | Citação D: `InvoiceStatus=A` (L2003–2021) + `References` p/ NC (L1004–1023) + DE74 @**1577**; L2 `PaymentType` RC/RG em L3 `Payments` ≠ L4 FE nem L2 `InvoiceType`; AGT pendente; critério **não** fica satisfeito só com estas citações; **não** confirmado |
 | AO-OPS-001 | `scaffold` | — | Ops/DR |
 | AO-UPD-001 | `scaffold` | — | Updates Edge assinados |
 
@@ -200,7 +200,7 @@ Limites: HTML ≠ validação AGT; GAP-006 credenciais; **não** inventar `FE-RN
 
 1. Fechar C-FE-001 (paths HML `/ws/` vs `/v1`; URL solicitarSerie) + GAP-006 credenciais — manter `AO-AGT-001` `pending_validation`.
 2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
-3. Fechar C-DOC-003 (FA/RC/RG vs `InvoiceType`).
+3. Fechar C-DOC-003 (L4 `FA`/`RC`/`RG` vs L2 `InvoiceType` vs L3 `Payments` — sem confundir camadas).
 4. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
 5. AO-ID-001: terminal ainda em falta — manter `partial`.
 6. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003.
