@@ -1,45 +1,72 @@
 # Arquitetura do backoffice operacional
 
-**Estado:** formalizado (não implementado)
-**Âmbito:** Fase 2 do roadmap — fora do primeiro vertical slice
+**Estado:** formalizado (DEC-BO-001); fundação backend em curso
+**Âmbito:** ops administrativas — fora do primeiro vertical slice POS
 **Stack:** alinhada a DEC-STACK-001 (API no monólito Go; UI posterior)
 
 ## Posição no sistema
 
-O backoffice (portal operacional) configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin separado do POS. Sem microserviços.
+O backoffice configura e observa; o núcleo fiscal permanece a autoridade de emissão e numeração. Contrato admin **separado** do POS. Sem microserviços.
 
 ```mermaid
 flowchart TB
   subgraph clients [Clientes]
-    AdminUI[Backoffice_UI]
-    Bootstrap[Bootstrap_CLI_ou_Vault]
+    AdminUI[Backoffice_funcional_UI]
+    OwnerVault[Zona_admin_segredos_owner]
   end
   subgraph bwb [BWB]
-    AdminAPI[Admin_API]
+    AdminAPI[Admin_API_funcional]
+    SecAdmAPI[SecAdm_API_write_only]
     FiscalCore[Nucleo_fiscal]
     Ledger[(Livro_e_auditoria)]
   end
-  subgraph secrets [Segredos_por_ambiente]
-    SecretStore[SecretStore_abstrato]
+  subgraph secrets [Cofre_por_ambiente]
+    SecretStore[SecretStore_cifrado]
   end
   AdminUI -->|"CRUD_metadados_sem_segredos"| AdminAPI
-  Bootstrap -->|"write_only_TLS_provision"| SecretStore
+  OwnerVault -->|"write_only_TLS"| SecAdmAPI
+  SecAdmAPI -->|"put_rotate_revoke"| SecretStore
+  AdminAPI -->|"metadata_sanitizada"| SecretStore
   AdminAPI --> FiscalCore
   FiscalCore --> Ledger
   FiscalCore -->|"refs_runtime"| SecretStore
 ```
 
-`SecretStore` abstrai Secret Manager / KMS / HSM. Fornecedor e capacidade de importação ainda não decididos.
+## Dois planos (DEC-BO-001)
+
+| Plano | Quem | Gere | Segredos |
+|---|---|---|---|
+| **A — Backoffice funcional** | Operadores autorizados | Contribuintes, estabelecimentos, scopes/bindings, séries/config não secreta, estados, auditoria | **Nunca** legíveis nem exibidos |
+| **B — Zona admin integração/segredos** | Owner (Jorge) exclusivo | Provisionamento AGT/chaves/tokens/URLs privadas, rotação, HML≠PRD | Write-only; cofre cifrado; auditado |
+
+### Plano A — permitido
+
+- Cadastros: `Taxpayer`, `Establishment`, bindings de scope POS.
+- Séries, timezone IANA, activação de tipos/grupos, estados (`active`/`inactive`, adesão FE enum).
+- Listagens de submissões/erros/reconciliação **sem** corpos secretos.
+- Metadados sanitizados de refs: ambiente, estado, fingerprint, validade, última verificação.
+
+### Plano A — proibido
+
+Credenciais AGT, chaves privadas, passwords, tokens em claro, DSN/URLs privadas de override, qualquer `GET` de segredo.
+
+### Plano B — obrigatório
+
+- Write-only (sem retorno do valor); storage cifrado; auditoria; rotação/revogação; isolamento HML/PRD.
+- Endpoints **públicos** documentados = configuração técnica versionável.
+- Overrides **privados** = apenas no cofre operacional (nunca no backoffice comum nem em ficheiros públicos do repo).
+
+`SecretStore` abstrai Secret Manager / KMS / HSM. Fornecedor concreto ainda não decidido; o slice usa **simulator fail-closed** sem credenciais reais.
 
 ## Credenciais AGT (três mecanismos)
 
 | Conceito | Âmbito | Notas |
 |---|---|---|
-| `ProducerCredential` | Plataforma BWB/produtor + ambiente | Basic Auth AGT do produtor; não pertence a tenant/contribuinte |
-| `ProducerKeyRef` | Plataforma BWB/produtor + ambiente | Par RSA do produtor; privada sob custódia do produtor |
-| `TaxpayerKeyRef` | Contribuinte + ambiente | Par RSA do contribuinte (`jwsDocumentSignature` / `jwsSignature`); só no `SecretStore` da plataforma se DEC-REG-KEY-CUSTODY permitir |
-| Adesão FE (estado) | Contribuinte + ambiente | `not_enrolled` \| `pending` \| `active` \| `suspended` (`DEC-PROD-004`); **não** booleano; **não** por estabelecimento |
-| Séries / activação tipos | Estabelecimento (+ config POS) | Configuração própria do estabelecimento (`DEC-PROD-003`/`004`) |
+| `ProducerCredential` | Plataforma BWB/produtor + ambiente | Basic Auth AGT do produtor; **só plano B** |
+| `ProducerKeyRef` | Plataforma BWB/produtor + ambiente | Par RSA do produtor; privada no cofre |
+| `TaxpayerKeyRef` | Contribuinte + ambiente | Par RSA do contribuinte; só no `SecretStore` se DEC-REG-KEY-CUSTODY permitir |
+| Adesão FE (estado) | Contribuinte + ambiente | `not_enrolled` \| `pending` \| `active` \| `suspended` (`DEC-PROD-004`); **plano A** (enum, não segredo) |
+| Séries / activação tipos | Estabelecimento (+ config POS) | Configuração não secreta (`DEC-PROD-003`/`004`) |
 
 Documentação FE pública (snapshot/confirmação em homologação; **não** substitui artefactos restritos):
 
@@ -49,7 +76,7 @@ Documentação FE pública (snapshot/confirmação em homologação; **não** su
 
 ## Regras de segurança (resumo)
 
-- UI sem material secreto; em produção, bootstrap separado (CLI/agente/vault) write-only por TLS para o `SecretStore`.
+- UI plano A sem material secreto; plano B bootstrap write-only por TLS para o `SecretStore`.
 - Homologação e produção isolados.
 - Proibida cópia automática de chaves privadas cloud↔Edge; provisionamento explícito, autenticado e auditado.
 - Fingerprints só a partir de chave pública ou metadados seguros do provisionamento.
@@ -63,16 +90,18 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 
 ## Fases de entrega
 
-1. Fundações administrativas (sem frontend).
-2. API administrativa.
-3. Backoffice mínimo (UI).
-4. Funcionalidades fiscais avançadas (séries, documentos, falhas, reconciliação, SAF-T, exportações) — após decisões bloqueantes e pacote AO.
+1. Decisão/arquitectura da separação (`DEC-BO-001` / `RM-ARCH-006`).
+2. Fundação backend cadastros (`RM-BO-010`) — sem UI.
+3. Contrato write-only + simulator de cofre (`RM-SECADM-002`).
+4. API administrativa funcional + zona SecAdm.
+5. UI backoffice mínimo (M7).
+6. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
 
 ## Referências
 
 - [domain-model.md](../04-domain/domain-model.md)
 - [security-baseline.md](../05-security/security-baseline.md)
-- [open-decisions.md](../06-delivery/open-decisions.md) (DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
+- [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
 - [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) (GAP-013)
-- [implementation-roadmap.md](../06-delivery/implementation-roadmap.md) (Fase 2)
+- [ROADMAP.md](../../ROADMAP.md)
 - [system-architecture.md](system-architecture.md)

@@ -10,9 +10,10 @@
 ## Segredos e chaves
 
 - Abstração `SecretStore` (Secret Manager / KMS / HSM conforme fornecedor ainda por decidir).
-- Em produção, provisionamento de segredos por **bootstrap fora da UI** (CLI, agente ou vault): TLS autenticado, write-only, gravação direta no `SecretStore`, sem persistência intermédia, sem logs do segredo, sem retorno nem visualização posterior.
-- A UI do backoffice não recebe, armazena nem exibe material secreto; mostra apenas metadados seguros (fingerprint derivado de chave pública ou metadados do provisionamento, estado, validade, origem, ambiente, rotação/revogação).
+- Em produção, provisionamento de segredos na **zona dedicada de administração de integração** (`DEC-BO-001` plano B): TLS autenticado, write-only, gravação direta no `SecretStore`, sem persistência intermédia, sem logs do segredo, sem retorno nem visualização posterior; acesso exclusivo do owner.
+- A UI do **backoffice funcional** (plano A) não recebe, armazena nem exibe material secreto; mostra apenas metadados sanitizados (ambiente, estado, fingerprint, validade, última verificação).
 - **Proibida** cópia automática de chaves privadas cloud→Edge ou Edge→cloud; qualquer provisionamento é explícito, individual, autenticado e auditado.
+- Endpoints públicos documentados podem ser configuração técnica; overrides privados (URLs, credenciais) ficam no cofre operacional — nunca no backoffice comum.
 - Custódia da chave privada do **contribuinte** no `SecretStore` da plataforma condicionada a autorização do contribuinte **e** a DEC-REG-KEY-CUSTODY (permissão oficial AGT).
 - Chaves de teste do vertical slice: par RSA efémero, privada nunca persistida nem no Git.
 - Rotação, revogação, expiração e inventário de refs auditados.

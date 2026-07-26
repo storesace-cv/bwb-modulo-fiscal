@@ -908,6 +908,69 @@ Alinhado a SQLite WAL com escritor único ([technical-stack-proposal.md](technic
 
 ---
 
+## DEC-BO-001 — Backoffice funcional vs zona de administração de integração/segredos
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / arquitectura / segurança |
+| Prazo máximo | — |
+| Responsável | Product Owner (Jorge) + Arquitectura + Segurança |
+| Decisão | 2026-07-26 |
+
+**Decisão:** o portal operacional separa **dois planos** com superfícies, papéis e APIs distintas.
+
+### Plano A — Backoffice funcional (ops comuns)
+
+Gere e observa, **sem** material secreto:
+
+- contribuintes (`Taxpayer`), estabelecimentos (`Establishment`);
+- scopes / bindings POS (metadados);
+- séries e configuração **não secreta** (timezone, códigos de série, activação de tipos/grupos);
+- estados operacionais (activo/inactivo, adesão FE como enum de estado);
+- auditoria e visibilidade de submissões/erros **sem** payloads secretos.
+
+**Proibido** no backoffice comum (UI e API admin funcional):
+
+- credenciais AGT (Basic Auth / tokens de produtor);
+- chaves privadas (produtor ou contribuinte);
+- passwords, tokens em claro, DSN/URLs privadas de cofre ou endpoints privados de override;
+- qualquer leitura ou exportação de material write-only.
+
+### Plano B — Zona dedicada de administração de integração e segredos
+
+- Acesso **exclusivo do owner** (Jorge) — não partilhado com operadores do backoffice comum;
+- valores **write-only** (provisionamento; sem GET do segredo; sem echo na resposta);
+- cofre / storage cifrado (`SecretStore`);
+- auditoria append-only de provisionamento, rotação e revogação;
+- separação estrita **HML / PRD** (sem cópia automática de segredos entre ambientes);
+- endpoints públicos documentados podem ser configuração técnica versionada; **overrides privados** (URLs, credenciais, headers secretos) ficam **só** no cofre operacional.
+
+### O que o backoffice comum pode mostrar (metadados sanitizados)
+
+| Campo permitido | Exemplos |
+|---|---|
+| Ambiente | `homologation` \| `production` |
+| Estado da ref | `absent` \| `present` \| `rotating` \| `revoked` |
+| Fingerprint | derivado de chave **pública** ou metadado seguro do provisionamento |
+| Validade | `expires_at` / janela conhecida sem o segredo |
+| Última verificação | instante da última probe bem-sucedida (sem corpo secreto) |
+
+### Fail-closed
+
+| Proibido | Obrigatório |
+|---|---|
+| Segredo na UI, logs, telemetria ou resposta JSON do plano A | Plano A só metadados sanitizados |
+| Operador comum com ACL de leitura de segredos | Plano B owner-only + write-only |
+| Misturar overrides privados na config pública versionada | Overrides no cofre; públicos documentados à parte |
+| Credenciais reais AGT neste slice | Simulator / fail-closed até acesso AGT |
+
+**Não fecha** `DEC-REG-KEY-CUSTODY` (custódia legal da chave do contribuinte). Não autoriza deploy/SSH.
+
+**Evidência:** este registo; [`backoffice-architecture.md`](../02-architecture/backoffice-architecture.md); [`security-baseline.md`](../05-security/security-baseline.md); ROADMAP `RM-ARCH-006`, `RM-BO-*`, `RM-SECADM-*`.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
@@ -919,7 +982,7 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**.
 
 ---
 
