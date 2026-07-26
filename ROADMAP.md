@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**
 
-**Estado revisto em:** 2026-07-25
+**Estado revisto em:** 2026-07-26
 
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
@@ -380,13 +380,14 @@ Para Angola comercial, exigir no mínimo: regras oficiais rastreáveis; motor fi
 ## 18. Regras de manutenção do roadmap
 
 1. Qualquer PR que conclua, introduza, bloqueie, adie ou altere um item `RM-*` deve actualizar este ficheiro no mesmo PR.
-2. `[x]` / `CONCLUÍDO` exige evidência verificável (link relativo, âncora interna ou URL HTTPS).
-3. Plano aprovado, Draft PR ou PR Ready **não** são conclusão por si só; PR merged prova integração no Git, não deploy nem conformidade.
-4. Deploy prova instalação, não conformidade; teste sandbox não prova homologação AGT.
-5. Nenhum item fiscal é marcado concluído só por inferência técnica.
-6. Um item criado atomicamente por este PR pode ficar `CONCLUÍDO` com links relativos aos artefactos do changeset; o URL do PR é acrescentado antes de Ready; se falhar artefacto/check, permanece `EM_CURSO`.
-7. CI valida estrutura; a semântica de conclusão continua humana.
-8. Template de PR: documentação atualizada **ou** não afetada com justificação.
+2. Alterações materiais a este ficheiro (qualquer conteúdo excepto a própria linha «Estado revisto em») exigem actualizar **Estado revisto em** para a data UTC do dia da alteração; a CI (`scripts/verify_roadmap.py`) rejeita data desactualizada quando detecta diff material vs a base.
+3. `[x]` / `CONCLUÍDO` exige evidência verificável (link relativo, âncora interna ou URL HTTPS).
+4. Plano aprovado, Draft PR ou PR Ready **não** são conclusão por si só; PR merged prova integração no Git, não deploy nem conformidade.
+5. Deploy prova instalação, não conformidade; teste sandbox não prova homologação AGT.
+6. Nenhum item fiscal é marcado concluído só por inferência técnica.
+7. Um item criado atomicamente por este PR pode ficar `CONCLUÍDO` com links relativos aos artefactos do changeset; o URL do PR é acrescentado antes de Ready; se falhar artefacto/check, permanece `EM_CURSO`.
+8. CI valida estrutura; a semântica de conclusão continua humana.
+9. Template de PR: documentação atualizada **ou** não afetada com justificação.
 
 ### Marcos
 
