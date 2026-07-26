@@ -68,11 +68,11 @@ REQUIRED_TOKENS = [
     "19194",
     "19227",
     "L2023",
-    "PaymentType",
     "SAFTAOPaymentType",
     "L2740",
     "References",
     "InvoiceStatus",
+    "HashControl",
 ]
 
 
@@ -89,6 +89,12 @@ def verify(root: Path) -> list[str]:
     for token in REQUIRED_TOKENS:
         if token not in text:
             errors.append(f"token obrigatório ausente: {token}")
+
+    # Exact field name (not only as suffix of SAFTAOPaymentType).
+    if not re.search(r"\bPaymentType\b", text):
+        errors.append("token exacto ausente: PaymentType (word-boundary)")
+    if not re.search(r"\bHash\b", text):
+        errors.append("token exacto ausente: Hash (word-boundary)")
 
     for code in REQUIRED_CODES:
         if not re.search(rf"\b{code}\b", text):

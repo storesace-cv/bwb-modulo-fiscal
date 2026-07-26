@@ -9,9 +9,9 @@
 ## Factos
 
 1. Enum FE (`documentType` em DE 683/25 + HTML HML) inclui **`FA`**, **`RC`**, **`RG`**.
-2. Elemento SAF-T `InvoiceType` em `SAFTAO1.01_01.xsd` (`e9a938e1…`, `pending_validation`, L2023–2064) **não** enumera `FA`, `RC` nem `RG`.
+2. Elemento SAF-T `InvoiceType` em `SAFTAO1.01_01.xsd` (`e9a938e1…`, `pending_validation`, L2023–2065) **não** enumera `FA`, `RC` nem `RG`.
 3. DP 71/25 reconhece Factura Adiantamento e Recibo como figuras legais (Art.3 g)/o)).
-4. No mesmo XSD, `SAFTAOPaymentType` (**L2740–2753**) sob `SourceDocuments/Payments/Payment/PaymentType` enumera **`RC`**, **`RG`** e **`AR`** — caminho estrutural **distinto** de `SalesInvoices/InvoiceType`; **não** constitui mapeamento FE→SAF-T adoptado.
+4. No mesmo XSD, `SAFTAOPaymentType` (**L2740–2754**) sob `SourceDocuments/Payments/Payment/PaymentType` enumera **`RC`**, **`RG`** e **`AR`** — caminho estrutural **distinto** de `SalesInvoices/InvoiceType`; **não** constitui mapeamento FE→SAF-T adoptado.
 5. `FA` continua **ausente** de `InvoiceType` e de `SAFTAOPaymentType`.
 
 ## Não fazer

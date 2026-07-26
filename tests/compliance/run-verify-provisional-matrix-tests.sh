@@ -61,7 +61,7 @@ AO-LEG-DE-74-19-2019 5b63c80e 1576–1586; n.º34 @1582; Rect 1948–1949. C-SIG
 Art.10 @11908–11909. GAP-002. RM-SRC-004. DOCUMENT-TYPES-MATRIX-RM-REQ-001.
 DE 683/25: 19164–19227; p.66 Aviso 4/25 @19228.
 ### Citação D — schema SAF-T AO
-SAFTAO1.01_01.xsd e9a938e1 AuditFile InvoiceType InvoiceNo InvoiceStatus References HashControl PaymentType SAFTAOPaymentType pending_validation Development C-DOC-003 C-SIGN-001 L2023 L1004 L1361 L2740
+SAFTAO1.01_01.xsd e9a938e1 AuditFile InvoiceType InvoiceNo InvoiceStatus References Hash HashControl PaymentType SAFTAOPaymentType pending_validation Development C-DOC-003 C-SIGN-001 L2023 L1004 L1361 L2740
 ### Citação G — DE 683 Anexos
 Anexo I registarFactura taxType 19166; Anexo II 19193; Anexo III 19194 solicitarSerie; Tabelas 19212–19223.
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
@@ -305,6 +305,18 @@ t = p.read_text(encoding="utf-8")
 def strip_d(m):
     return m.group(0).replace("InvoiceType", "DocTypeX").replace("L2023", "Lxxxx")
 t2 = re.sub(r"###\s+Citação D\b.*?(?=\n###\s|\n##\s|$)", strip_d, t, count=1, flags=re.S)
+p.write_text(t2, encoding="utf-8")
+'
+
+mutate_real "Citação D sem Hash exacto (só HashControl)" '
+from pathlib import Path
+import re
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+def strip_hash(m):
+    # Remove standalone Hash but keep HashControl.
+    return re.sub(r"(?<![A-Za-z])Hash(?![A-Za-z])", "Digest", m.group(0))
+t2 = re.sub(r"###\s+Citação D\b.*?(?=\n###\s|\n##\s|$)", strip_hash, t, count=1, flags=re.S)
 p.write_text(t2, encoding="utf-8")
 '
 

@@ -109,7 +109,7 @@ Citação consolidada: **Citação G** em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](P
 
 ## C. Códigos SAF-T `InvoiceType` (XSD ASSOFT)
 
-Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1…` · **`pending_validation`** · elemento `InvoiceType` **L2023–2064** · Citação D em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
+Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha256 `e9a938e1…` · **`pending_validation`** · elemento `InvoiceType` **L2023–2065** · Citação D em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
 
 | Código | Documentação XSD | Enum XSD |
 |---|---|---|
@@ -131,17 +131,18 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 
 **Ausentes no XSD `InvoiceType` face ao enum FE:** `FA`, `RC`, `RG` — conflito [C-DOC-003](../conflicts/C-DOC-003-fe-vs-saft-invoice-type.md).
 
-**Facto XSD (não é mapeamento adoptado):** `SAFTAOPaymentType` (`PaymentType` em `SourceDocuments/Payments`, **L2740–2753**) enumera **`RC`**, **`RG`** e **`AR`**. Isto **não** fecha dual-stack FE→`InvoiceType` nem autoriza inventar mapeamento para `FA`.
+**Facto XSD (não é mapeamento adoptado):** `SAFTAOPaymentType` (`PaymentType` em `SourceDocuments/Payments`, **L2740–2754**) enumera **`RC`**, **`RG`** e **`AR`**. Isto **não** fecha dual-stack FE→`InvoiceType` nem autoriza inventar mapeamento para `FA`.
 
 ### C.1 Outros elementos SAF-T ligados a tipos / rectificação
 
 | Elemento | Linhas | Uso |
 |---|---|---|
-| `InvoiceNo` | L1974–2000 | Pattern tipo+série/n.º |
-| `InvoiceStatus` | L2003–2020 | N/S/A/R (anulado = A) |
-| `References` | L1004–1022 | Obrigatório quando `InvoiceType=NC` |
-| `Hash` / `HashControl` | L1361–1373 | Chave documento; algoritmo fora do XSD (C-SIGN-001) |
-| `SAFTAOPaymentType` | L2740–2753 | RC/RG/AR em `Payments` (≠ `InvoiceType`) |
+| `InvoiceNo` | L1974–2001 | Pattern tipo+série/n.º |
+| `InvoiceStatus` | L2003–2021 | N/S/A/R (anulado = A) |
+| `References` | L1004–1023 | Obrigatório quando `InvoiceType=NC` |
+| `Hash` | L1361–1367 | Chave documento; algoritmo fora do XSD (C-SIGN-001) |
+| `HashControl` | L1368–1374 | Controlo de chave; algoritmo fora do XSD |
+| `SAFTAOPaymentType` | L2740–2754 | RC/RG/AR em `Payments` (≠ `InvoiceType`) |
 
 ## D. Cruzamento consolidado (legal ↔ FE ↔ SAF-T ↔ OpenAPI)
 

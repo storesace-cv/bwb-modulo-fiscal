@@ -183,7 +183,6 @@ def verify(root: Path) -> list[str]:
             "InvoiceStatus",
             "References",
             "HashControl",
-            "PaymentType",
             "SAFTAOPaymentType",
             "pending_validation",
             "Development",
@@ -196,6 +195,10 @@ def verify(root: Path) -> list[str]:
         ):
             if token not in citation_d:
                 fail(f"Citação D deve incluir `{token}` na própria secção", errors)
+        # Word-boundary: avoid Hash⊂HashControl and PaymentType⊂SAFTAOPaymentType false passes.
+        for exact in ("Hash", "PaymentType"):
+            if not re.search(rf"\b{re.escape(exact)}\b", citation_d):
+                fail(f"Citação D deve incluir token exacto `{exact}` (word-boundary)", errors)
 
     saf_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SAF-001\s*\|", ln)]
     if saf_rows:
