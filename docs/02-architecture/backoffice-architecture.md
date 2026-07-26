@@ -92,7 +92,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 
 1. Decisão/arquitectura da separação (`DEC-BO-001` / `RM-ARCH-006`).
 2. Fundação backend cadastros (`RM-BO-010`) — sem UI.
-3. Contrato write-only + simulator de cofre (`RM-SECADM-002`).
+3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) — **concluído** em código (`internal/secretstore`); ACL owner-only HTTP ainda `RM-SECADM-001`.
 4. API administrativa funcional + zona SecAdm.
 5. UI backoffice mínimo (M7).
 6. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
