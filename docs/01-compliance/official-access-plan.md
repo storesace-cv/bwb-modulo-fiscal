@@ -1,5 +1,7 @@
 # Plano de acesso e preservação de fontes oficiais
 
+Dependências AGT: [`agt-dependencies.md`](agt-dependencies.md). Credenciais/confirmação externa = `BLOQUEADO_EXTERNO`/`ADIADO` (`DEC-DEL-002`) — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes. **Não** inventar respostas AGT nem declarar conformidade.
+
 ## Resultado da verificação
 
 Temos acesso público direto à documentação técnica online da Facturação Electrónica e a páginas oficiais da AGT/MINFIN. O acesso ao processo do produtor, Modelo 8, XSD oficial e eventuais pacotes de homologação depende do registo da empresa e de credenciais emitidas pela AGT.
