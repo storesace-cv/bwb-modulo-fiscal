@@ -18,6 +18,7 @@
 | `FISCAL_HTTP_WRITE_TIMEOUT` | `10s` | Timeout de escrita |
 | `FISCAL_HTTP_IDLE_TIMEOUT` | `60s` | Timeout idle |
 | `FISCAL_HTTP_SHUTDOWN_TIMEOUT` | `10s` | Graceful shutdown |
+| `FISCAL_AUTHORITY` | `simulator` | Transporte outbox: só `simulator` activo; `agt-hml`/`agt-prd` reservados e **fail-closed** (≠ HML/PRD AGT; sem credenciais) |
 
 ## Variáveis de base de dados (`fiscal-migrate` / testes)
 

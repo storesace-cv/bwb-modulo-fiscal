@@ -19,14 +19,26 @@ const (
 	defaultShutdownTimeout   = 10 * time.Second
 	defaultVersion           = "0.0.0-dev"
 	defaultFiscalPackage     = "AO-UNDECLARED"
+	defaultAuthority         = AuthoritySimulator
 	envHTTPAddr              = "FISCAL_HTTP_ADDR"
 	envVersion               = "FISCAL_APP_VERSION"
 	envFiscalPackage         = "FISCAL_PACKAGE"
+	envAuthority             = "FISCAL_AUTHORITY"
 	envReadTimeout           = "FISCAL_HTTP_READ_TIMEOUT"
 	envReadHeaderTimeout     = "FISCAL_HTTP_READ_HEADER_TIMEOUT"
 	envWriteTimeout          = "FISCAL_HTTP_WRITE_TIMEOUT"
 	envIdleTimeout           = "FISCAL_HTTP_IDLE_TIMEOUT"
 	envShutdownTimeout       = "FISCAL_HTTP_SHUTDOWN_TIMEOUT"
+)
+
+// Authority modes for outbox→authority transport (slice).
+const (
+	// AuthoritySimulator is the only enabled mode (internal simulator; ≠ AGT HML/PRD).
+	AuthoritySimulator = "simulator"
+	// AuthorityAGTHML is reserved; fail-closed until official AGT credentials/endpoints exist.
+	AuthorityAGTHML = "agt-hml"
+	// AuthorityAGTPRD is reserved; fail-closed until official AGT credentials/endpoints exist.
+	AuthorityAGTPRD = "agt-prd"
 )
 
 // EnvKeys lista as variáveis de ambiente usadas por Load (útil em testes herméticos).
@@ -35,6 +47,7 @@ func EnvKeys() []string {
 		envHTTPAddr,
 		envVersion,
 		envFiscalPackage,
+		envAuthority,
 		envReadTimeout,
 		envReadHeaderTimeout,
 		envWriteTimeout,
@@ -45,9 +58,11 @@ func EnvKeys() []string {
 
 // Config contém parâmetros de arranque do serviço fiscal-api.
 type Config struct {
-	HTTPAddr          string
-	Version           string
-	FiscalPackage     string
+	HTTPAddr      string
+	Version       string
+	FiscalPackage string
+	// Authority selects outbox transport: only "simulator" is enabled in this slice.
+	Authority         string
 	ReadTimeout       time.Duration
 	ReadHeaderTimeout time.Duration
 	WriteTimeout      time.Duration
@@ -61,6 +76,7 @@ func Load() (Config, error) {
 		HTTPAddr:          getenv(envHTTPAddr, defaultHTTPAddr),
 		Version:           getenv(envVersion, defaultVersion),
 		FiscalPackage:     getenv(envFiscalPackage, defaultFiscalPackage),
+		Authority:         getenv(envAuthority, defaultAuthority),
 		ReadTimeout:       defaultReadTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		WriteTimeout:      defaultWriteTimeout,
@@ -102,6 +118,9 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.FiscalPackage) == "" {
 		return fmt.Errorf("%s must not be empty", envFiscalPackage)
 	}
+	if err := validateAuthority(c.Authority); err != nil {
+		return err
+	}
 	if c.ReadTimeout <= 0 {
 		return fmt.Errorf("%s must be > 0", envReadTimeout)
 	}
@@ -118,6 +137,24 @@ func (c Config) Validate() error {
 		return fmt.Errorf("%s must be > 0", envShutdownTimeout)
 	}
 	return nil
+}
+
+func validateAuthority(raw string) error {
+	mode := strings.ToLower(strings.TrimSpace(raw))
+	switch mode {
+	case AuthoritySimulator:
+		return nil
+	case AuthorityAGTHML, AuthorityAGTPRD:
+		return fmt.Errorf(
+			"%s=%q reserved for official AGT; not enabled without AGT credentials/endpoints (use %s=%s; simulator ≠ AGT HML/PRD)",
+			envAuthority, mode, envAuthority, AuthoritySimulator,
+		)
+	case "":
+		return fmt.Errorf("%s must not be empty", envAuthority)
+	default:
+		return fmt.Errorf("%s=%q invalid; allowed: %s (reserved later: %s, %s)",
+			envAuthority, raw, AuthoritySimulator, AuthorityAGTHML, AuthorityAGTPRD)
+	}
 }
 
 func getenv(key, fallback string) string {

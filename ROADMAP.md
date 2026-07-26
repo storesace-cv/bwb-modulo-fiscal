@@ -118,6 +118,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-TX-006 | Outbox worker + simulador AGT (VS-T08/10/11) | CONCLUÍDO | [PR #52](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/52) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [internal/authority/simulator/simulator.go](internal/authority/simulator/simulator.go) · [docs/06-delivery/authority-schema-deferred.md](docs/06-delivery/authority-schema-deferred.md) · [CHANGELOG.md](CHANGELOG.md) | — | Simulador ≠ HML AGT; sem credenciais/deploy |
 | [x] | RM-TX-007 | JWS RS256 efémero no outbox→simulador | CONCLUÍDO | [internal/fiscaljws/fiscaljws.go](internal/fiscaljws/fiscaljws.go) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [CHANGELOG.md](CHANGELOG.md) | — | Envelope técnico; não certificado; ≠ FE-RNG / FE certificado oficial |
 | [x] | RM-TX-008 | At-least-once, deduplicação e reconciliação (slice) | CONCLUÍDO | [docs/06-delivery/outbox-at-least-once.md](docs/06-delivery/outbox-at-least-once.md) · [internal/persistence/outbox_test.go](internal/persistence/outbox_test.go) · [CHANGELOG.md](CHANGELOG.md) | — | VS-T12; simulador ≠ AGT; sem exactly-once |
+| [x] | RM-TX-009 | Config `FISCAL_AUTHORITY` (simulator vs AGT reservado) | CONCLUÍDO | [internal/platform/config/config.go](internal/platform/config/config.go) · [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md) · [CHANGELOG.md](CHANGELOG.md) | — | Só `simulator`; `agt-hml`/`agt-prd` fail-closed; sem credenciais/deploy |
 
 ### 3.4 API POS
 
