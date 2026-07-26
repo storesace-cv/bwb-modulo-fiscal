@@ -138,6 +138,30 @@ t = p.read_text(encoding="utf-8").replace("taxType", "taxKind")
 p.write_text(t, encoding="utf-8")
 '
 
+mutate_real "AO-TAX-001 sem 19212 na linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-TAX-001 |"):
+        bad = line.replace("19212", "xxxxx").replace("19227", "yyyyy")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "Citação G sem Anexo III na secção" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+# Strip Anexo III only inside Citação G; keep later mentions if any.
+import re
+def strip_g(m):
+    return m.group(0).replace("Anexo III", "Anexo X").replace("19194", "xxxxx")
+t2 = re.sub(r"###\s+Citação G\b.*?(?=\n###\s|\n##\s|$)", strip_g, t, count=1, flags=re.S)
+p.write_text(t2, encoding="utf-8")
+'
+
 mutate_real "AO-SEQ-001 scaffold indevido" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")

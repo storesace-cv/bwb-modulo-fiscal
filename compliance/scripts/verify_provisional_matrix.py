@@ -93,23 +93,31 @@ def verify(root: Path) -> list[str]:
         fail("matriz deve limitar DE 683/25 a 19164–19227", errors)
     if "19228" not in text and "Aviso" not in text:
         fail("matriz deve alertar p.66 / Aviso 4/25", errors)
-    if "Citação G" not in text and "### Citação G" not in text:
-        fail("matriz deve incluir Citação G (DE 683/25 Anexos)", errors)
-    for token in (
-        "Anexo I",
-        "Anexo II",
-        "Anexo III",
-        "19166",
-        "19193",
-        "19194",
-        "19212",
-        "19223",
-        "solicitarSerie",
-        "registarFactura",
-        "taxType",
-    ):
-        if token not in text:
-            fail(f"Citação G / DE 683 deve incluir `{token}`", errors)
+    citation_g = ""
+    m_g = re.search(
+        r"###\s+Citação G\b.*?(?=\n###\s|\n##\s|$)",
+        text,
+        flags=re.S,
+    )
+    if not m_g:
+        fail("matriz deve incluir secção ### Citação G (DE 683/25 Anexos)", errors)
+    else:
+        citation_g = m_g.group(0)
+        for token in (
+            "Anexo I",
+            "Anexo II",
+            "Anexo III",
+            "19166",
+            "19193",
+            "19194",
+            "19212",
+            "19223",
+            "solicitarSerie",
+            "registarFactura",
+            "taxType",
+        ):
+            if token not in citation_g:
+                fail(f"Citação G deve incluir `{token}` na própria secção", errors)
 
     rows = {m.group(1): m.group(2).strip() for m in ROW_RE.finditer(text)}
     missing = [i for i in REQUIRED_IDS if i not in rows]
@@ -305,11 +313,17 @@ def verify(root: Path) -> list[str]:
             fail(f"citação AO-TAX-001 deve incluir `{token}`", errors)
     tax_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-TAX-001\s*\|", ln)]
     if tax_rows:
-        tl = tax_rows[0].lower()
+        tax_line = tax_rows[0]
+        tl = tax_line.lower()
         if "não" not in tl or "satisfeito" not in tl:
             fail("AO-TAX-001: a linha deve declarar que o critério não fica satisfeito", errors)
-        if "19212" not in tax_rows[0] and "19227" not in tax_rows[0] and "19171" not in tax_rows[0]:
-            fail("AO-TAX-001: a linha da tabela deve citar gazeta FE impostos/tabelas", errors)
+        # Require tax-field gazette AND Tabelas 2–6 range on the row itself.
+        if "19171" not in tax_line:
+            fail("AO-TAX-001: a linha da tabela deve citar gazeta taxType @19171", errors)
+        if "19212" not in tax_line or "19227" not in tax_line:
+            fail("AO-TAX-001: a linha da tabela deve citar intervalo Tabelas @19212–19227", errors)
+        if "taxtype" not in tl:
+            fail("AO-TAX-001: a linha da tabela deve citar taxType", errors)
     else:
         fail("linha de tabela AO-TAX-001 ausente", errors)
 
