@@ -2,6 +2,7 @@
 
 ## 0.2.28-draft — 2026-07-26
 
+- Persistência: **RM-TX-006** — migration `0004` (`authority_attempts`/`authority_responses`); worker outbox + simulador AGT interno (VS-T08/10/11); `ExpectedVersion=4`; simulador ≠ HML AGT; sem credenciais/deploy/servidor.
 - Motor/produto: **DEC-REG-003** decidida — defaults do slice `invoice`/`credit_note` → `bwb.ao.vendas.ft`/`nc` (`activo=on`); restante seed `off`; registo fail-closed [`internal/doctype`](internal/doctype/); sem AO-* confirmados; sem deploy/servidor.
 - Domínio/API: alinhamento a DEC-PROD-004/008/009/011 (enrollment, autoridade módulo, estados, Edge writer); sem declarar conformidade AGT.
 - Compliance: dependências AGT ([`agt-dependencies.md`](docs/01-compliance/agt-dependencies.md)) + **DEC-DEL-002** — credenciais/confirmação externa = `BLOQUEADO_EXTERNO`/`ADIADO` **sem** travar catálogo, domínio, simulador, contratos, persistência nem testes; sem inventar respostas AGT nem declarar conformidade; `RM-FE-001`/`RM-CERT-001` → ADIADO (M6/M9).
