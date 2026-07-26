@@ -195,10 +195,10 @@ Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem anál
 | VS-T05 | Mesmo `external_id` + chave diferente | Conflito ou política documentada; sem dois números |
 | VS-T06 | Concorrência na mesma série | Sem duplicados; exclusão por série; buracos só se a política oficial/rastro o permitir |
 | VS-T07 | Falha livro vs outbox | Impossível se co-transacional; teste prova a invariante |
-| VS-T08 | Simulador indisponível | Documento selado localmente; outbox retenta (at-least-once); não «aceite» |
+| VS-T08 | Simulador indisponível | Documento selado localmente; outbox retenta (at-least-once); não «aceite» — **coberto** em `TestOutboxSimulator*` |
 | VS-T09 | Simulador lento | `authority_processing`; POS não reemite |
-| VS-T10 | Simulador rejeita | `authority_rejected`; número **não** reutilizado |
-| VS-T11 | Resposta/callback duplicado do simulador | Idempotência / deduplicação por id estável |
+| VS-T10 | Simulador rejeita | `authority_rejected`; número **não** reutilizado — **coberto** |
+| VS-T11 | Resposta/callback duplicado do simulador | Idempotência / deduplicação por id estável — **coberto** (ledger terminal) |
 | VS-T12 | Worker reinicia a meio / resultado desconhecido | Entrega **at-least-once**; deduplicação por id estável de submissão; persistência tentativa/resposta; **reconciliação**; **sem** exactly-once |
 
 ## Distinção: simulador AGT vs integração oficial

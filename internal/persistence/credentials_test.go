@@ -66,8 +66,8 @@ func TestCredentialsSQLiteSuite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v", err)
 	}
-	if dirty || v != 3 {
-		t.Fatalf("version=%d dirty=%v want 3 false", v, dirty)
+	if dirty || v != dbmigrate.ExpectedVersion {
+		t.Fatalf("version=%d dirty=%v want %d false", v, dirty, dbmigrate.ExpectedVersion)
 	}
 	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path, BusyTimeout: 5 * time.Second, MaxOpenConns: 1})
 	if err != nil {
@@ -89,8 +89,8 @@ func TestCredentialsPostgresSuite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v", err)
 	}
-	if dirty || v != 3 {
-		t.Fatalf("version=%d dirty=%v want 3 false", v, dirty)
+	if dirty || v != dbmigrate.ExpectedVersion {
+		t.Fatalf("version=%d dirty=%v want %d false", v, dirty, dbmigrate.ExpectedVersion)
 	}
 	sqlDB, err := db.OpenPostgres(ctx, db.PostgresConfig{URL: dsn})
 	if err != nil {
@@ -603,8 +603,8 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 	})
 }
 
-func TestMigrationParityExpectedVersion3(t *testing.T) {
-	if dbmigrate.ExpectedVersion != 3 {
+func TestMigrationParityExpectedVersion(t *testing.T) {
+	if dbmigrate.ExpectedVersion != 4 {
 		t.Fatalf("ExpectedVersion=%d", dbmigrate.ExpectedVersion)
 	}
 }

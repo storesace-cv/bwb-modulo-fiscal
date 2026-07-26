@@ -42,7 +42,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
 | OpenAPI | `0.1.6-draft` ([specs/openapi/openapi.yaml](specs/openapi/openapi.yaml)) |
-| Schema | `ExpectedVersion=3` |
+| Schema | `ExpectedVersion=4` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -102,7 +102,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|---|---|---|---|---|
 | [x] | RM-ARCH-001 | Stack Go + PostgreSQL cloud + SQLite WAL Edge | CONCLUÍDO | [docs/06-delivery/technical-stack-proposal.md](docs/06-delivery/technical-stack-proposal.md) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | — | DEC-STACK-001 decidida |
 | [x] | RM-ARCH-002 | API HTTP + Nginx + systemd | CONCLUÍDO | [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md) · [docs/07-operations/d2-staging-bootstrap-report.md](docs/07-operations/d2-staging-bootstrap-report.md) | — | Sandbox operacional |
-| [x] | RM-ARCH-003 | Migrations dual-engine PG/SQLite | CONCLUÍDO | [internal/platform/dbmigrate/migrate.go](internal/platform/dbmigrate/migrate.go) | — | ExpectedVersion=3 |
+| [x] | RM-ARCH-003 | Migrations dual-engine PG/SQLite | CONCLUÍDO | [internal/platform/dbmigrate/migrate.go](internal/platform/dbmigrate/migrate.go) | — | ExpectedVersion=4 |
 | [x] | RM-ARCH-004 | Scopes multi-tenant e separação de papéis | CONCLUÍDO | [docs/02-architecture/system-architecture.md](docs/02-architecture/system-architecture.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | — | Plataforma / integradores / contribuintes / estabelecimentos / credenciais POS / chaves AGT / HML-PRD |
 | [ ] | RM-ARCH-005 | Backoffice operacional | PENDENTE | [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) | M7 | UI/ops mínimos em produção |
 
@@ -115,6 +115,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-TX-003 | Hash canónico versionado, rollback, concorrência | CONCLUÍDO | [CHANGELOG.md](CHANGELOG.md) | — | Testes dual-engine |
 | [x] | RM-TX-004 | Timezone IANA, Africa/Luanda, hora fiscal vs técnica, microssegundos | CONCLUÍDO | [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) | — | DEC-TIME-001 |
 | [x] | RM-TX-005 | Estados neutros + SealInTx (selagem local) | CONCLUÍDO | [specs/openapi/openapi.yaml](specs/openapi/openapi.yaml) | — | `sealed_locally` ≠ emissão certificada AGT |
+| [x] | RM-TX-006 | Outbox worker + simulador AGT (VS-T08/10/11) | CONCLUÍDO | [PR #52](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/52) · [internal/persistence/outbox.go](internal/persistence/outbox.go) · [internal/authority/simulator/simulator.go](internal/authority/simulator/simulator.go) · [docs/06-delivery/authority-schema-deferred.md](docs/06-delivery/authority-schema-deferred.md) · [CHANGELOG.md](CHANGELOG.md) | — | Simulador ≠ HML AGT; sem credenciais/deploy |
 
 ### 3.4 API POS
 
