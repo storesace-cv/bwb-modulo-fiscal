@@ -259,18 +259,26 @@ def verify(root: Path) -> list[str]:
     # AO-OFF-002: partial — DE 74 integration / recovery series.
     if rows.get("AO-OFF-002") != "partial":
         fail("AO-OFF-002: deve estar `partial` (DE 74/19 Anexo I n.º7–9)", errors)
-    if "1579" not in text and "1580" not in text:
-        fail("citação AO-OFF-002 deve incluir gazeta 1579 ou 1580", errors)
     check_partial_row("AO-OFF-002")
     off2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-OFF-002\s*\|", ln)]
     if off2_rows:
-        o2 = off2_rows[0].lower()
-        if "não" not in o2 or "satisfeito" not in o2:
+        o2 = off2_rows[0]
+        o2l = o2.lower()
+        if "1579" not in o2 and "1580" not in o2:
+            fail("AO-OFF-002: a linha da tabela deve citar gazeta 1579 ou 1580", errors)
+        if "não" not in o2l or "satisfeito" not in o2l:
             fail("AO-OFF-002: a linha deve declarar que o critério não fica satisfeito", errors)
+    else:
+        fail("linha de tabela AO-OFF-002 ausente", errors)
 
-    # DOC-002 / SEQ-001 must also mention DE 74 gazeta 1577 when citing immutability/series.
-    if "1577" not in text:
-        fail("matriz deve citar DE 74/19 @1577 (séries / doc assinado)", errors)
+    # DOC-002 / SEQ-001 rows must cite DE 74 gazeta 1577 (not only Citação F).
+    for rid in ("AO-DOC-002", "AO-SEQ-001"):
+        row_ln = [ln for ln in text.splitlines() if re.match(rf"^\|\s*{rid}\s*\|", ln)]
+        if not row_ln:
+            fail(f"linha de tabela {rid} ausente", errors)
+            continue
+        if "1577" not in row_ln[0]:
+            fail(f"{rid}: a linha da tabela deve citar DE 74/19 @1577", errors)
 
     return errors
 

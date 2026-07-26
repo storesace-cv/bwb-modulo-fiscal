@@ -66,8 +66,8 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ASM-REG-001 | `scaffold` | — | x |
 | AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
 | AO-DOC-001 | `scaffold` | — | citação pendente |
-| AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 1577 critério **não** fica satisfeito; **Não** confirmado |
-| AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 1577 critério **não** fica satisfeito; **Não** confirmado |
+| AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 @1577 critério **não** fica satisfeito; **Não** confirmado |
+| AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 @1577 critério **não** fica satisfeito; **Não** confirmado |
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `scaffold` | — | citação pendente |
@@ -76,7 +76,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-AGT-001 | `blocked` | — | x |
 | AO-AGT-002 | `scaffold` | — | x |
 | AO-OFF-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.18 11911 11912 critério **não** fica satisfeito; **Não** confirmado |
-| AO-OFF-002 | `partial` | AO-LEG-DE-74-19-2019 | 1579 1580 critério **não** fica satisfeito; **Não** confirmado |
+| AO-OFF-002 | `partial` | AO-LEG-DE-74-19-2019 | @1580 critério **não** fica satisfeito; **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | x |
 | AO-SAF-001 | `pending_validation` | x | x |
 | AO-SAF-002 | `pending_validation` | x | x |
@@ -243,6 +243,30 @@ from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
 t = t.replace("| AO-SAF-001 | `pending_validation`", "| AO-SAF-001 | `partial`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-OFF-002 sem gazeta na linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-OFF-002 |"):
+        bad = line.replace("1580", "xxxx").replace("1579", "yyyy")
+        t = t.replace(line, bad)
+        break
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-SEQ-001 sem 1577 na linha" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-SEQ-001 |"):
+        bad = line.replace("1577", "xxxx")
+        t = t.replace(line, bad)
+        break
 p.write_text(t, encoding="utf-8")
 '
 
