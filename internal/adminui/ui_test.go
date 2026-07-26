@@ -103,6 +103,17 @@ func TestAdminUIDashboardReadOnly(t *testing.T) {
 	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "--accent") {
 		t.Fatalf("css %d", rr.Code)
 	}
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/submissions", nil))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "Submissões") {
+		t.Fatalf("submissions %d %s", rr.Code, rr.Body.String())
+	}
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/audit", nil))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "Auditoria") {
+		t.Fatalf("audit %d", rr.Code)
+	}
 }
 
 func TestDevCookieAuthenticator(t *testing.T) {

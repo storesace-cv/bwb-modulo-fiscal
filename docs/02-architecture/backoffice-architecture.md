@@ -1,6 +1,6 @@
 # Arquitetura do backoffice operacional
 
-**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API admin + UI SSR `RM-UI-001`
+**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API admin + UI SSR `RM-UI-001`…`RM-UI-003` (SecAdm UI em `RM-UI-004`)
 **Âmbito:** ops administrativas — fora do primeiro vertical slice POS
 **Stack:** DEC-STACK-001 — API + UI no monólito Go (`html/template` + `embed`); **sem** SPA/npm
 

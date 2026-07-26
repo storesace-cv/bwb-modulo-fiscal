@@ -1,0 +1,30 @@
+{{define "content"}}
+<p class="hint">Eventos append-only de mutações admin — sem payloads secretos.</p>
+{{if .Items}}
+<table>
+  <caption class="sr-only">Eventos de auditoria</caption>
+  <thead>
+    <tr>
+      <th scope="col">Quando</th>
+      <th scope="col">Actor</th>
+      <th scope="col">Acção</th>
+      <th scope="col">Recurso</th>
+      <th scope="col">Resultado</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Items}}
+    <tr>
+      <td>{{.OccurredAt.UTC.Format "2006-01-02 15:04:05"}}Z</td>
+      <td>{{.ActorSubject}} <span class="hint">({{.ActorRoles}})</span></td>
+      <td>{{.Action}}</td>
+      <td>{{.ResourceType}} <code>{{.ResourceID}}</code></td>
+      <td>{{.Result}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem eventos de auditoria.</p>
+{{end}}
+{{end}}

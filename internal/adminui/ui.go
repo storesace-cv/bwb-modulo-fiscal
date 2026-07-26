@@ -13,7 +13,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 )
 
@@ -28,11 +30,13 @@ const (
 // Handler serves /admin/ui pages.
 type Handler struct {
 	Registry *adminregistry.Registry
+	Ops      *adminops.Store
+	Audit    *adminaudit.Store
 	EnvLabel string
 	CSRF     *CSRFStore
 }
 
-// New builds a Handler.
+// New builds a Handler. Ops/Audit may be nil (pages return empty/unavailable).
 func New(reg *adminregistry.Registry, envLabel string) (*Handler, error) {
 	if reg == nil {
 		return nil, fmt.Errorf("adminui: registry nil")
@@ -62,10 +66,15 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	wrapWrite := func(next http.Handler) http.Handler {
 		return securityHeaders(authMW(htmlRequireWrite(next)))
 	}
+	wrapPerm := func(perm adminauth.Permission, next http.Handler) http.Handler {
+		return securityHeaders(authMW(htmlRequirePerm(perm, next)))
+	}
 	mux.Handle("GET /admin/ui/", wrapRead(http.HandlerFunc(h.dashboard)))
 	mux.Handle("GET /admin/ui/taxpayers", wrapRead(http.HandlerFunc(h.taxpayers)))
 	mux.Handle("GET /admin/ui/establishments", wrapRead(http.HandlerFunc(h.establishments)))
 	mux.Handle("GET /admin/ui/bindings", wrapRead(http.HandlerFunc(h.bindings)))
+	mux.Handle("GET /admin/ui/submissions", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.submissions)))
+	mux.Handle("GET /admin/ui/audit", wrapPerm(adminauth.PermAuditRead, http.HandlerFunc(h.auditEvents)))
 
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))
@@ -87,8 +96,8 @@ type pageBase struct {
 	Subject    string
 	RolesLabel string
 	Flash      string
-	CanWrite   bool
-	CSRFToken  string
+	CanWrite  bool
+	CSRFToken string
 }
 
 type dashboardPage struct {

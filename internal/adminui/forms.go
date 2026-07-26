@@ -203,12 +203,16 @@ func (h *Handler) formError(w http.ResponseWriter, r *http.Request, tmpl, nav, h
 }
 
 func htmlRequireWrite(next http.Handler) http.Handler {
+	return htmlRequirePerm(adminauth.PermCadastroWrite, next)
+}
+
+func htmlRequirePerm(perm adminauth.Permission, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := adminauth.ClaimsFromContext(r.Context())
-		if !ok || !adminauth.Allows(claims, adminauth.PermCadastroWrite) {
+		if !ok || !adminauth.Allows(claims, perm) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(`<!DOCTYPE html><html lang="pt"><body><h1>Proibido</h1><p>Sem permissão cadastro.write.</p></body></html>`))
+			_, _ = w.Write([]byte(`<!DOCTYPE html><html lang="pt"><body><h1>Proibido</h1><p>Sem permissão.</p></body></html>`))
 			return
 		}
 		next.ServeHTTP(w, r)
