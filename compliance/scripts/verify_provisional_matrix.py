@@ -35,11 +35,9 @@ REQUIRED_IDS = [
     "AO-UPD-001",
 ]
 
-# Citation page-by-page still pending — must not jump to partial/confirmed.
+# Still without page-level field mapping / tax calculation citations.
 CITATION_PENDING_SCAFFOLD = [
     "AO-DOC-001",
-    "AO-DOC-002",
-    "AO-SEQ-001",
     "AO-TAX-001",
 ]
 
@@ -74,6 +72,10 @@ def verify(root: Path) -> list[str]:
         fail("matriz deve limitar DP 71/25 a 11902–11920", errors)
     if "11921" not in text and "372/25" not in text:
         fail("matriz deve alertar p.21 / DE 372/25 fora do intervalo DP 71/25", errors)
+    if "11908" not in text or "11909" not in text:
+        fail("matriz deve citar DP 71/25 Art.10 @11908–11909", errors)
+    if "4931fd3c" not in text:
+        fail("matriz deve referir sha256 do original DP 71/25 (4931fd3c…)", errors)
     if "GAP-002" not in text:
         fail("matriz deve referir GAP-002", errors)
     if "RM-SRC-004" not in text:
@@ -205,6 +207,46 @@ def verify(root: Path) -> list[str]:
             fail("AO-CRYPTO-001: a linha deve mencionar encadeamento (lacuna/não citado)", errors)
         if "não" not in cl or "satisfeito" not in cl:
             fail("AO-CRYPTO-001: a linha deve declarar que o critério não fica satisfeito", errors)
+
+    # AO-SEQ-001: partial — DP 71 Art.10 b numbering by type/series.
+    if rows.get("AO-SEQ-001") != "partial":
+        fail("AO-SEQ-001: deve estar `partial` (DP 71/25 Art.10 n.º1 b)", errors)
+    for token in ("Art.10", "11908"):
+        if token not in text:
+            fail(f"citação AO-SEQ-001 deve incluir `{token}`", errors)
+    check_partial_row("AO-SEQ-001")
+    seq1_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SEQ-001\s*\|", ln)]
+    if seq1_rows:
+        s1 = seq1_rows[0].lower()
+        if "não" not in s1 or "satisfeito" not in s1:
+            fail("AO-SEQ-001: a linha deve declarar que o critério não fica satisfeito", errors)
+
+    # AO-DOC-002: partial — no deletion after issue + NC rectification path.
+    if rows.get("AO-DOC-002") != "partial":
+        fail("AO-DOC-002: deve estar `partial` (DP 71/25 Art.3 n / Art.8)", errors)
+    if "11904" not in text or "11907" not in text:
+        fail("citação AO-DOC-002 deve incluir gazetas 11904 e 11907", errors)
+    if "elimina" not in text.lower():
+        fail("citação AO-DOC-002 deve mencionar eliminação pós-emissão", errors)
+    check_partial_row("AO-DOC-002")
+    doc2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-DOC-002\s*\|", ln)]
+    if doc2_rows:
+        d2 = doc2_rows[0].lower()
+        if "não" not in d2 or "satisfeito" not in d2:
+            fail("AO-DOC-002: a linha deve declarar que o critério não fica satisfeito", errors)
+
+    # AO-OFF-001: partial — DP 71 Art.18 contingency.
+    if rows.get("AO-OFF-001") != "partial":
+        fail("AO-OFF-001: deve estar `partial` (DP 71/25 Art.18)", errors)
+    for token in ("Art.18", "11911", "11912"):
+        if token not in text:
+            fail(f"citação AO-OFF-001 deve incluir `{token}`", errors)
+    check_partial_row("AO-OFF-001")
+    off_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-OFF-001\s*\|", ln)]
+    if off_rows:
+        ol = off_rows[0].lower()
+        if "não" not in ol or "satisfeito" not in ol:
+            fail("AO-OFF-001: a linha deve declarar que o critério não fica satisfeito", errors)
 
     return errors
 
