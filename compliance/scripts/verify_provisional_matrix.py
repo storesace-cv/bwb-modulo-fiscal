@@ -390,8 +390,8 @@ def verify(root: Path) -> list[str]:
     if seq2_rows:
         if "19183" not in seq2_rows[0] and "solicitarSerie" not in seq2_rows[0]:
             fail("AO-SEQ-002: a linha deve citar solicitarSerie ou gazeta 19183", errors)
-        if "FE-RNG-" not in seq2_rows[0] and "listarSeries" not in seq2_rows[0]:
-            fail("AO-SEQ-002: a linha deve citar FE-RNG séries ou listarSeries", errors)
+        if not re.search(r"FE-RNG-\d+", seq2_rows[0]) and "listarSeries" not in seq2_rows[0]:
+            fail("AO-SEQ-002: a linha deve citar FE-RNG-NNN ou listarSeries", errors)
 
     # Citação H — FE HML snapshots / FE-RNG (section-scoped).
     m_h = re.search(
@@ -410,7 +410,6 @@ def verify(root: Path) -> list[str]:
             "eb430954",
             "f8fb22e7",
             "5729f02c",
-            "FE-RNG-",
             "registarFactura",
             "solicitarSerie",
             "listarSeries",
@@ -420,6 +419,8 @@ def verify(root: Path) -> list[str]:
         ):
             if token not in citation_h:
                 fail(f"Citação H deve incluir `{token}` na própria secção", errors)
+        if not re.search(r"FE-RNG-\d+", citation_h):
+            fail("Citação H deve incluir pelo menos um código FE-RNG-NNN concreto", errors)
 
     if "FE-SERVICES-MATRIX-RM-REQ-001" not in text:
         fail("matriz deve referir FE-SERVICES-MATRIX-RM-REQ-001", errors)
@@ -433,6 +434,12 @@ def verify(root: Path) -> list[str]:
         a1l = a1.lower()
         if "não" not in a1l or "satisfeito" not in a1l:
             fail("AO-AGT-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if not re.search(r"(?i)não\*\*\s*confirmado|não\s+confirmado|\*\*não\*\*\s+confirmado", a1):
+            fail("AO-AGT-001: linha deve declarar explicitamente que não está confirmado", errors)
+        if re.search(r"(?i)\b(confirmed|confirmado|validated_agt)\b", a1) and not re.search(
+            r"(?i)não|nao", a1
+        ):
+            fail("AO-AGT-001: afirmação de confirmação sem negação na linha", errors)
         if "FE-RNG" not in a1 and "eb430954" not in a1 and "Citação H" not in a1:
             fail("AO-AGT-001: a linha deve citar FE-RNG / sha REGISTAR / Citação H", errors)
         if "GAP-006" not in a1 and "C-FE-001" not in a1 and "credencial" not in a1l:

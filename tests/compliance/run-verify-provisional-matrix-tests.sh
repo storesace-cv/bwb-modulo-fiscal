@@ -65,7 +65,7 @@ SAFTAO1.01_01.xsd e9a938e1 AuditFile InvoiceType InvoiceNo InvoiceStatus Referen
 ### Citação G — DE 683 Anexos
 Anexo I registarFactura taxType 19166; Anexo II 19193; Anexo III 19194 solicitarSerie; Tabelas 19212–19223.
 ### Citação H — FE HML FE-RNG
-AO-FE-SNAP-HML-2026-07-25-REGISTAR eb430954 AO-FE-SNAP-HML-2026-07-25-SOLICITAR f8fb22e7 AO-FE-SNAP-HML-2026-07-25-LISTAR 5729f02c FE-RNG- registarFactura solicitarSerie listarSeries C-FE-001 pending_validation FE-SERVICES-MATRIX-RM-REQ-001
+AO-FE-SNAP-HML-2026-07-25-REGISTAR eb430954 AO-FE-SNAP-HML-2026-07-25-SOLICITAR f8fb22e7 AO-FE-SNAP-HML-2026-07-25-LISTAR 5729f02c FE-RNG-051 registarFactura solicitarSerie listarSeries C-FE-001 pending_validation FE-SERVICES-MATRIX-RM-REQ-001
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|
@@ -327,6 +327,18 @@ from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
 t = t.replace("| AO-AGT-001 | `pending_validation`", "| AO-AGT-001 | `blocked`")
+p.write_text(t, encoding="utf-8")
+'
+
+mutate_real "AO-AGT-001 sem Não confirmado" '
+from pathlib import Path
+p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
+t = p.read_text(encoding="utf-8")
+for line in t.splitlines():
+    if line.startswith("| AO-AGT-001 |"):
+        bad = line.replace("**não** confirmado", "confirmado").replace("não confirmado", "confirmado")
+        t = t.replace(line, bad)
+        break
 p.write_text(t, encoding="utf-8")
 '
 

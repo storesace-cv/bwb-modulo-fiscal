@@ -160,8 +160,8 @@ Fontes (`pending_validation`, bytes no privado `c93db4f…`):
 
 | source_id | SHA256 | Uso nesta citação |
 |---|---|---|
-| `AO-FE-SNAP-HML-2026-07-25-REGISTAR` | `eb430954…` | `POST …/v1/registarFactura`; inventário FE-RNG-002…031 + 061/068/069/073 |
-| `AO-FE-SNAP-HML-2026-07-25-SOLICITAR` | `f8fb22e7…` | `solicitarSerie` PRD; FE-RNG séries 049–060 / 080–081; refs 082/083 em `authorizedQuantity` |
+| `AO-FE-SNAP-HML-2026-07-25-REGISTAR` | `eb430954…` | `POST …/v1/registarFactura`; inventário `FE-RNG-002`…`031` + `061`/`068`/`069`/`073` |
+| `AO-FE-SNAP-HML-2026-07-25-SOLICITAR` | `f8fb22e7…` | `solicitarSerie` PRD; `FE-RNG-049`…`060` / `080`–`081`; refs `082`/`083` em `authorizedQuantity` |
 | `AO-FE-SNAP-HML-2026-07-25-LISTAR` | `5729f02c…` | `listarSeries` HML+PRD `/v1/listarSeries` |
 | `AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS` | `c748caca…` | `listarFacturas` (HML com `/ws/` — C-FE-001) |
 | `AO-FE-SNAP-HML-2026-07-25-API` | `06a9dbdf…` | Basic Auth; exemplo HML `registarFactura` |
