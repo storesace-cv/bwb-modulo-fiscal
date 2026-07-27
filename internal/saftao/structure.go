@@ -84,17 +84,6 @@ type Product struct {
 	ProductNumberCode  string `xml:"ProductNumberCode"`
 }
 
-// TaxTable stub.
-type TaxTable struct {
-	TaxTableEntry []TaxTableEntry `xml:"TaxTableEntry,omitempty"`
-}
-
-// TaxTableEntry stub.
-type TaxTableEntry struct {
-	TaxType string `xml:"TaxType"`
-	TaxCode string `xml:"TaxCode"`
-}
-
 // GeneralLedgerEntries placeholder container.
 type GeneralLedgerEntries struct {
 	NumberOfEntries string `xml:"NumberOfEntries"`

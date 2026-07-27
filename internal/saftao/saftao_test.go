@@ -190,6 +190,9 @@ func TestPendingRegulatoryMarkers(t *testing.T) {
 	if saftao.PendingPurchaseTypeSemantics == "" {
 		t.Fatal("pending purchase marker required")
 	}
+	if saftao.PendingTaxTableSemantics == "" {
+		t.Fatal("pending tax table marker required")
+	}
 }
 
 func TestMovementOfGoodsStructuralAndXSD(t *testing.T) {
@@ -273,6 +276,47 @@ func TestPurchaseInvoicesStructuralAndXSD(t *testing.T) {
 	}
 	if strings.Contains(s, "<Line>") {
 		t.Fatal("PurchaseInvoices XSD has no Line — must not invent lines")
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
+}
+
+func TestTaxTableStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalTaxTableFixture()
+	if err := doc.MasterFiles.TaxTable.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "TaxTable") || !strings.Contains(s, "TaxTableEntry") {
+		t.Fatalf("marshal: %s", s)
+	}
+	if !strings.Contains(s, "<TaxPercentage>") {
+		t.Fatal("expected TaxPercentage in fixture")
+	}
+	bad := *doc.MasterFiles.TaxTable
+	bad.TaxTableEntry = nil
+	if err := bad.ValidateStructural(); err == nil {
+		t.Fatal("empty TaxTable must fail-closed")
+	}
+	entry := doc.MasterFiles.TaxTable.TaxTableEntry[0]
+	entry.TaxPercentage = nil
+	entry.TaxAmount = nil
+	if err := entry.ValidateStructural(); err == nil {
+		t.Fatal("TaxPercentage XOR TaxAmount required")
+	}
+	if !saftao.ValidTaxType(saftao.TaxTypeIVA) || saftao.ValidTaxType("XYZ") {
+		t.Fatal("TaxType enum gate")
+	}
+	if !saftao.ValidTaxTableEntryTaxCode("NOR") || saftao.ValidTaxTableEntryTaxCode("INVALIDCODE") {
+		t.Fatal("TaxCode pattern gate")
 	}
 	if !saftao.XSDValidatorAvailable() {
 		t.Skip("xmllint not available")

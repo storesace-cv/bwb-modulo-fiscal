@@ -50,4 +50,6 @@ const (
 	PendingPaymentTypeSemantics PendingRegulatory = "payment_type_semantics_pending_ao"
 	// PendingPurchaseTypeSemantics: PurchaseType enum from XSD; activation gated by enrolment/DEC-PROD.
 	PendingPurchaseTypeSemantics PendingRegulatory = "purchase_type_semantics_pending_ao"
+	// PendingTaxTableSemantics: TaxType/TaxCode enums from XSD; rates/activation ≠ AO-* confirmed.
+	PendingTaxTableSemantics PendingRegulatory = "tax_table_semantics_pending_ao"
 )

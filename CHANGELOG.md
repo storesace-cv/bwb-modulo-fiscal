@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.39-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-011** — tipagem `TaxTable`/`TaxTableEntry` (TaxType IVA|IS|NS; TaxPercentage XOR TaxAmount; caps fail-closed); fixture XSD; ≠ AO-* / AGT / deploy.
+
 ## 0.2.38-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-010** — `ListSealedSalesForSAFT` (persistência→`SalesLedgerRecord`); escala qty 1/10000; sem inventar Hash/ProductCode; ≠ AGT/AO-*/deploy.
