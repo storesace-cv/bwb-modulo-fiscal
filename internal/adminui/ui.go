@@ -15,6 +15,7 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
@@ -36,6 +37,7 @@ type Handler struct {
 	SecretsMeta  secretstore.AdminView // Metadata only — never Reveal
 	Sessions     *SessionStore
 	TokenAuth    adminauth.Authenticator // Bearer validator for session mint (oidc_jwt)
+	Obs          *adminobs.Observer
 	EnvLabel     string
 	CSRF         *CSRFStore
 	CookieSecure bool
@@ -68,22 +70,33 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	if err != nil {
 		panic("adminui: static embed: " + err.Error())
 	}
-	mux.Handle("GET /admin/ui/static/", securityHeaders(http.StripPrefix("/admin/ui/static/", http.FileServer(http.FS(staticFS)))))
+	obs := h.Obs
+	if obs == nil {
+		obs = adminobs.New(nil, "fail_closed")
+	}
+	authn = adminobs.ObservingAuthenticator{Inner: authn, Obs: obs}
+	obsPublic := func(next http.Handler) http.Handler {
+		return obs.Middleware(securityHeaders(next))
+	}
+	obsAuth := func(next http.Handler) http.Handler {
+		return obs.Middleware(securityHeaders(htmlAuthMiddleware(authn)(adminobs.CaptureClaims(next))))
+	}
+
+	mux.Handle("GET /admin/ui/static/", obsPublic(http.StripPrefix("/admin/ui/static/", http.FileServer(http.FS(staticFS)))))
 
 	// Public auth endpoints (no session required).
-	mux.Handle("GET /admin/ui/login", securityHeaders(http.HandlerFunc(h.loginPage)))
-	mux.Handle("POST /admin/ui/auth/session", securityHeaders(http.HandlerFunc(h.createSession)))
+	mux.Handle("GET /admin/ui/login", obsPublic(http.HandlerFunc(h.loginPage)))
+	mux.Handle("POST /admin/ui/auth/session", obsPublic(http.HandlerFunc(h.createSession)))
 
-	authMW := htmlAuthMiddleware(authn)
 	read := adminauth.RequirePermission(adminauth.PermCadastroRead)
 	wrapRead := func(next http.Handler) http.Handler {
-		return securityHeaders(authMW(read(next)))
+		return obsAuth(read(next))
 	}
 	wrapWrite := func(next http.Handler) http.Handler {
-		return securityHeaders(authMW(htmlRequireWrite(next)))
+		return obsAuth(htmlRequireWrite(next))
 	}
 	wrapPerm := func(perm adminauth.Permission, next http.Handler) http.Handler {
-		return securityHeaders(authMW(htmlRequirePerm(perm, next)))
+		return obsAuth(htmlRequirePerm(perm, next))
 	}
 	mux.Handle("GET /admin/ui/", wrapRead(http.HandlerFunc(h.dashboard)))
 	mux.Handle("GET /admin/ui/taxpayers", wrapRead(http.HandlerFunc(h.taxpayers)))
@@ -92,11 +105,11 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/submissions", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.submissions)))
 	mux.Handle("GET /admin/ui/audit", wrapPerm(adminauth.PermAuditRead, http.HandlerFunc(h.auditEvents)))
 	wrapOwner := func(next http.Handler) http.Handler {
-		return securityHeaders(authMW(htmlRequireOwnerSecAdm(next)))
+		return obsAuth(htmlRequireOwnerSecAdm(next))
 	}
 	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
 	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
-	mux.Handle("POST /admin/ui/auth/logout", securityHeaders(authMW(http.HandlerFunc(h.logout))))
+	mux.Handle("POST /admin/ui/auth/logout", obsAuth(http.HandlerFunc(h.logout)))
 
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))

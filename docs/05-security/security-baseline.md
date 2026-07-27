@@ -21,6 +21,7 @@ Matriz canónica em código: [`internal/adminauth/rbac.go`](../../internal/admin
 
 - **OIDC/JWT (RM-BO-006 / DEC-BO-003):** `FISCAL_ADMIN_AUTH_MODE=oidc_jwt` — Bearer + JWKS https; `iss`/`aud` exactos; alg allowlist; mapa de grupos→roles; `owner` só com subject allowlist; fail-closed sem config. Tokens nunca em logs.
 - **Sessão UI (RM-UI-005):** cookie opaca `fiscal_admin_session` (HttpOnly, SameSite=Strict, Secure fora de development); mint via `POST /admin/ui/auth/session` com Bearer validado no servidor; logout com CSRF; JWT não persiste no browser.
+- **Observabilidade admin (RM-BO-007):** logs `admin_request` e métricas só com `request_id` / `route_class` / `roles` allowlist / `auth_mode` / outcome — **proibido** tokens, cookies, DSN, JWKS, chaves, NIF, subject ou payloads. SecAdm: métricas de classe `secadm` sem plaintext. Ver [`docs/07-operations/admin-observability.md`](../07-operations/admin-observability.md).
 - **MFA interactivo / redirect IdP:** exigido em produção com IdP real; redirect authorize ainda não ligado. Sem login local improvisado.
 - Operadores ≠ owner SecAdm; metadados sanitizados ≠ material secreto.
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.6-draft
+  version: 0.1.7-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -14,6 +14,7 @@ info:
     0.1.4: SecAdm HTTP Put/Rotate/Revoke owner-only; respostas só metadados (RM-SECADM-003).
     0.1.5: listagens cadastro + PATCH status taxpayer/establishment (RM-BO-005).
     0.1.6: fundação OIDC/JWT provider-neutral documentada (RM-BO-006).
+    0.1.7: observabilidade admin — health/ready/metrics + request_id (RM-BO-007).
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -24,6 +25,54 @@ servers:
 security:
   - adminBearer: []
 paths:
+  /health:
+    get:
+      operationId: adminHealth
+      summary: Liveness do componente admin (sem auth)
+      tags: [Observabilidade]
+      security: []
+      responses:
+        "200":
+          description: Processo a ouvir
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminHealth"
+  /ready:
+    get:
+      operationId: adminReady
+      summary: Readiness sanitizada (DB ping, auth mode, SecAdm gate presente/ausente)
+      tags: [Observabilidade]
+      security: []
+      responses:
+        "200":
+          description: Pronto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReady"
+        "503":
+          description: Não pronto (checks falharam; sem DSN/segredos)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReady"
+  /ops/metrics:
+    get:
+      operationId: adminOpsMetrics
+      summary: Contadores de baixa cardinalidade (ops.read)
+      tags: [Observabilidade]
+      responses:
+        "200":
+          description: Snapshot de métricas sanitizadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMetrics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /taxpayers:
     get:
       operationId: listTaxpayers
@@ -529,6 +578,77 @@ components:
         type: string
         minLength: 1
   schemas:
+    AdminHealth:
+      type: object
+      additionalProperties: false
+      required: [status, component]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        component:
+          type: string
+          enum: [admin]
+        version:
+          type: string
+        revision:
+          type: string
+        request_id:
+          type: string
+    AdminReady:
+      type: object
+      additionalProperties: false
+      required: [status, component, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, not_ready]
+        component:
+          type: string
+          enum: [admin]
+        version:
+          type: string
+        revision:
+          type: string
+        request_id:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Apenas estados (ok/fail/configured/absent/auth mode name).
+            Sem DSN, JWKS URL, tokens ou NIF.
+    AdminMetrics:
+      type: object
+      additionalProperties: false
+      properties:
+        auth_mode:
+          type: string
+        auth_ok:
+          type: integer
+          minimum: 0
+        auth_fail:
+          type: integer
+          minimum: 0
+        series_dropped:
+          type: integer
+          minimum: 0
+        series:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              route_class:
+                type: string
+              method:
+                type: string
+              outcome:
+                type: string
+              count:
+                type: integer
+                minimum: 0
     UpdateStatusRequest:
       type: object
       additionalProperties: false

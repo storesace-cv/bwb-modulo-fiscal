@@ -108,6 +108,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 | CSP | `default-src 'none'; style-src 'self'; …` — sem scripts no slice 1 |
 | CSRF | Cookie HttpOnly + campo form one-time (`RM-UI-002`); SameSite=Strict |
 | Segredos | Nunca no HTML/logs/cookies |
+| Observabilidade | `adminobs` — health/ready/metrics; `X-Request-Id`; logs sanitizados (RM-BO-007) |
 
 ## Referências
 
@@ -116,4 +117,5 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 - [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`, `DEC-BO-002`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
 - [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) (GAP-013)
 - [ROADMAP.md](../../ROADMAP.md)
+- [admin-observability.md](../07-operations/admin-observability.md) (RM-BO-007)
 - [system-architecture.md](system-architecture.md)

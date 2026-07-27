@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.30-draft — 2026-07-27
+
+- Admin ops: **RM-BO-007** — observabilidade backoffice (`internal/adminobs`): `GET /admin/v1/health|ready`, `GET /admin/v1/ops/metrics`; correlação `X-Request-Id`; logs/métricas sanitizados (sem tokens/cookies/DSN/NIF/subject); cardinalidade limitada; OpenAPI admin `0.1.7-draft`; docs operação/segurança; ≠ SecAdm plaintext / deploy.
+
 ## 0.2.29-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-001** — fundação estrutural `internal/saftao` + embed XSD (`source_id` AO-SAFT-XSD-1.01_01, `pending_validation`); skeleton AuditFile + SHA-256; ≠ conformidade/certificação/AO-* / deploy.
