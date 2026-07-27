@@ -15,13 +15,14 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-009)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-010)
 
 - Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro.
-- RM-SAFT-008: `PurchaseInvoices` **sem** `Line` (XSD); Supplier MasterFiles.
-- RM-SAFT-009: `MapSalesLedgerToExport` — filtro scope/período; `SalesLedgerRecord` + enriquecimentos; relatório de omissões (Hash/CustomerID/imposto não inventados); chama `BuildIncrementalExport`.
+- RM-SAFT-007…008: `Payments` e `PurchaseInvoices` (este **sem** `Line` no XSD).
+- RM-SAFT-009: `MapSalesLedgerToExport` com omissões (Hash/imposto não inventados).
+- RM-SAFT-010: `Store.ListSealedSalesForSAFT` lê `documents`/`document_lines` → `SalesLedgerRecord` (escala quantidade 1/10000); enriquecimento SAF-T continua explícito.
 - Distinção: **estrutura XSD** ≠ conformidade legal / AGT / `AO-*`.
-- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**. SHA-256 `e9a938e1…`.
+- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**.
 
 ## Nota PurchaseInvoices (XSD)
 

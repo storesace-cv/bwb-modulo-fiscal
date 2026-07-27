@@ -26,7 +26,7 @@ func TestMapSalesLedgerPeriodScopeAndOmissions(t *testing.T) {
 		Lines: []saftao.SalesLedgerLine{{
 			LineNo:         1,
 			Description:    "Servico",
-			QuantityScaled: 1000,
+			QuantityScaled: 10000,
 			UnitPriceCents: 10000,
 			TaxCode:        "ISE",
 		}},
@@ -97,7 +97,7 @@ func TestMapSalesLedgerDeterministic(t *testing.T) {
 		IssuedAt: time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
 		SealedAt: time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
 		Lines: []saftao.SalesLedgerLine{{
-			LineNo: 1, Description: "X", QuantityScaled: 1000, UnitPriceCents: 500, TaxCode: "ISE",
+			LineNo: 1, Description: "X", QuantityScaled: 10000, UnitPriceCents: 500, TaxCode: "ISE",
 		}},
 		Hash: "H", HashControl: "0", SourceID: "SRC", CustomerID: "C9",
 		UnitOfMeasure: "UN", TaxPercentage: "0.00", ProductCodeByLine: map[int]string{1: "PX"},

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.38-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-010** — `ListSealedSalesForSAFT` (persistência→`SalesLedgerRecord`); escala qty 1/10000; sem inventar Hash/ProductCode; ≠ AGT/AO-*/deploy.
+
 ## 0.2.37-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-009** — mapeamento livro→`BuildIncrementalExport` (`MapSalesLedgerToExport`: scope/período, omissões, sem inventar Hash/imposto); ≠ AGT/AO-*/deploy.
