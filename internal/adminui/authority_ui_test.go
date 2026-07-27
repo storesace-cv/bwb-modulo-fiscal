@@ -176,3 +176,43 @@ func TestAdminUIAuthorityProfilesOwnerOnly(t *testing.T) {
 		t.Fatalf("admin want 403 got %d", rr.Code)
 	}
 }
+
+func TestAdminUIAuthorityReadinessPage(t *testing.T) {
+	ctx := t.Context()
+	path := filepath.Join(t.TempDir(), "adminui-readiness.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	reg := adminregistry.New(sqlDB, adminregistry.DialectSQLite, nil)
+	h, err := adminui.New(reg, "development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	adminui.Mount(mux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{
+		Subject: "owner-ui", Roles: []adminauth.Role{adminauth.RoleOwner},
+	}}, h)
+	p, err := reg.CreateAuthorityProfile(ctx, adminregistry.CreateAuthorityProfileInput{
+		Environment: "homologation", DisplayName: "UI ready", Status: "draft",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/authority-profiles/"+p.ID+"/readiness", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "config_ready") || !strings.Contains(body, "external_verified") {
+		t.Fatalf("%s", body)
+	}
+	if strings.Contains(body, "BEGIN ") {
+		t.Fatal("pem leaked")
+	}
+}

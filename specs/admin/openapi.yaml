@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.13-draft
+  version: 0.1.14-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -21,6 +21,7 @@ info:
     0.1.11: Validação offline par chave-cert (RM-AGTPREP-005); ≠ external_verified / AGT.
     0.1.12: Probe config simulador + prod fail-closed (RM-AGTPREP-006); simulator≠AGT.
     0.1.13: Checklist readiness 4 flags + métricas authority (RM-AGTPREP-007).
+    0.1.14: UI SSR readiness checklist (RM-BO-011); contrato HTTP inalterado.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
