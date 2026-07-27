@@ -24,6 +24,7 @@
         <li><a href="/admin/ui/saft"{{if eq .Nav "saft"}} aria-current="page"{{end}}>SAF-T</a></li>
         <li><a href="/admin/ui/audit"{{if eq .Nav "audit"}} aria-current="page"{{end}}>Auditoria</a></li>
         {{if .IsOwner}}
+        <li><a href="/admin/ui/authority-profiles"{{if eq .Nav "authority"}} aria-current="page"{{end}}>Autoridade</a></li>
         <li><a href="/admin/ui/secadm/metadata"{{if eq .Nav "secadm"}} aria-current="page"{{end}}>SecAdm</a></li>
         {{end}}
       </ul>

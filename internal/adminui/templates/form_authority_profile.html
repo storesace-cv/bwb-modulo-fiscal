@@ -1,0 +1,78 @@
+{{define "content"}}
+<p class="hint">Apenas metadados e nomes lógicos de refs. Nunca cole PEM, PKCS#12, passwords ou tokens.</p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/ui/authority-profiles">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="display_name">Nome</label>
+    <input id="display_name" name="display_name" required maxlength="120" autocomplete="off">
+  </p>
+  <p>
+    <label for="environment">Ambiente</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation">homologation</option>
+      <option value="production">production</option>
+    </select>
+  </p>
+  <p>
+    <label for="status">Estado</label>
+    <select id="status" name="status">
+      <option value="draft">draft</option>
+      <option value="validated">validated</option>
+      <option value="active">active</option>
+      <option value="revoked">revoked</option>
+    </select>
+  </p>
+  <p>
+    <label for="taxpayer_id">Taxpayer ID (opcional)</label>
+    <input id="taxpayer_id" name="taxpayer_id" autocomplete="off">
+  </p>
+  <p>
+    <label for="scope_id">Scope ID (opcional)</label>
+    <input id="scope_id" name="scope_id" autocomplete="off">
+  </p>
+  <fieldset>
+    <legend>Operações FE catalogadas</legend>
+    {{range .KnownOps}}
+    <label><input type="checkbox" name="allowed_operations" value="{{.}}"> {{.}}</label>
+    {{end}}
+  </fieldset>
+  <p>
+    <label for="pending_external">pending_external (linhas key=value)</label>
+    <textarea id="pending_external" name="pending_external" rows="3" placeholder="unknown_claim=pending_external"></textarea>
+  </p>
+  <p>
+    <label for="producer_credential_ref">Ref credencial (nome lógico)</label>
+    <input id="producer_credential_ref" name="producer_credential_ref" maxlength="64" autocomplete="off">
+  </p>
+  <p>
+    <label for="producer_key_ref">Ref chave (nome lógico)</label>
+    <input id="producer_key_ref" name="producer_key_ref" maxlength="64" autocomplete="off">
+  </p>
+  <p>
+    <label for="certificate_ref">Ref certificado (nome lógico)</label>
+    <input id="certificate_ref" name="certificate_ref" maxlength="64" autocomplete="off">
+  </p>
+  <p>
+    <label for="algorithm_declared">Algoritmo declarado</label>
+    <select id="algorithm_declared" name="algorithm_declared">
+      <option value="">—</option>
+      <option value="RS256">RS256</option>
+      <option value="pending_external">pending_external</option>
+    </select>
+  </p>
+  <p>
+    <label for="key_id_sanitized">Key-id (sanitizado)</label>
+    <input id="key_id_sanitized" name="key_id_sanitized" maxlength="64" autocomplete="off">
+  </p>
+  <p>
+    <label for="fingerprint_sanitized">Fingerprint (sanitizado)</label>
+    <input id="fingerprint_sanitized" name="fingerprint_sanitized" maxlength="128" autocomplete="off">
+  </p>
+  <p>
+    <label for="expires_at">Validade (RFC3339 UTC, opcional)</label>
+    <input id="expires_at" name="expires_at" placeholder="2027-01-01T00:00:00Z" autocomplete="off">
+  </p>
+  <p><button type="submit">Criar</button> <a href="/admin/ui/authority-profiles">Cancelar</a></p>
+</form>
+{{end}}

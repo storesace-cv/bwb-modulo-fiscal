@@ -110,6 +110,11 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	}
 	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
 	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
+	mux.Handle("GET /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.authorityProfiles)))
+	mux.Handle("GET /admin/ui/authority-profiles/new", wrapOwner(http.HandlerFunc(h.newAuthorityProfileForm)))
+	mux.Handle("POST /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.createAuthorityProfileForm)))
+	mux.Handle("GET /admin/ui/authority-profiles/{profile_id}/edit", wrapOwner(http.HandlerFunc(h.editAuthorityProfileForm)))
+	mux.Handle("POST /admin/ui/authority-profiles/{profile_id}", wrapOwner(http.HandlerFunc(h.patchAuthorityProfileForm)))
 	mux.Handle("POST /admin/ui/auth/logout", obsAuth(http.HandlerFunc(h.logout)))
 
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
