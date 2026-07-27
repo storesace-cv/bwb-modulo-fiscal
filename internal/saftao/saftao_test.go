@@ -187,6 +187,9 @@ func TestPendingRegulatoryMarkers(t *testing.T) {
 	if saftao.PendingPaymentTypeSemantics == "" {
 		t.Fatal("pending payment marker required")
 	}
+	if saftao.PendingPurchaseTypeSemantics == "" {
+		t.Fatal("pending purchase marker required")
+	}
 }
 
 func TestMovementOfGoodsStructuralAndXSD(t *testing.T) {
@@ -246,6 +249,30 @@ func TestPaymentsStructuralAndXSD(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), "Payments") || !strings.Contains(string(raw), "PaymentRefNo") {
 		t.Fatalf("marshal: %s", raw)
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
+}
+
+func TestPurchaseInvoicesStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalPurchaseInvoicesFixture()
+	if err := doc.SourceDocuments.PurchaseInvoices.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "PurchaseInvoices") || !strings.Contains(s, "PurchaseType") {
+		t.Fatalf("marshal: %s", s)
+	}
+	if strings.Contains(s, "<Line>") {
+		t.Fatal("PurchaseInvoices XSD has no Line — must not invent lines")
 	}
 	if !saftao.XSDValidatorAvailable() {
 		t.Skip("xmllint not available")

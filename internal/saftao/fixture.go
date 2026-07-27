@@ -362,3 +362,61 @@ func MinimalPaymentsFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalPurchaseInvoicesFixture returns a synthetic purchase AuditFile (no Line — per XSD).
+func MinimalPurchaseInvoicesFixture() AuditFile {
+	addr := &AddressStructure{
+		AddressDetail: "Rua Fornecedor 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	inv := PurchaseInvoice{
+		InvoiceNo:    "FORN-FT-2026-0001",
+		Hash:         "0",
+		SourceID:     "AP1",
+		InvoiceDate:  MustDate("2026-01-20"),
+		PurchaseType: PurchaseTypeFT,
+		SupplierID:   "S1",
+		DocumentTotals: DocumentTotals{
+			TaxPayable: MustMoney2("14.00"),
+			NetTotal:   MustMoney2("100.00"),
+			GrossTotal: MustMoney2("114.00"),
+		},
+	}
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "A", // Aquisição
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			Supplier: []Supplier{{
+				SupplierID:           "S1",
+				AccountID:            "Desconhecido",
+				SupplierTaxID:        "5417111111",
+				CompanyName:          "Fornecedor Sintetico",
+				BillingAddress:       addr,
+				SelfBillingIndicator: 0,
+			}},
+		},
+		SourceDocuments: &SourceDocuments{
+			PurchaseInvoices: &PurchaseInvoices{
+				NumberOfEntries: "1",
+				Invoice:         []PurchaseInvoice{inv},
+			},
+		},
+	}
+}

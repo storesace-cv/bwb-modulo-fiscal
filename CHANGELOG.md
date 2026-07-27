@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.36-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-008** — tipagem `PurchaseInvoices`/`PurchaseInvoice` + `Supplier` (XSD: sem Line; sem TotalDebit/Credit no contentor); fixture XSD; ≠ AO-* / AGT / deploy.
+
 ## 0.2.35-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-007** — tipagem `Payments`/`Payment`/`Line` (+ PaymentTax/PaymentMethod; enums XSD); caps fail-closed; fixture XSD; ≠ AO-* / AGT / deploy.
