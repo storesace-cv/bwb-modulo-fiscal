@@ -15,20 +15,19 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-007)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-008)
 
 - Pacote Go [`internal/saftao`](../../internal/saftao/): skeleton `AuditFile` + inventário de elementos do XSD embutido.
-- RM-SAFT-002…006: Header/SalesInvoices/MovementOfGoods/WorkingDocuments tipados; export incremental; fixtures XSD.
-- RM-SAFT-007: tipagem `Payments` / `Payment` / `Line` / `PaymentTax` / `PaymentMethod`; enums `PaymentType`/`PaymentStatus`/`SourcePayment`; `SourceDocumentID`; limites de contagem fail-closed (`MaxTableEntries`/`MaxLinesPerDocument`).
-- Distinção: **estrutura XSD** ≠ **conformidade legal** / aceitação AGT / requisitos `AO-*` confirmados.
-- Pendências: algoritmo `Hash`/`HashControl`; semântica de activação de tipos por adesão (`DEC-PROD-002`/`004`).
-- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, status **`pending_validation`**. SHA-256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631`.
-- Namespace: `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · versão `1.01_01`. SAF-T ≠ JWS/RS256 FE.
+- RM-SAFT-002…007: Header/SalesInvoices/MovementOfGoods/WorkingDocuments/Payments tipados; export incremental; fixtures XSD; caps fail-closed.
+- RM-SAFT-008: tipagem `PurchaseInvoices` / `PurchaseInvoice` + `Supplier` MasterFiles; **sem** `Line` (confirmado no XSD); contentor só `NumberOfEntries` (sem `TotalDebit`/`TotalCredit`); `InvoiceNo` texto max 60 (≠ padrão vendas).
+- Distinção: **estrutura XSD** ≠ **conformidade legal** / AGT / `AO-*`.
+- Pendências: algoritmo `Hash`; semântica de activação de tipos por adesão.
+- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**. SHA-256 `e9a938e1…`. Namespace `urn:OECD:StandardAuditFile-Tax:AO_1.01_01`.
 - Esta fundação **não** gera ficheiro de produção nem fecha `AO-*`.
 
 ## Nota PurchaseInvoices (XSD)
 
-`PurchaseInvoices` **existe** no XSD canónico (`SourceDocuments/PurchaseInvoices`). A tipagem tipada fica em RM-SAFT-008. Forma XSD: `NumberOfEntries` + `Invoice` **sem** `Line` (totais + `PurchaseType` + `SupplierID`); **sem** `TotalDebit`/`TotalCredit` no contentor.
+`PurchaseInvoices` **existe** no XSD canónico. Forma: `NumberOfEntries` + `Invoice*` **sem** linhas de detalhe; totais no documento; `PurchaseType` + `SupplierID`. Tipagem em RM-SAFT-008 — **não** inventar `Line`.
 
 ## Decisões iniciais
 

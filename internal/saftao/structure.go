@@ -66,9 +66,14 @@ type Customer struct {
 	SelfBillingIndicator int               `xml:"SelfBillingIndicator"`
 }
 
-// Supplier stub.
+// Supplier is MasterFiles/Supplier (required children for keyref fixtures).
 type Supplier struct {
-	SupplierID string `xml:"SupplierID"`
+	SupplierID           string            `xml:"SupplierID"`
+	AccountID            string            `xml:"AccountID"`
+	SupplierTaxID        string            `xml:"SupplierTaxID"`
+	CompanyName          string            `xml:"CompanyName"`
+	BillingAddress       *AddressStructure `xml:"BillingAddress"`
+	SelfBillingIndicator int               `xml:"SelfBillingIndicator"`
 }
 
 // Product is MasterFiles/Product (XSD order: ProductType before ProductCode).
@@ -99,14 +104,14 @@ type GeneralLedgerEntries struct {
 
 // SourceDocuments holds the five L3 document tables (DEC-PROD-001); exposure follows enrolment.
 type SourceDocuments struct {
-	SalesInvoices    *SalesInvoices       `xml:"SalesInvoices,omitempty"`
-	MovementOfGoods  *MovementOfGoods     `xml:"MovementOfGoods,omitempty"`
-	WorkingDocuments *WorkingDocuments    `xml:"WorkingDocuments,omitempty"`
-	Payments         *Payments            `xml:"Payments,omitempty"`
-	PurchaseInvoices *DocumentTableTotals `xml:"PurchaseInvoices,omitempty"`
+	SalesInvoices    *SalesInvoices    `xml:"SalesInvoices,omitempty"`
+	MovementOfGoods  *MovementOfGoods  `xml:"MovementOfGoods,omitempty"`
+	WorkingDocuments *WorkingDocuments `xml:"WorkingDocuments,omitempty"`
+	Payments         *Payments         `xml:"Payments,omitempty"`
+	PurchaseInvoices *PurchaseInvoices `xml:"PurchaseInvoices,omitempty"`
 }
 
-// DocumentTableTotals is the NumberOfEntries/TotalDebit/TotalCredit prefix shared by several tables.
+// DocumentTableTotals is the NumberOfEntries/TotalDebit/TotalCredit prefix (legacy stub helper).
 type DocumentTableTotals struct {
 	NumberOfEntries string `xml:"NumberOfEntries"`
 	TotalDebit      string `xml:"TotalDebit"`
