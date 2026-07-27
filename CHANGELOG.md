@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.60-draft — 2026-07-27
+
+- Backoffice: **RM-BO-011** — UI owner-only `/admin/ui/authority-profiles/{id}/readiness` (checklist 4 flags); ≠ AGT / plaintext.
+
 ## 0.2.59-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-007** — checklist readiness 4 flags (`GET …/authority-profiles/{id}/readiness`); métricas `route=authority` sem labels sensíveis; OpenAPI `0.1.13-draft`; `external_verified=false`.

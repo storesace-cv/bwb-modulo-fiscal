@@ -322,3 +322,26 @@ const (
 	errPendingExternalFormat simpleError = "pending_external: use linhas key=value"
 	errExpiresFormat         simpleError = "expires_at: use RFC3339 (UTC)"
 )
+
+func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("profile_id")
+	p, err := h.Registry.GetAuthorityProfile(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	v := viewAuthorityProfile(p)
+	complete := v.ConfigReady && v.SecretsReady && v.OfflineValidated && !v.ExternalVerified
+	h.recordUIAccess(r, "ui.authority.readiness", "authority_profile", id, adminaudit.ResultSuccess)
+	h.render(w, "authority_readiness.html", authorityReadinessPage{
+		pageBase: h.baseWithCSRF(w, r, "Readiness autoridade", "Checklist readiness", "authority"),
+		Profile:  v,
+		Complete: complete,
+	})
+}
+
+type authorityReadinessPage struct {
+	pageBase
+	Profile  authorityProfileView
+	Complete bool
+}

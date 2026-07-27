@@ -1,0 +1,22 @@
+{{define "content"}}
+<p class="hint">Checklist local de preparação AGT (≠ ligação real). <code>external_verified</code> permanece false.</p>
+<p><a href="/admin/ui/authority-profiles">← Perfis</a> · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/edit">Editar</a></p>
+<h2>{{.Profile.DisplayName}}</h2>
+<p class="mono">{{.Profile.ID}} · {{.Profile.Environment}} · {{.Profile.Status}}</p>
+<table>
+  <thead><tr><th>Flag</th><th>Valor</th></tr></thead>
+  <tbody>
+    <tr><td>config_ready</td><td>{{.Profile.ConfigReady}}</td></tr>
+    <tr><td>secrets_ready</td><td>{{.Profile.SecretsReady}}</td></tr>
+    <tr><td>offline_validated</td><td>{{.Profile.OfflineValidated}}</td></tr>
+    <tr><td>external_verified</td><td>{{.Profile.ExternalVerified}}</td></tr>
+  </tbody>
+</table>
+{{if .Complete}}
+<p class="flash" role="status">checklist_complete=true (ainda ≠ AGT / external_verified=false)</p>
+{{else}}
+<p class="flash error" role="status">checklist_complete=false — completar config/secrets/offline</p>
+{{end}}
+<p>Fingerprint: <span class="mono">{{.Profile.Fingerprint}}</span> · Alg: {{.Profile.Algorithm}} · Key-id: <span class="mono">{{.Profile.KeyID}}</span></p>
+<p>API: <code>GET /admin/v1/authority-profiles/{{.Profile.ID}}/readiness</code></p>
+{{end}}
