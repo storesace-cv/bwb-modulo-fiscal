@@ -363,7 +363,10 @@ deploy_verify_release_manifest() {
     grep -q 'Strict-Transport-Security "max-age=31536000"' nginx/tls.open.conf
     grep -q 'limit_req zone=bwb_documents burst=20' nginx/tls.open.conf
     grep -q 'rate=10r/s' nginx/limit-req-documents.conf
-    ! grep -q 'location ^~ /admin/' nginx/tls.deny.conf
+    if grep -q 'location ^~ /admin/' nginx/tls.deny.conf; then
+      echo "error: tls.deny.conf must not proxy /admin/" >&2
+      return 1
+    fi
     deploy_sha256_check SHA256SUMS
     if [[ -n "${expected_commit}" ]]; then
       test "$(tr -d '[:space:]' <COMMIT)" = "${expected_commit}"
