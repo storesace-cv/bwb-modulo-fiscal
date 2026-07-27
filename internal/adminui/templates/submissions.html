@@ -1,5 +1,18 @@
 {{define "content"}}
-<p class="hint">Estados de outbox/ledger/outcome — sem corpos de documento nem segredos.</p>
+<p class="hint">Fila ops (RM-BO-015): estados derivados, tentativas, next_attempt e erro sanitizado — sem payload, JWS, NIF ou segredos.</p>
+<form method="get" action="/admin/ui/submissions" class="inline">
+  <label for="queue_status">Fila</label>
+  <select id="queue_status" name="queue_status">
+    <option value="">todas</option>
+    <option value="pending"{{if eq .QueueStatus "pending"}} selected{{end}}>pending</option>
+    <option value="processing"{{if eq .QueueStatus "processing"}} selected{{end}}>processing</option>
+    <option value="accepted"{{if eq .QueueStatus "accepted"}} selected{{end}}>accepted</option>
+    <option value="rejected"{{if eq .QueueStatus "rejected"}} selected{{end}}>rejected</option>
+    <option value="retry"{{if eq .QueueStatus "retry"}} selected{{end}}>retry</option>
+    <option value="manual_review"{{if eq .QueueStatus "manual_review"}} selected{{end}}>manual_review</option>
+  </select>
+  <button type="submit">Filtrar</button>
+</form>
 {{if .Items}}
 <table>
   <caption class="sr-only">Submissões</caption>
@@ -7,9 +20,12 @@
     <tr>
       <th scope="col">Submission</th>
       <th scope="col">Documento</th>
+      <th scope="col">Fila</th>
       <th scope="col">Outbox</th>
-      <th scope="col">Ledger</th>
-      <th scope="col">Outcome</th>
+      <th scope="col">Tentativas</th>
+      <th scope="col">Next attempt</th>
+      <th scope="col">Request ID</th>
+      <th scope="col">Erro</th>
       <th scope="col">Actualizado</th>
     </tr>
   </thead>
@@ -18,9 +34,12 @@
     <tr>
       <td class="mono">{{.SubmissionID}}</td>
       <td class="mono">{{.DocumentID}}</td>
+      <td>{{.QueueStatus}}</td>
       <td>{{.OutboxState}}</td>
-      <td>{{.LedgerStatus}}</td>
-      <td>{{.LatestOutcome}}</td>
+      <td>{{.Attempts}}</td>
+      <td class="mono">{{if .NextAttemptAt}}{{.NextAttemptAt.UTC.Format "2006-01-02 15:04:05"}}Z{{else}}—{{end}}</td>
+      <td class="mono">{{if .AuthorityRequestID}}{{.AuthorityRequestID}}{{else}}—{{end}}</td>
+      <td>{{if .SanitizedError}}{{.SanitizedError}}{{else}}—{{end}}</td>
       <td>{{.OutboxUpdatedAt.UTC.Format "2006-01-02 15:04:05"}}Z</td>
     </tr>
   {{end}}

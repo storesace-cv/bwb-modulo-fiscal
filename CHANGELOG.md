@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.70-draft — 2026-07-27
+
+- Backoffice: **RM-BO-015** — painel de filas/submissões enriquecido (queue_status derivado, attempts, next_attempt_at, authority_request_id, sanitized_error); filtro UI/API; OpenAPI admin `0.1.24-draft`; sem payload/JWS/NIF/segredos; reutiliza outbox existente.
+
 ## 0.2.69-draft — 2026-07-27
 
 - Backoffice: **RM-BO-014** — séries por estabelecimento/ambiente/tipo (`draft`→`active`→`closed`; código único; sem reutilizar/retroceder; optimistic concurrency); migração `0011`; UI/API admin; OpenAPI `0.1.23-draft`; `ExpectedVersion=11`; ≠ autoridade de numeração / solicitarSerie AGT.

@@ -22,12 +22,17 @@ type auditEventResp struct {
 }
 
 type submissionSummaryResp struct {
-	SubmissionID    string `json:"submission_id"`
-	DocumentID      string `json:"document_id"`
-	OutboxState     string `json:"outbox_state"`
-	LedgerStatus    string `json:"ledger_status,omitempty"`
-	LatestOutcome   string `json:"latest_outcome,omitempty"`
-	OutboxUpdatedAt string `json:"outbox_updated_at"`
+	SubmissionID       string  `json:"submission_id"`
+	DocumentID         string  `json:"document_id"`
+	OutboxState        string  `json:"outbox_state"`
+	QueueStatus        string  `json:"queue_status"`
+	LedgerStatus       string  `json:"ledger_status,omitempty"`
+	LatestOutcome      string  `json:"latest_outcome,omitempty"`
+	Attempts           int64   `json:"attempts"`
+	NextAttemptAt      *string `json:"next_attempt_at,omitempty"`
+	AuthorityRequestID string  `json:"authority_request_id,omitempty"`
+	SanitizedError     string  `json:"sanitized_error,omitempty"`
+	OutboxUpdatedAt    string  `json:"outbox_updated_at"`
 }
 
 type secretMetadataResp struct {
@@ -71,19 +76,30 @@ func (h *Handler) listOpsSubmissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := adminops.ClampLimit(r.URL.Query().Get("limit"))
-	rows, err := h.Ops.ListSubmissionSummaries(r.Context(), limit)
+	rows, err := h.Ops.ListSubmissionSummariesFiltered(r.Context(), adminops.SubmissionFilter{
+		Limit:       limit,
+		QueueStatus: r.URL.Query().Get("queue_status"),
+		OutboxState: r.URL.Query().Get("outbox_state"),
+	})
 	if err != nil {
 		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
 		return
 	}
 	out := make([]submissionSummaryResp, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, submissionSummaryResp{
+		item := submissionSummaryResp{
 			SubmissionID: row.SubmissionID, DocumentID: row.DocumentID,
-			OutboxState: row.OutboxState, LedgerStatus: row.LedgerStatus,
-			LatestOutcome:   row.LatestOutcome,
+			OutboxState: row.OutboxState, QueueStatus: row.QueueStatus,
+			LedgerStatus: row.LedgerStatus, LatestOutcome: row.LatestOutcome,
+			Attempts: row.Attempts, AuthorityRequestID: row.AuthorityRequestID,
+			SanitizedError:  row.SanitizedError,
 			OutboxUpdatedAt: row.OutboxUpdatedAt.UTC().Format(time.RFC3339Nano),
-		})
+		}
+		if row.NextAttemptAt != nil {
+			s := row.NextAttemptAt.UTC().Format(time.RFC3339Nano)
+			item.NextAttemptAt = &s
+		}
+		out = append(out, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": out})
 }
