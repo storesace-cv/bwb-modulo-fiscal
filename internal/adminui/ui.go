@@ -103,6 +103,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/establishments", wrapRead(http.HandlerFunc(h.establishments)))
 	mux.Handle("GET /admin/ui/bindings", wrapRead(http.HandlerFunc(h.bindings)))
 	mux.Handle("GET /admin/ui/submissions", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.submissions)))
+	mux.Handle("GET /admin/ui/saft", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.saftStatus)))
 	mux.Handle("GET /admin/ui/audit", wrapPerm(adminauth.PermAuditRead, http.HandlerFunc(h.auditEvents)))
 	wrapOwner := func(next http.Handler) http.Handler {
 		return obsAuth(htmlRequireOwnerSecAdm(next))

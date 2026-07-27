@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.50-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-022** — UI admin read-only `/admin/ui/saft` (metadados estruturais + GAPs persistência; sem download XML/NIF/tokens); ≠ AO-* / AGT / deploy.
+
 ## 0.2.49-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-021** — loader WorkingDocuments (`WorkingLedgerSource`/`SyntheticWorkingLedger` + `MapWorkingLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-WRK-PERSIST); ≠ AO-* / AGT / deploy.
