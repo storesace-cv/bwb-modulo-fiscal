@@ -28,8 +28,11 @@ Estado operacional confirmado do sandbox BWB:
 | Medição `:18080` | **ausente** (desactivada após S3C2) |
 | API | `127.0.0.1:8080` (não exposta externamente) |
 | PostgreSQL | loopback apenas |
+| Admin auth | `fail_closed` até IdP real — [admin-idp-onboarding.md](admin-idp-onboarding.md) |
+| Grants pós-0012 | [grants-schema12-runtime-admin.sql](../../deploy/postgres/grants-schema12-runtime-admin.sql) (aplicar após migrate 3→12) |
 | Kit POS | validação sandbox **9/9** — [s4-pos-kit-ops-validation-report.md](s4-pos-kit-ops-validation-report.md) |
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
+| Promote schema12 | **RM-OPS-006** — ver relatório de promoção quando CONCLUÍDO |
 
 Rotação de credenciais no sandbox: `fiscal-admin` issue/rotate/revoke via helper (`credential_store`). **Não** usar `dev_static` no sandbox.
 
