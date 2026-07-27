@@ -50,10 +50,10 @@ type problem struct {
 }
 
 type createTaxpayerReq struct {
-	NIF          string             `json:"nif"`
-	LegalName    string             `json:"legal_name"`
-	Status       string             `json:"status"`
-	FEEnrollment *feEnrollmentReq   `json:"fe_enrollment,omitempty"`
+	NIF          string           `json:"nif"`
+	LegalName    string           `json:"legal_name"`
+	Status       string           `json:"status"`
+	FEEnrollment *feEnrollmentReq `json:"fe_enrollment,omitempty"`
 }
 
 type feEnrollmentReq struct {
@@ -68,12 +68,12 @@ type feEnrollmentResp struct {
 }
 
 type taxpayerResp struct {
-	TaxpayerID     string             `json:"taxpayer_id"`
-	NIF            string             `json:"nif"`
-	LegalName      string             `json:"legal_name"`
-	Status         string             `json:"status"`
-	CreatedAt      string             `json:"created_at"`
-	FEEnrollments  []feEnrollmentResp `json:"fe_enrollments"`
+	TaxpayerID    string             `json:"taxpayer_id"`
+	NIF           string             `json:"nif"`
+	LegalName     string             `json:"legal_name"`
+	Status        string             `json:"status"`
+	CreatedAt     string             `json:"created_at"`
+	FEEnrollments []feEnrollmentResp `json:"fe_enrollments"`
 }
 
 type createEstablishmentReq struct {
