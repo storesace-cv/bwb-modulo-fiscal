@@ -51,12 +51,14 @@ Via `bwb-fiscal-deploy-helper smtp-send-test` (sem IdP; sem expor password):
 {"status":"sent","to_domain":"bwb.pt","tls_mode":"implicit","port":465,"request_id":"cli_smtp_send_test"}
 ```
 
+**Confirmação de entrega (sanitizada):** owner confirmou recepção do email de teste no domínio `bwb.pt` (2026-07-27). Sem reenvio; sem alteração de configuração SMTP.
+
 ## Incidentes
 
 | ID | Descrição | Estado |
 |---|---|---|
 | INC-OPS-008-1 | Helper host sem suporte `smtp.env` → restore envs | **RESOLVIDO** |
-| INC-OPS-008-2 | `smtp_tls_failed` (cert expirado + hostname) | **RESOLVIDO** — provider renovou cert; 465 implicit validado; teste `sent` |
+| INC-OPS-008-2 | `smtp_tls_failed` (cert expirado + hostname) | **RESOLVIDO** — provider renovou cert; 465 implicit validado; teste `sent` + confirmação owner |
 
 ## Evidências
 
