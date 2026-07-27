@@ -33,10 +33,10 @@ func TestMigrationVersionParity(t *testing.T) {
 			t.Fatalf("version mismatch at %d: postgres=%s sqlite=%s", i, pgVers[i], sqVers[i])
 		}
 	}
-	if pgVers[len(pgVers)-1] != "0007" {
-		t.Fatalf("latest version = %s, want 0007", pgVers[len(pgVers)-1])
+	if pgVers[len(pgVers)-1] != "0008" {
+		t.Fatalf("latest version = %s, want 0008", pgVers[len(pgVers)-1])
 	}
-	if dbmigrate.ExpectedVersion != 7 {
+	if dbmigrate.ExpectedVersion != 8 {
 		t.Fatalf("ExpectedVersion = %d", dbmigrate.ExpectedVersion)
 	}
 }

@@ -158,14 +158,14 @@ func (s *Store) ListByResource(ctx context.Context, resourceType, resourceID str
 		q = `SELECT event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result, COALESCE(request_id, '')
 FROM ` + s.t("admin_audit_events") + `
 WHERE resource_type = $1 AND resource_id = $2
-ORDER BY occurred_at DESC
+ORDER BY occurred_at DESC, event_id DESC
 LIMIT $3`
 		args = []any{resourceType, resourceID, limit}
 	} else {
 		q = `SELECT event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result, COALESCE(request_id, '')
 FROM ` + s.t("admin_audit_events") + `
 WHERE resource_type = ? AND resource_id = ?
-ORDER BY occurred_at DESC
+ORDER BY occurred_at DESC, event_id DESC
 LIMIT ?`
 		args = []any{resourceType, resourceID, limit}
 	}

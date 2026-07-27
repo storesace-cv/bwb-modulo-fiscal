@@ -341,6 +341,7 @@ type authorityHistoryPage struct {
 	pageBase
 	Profile authorityProfileView
 	Events  []authorityHistoryEvent
+	Error   string
 }
 
 type authorityHistoryEvent struct {
@@ -359,9 +360,15 @@ func (h *Handler) authorityHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	v := viewAuthorityProfile(p)
 	var events []authorityHistoryEvent
-	if h.Audit != nil {
-		list, err := h.Audit.ListByResource(r.Context(), "authority_profile", id, 100)
-		if err == nil {
+	errMsg := ""
+	if h.Audit == nil {
+		errMsg = "auditoria indisponível"
+	} else {
+		list, lerr := h.Audit.ListByResource(r.Context(), "authority_profile", id, 100)
+		if lerr != nil {
+			errMsg = "erro ao carregar histórico"
+			h.recordUIAccess(r, "ui.authority.history", "authority_profile", id, adminaudit.ResultError)
+		} else {
 			events = make([]authorityHistoryEvent, 0, len(list))
 			for _, e := range list {
 				events = append(events, authorityHistoryEvent{
@@ -371,12 +378,13 @@ func (h *Handler) authorityHistory(w http.ResponseWriter, r *http.Request) {
 					Result:       e.Result,
 				})
 			}
+			h.recordUIAccess(r, "ui.authority.history", "authority_profile", id, adminaudit.ResultSuccess)
 		}
 	}
-	h.recordUIAccess(r, "ui.authority.history", "authority_profile", id, adminaudit.ResultSuccess)
 	h.render(w, "authority_history.html", authorityHistoryPage{
 		pageBase: h.baseWithCSRF(w, r, "Histórico autoridade", "Histórico append-only", "authority"),
 		Profile:  v,
 		Events:   events,
+		Error:    errMsg,
 	})
 }

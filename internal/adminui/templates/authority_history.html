@@ -1,5 +1,6 @@
 {{define "content"}}
 <p class="hint">Histórico append-only (auditoria). Sem plaintext. <code>external_verified=false</code>. ≠ AGT.</p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
 <p><a href="/admin/ui/authority-profiles">← Perfis</a>
  · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/readiness">Readiness</a></p>
 <h2>{{.Profile.DisplayName}}</h2>

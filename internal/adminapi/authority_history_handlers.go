@@ -15,6 +15,10 @@ func (h *Handler) getAuthorityProfileHistory(w http.ResponseWriter, r *http.Requ
 	claims, _ := adminauth.ClaimsFromContext(r.Context())
 	id := r.PathValue("profile_id")
 	action := "authority_profile.history"
+	if h.Audit == nil {
+		writeProblem(w, r, http.StatusServiceUnavailable, "ADMIN_AUDIT_UNAVAILABLE", "Audit Unavailable")
+		return
+	}
 	if _, err := h.Registry.GetAuthorityProfile(r.Context(), id); err != nil {
 		if errors.Is(err, adminregistry.ErrNotFound) {
 			writeProblem(w, r, http.StatusNotFound, "ADMIN_NOT_FOUND", "Not Found")
