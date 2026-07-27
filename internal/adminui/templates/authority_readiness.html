@@ -1,7 +1,8 @@
 {{define "content"}}
 <p class="hint">Checklist local de preparação AGT (≠ ligação real). <code>external_verified</code> permanece false.</p>
 <p><a href="/admin/ui/authority-profiles">← Perfis</a> · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/edit">Editar</a>
-   · <a href="/admin/ui/secadm/material">SecAdm material</a></p>
+   · <a href="/admin/ui/secadm/material">SecAdm material</a>
+   · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/history">Histórico</a></p>
 <h2>{{.Profile.DisplayName}}</h2>
 <p class="mono">{{.Profile.ID}} · {{.Profile.Environment}} · {{.Profile.Status}}</p>
 <table>

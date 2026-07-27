@@ -1,0 +1,27 @@
+{{define "content"}}
+<p class="hint">Histórico append-only (auditoria). Sem plaintext. <code>external_verified=false</code>. ≠ AGT.</p>
+<p><a href="/admin/ui/authority-profiles">← Perfis</a>
+ · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/readiness">Readiness</a></p>
+<h2>{{.Profile.DisplayName}}</h2>
+<p class="mono">{{.Profile.ID}}</p>
+{{if not .Events}}
+<p>Sem eventos registados para este perfil.</p>
+{{else}}
+<table>
+  <thead>
+    <tr><th>Quando</th><th>Actor</th><th>Acção</th><th>Resultado</th></tr>
+  </thead>
+  <tbody>
+  {{range .Events}}
+    <tr>
+      <td class="mono">{{.OccurredAt}}</td>
+      <td>{{.ActorSubject}}</td>
+      <td class="mono">{{.Action}}</td>
+      <td>{{.Result}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+<p>API: <code>GET /admin/v1/authority-profiles/{{.Profile.ID}}/history</code></p>
+{{end}}

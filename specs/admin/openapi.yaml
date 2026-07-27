@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.17-draft
+  version: 0.1.18-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -25,6 +25,7 @@ info:
     0.1.15: UI SSR wizard owner-only /admin/ui/authority-profiles/wizard (RM-AGTPREP-008); draft only; contrato HTTP inalterado.
     0.1.16: Gate activação AuthorityProfile fail-closed (RM-AGTPREP-009); active exige config+secrets+offline; external_verified=false.
     0.1.17: Lifecycle material AuthorityProfile (RM-AGTPREP-010); rotate invalida offline_validated; sem plaintext.
+    0.1.18: Histórico append-only AuthorityProfile (RM-AGTPREP-011); audit list por perfil; sem plaintext.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -581,6 +582,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /authority-profiles/{profile_id}/history:
+    get:
+      operationId: getAuthorityProfileHistory
+      summary: Histórico append-only de auditoria do perfil
+      description: >
+        RM-AGTPREP-011. audit.read. Eventos admin_audit_events filtrados por
+        resource_type=authority_profile. Sem plaintext; append-only; external_verified=false.
+      tags: [Autoridade]
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Lista append-only
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [profile_id, append_only, external_verified, items, note]
+                properties:
+                  profile_id: { type: string }
+                  append_only: { type: boolean, const: true }
+                  external_verified: { type: boolean, const: false }
+                  note: { type: string }
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /authority-profiles/{profile_id}/readiness:
     get:
       operationId: getAuthorityProfileReadiness

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.64-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-011** — histórico append-only AuthorityProfile (`GET …/history` + UI); `ListByResource` em adminaudit; OpenAPI `0.1.18-draft`; ≠ AGT / plaintext.
+
 ## 0.2.63-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-010** — lifecycle material AuthorityProfile (`GET …/material-lifecycle`); rotate/revoke com `authority_profile_id` invalida `offline_validated` e sincroniza fingerprint sanitizado; OpenAPI `0.1.17-draft`; ≠ AGT / plaintext.

@@ -336,3 +336,47 @@ type authorityReadinessPage struct {
 	Profile  authorityProfileView
 	Complete bool
 }
+
+type authorityHistoryPage struct {
+	pageBase
+	Profile authorityProfileView
+	Events  []authorityHistoryEvent
+}
+
+type authorityHistoryEvent struct {
+	OccurredAt   string
+	ActorSubject string
+	Action       string
+	Result       string
+}
+
+func (h *Handler) authorityHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("profile_id")
+	p, err := h.Registry.GetAuthorityProfile(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	v := viewAuthorityProfile(p)
+	var events []authorityHistoryEvent
+	if h.Audit != nil {
+		list, err := h.Audit.ListByResource(r.Context(), "authority_profile", id, 100)
+		if err == nil {
+			events = make([]authorityHistoryEvent, 0, len(list))
+			for _, e := range list {
+				events = append(events, authorityHistoryEvent{
+					OccurredAt:   sanitizeTS(e.OccurredAt),
+					ActorSubject: e.ActorSubject,
+					Action:       e.Action,
+					Result:       e.Result,
+				})
+			}
+		}
+	}
+	h.recordUIAccess(r, "ui.authority.history", "authority_profile", id, adminaudit.ResultSuccess)
+	h.render(w, "authority_history.html", authorityHistoryPage{
+		pageBase: h.baseWithCSRF(w, r, "Histórico autoridade", "Histórico append-only", "authority"),
+		Profile:  v,
+		Events:   events,
+	})
+}

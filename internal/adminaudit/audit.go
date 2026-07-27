@@ -139,6 +139,60 @@ LIMIT ` + ph
 	return out, rows.Err()
 }
 
+// ListByResource returns newest append-only events for one resource (no secrets).
+func (s *Store) ListByResource(ctx context.Context, resourceType, resourceID string, limit int) ([]Event, error) {
+	resourceType = strings.TrimSpace(resourceType)
+	resourceID = strings.TrimSpace(resourceID)
+	if resourceType == "" || resourceID == "" {
+		return nil, fmt.Errorf("adminaudit: resource obrigatório")
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	var q string
+	var args []any
+	if s.dialect == DialectPostgres {
+		q = `SELECT event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result, COALESCE(request_id, '')
+FROM ` + s.t("admin_audit_events") + `
+WHERE resource_type = $1 AND resource_id = $2
+ORDER BY occurred_at DESC
+LIMIT $3`
+		args = []any{resourceType, resourceID, limit}
+	} else {
+		q = `SELECT event_id, occurred_at, actor_subject, actor_roles, action, resource_type, resource_id, result, COALESCE(request_id, '')
+FROM ` + s.t("admin_audit_events") + `
+WHERE resource_type = ? AND resource_id = ?
+ORDER BY occurred_at DESC
+LIMIT ?`
+		args = []any{resourceType, resourceID, limit}
+	}
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("adminaudit: list by resource: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Event, 0)
+	for rows.Next() {
+		var e Event
+		var occurred any
+		if err := rows.Scan(
+			&e.ID, &occurred, &e.ActorSubject, &e.ActorRoles,
+			&e.Action, &e.ResourceType, &e.ResourceID, &e.Result, &e.RequestID,
+		); err != nil {
+			return nil, err
+		}
+		e.OccurredAt, err = parseTime(occurred)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 func parseTime(v any) (time.Time, error) {
 	switch x := v.(type) {
 	case time.Time:
