@@ -189,6 +189,7 @@ type formPage struct {
 	Error          string
 	Taxpayers      []adminregistry.Taxpayer
 	Establishments []adminregistry.Establishment
+	Establishment  *adminregistry.Establishment
 	Binding        *adminregistry.ScopeBinding
 }
 
