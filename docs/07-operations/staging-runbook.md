@@ -21,6 +21,8 @@ Estado operacional confirmado do sandbox BWB:
 | Schema | `ExpectedVersion=12` / `dirty=false` |
 | HTTPS `/v1/health` | 200 |
 | HTTPS `/v1/documents` sem token | **401** |
+| HTTPS `/admin/v1/ready` | 200 (`fail_closed`; IdP não configurado) — após **RM-OPS-007** |
+| HTTPS `/admin/ui/login` | HTML login; login interactivo **indisponível** até IdP |
 | Create / replay autenticados | **201** |
 | Rate limit documentos | Nginx `10r/s`, `burst=20`, `limit_req_status 429` |
 | S3C2 open state | **`confirmed`** |
@@ -32,7 +34,8 @@ Estado operacional confirmado do sandbox BWB:
 | Grants pós-0012 | [grants-schema12-runtime-admin.sql](../../deploy/postgres/grants-schema12-runtime-admin.sql) (aplicar após migrate 3→12) |
 | Kit POS | validação sandbox **9/9** — [s4-pos-kit-ops-validation-report.md](s4-pos-kit-ops-validation-report.md) |
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
-| Promote schema12 | **RM-OPS-006** — ver relatório de promoção quando CONCLUÍDO |
+| Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
+| Nginx admin proxy | **RM-OPS-007** — open conf com `/admin/v1/` + `/admin/ui`; deny-all sem admin |
 
 Rotação de credenciais no sandbox: `fiscal-admin` issue/rotate/revoke via helper (`credential_store`). **Não** usar `dev_static` no sandbox.
 

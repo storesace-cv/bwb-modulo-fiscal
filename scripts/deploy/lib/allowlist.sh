@@ -357,10 +357,13 @@ deploy_verify_release_manifest() {
     grep -q 'deny all' nginx/tls.deny.conf
     grep -q 'location = /v1/documents' nginx/tls.deny.conf
     grep -q 'location = /v1/documents' nginx/tls.open.conf
+    grep -q 'location ^~ /admin/v1/' nginx/tls.open.conf
+    grep -q 'location ^~ /admin/ui' nginx/tls.open.conf
     grep -q 'Strict-Transport-Security "max-age=31536000"' nginx/tls.deny.conf
     grep -q 'Strict-Transport-Security "max-age=31536000"' nginx/tls.open.conf
     grep -q 'limit_req zone=bwb_documents burst=20' nginx/tls.open.conf
     grep -q 'rate=10r/s' nginx/limit-req-documents.conf
+    ! grep -q 'location ^~ /admin/' nginx/tls.deny.conf
     deploy_sha256_check SHA256SUMS
     if [[ -n "${expected_commit}" ]]; then
       test "$(tr -d '[:space:]' <COMMIT)" = "${expected_commit}"
