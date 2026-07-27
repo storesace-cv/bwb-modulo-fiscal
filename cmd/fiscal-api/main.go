@@ -135,16 +135,18 @@ func run() int {
 	}
 	adminObs := adminobs.New(logger, adminAuthMode)
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
-		Registry:    registry,
-		Audit:       auditStore,
-		Ops:         opsStore,
-		SecretsMeta: secretsMeta,
-		SecAdm:      secGate,
-		Obs:         adminObs,
-		DB:          sqlDB,
-		AuthMode:    adminAuthMode,
-		Version:     cfg.Version,
-		Revision:    buildinfo.Revision,
+		Registry:      registry,
+		Audit:         auditStore,
+		Ops:           opsStore,
+		SecretsMeta:   secretsMeta,
+		SecAdm:        secGate,
+		Obs:           adminObs,
+		DB:            sqlDB,
+		AuthMode:      adminAuthMode,
+		Version:       cfg.Version,
+		Revision:      buildinfo.Revision,
+		AuthorityMode: cfg.Authority,
+		FiscalEnv:     docsCfg.Env,
 	})
 
 	uiHandler, err := adminui.New(registry, docsCfg.Env)

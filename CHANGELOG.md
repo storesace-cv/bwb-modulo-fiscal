@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.58-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-006** — `internal/authority/prep` (probe simulador + fail-closed produção/`agt-*`); API `/admin/v1/authority/probe-config`; OpenAPI `0.1.12-draft`; ≠ AGT.
+
 ## 0.2.57-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-005** — validação offline par chave-cert/cadeia/validade/finalidade/fingerprint (`/admin/v1/secadm/material/validate-offline`); OpenAPI `0.1.11-draft`; `external_verified=false`; ≠ AGT.

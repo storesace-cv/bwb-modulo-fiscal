@@ -48,6 +48,7 @@ func EnvKeys() []string {
 		envVersion,
 		envFiscalPackage,
 		envAuthority,
+		envEnv,
 		envReadTimeout,
 		envReadHeaderTimeout,
 		envWriteTimeout,
@@ -62,7 +63,9 @@ type Config struct {
 	Version       string
 	FiscalPackage string
 	// Authority selects outbox transport: only "simulator" is enabled in this slice.
-	Authority         string
+	Authority string
+	// Env mirrors FISCAL_ENV for authority fail-closed rules (RM-AGTPREP-006).
+	Env               string
 	ReadTimeout       time.Duration
 	ReadHeaderTimeout time.Duration
 	WriteTimeout      time.Duration
@@ -77,6 +80,7 @@ func Load() (Config, error) {
 		Version:           getenv(envVersion, defaultVersion),
 		FiscalPackage:     getenv(envFiscalPackage, defaultFiscalPackage),
 		Authority:         getenv(envAuthority, defaultAuthority),
+		Env:               getenv(envEnv, envDevelopment),
 		ReadTimeout:       defaultReadTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		WriteTimeout:      defaultWriteTimeout,
@@ -121,6 +125,9 @@ func (c Config) Validate() error {
 	if err := validateAuthority(c.Authority); err != nil {
 		return err
 	}
+	if err := validateAuthorityForEnv(c.Env, c.Authority); err != nil {
+		return err
+	}
 	if c.ReadTimeout <= 0 {
 		return fmt.Errorf("%s must be > 0", envReadTimeout)
 	}
@@ -155,6 +162,15 @@ func validateAuthority(raw string) error {
 		return fmt.Errorf("%s=%q invalid; allowed: %s (reserved later: %s, %s)",
 			envAuthority, raw, AuthoritySimulator, AuthorityAGTHML, AuthorityAGTPRD)
 	}
+}
+
+func validateAuthorityForEnv(fiscalEnv, authority string) error {
+	env := strings.ToLower(strings.TrimSpace(fiscalEnv))
+	mode := strings.ToLower(strings.TrimSpace(authority))
+	if env == "production" && mode == AuthoritySimulator {
+		return fmt.Errorf("%s=production incompatível com %s=%s (fail-closed; RM-AGTPREP-006)", envEnv, envAuthority, AuthoritySimulator)
+	}
+	return nil
 }
 
 func getenv(key, fallback string) string {
