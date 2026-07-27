@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.47-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-019** — loader PurchaseInvoices (`PurchaseLedgerSource`/`SyntheticPurchaseLedger` + `MapPurchaseLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-PUR-PERSIST); sem Line; ≠ AO-* / AGT / deploy.
+
 ## 0.2.46-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-018** — loader Payments (`PaymentLedgerSource`/`SyntheticPaymentLedger` + `MapPaymentsLedgerToExport`); `Store` → `ErrUnsupported` (GAP-SAFT-PAY-PERSIST); omissões sem dados sensíveis; ≠ AO-* / AGT / deploy.
