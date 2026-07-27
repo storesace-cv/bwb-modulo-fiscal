@@ -363,6 +363,57 @@ func MinimalPaymentsFixture() AuditFile {
 	}
 }
 
+// MinimalTaxTableFixture returns a synthetic AuditFile with MasterFiles/TaxTable for local XSD validation.
+// Rates are placeholders — not AO-* confirmed tax law.
+func MinimalTaxTableFixture() AuditFile {
+	addr := &AddressStructure{
+		AddressDetail: "Rua Sintetica 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	pct := "14.00"
+	pctZero := "0.00"
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "F",
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			TaxTable: &TaxTable{
+				TaxTableEntry: []TaxTableEntry{
+					{
+						TaxType:          TaxTypeIVA,
+						TaxCountryRegion: "AO",
+						TaxCode:          "NOR",
+						Description:      "IVA taxa normal sintetica",
+						TaxPercentage:    &pct,
+					},
+					{
+						TaxType:       TaxTypeIVA,
+						TaxCode:       "ISE",
+						Description:   "IVA isenta sintetica",
+						TaxPercentage: &pctZero,
+					},
+				},
+			},
+		},
+	}
+}
+
 // MinimalPurchaseInvoicesFixture returns a synthetic purchase AuditFile (no Line — per XSD).
 func MinimalPurchaseInvoicesFixture() AuditFile {
 	addr := &AddressStructure{
