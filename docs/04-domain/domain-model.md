@@ -52,7 +52,8 @@ Qualquer falha ⇒ tipo **indisponível** para emissão nesse contexto.
 
 ### Credenciais, referências e autorização
 
-- `ProducerCredential` — Basic Auth AGT do **produtor**; âmbito plataforma BWB + ambiente (não tenant/contribuinte).
+- `ProducerCredential` — Basic Auth AGT do **produtor**; âmbito plataforma BWB + ambiente (não tenant/contribuinte); material só SecAdm/`SecretStore`.
+- `AuthorityProfile` — configuração **pública** de preparação AGT por ambiente (`homologation`\|`production`): operações catalogadas, refs lógicas, readiness (`config_ready` / `secrets_ready` / `offline_validated` / `external_verified=false`); **nunca** segredos (`DEC-BO-004`).
 - `ProducerKeyRef` — referência ao par RSA do **produtor**; âmbito plataforma + ambiente.
 - `TaxpayerKeyRef` — referência ao par RSA do **contribuinte**; âmbito contribuinte + ambiente; material no `SecretStore` da plataforma só se permitido por DEC-REG-KEY-CUSTODY.
 - `TaxpayerKeyAuthorization` — evidência de autorização do contribuinte para custódia/uso (necessária; **não suficiente** sem permissão oficial AGT).
