@@ -7,6 +7,7 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/prep"
 )
 
 type authorityProfilesPage struct {
@@ -314,6 +315,19 @@ const (
 	errExpiresFormat         simpleError = "expires_at: use RFC3339 (UTC)"
 )
 
+type authorityReadinessPage struct {
+	pageBase
+	Profile  authorityProfileView
+	Complete bool
+	Alerts   []authorityAlertView
+}
+
+type authorityAlertView struct {
+	Code     string
+	Severity string
+	Message  string
+}
+
 func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("profile_id")
 	p, err := h.Registry.GetAuthorityProfile(r.Context(), id)
@@ -323,18 +337,20 @@ func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
 	}
 	v := viewAuthorityProfile(p)
 	complete := v.ConfigReady && v.SecretsReady && v.OfflineValidated && !v.ExternalVerified
+	rawAlerts := prep.BuildReadinessAlerts(p, time.Time{})
+	alerts := make([]authorityAlertView, 0, len(rawAlerts))
+	for _, a := range rawAlerts {
+		alerts = append(alerts, authorityAlertView{
+			Code: a.Code, Severity: string(a.Severity), Message: a.Message,
+		})
+	}
 	h.recordUIAccess(r, "ui.authority.readiness", "authority_profile", id, adminaudit.ResultSuccess)
 	h.render(w, "authority_readiness.html", authorityReadinessPage{
 		pageBase: h.baseWithCSRF(w, r, "Readiness autoridade", "Checklist readiness", "authority"),
 		Profile:  v,
 		Complete: complete,
+		Alerts:   alerts,
 	})
-}
-
-type authorityReadinessPage struct {
-	pageBase
-	Profile  authorityProfileView
-	Complete bool
 }
 
 type authorityHistoryPage struct {

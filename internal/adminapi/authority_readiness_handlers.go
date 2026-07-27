@@ -2,13 +2,15 @@ package adminapi
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/prep"
 )
 
-// getAuthorityReadiness returns the canonical 4-flag checklist (RM-AGTPREP-007).
+// getAuthorityReadiness returns the canonical 4-flag checklist (RM-AGTPREP-007/012).
 // external_verified is always false. No secrets in response.
 func (h *Handler) getAuthorityReadiness(w http.ResponseWriter, r *http.Request) {
 	claims, _ := adminauth.ClaimsFromContext(r.Context())
@@ -20,6 +22,7 @@ func (h *Handler) getAuthorityReadiness(w http.ResponseWriter, r *http.Request) 
 	}
 	ext := false
 	checklistComplete := p.ConfigReady && p.SecretsReady && p.OfflineValidated && !ext
+	alerts := prep.BuildReadinessAlerts(p, time.Time{})
 	_ = h.Audit.Record(r.Context(), claims, "authority.readiness", "authority_profile", id, adminaudit.ResultSuccess, requestID(r))
 	if h.Obs != nil {
 		if checklistComplete {
@@ -37,6 +40,7 @@ func (h *Handler) getAuthorityReadiness(w http.ResponseWriter, r *http.Request) 
 		"offline_validated":  p.OfflineValidated,
 		"external_verified":  false,
 		"checklist_complete": checklistComplete,
+		"alerts":             alerts,
 		"rbac": map[string]any{
 			"read":  "ops.read",
 			"write": "secadm.write + owner subject allowlist",
@@ -45,6 +49,7 @@ func (h *Handler) getAuthorityReadiness(w http.ResponseWriter, r *http.Request) 
 			"external_verified=false até probe AGT real (GAP-006)",
 			"métricas sem labels sensíveis (route=authority)",
 			"auditoria append-only em authority.readiness",
+			"alerts sanitizados (RM-AGTPREP-012); ≠ AGT",
 		},
 	})
 }

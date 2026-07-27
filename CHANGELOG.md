@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.65-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-012** — alertas sanitizados readiness (`alerts` em GET readiness + UI); OpenAPI `0.1.19-draft`; ≠ AGT / plaintext / external_verified.
+
 ## 0.2.64-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-011** — histórico append-only AuthorityProfile (`GET …/history` + UI); `ListByResource` + índice `0008`; OpenAPI `0.1.18-draft`; `ExpectedVersion=8`; ≠ AGT / plaintext.
