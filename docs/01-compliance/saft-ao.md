@@ -15,19 +15,17 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-008)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-009)
 
-- Pacote Go [`internal/saftao`](../../internal/saftao/): skeleton `AuditFile` + inventário de elementos do XSD embutido.
-- RM-SAFT-002…007: Header/SalesInvoices/MovementOfGoods/WorkingDocuments/Payments tipados; export incremental; fixtures XSD; caps fail-closed.
-- RM-SAFT-008: tipagem `PurchaseInvoices` / `PurchaseInvoice` + `Supplier` MasterFiles; **sem** `Line` (confirmado no XSD); contentor só `NumberOfEntries` (sem `TotalDebit`/`TotalCredit`); `InvoiceNo` texto max 60 (≠ padrão vendas).
-- Distinção: **estrutura XSD** ≠ **conformidade legal** / AGT / `AO-*`.
-- Pendências: algoritmo `Hash`; semântica de activação de tipos por adesão.
-- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**. SHA-256 `e9a938e1…`. Namespace `urn:OECD:StandardAuditFile-Tax:AO_1.01_01`.
-- Esta fundação **não** gera ficheiro de produção nem fecha `AO-*`.
+- Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro.
+- RM-SAFT-008: `PurchaseInvoices` **sem** `Line` (XSD); Supplier MasterFiles.
+- RM-SAFT-009: `MapSalesLedgerToExport` — filtro scope/período; `SalesLedgerRecord` + enriquecimentos; relatório de omissões (Hash/CustomerID/imposto não inventados); chama `BuildIncrementalExport`.
+- Distinção: **estrutura XSD** ≠ conformidade legal / AGT / `AO-*`.
+- XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**. SHA-256 `e9a938e1…`.
 
 ## Nota PurchaseInvoices (XSD)
 
-`PurchaseInvoices` **existe** no XSD canónico. Forma: `NumberOfEntries` + `Invoice*` **sem** linhas de detalhe; totais no documento; `PurchaseType` + `SupplierID`. Tipagem em RM-SAFT-008 — **não** inventar `Line`.
+Existe no XSD; **sem** linhas de detalhe; tipado em RM-SAFT-008.
 
 ## Decisões iniciais
 

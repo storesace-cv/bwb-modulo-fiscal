@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.37-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-009** — mapeamento livro→`BuildIncrementalExport` (`MapSalesLedgerToExport`: scope/período, omissões, sem inventar Hash/imposto); ≠ AGT/AO-*/deploy.
+
 ## 0.2.36-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-008** — tipagem `PurchaseInvoices`/`PurchaseInvoice` + `Supplier` (XSD: sem Line; sem TotalDebit/Credit no contentor); fixture XSD; ≠ AO-* / AGT / deploy.
