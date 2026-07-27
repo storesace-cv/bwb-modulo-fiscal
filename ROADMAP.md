@@ -42,7 +42,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
 | OpenAPI | POS `0.1.6-draft` · Admin `0.1.8-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
-| Schema | `ExpectedVersion=7` |
+| Schema | `ExpectedVersion=8` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 

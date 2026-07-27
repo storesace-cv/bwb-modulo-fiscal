@@ -2,7 +2,7 @@
 
 ## 0.2.64-draft — 2026-07-27
 
-- Backoffice: **RM-AGTPREP-011** — histórico append-only AuthorityProfile (`GET …/history` + UI); `ListByResource` em adminaudit; OpenAPI `0.1.18-draft`; ≠ AGT / plaintext.
+- Backoffice: **RM-AGTPREP-011** — histórico append-only AuthorityProfile (`GET …/history` + UI); `ListByResource` + índice `0008`; OpenAPI `0.1.18-draft`; `ExpectedVersion=8`; ≠ AGT / plaintext.
 
 ## 0.2.63-draft — 2026-07-27
 

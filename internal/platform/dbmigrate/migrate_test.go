@@ -68,7 +68,7 @@ func TestFiscalMigrateCLIOnlyUpVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "version=7") {
+	if !strings.Contains(string(out), "version=8") {
 		t.Fatalf("unexpected version output: %s", out)
 	}
 
