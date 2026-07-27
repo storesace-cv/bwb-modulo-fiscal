@@ -2,6 +2,7 @@
 
 ## 0.2.30-draft — 2026-07-27
 
+- SAF-T AO: **RM-SAFT-002** — inventário Header + stubs SourceDocuments/MasterFiles a partir do XSD (`pending_validation`); `NewSalesSkeleton`; ≠ export válido / AO-* / AGT / deploy.
 - Admin ops: **RM-BO-007** — observabilidade backoffice (`internal/adminobs`): `GET /admin/v1/health|ready`, `GET /admin/v1/ops/metrics`; correlação `X-Request-Id`; logs/métricas sanitizados (sem tokens/cookies/DSN/NIF/subject); cardinalidade limitada; OpenAPI admin `0.1.7-draft`; docs operação/segurança; ≠ SecAdm plaintext / deploy.
 
 ## 0.2.29-draft — 2026-07-27

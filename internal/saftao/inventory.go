@@ -14,6 +14,11 @@ var requiredGlobalElements = []string{
 	"GeneralLedgerEntries", "SourceDocuments",
 }
 
+// SourceDocuments child table names (local elements under SourceDocuments in XSD).
+var requiredSourceDocumentTables = []string{
+	"SalesInvoices", "WorkingDocuments", "Payments", "PurchaseInvoices",
+}
+
 // Inventory lists global xs:element names found in the embedded XSD.
 func Inventory() ([]string, error) {
 	raw, err := XSDBytes()
@@ -79,6 +84,22 @@ func EnsureRequiredStructure() error {
 	meta := Meta()
 	if meta.Certified || meta.Status != "pending_validation" {
 		return fmt.Errorf("saftao: meta de conformidade incorrecta")
+	}
+	return nil
+}
+
+// EnsureSourceDocumentsTables checks SalesInvoices and sibling tables exist in the XSD text.
+func EnsureSourceDocumentsTables() error {
+	raw, err := XSDBytes()
+	if err != nil {
+		return err
+	}
+	s := string(raw)
+	for _, name := range requiredSourceDocumentTables {
+		needle := `name="` + name + `"`
+		if !strings.Contains(s, needle) {
+			return fmt.Errorf("saftao: SourceDocuments sem tabela %q", name)
+		}
 	}
 	return nil
 }
