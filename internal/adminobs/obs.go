@@ -47,6 +47,7 @@ const (
 	RouteOps            RouteClass = "ops"
 	RouteSecretMeta     RouteClass = "secret_meta"
 	RouteSecAdm         RouteClass = "secadm"
+	RouteAuthority      RouteClass = "authority"
 	RouteUI             RouteClass = "ui"
 	RouteOther          RouteClass = "other"
 )
@@ -118,6 +119,8 @@ func ClassifyPath(path string) RouteClass {
 		return RouteEstablishments
 	case strings.HasPrefix(p, "/admin/v1/scope-bindings"):
 		return RouteBindings
+	case strings.HasPrefix(p, "/admin/v1/authority"):
+		return RouteAuthority
 	case strings.HasPrefix(p, "/admin/ui"):
 		return RouteUI
 	default:
