@@ -15,6 +15,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminui"
@@ -128,12 +129,22 @@ func run() int {
 	registry := adminregistry.New(sqlDB, regDialect, nil)
 	auditStore := adminaudit.New(sqlDB, auditDialect, nil)
 	opsStore := adminops.New(sqlDB, opsDialect)
+	adminAuthMode := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE"))
+	if adminAuthMode == "" {
+		adminAuthMode = "fail_closed"
+	}
+	adminObs := adminobs.New(logger, adminAuthMode)
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
 		Registry:    registry,
 		Audit:       auditStore,
 		Ops:         opsStore,
 		SecretsMeta: secretsMeta,
 		SecAdm:      secGate,
+		Obs:         adminObs,
+		DB:          sqlDB,
+		AuthMode:    adminAuthMode,
+		Version:     cfg.Version,
+		Revision:    buildinfo.Revision,
 	})
 
 	uiHandler, err := adminui.New(registry, docsCfg.Env)
@@ -145,12 +156,13 @@ func run() int {
 	uiHandler.Audit = auditStore
 	uiHandler.SecretsMeta = secretsMeta
 	uiHandler.TokenAuth = adminAuthn
+	uiHandler.Obs = adminObs
 	if uiHandler.CSRF != nil {
 		uiHandler.CSRF.SetSecure(uiHandler.CookieSecure)
 	}
 	injectSubject := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_INJECT_SUBJECT"))
 	var injectRoles []adminauth.Role
-	if docsCfg.Env == config.EnvDevelopment() && strings.TrimSpace(os.Getenv("FISCAL_ADMIN_AUTH_MODE")) == "injected" {
+	if docsCfg.Env == config.EnvDevelopment() && adminAuthMode == "injected" {
 		injectRoles, _ = adminauth.ParseRoles(os.Getenv("FISCAL_ADMIN_INJECT_ROLES"))
 	}
 	uiAuth := adminui.BuildUIAuthenticator(adminAuthn, uiHandler.Sessions, docsCfg.Env, injectSubject, injectRoles)

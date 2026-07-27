@@ -2,6 +2,7 @@
 package adminapi
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
@@ -29,6 +31,11 @@ type Handler struct {
 	Ops         *adminops.Store
 	SecretsMeta secretstore.AdminView // optional; Metadata only — never Reveal
 	SecAdm      *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
+	Obs         *adminobs.Observer    // optional; RM-BO-007
+	DB          *sql.DB               // readiness ping only
+	AuthMode    string                // fail_closed|injected|oidc_jwt
+	Version     string
+	Revision    string
 }
 
 type problem struct {
@@ -97,8 +104,16 @@ type scopeBindingResp struct {
 	CreatedAt           string `json:"created_at"`
 }
 
-// Mount registers /admin/v1 routes on mux with auth middleware.
+// Mount registers /admin/v1 routes on mux with auth + observability middleware.
 func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
+	if h == nil {
+		return
+	}
+	obs := h.Obs
+	if obs == nil {
+		obs = adminobs.New(nil, h.AuthMode)
+	}
+	authn = adminobs.ObservingAuthenticator{Inner: authn, Obs: obs}
 	authMW := adminauth.Middleware(authn)
 	writeCadastro := adminauth.RequirePermission(adminauth.PermCadastroWrite)
 	readCadastro := adminauth.RequirePermission(adminauth.PermCadastroRead)
@@ -106,26 +121,40 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	readOps := adminauth.RequirePermission(adminauth.PermOpsRead)
 	readSecretMeta := adminauth.RequirePermission(adminauth.PermSecretMetaRead)
 
-	mux.Handle("POST /admin/v1/taxpayers", authMW(writeCadastro(http.HandlerFunc(h.createTaxpayer))))
-	mux.Handle("GET /admin/v1/taxpayers", authMW(readCadastro(http.HandlerFunc(h.listTaxpayers))))
-	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", authMW(readCadastro(http.HandlerFunc(h.getTaxpayer))))
-	mux.Handle("PATCH /admin/v1/taxpayers/{taxpayer_id}", authMW(writeCadastro(http.HandlerFunc(h.patchTaxpayer))))
-	mux.Handle("POST /admin/v1/establishments", authMW(writeCadastro(http.HandlerFunc(h.createEstablishment))))
-	mux.Handle("GET /admin/v1/establishments", authMW(readCadastro(http.HandlerFunc(h.listEstablishments))))
-	mux.Handle("GET /admin/v1/establishments/{establishment_id}", authMW(readCadastro(http.HandlerFunc(h.getEstablishment))))
-	mux.Handle("PATCH /admin/v1/establishments/{establishment_id}", authMW(writeCadastro(http.HandlerFunc(h.patchEstablishment))))
-	mux.Handle("POST /admin/v1/scope-bindings", authMW(writeCadastro(http.HandlerFunc(h.createScopeBinding))))
-	mux.Handle("GET /admin/v1/scope-bindings", authMW(readCadastro(http.HandlerFunc(h.listScopeBindings))))
-	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", authMW(readCadastro(http.HandlerFunc(h.getScopeBinding))))
-	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", authMW(writeCadastro(http.HandlerFunc(h.patchScopeBinding))))
-	mux.Handle("GET /admin/v1/audit-events", authMW(readAudit(http.HandlerFunc(h.listAuditEvents))))
-	mux.Handle("GET /admin/v1/ops/submissions", authMW(readOps(http.HandlerFunc(h.listOpsSubmissions))))
-	mux.Handle("GET /admin/v1/secret-refs/metadata", authMW(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
+	wrap := func(next http.Handler) http.Handler {
+		return obs.Middleware(authMW(adminobs.CaptureClaims(next)))
+	}
+	wrapPublic := func(next http.Handler) http.Handler {
+		return obs.Middleware(next)
+	}
+
+	mux.Handle("GET /admin/v1/health", wrapPublic(adminobs.HealthHandler(h.Version, h.Revision)))
+	mux.Handle("GET /admin/v1/ready", wrapPublic(adminobs.ReadyHandler(adminobs.ReadyDeps{
+		DB: h.DB, AuthMode: h.AuthMode, SecAdmReady: h.SecAdm != nil,
+		Version: h.Version, Revision: h.Revision,
+	})))
+	mux.Handle("GET /admin/v1/ops/metrics", wrap(readOps(adminobs.MetricsHandler(obs))))
+
+	mux.Handle("POST /admin/v1/taxpayers", wrap(writeCadastro(http.HandlerFunc(h.createTaxpayer))))
+	mux.Handle("GET /admin/v1/taxpayers", wrap(readCadastro(http.HandlerFunc(h.listTaxpayers))))
+	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", wrap(readCadastro(http.HandlerFunc(h.getTaxpayer))))
+	mux.Handle("PATCH /admin/v1/taxpayers/{taxpayer_id}", wrap(writeCadastro(http.HandlerFunc(h.patchTaxpayer))))
+	mux.Handle("POST /admin/v1/establishments", wrap(writeCadastro(http.HandlerFunc(h.createEstablishment))))
+	mux.Handle("GET /admin/v1/establishments", wrap(readCadastro(http.HandlerFunc(h.listEstablishments))))
+	mux.Handle("GET /admin/v1/establishments/{establishment_id}", wrap(readCadastro(http.HandlerFunc(h.getEstablishment))))
+	mux.Handle("PATCH /admin/v1/establishments/{establishment_id}", wrap(writeCadastro(http.HandlerFunc(h.patchEstablishment))))
+	mux.Handle("POST /admin/v1/scope-bindings", wrap(writeCadastro(http.HandlerFunc(h.createScopeBinding))))
+	mux.Handle("GET /admin/v1/scope-bindings", wrap(readCadastro(http.HandlerFunc(h.listScopeBindings))))
+	mux.Handle("GET /admin/v1/scope-bindings/{scope_id}", wrap(readCadastro(http.HandlerFunc(h.getScopeBinding))))
+	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", wrap(writeCadastro(http.HandlerFunc(h.patchScopeBinding))))
+	mux.Handle("GET /admin/v1/audit-events", wrap(readAudit(http.HandlerFunc(h.listAuditEvents))))
+	mux.Handle("GET /admin/v1/ops/submissions", wrap(readOps(http.HandlerFunc(h.listOpsSubmissions))))
+	mux.Handle("GET /admin/v1/secret-refs/metadata", wrap(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 
 	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)
-	mux.Handle("PUT /admin/v1/secadm/secret-refs", authMW(secadmWrite(http.HandlerFunc(h.secadmPut))))
-	mux.Handle("POST /admin/v1/secadm/secret-refs/rotate", authMW(secadmWrite(http.HandlerFunc(h.secadmRotate))))
-	mux.Handle("POST /admin/v1/secadm/secret-refs/revoke", authMW(secadmWrite(http.HandlerFunc(h.secadmRevoke))))
+	mux.Handle("PUT /admin/v1/secadm/secret-refs", wrap(secadmWrite(http.HandlerFunc(h.secadmPut))))
+	mux.Handle("POST /admin/v1/secadm/secret-refs/rotate", wrap(secadmWrite(http.HandlerFunc(h.secadmRotate))))
+	mux.Handle("POST /admin/v1/secadm/secret-refs/revoke", wrap(secadmWrite(http.HandlerFunc(h.secadmRevoke))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
@@ -421,5 +450,8 @@ func writeProblem(w http.ResponseWriter, r *http.Request, status int, code, titl
 }
 
 func requestID(r *http.Request) string {
+	if id := adminobs.RequestIDFromContext(r.Context()); id != "" {
+		return id
+	}
 	return strings.TrimSpace(r.Header.Get(headerRequestID))
 }

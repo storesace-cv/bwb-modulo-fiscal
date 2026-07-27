@@ -88,6 +88,8 @@ govulncheck ./...
 ```bash
 go run ./cmd/fiscal-api
 curl -sS http://127.0.0.1:8080/v1/health
+curl -sS http://127.0.0.1:8080/admin/v1/health
+curl -sS http://127.0.0.1:8080/admin/v1/ready
 ```
 
 ## Variáveis do endpoint de documentos (`fiscal-api`)
