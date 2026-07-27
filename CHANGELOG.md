@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.42-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-014** — `BuildIncrementalExport` com `PurchaseInvoices` (sem Line; Supplier; allowlist PurchaseType; período); ≠ AO-* / AGT / deploy.
+
 ## 0.2.41-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-013** — `BuildIncrementalExport` com `Payments` (filtro período, allowlist PaymentType, Customer refs, XML determinístico); ≠ AO-* / AGT / deploy.

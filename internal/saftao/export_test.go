@@ -182,3 +182,57 @@ func TestIncrementalExportPayments(t *testing.T) {
 		t.Fatal("empty AllowedPaymentTypes must reject payments")
 	}
 }
+
+func TestIncrementalExportPurchaseInvoices(t *testing.T) {
+	base := saftao.MinimalPurchaseInvoicesFixture()
+	out := base.SourceDocuments.PurchaseInvoices.Invoice[0]
+	out.InvoiceNo = "FORN-FT-2025-9999"
+	out.InvoiceDate = saftao.MustDate("2025-12-31")
+
+	req := saftao.ExportRequest{
+		Header:               *base.Header,
+		EnabledGroups:        []saftao.DocumentGroup{saftao.GroupPurchaseInvoices},
+		AllowedPurchaseTypes: []saftao.PurchaseType{saftao.PurchaseTypeFT},
+		Suppliers:            base.MasterFiles.Supplier,
+		PurchaseInvoices:     append([]saftao.PurchaseInvoice{}, base.SourceDocuments.PurchaseInvoices.Invoice[0], out),
+		ValidateAgainstXSD:   saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NumberOfPurchaseInvoices != 1 {
+		t.Fatalf("want 1 in-period purchase, got %d", res.NumberOfPurchaseInvoices)
+	}
+	s := string(res.XML)
+	if !strings.Contains(s, "FORN-FT-2026-0001") {
+		t.Fatal("missing in-period purchase")
+	}
+	if strings.Contains(s, "FORN-FT-2025-9999") {
+		t.Fatal("out-of-period purchase must be filtered")
+	}
+	if strings.Contains(s, "<Line>") {
+		t.Fatal("PurchaseInvoices must not invent Line")
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingPurchaseTypeSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingPurchaseTypeSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("purchase export must be deterministic")
+	}
+	req.AllowedPurchaseTypes = nil
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("empty AllowedPurchaseTypes must reject purchases")
+	}
+}
