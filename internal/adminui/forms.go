@@ -24,12 +24,22 @@ func (h *Handler) createTaxpayerForm(w http.ResponseWriter, r *http.Request) {
 	if !h.requireCSRF(w, r) {
 		return
 	}
-	_, err := h.Registry.CreateTaxpayer(r.Context(), adminregistry.CreateTaxpayerInput{
+	tp, err := h.Registry.CreateTaxpayer(r.Context(), adminregistry.CreateTaxpayerInput{
 		NIF: r.FormValue("nif"), LegalName: r.FormValue("legal_name"), Status: r.FormValue("status"),
 	})
 	if err != nil {
 		h.formError(w, r, "form_taxpayer.html", "taxpayers", "Novo contribuinte", err)
 		return
+	}
+	feEnv := strings.TrimSpace(r.FormValue("fe_environment"))
+	feStatus := strings.TrimSpace(r.FormValue("fe_enrollment_status"))
+	if feEnv != "" && feStatus != "" {
+		if _, err := h.Registry.UpsertFEEnrollment(r.Context(), adminregistry.UpsertFEEnrollmentInput{
+			TaxpayerID: tp.ID, Environment: feEnv, Status: feStatus,
+		}); err != nil {
+			h.formError(w, r, "form_taxpayer.html", "taxpayers", "Novo contribuinte", err)
+			return
+		}
 	}
 	http.Redirect(w, r, "/admin/ui/taxpayers", http.StatusSeeOther)
 }
@@ -42,6 +52,21 @@ func (h *Handler) patchTaxpayerForm(w http.ResponseWriter, r *http.Request) {
 	_, err := h.Registry.UpdateTaxpayerStatus(r.Context(), id, r.FormValue("status"))
 	if err != nil {
 		http.Error(w, "falha ao actualizar", http.StatusUnprocessableEntity)
+		return
+	}
+	http.Redirect(w, r, "/admin/ui/taxpayers", http.StatusSeeOther)
+}
+
+func (h *Handler) patchTaxpayerFEForm(w http.ResponseWriter, r *http.Request) {
+	if !h.requireCSRF(w, r) {
+		return
+	}
+	id := r.PathValue("taxpayer_id")
+	_, err := h.Registry.UpsertFEEnrollment(r.Context(), adminregistry.UpsertFEEnrollmentInput{
+		TaxpayerID: id, Environment: r.FormValue("fe_environment"), Status: r.FormValue("fe_enrollment_status"),
+	})
+	if err != nil {
+		http.Error(w, "falha ao actualizar adesão FE", http.StatusUnprocessableEntity)
 		return
 	}
 	http.Redirect(w, r, "/admin/ui/taxpayers", http.StatusSeeOther)

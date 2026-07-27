@@ -42,7 +42,8 @@ flowchart TB
 ### Plano A — permitido
 
 - Cadastros: `Taxpayer`, `Establishment`, bindings de scope POS.
-- Séries, timezone IANA, activação de tipos/grupos, estados (`active`/`inactive`, adesão FE enum).
+- Adesão FE do contribuinte: enum `not_enrolled|pending|active|suspended` por ambiente (`DEC-PROD-004` / `RM-BO-012`); **nunca** booleano; `active` ≡ aderiu facturação electrónica nesse ambiente; NIF proibido em logs/métricas/audit `resource_id`.
+- Séries, timezone IANA, activação de tipos/grupos, estados (`active`/`inactive`).
 - Listagens de submissões/erros/reconciliação **sem** corpos secretos.
 - Metadados sanitizados de refs: ambiente, estado, fingerprint, validade, última verificação.
 

@@ -7,6 +7,7 @@
       <th scope="col">NIF</th>
       <th scope="col">Nome</th>
       <th scope="col">Estado</th>
+      <th scope="col">Adesão FE</th>
       <th scope="col">ID</th>
       {{if .CanWrite}}<th scope="col">Acções</th>{{end}}
     </tr>
@@ -17,6 +18,7 @@
       <td>{{.NIF}}</td>
       <td>{{.LegalName}}</td>
       <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+      <td class="mono">{{.FESummary}}</td>
       <td class="mono">{{.ID}}</td>
       {{if $.CanWrite}}
       <td>
@@ -28,6 +30,23 @@
             <option value="inactive"{{if eq .Status "inactive"}} selected{{end}}>inactive</option>
           </select>
           <button type="submit">Guardar</button>
+        </form>
+        <form method="post" action="/admin/ui/taxpayers/{{.ID}}/fe-enrollment" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <label class="sr-only" for="fe-env-{{.ID}}">Ambiente FE</label>
+          <select id="fe-env-{{.ID}}" name="fe_environment">
+            <option value="homologation">homologation</option>
+            <option value="production">production</option>
+            <option value="development">development</option>
+          </select>
+          <label class="sr-only" for="fe-st-{{.ID}}">Estado FE</label>
+          <select id="fe-st-{{.ID}}" name="fe_enrollment_status">
+            <option value="not_enrolled">not_enrolled</option>
+            <option value="pending">pending</option>
+            <option value="active">active (aderiu)</option>
+            <option value="suspended">suspended</option>
+          </select>
+          <button type="submit">FE</button>
         </form>
       </td>
       {{end}}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.20-draft
+  version: 0.1.21-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -28,6 +28,7 @@ info:
     0.1.18: Histórico append-only AuthorityProfile (RM-AGTPREP-011); audit list por perfil; sem plaintext.
     0.1.19: Alertas sanitizados readiness (RM-AGTPREP-012); expiry/refs/flags; ≠ external_verified.
     0.1.20: Testes de segurança superfície autoridade documentados (RM-AGTPREP-013); contrato HTTP inalterado.
+    0.1.21: Adesão FE enum por contribuinte+ambiente (DEC-PROD-004 / RM-BO-012); ≠ booleano; NIF nunca em audit resource_id.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -174,6 +175,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Taxpayer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /taxpayers/{taxpayer_id}/fe-enrollments:
+    put:
+      operationId: upsertTaxpayerFEEnrollment
+      summary: Upsert adesão FE (enum DEC-PROD-004) por ambiente
+      description: >
+        Estado canónico not_enrolled|pending|active|suspended — nunca booleano.
+        "aderiu facturação electrónica" ≡ status=active nesse ambiente.
+        Audit resource_id = taxpayer_id (nunca NIF).
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/TaxpayerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertFEEnrollmentRequest"
+      responses:
+        "200":
+          description: Adesão FE actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FEEnrollment"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1108,15 +1141,46 @@ components:
           type: string
           enum: [active, inactive]
           default: active
+        fe_enrollment:
+          $ref: "#/components/schemas/UpsertFEEnrollmentRequest"
+    UpsertFEEnrollmentRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, status]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        status:
+          type: string
+          enum: [not_enrolled, pending, active, suspended]
+          description: >
+            DEC-PROD-004. active ≡ aderiu facturação electrónica nesse ambiente;
+            ausente na BD trata-se como not_enrolled.
+    FEEnrollment:
+      type: object
+      additionalProperties: false
+      required: [environment, status, updated_at]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        status:
+          type: string
+          enum: [not_enrolled, pending, active, suspended]
+        updated_at:
+          type: string
+          format: date-time
     Taxpayer:
       type: object
       additionalProperties: false
-      required: [taxpayer_id, nif, legal_name, status, created_at]
+      required: [taxpayer_id, nif, legal_name, status, created_at, fe_enrollments]
       properties:
         taxpayer_id:
           type: string
         nif:
           type: string
+          description: Visível só a operadores autorizados; proibido em logs/métricas/audit resource_id.
         legal_name:
           type: string
         status:
@@ -1125,7 +1189,11 @@ components:
         created_at:
           type: string
           format: date-time
-    TaxpayerList:
+        fe_enrollments:
+          type: array
+          items:
+            $ref: "#/components/schemas/FEEnrollment"
+          description: Linhas persistidas; ambiente ausente ⇒ efectivo not_enrolled.    TaxpayerList:
       type: object
       additionalProperties: false
       required: [items]
