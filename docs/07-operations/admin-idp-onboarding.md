@@ -1,7 +1,9 @@
 # Onboarding IdP provider-neutral (Admin API / UI)
 
-**Âmbito:** autenticação de operadores do backoffice (`/admin/v1`, `/admin/ui`)  
-**≠** POS `credential_store` · **≠** credenciais AGT · **≠** IdP de teste local inseguro  
+**Âmbito:** autenticação de operadores do backoffice (`/admin/v1`, `/admin/ui`)
+
+**≠** POS `credential_store` · **≠** credenciais AGT · **≠** IdP de teste local inseguro
+
 **Itens:** `RM-BO-006` (fundação OIDC/JWT) · `RM-BO-018` (onboarding + readiness) · `RM-UI-005` (sessão)
 
 ## Política fail-closed
