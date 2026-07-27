@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.11-draft
+  version: 0.1.12-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -19,6 +19,7 @@ info:
     0.1.9: UI SSR owner-only /admin/ui/authority-profiles (RM-AGTPREP-003); contrato HTTP inalterado; sem plaintext.
     0.1.10: SecAdm material multipart PEM/PKCS#12/credencial (RM-AGTPREP-004); password efémera; limites; ≠ AGT.
     0.1.11: Validação offline par chave-cert (RM-AGTPREP-005); ≠ external_verified / AGT.
+    0.1.12: Probe config simulador + prod fail-closed (RM-AGTPREP-006); simulator≠AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -374,6 +375,40 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /authority/probe-config:
+    post:
+      operationId: probeAuthorityConfig
+      summary: Teste de ligação/configuração via simulador (owner)
+      description: >
+        RM-AGTPREP-006. Só com FISCAL_AUTHORITY=simulator. Produção+simulator fail-closed.
+        external_verified permanece false. simulator ≠ AGT HML/PRD.
+      tags: [Autoridade]
+      responses:
+        "200":
+          description: Resultado sanitizado do probe
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, mode, external_verified]
+                properties:
+                  ok: { type: boolean }
+                  mode: { type: string }
+                  simulator_reachable: { type: boolean }
+                  outcome: { type: string }
+                  authority_request_id: { type: string }
+                  external_verified: { type: boolean }
+                  notes:
+                    type: array
+                    items: { type: string }
+                  probed_at: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
   /authority-profiles:

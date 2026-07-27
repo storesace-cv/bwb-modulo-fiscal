@@ -18,7 +18,7 @@
 | `FISCAL_HTTP_WRITE_TIMEOUT` | `10s` | Timeout de escrita |
 | `FISCAL_HTTP_IDLE_TIMEOUT` | `60s` | Timeout idle |
 | `FISCAL_HTTP_SHUTDOWN_TIMEOUT` | `10s` | Graceful shutdown |
-| `FISCAL_AUTHORITY` | `simulator` | Transporte outbox: só `simulator` activo; `agt-hml`/`agt-prd` reservados e **fail-closed** (≠ HML/PRD AGT; sem credenciais) |
+| `FISCAL_AUTHORITY` | `simulator` | Transporte outbox: só `simulator` activo; `agt-hml`/`agt-prd` reservados e **fail-closed**; `FISCAL_ENV=production` + `simulator` **fail-closed** (RM-AGTPREP-006); ≠ HML/PRD AGT |
 | `FISCAL_ADMIN_AUTH_MODE` | `fail_closed` | Admin: `fail_closed` (omissão), `injected` **só** `development`, ou `oidc_jwt` (RM-BO-006) |
 | `FISCAL_ADMIN_INJECT_SUBJECT` | — | Subject injectado (obrigatório se mode=injected) |
 | `FISCAL_ADMIN_INJECT_ROLES` | — | Roles CSV: `owner,admin,operator,auditor` (se mode=injected) |

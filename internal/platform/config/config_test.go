@@ -100,6 +100,19 @@ func TestAuthoritySimulatorOK(t *testing.T) {
 	}
 }
 
+func TestAuthoritySimulatorRejectedInProduction(t *testing.T) {
+	clearFiscalEnv(t)
+	t.Setenv("FISCAL_ENV", "production")
+	t.Setenv("FISCAL_AUTHORITY", "simulator")
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected fail-closed for production+simulator")
+	}
+	if !strings.Contains(err.Error(), "production") || !strings.Contains(err.Error(), "simulator") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestAuthorityAGTHMLRejected(t *testing.T) {
 	clearFiscalEnv(t)
 	t.Setenv("FISCAL_AUTHORITY", "agt-hml")

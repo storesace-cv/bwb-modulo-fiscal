@@ -26,16 +26,18 @@ const (
 
 // Handler serves admin cadastro, ops visibility and SecAdm write-only endpoints.
 type Handler struct {
-	Registry    *adminregistry.Registry
-	Audit       *adminaudit.Store
-	Ops         *adminops.Store
-	SecretsMeta secretstore.AdminView // optional; Metadata only — never Reveal
-	SecAdm      *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
-	Obs         *adminobs.Observer    // optional; RM-BO-007
-	DB          *sql.DB               // readiness ping only
-	AuthMode    string                // fail_closed|injected|oidc_jwt
-	Version     string
-	Revision    string
+	Registry      *adminregistry.Registry
+	Audit         *adminaudit.Store
+	Ops           *adminops.Store
+	SecretsMeta   secretstore.AdminView // optional; Metadata only — never Reveal
+	SecAdm        *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
+	Obs           *adminobs.Observer    // optional; RM-BO-007
+	DB            *sql.DB               // readiness ping only
+	AuthMode      string                // fail_closed|injected|oidc_jwt
+	Version       string
+	Revision      string
+	AuthorityMode string // FISCAL_AUTHORITY (simulator|…)
+	FiscalEnv     string // FISCAL_ENV
 }
 
 type problem struct {
@@ -163,6 +165,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("POST /admin/v1/secadm/material", wrap(secadmWrite(http.HandlerFunc(h.secadmPutMaterial))))
 	mux.Handle("POST /admin/v1/secadm/material/rotate", wrap(secadmWrite(http.HandlerFunc(h.secadmRotateMaterial))))
 	mux.Handle("POST /admin/v1/secadm/material/validate-offline", wrap(secadmWrite(http.HandlerFunc(h.secadmValidateOffline))))
+	mux.Handle("POST /admin/v1/authority/probe-config", wrap(secadmWrite(http.HandlerFunc(h.probeAuthorityConfig))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
