@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.66-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-013** — testes de segurança superfície autoridade (RBAC owner-only, CSRF, ausência de PEM/password, `external_verified=false`); ≠ AGT.
+
 ## 0.2.65-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-012** — alertas sanitizados readiness (`alerts` em GET readiness + UI); OpenAPI `0.1.19-draft`; ≠ AGT / plaintext / external_verified.
