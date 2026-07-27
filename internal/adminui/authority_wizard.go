@@ -85,8 +85,8 @@ func (h *Handler) authorityWizardStep2(w http.ResponseWriter, r *http.Request) {
 	}
 	vv := viewAuthorityProfile(cur)
 	_, err = h.Registry.UpdateAuthorityProfile(r.Context(), adminregistry.UpdateAuthorityProfileInput{
-		ProfileID:             id,
-		DisplayName:           cur.DisplayName,
+		ProfileID:   id,
+		DisplayName: cur.DisplayName,
 		// Preserve status — wizard never escalates to active; do not silent-downgrade.
 		ProducerCredentialRef: r.FormValue("producer_credential_ref"),
 		ProducerKeyRef:        r.FormValue("producer_key_ref"),
