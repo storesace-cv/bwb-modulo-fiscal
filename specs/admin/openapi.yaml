@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.16-draft
+  version: 0.1.17-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -24,6 +24,7 @@ info:
     0.1.14: UI SSR readiness checklist (RM-BO-011); contrato HTTP inalterado.
     0.1.15: UI SSR wizard owner-only /admin/ui/authority-profiles/wizard (RM-AGTPREP-008); draft only; contrato HTTP inalterado.
     0.1.16: Gate activação AuthorityProfile fail-closed (RM-AGTPREP-009); active exige config+secrets+offline; external_verified=false.
+    0.1.17: Lifecycle material AuthorityProfile (RM-AGTPREP-010); rotate invalida offline_validated; sem plaintext.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -520,6 +521,66 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /authority-profiles/{profile_id}/material-lifecycle:
+    get:
+      operationId: getAuthorityProfileMaterialLifecycle
+      summary: Lifecycle sanitizado das refs SecretStore do perfil
+      description: >
+        RM-AGTPREP-010. Owner/secadm.write. Devolve status/version/fingerprint/expires
+        das refs lógicas (credential/key/cert). Sem plaintext. external_verified=false.
+        Após rotate/revoke com authority_profile_id, offline_validated é invalidado.
+      tags: [Autoridade]
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lifecycle sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [profile_id, environment, status, offline_validated, secrets_ready, external_verified, refs, note]
+                properties:
+                  profile_id: { type: string }
+                  environment: { type: string }
+                  status: { type: string }
+                  offline_validated: { type: boolean }
+                  secrets_ready: { type: boolean }
+                  external_verified: { type: boolean, const: false }
+                  note: { type: string }
+                  refs:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [role, ref_name, kind, environment, subject_id, status, version]
+                      properties:
+                        role: { type: string, enum: [producer_credential, producer_key, certificate] }
+                        ref_name: { type: string }
+                        kind: { type: string }
+                        environment: { type: string }
+                        subject_id: { type: string }
+                        status: { type: string }
+                        version: { type: integer }
+                        fingerprint: { type: string }
+                        expires_at: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: SecAdm indisponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /authority-profiles/{profile_id}/readiness:
     get:
       operationId: getAuthorityProfileReadiness
