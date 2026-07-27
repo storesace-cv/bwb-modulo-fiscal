@@ -82,3 +82,49 @@ func TestIncrementalExportRejectsUnknownGroup(t *testing.T) {
 		t.Fatal("invented group")
 	}
 }
+
+func TestIncrementalExportWithTaxTable(t *testing.T) {
+	base := saftao.MinimalSalesInvoiceFixture()
+	tax := saftao.MinimalTaxTableFixture().MasterFiles.TaxTable
+	req := saftao.ExportRequest{
+		Header:              *base.Header,
+		EnabledGroups:       []saftao.DocumentGroup{saftao.GroupSalesInvoices},
+		AllowedInvoiceTypes: []saftao.InvoiceType{saftao.InvoiceTypeFT},
+		Customers:           base.MasterFiles.Customer,
+		Products:            base.MasterFiles.Product,
+		TaxTable:            tax,
+		Invoices:            base.SourceDocuments.SalesInvoices.Invoice,
+		ValidateAgainstXSD:  saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(res.XML), "TaxTable") || !strings.Contains(string(res.XML), "TaxTableEntry") {
+		t.Fatalf("TaxTable missing from XML: %s", res.XML)
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingTaxTableSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingTaxTableSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("TaxTable export must be deterministic")
+	}
+
+	badTax := *tax
+	badTax.TaxTableEntry = []saftao.TaxTableEntry{tax.TaxTableEntry[1]} // ISE only — invoice uses NOR
+	req.TaxTable = &badTax
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("invoice Tax without TaxTableEntry must fail-closed")
+	}
+}

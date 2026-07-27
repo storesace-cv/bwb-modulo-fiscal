@@ -19,7 +19,10 @@ type ExportRequest struct {
 	AllowedInvoiceTypes []InvoiceType
 	Customers           []Customer
 	Products            []Product
-	Invoices            []Invoice
+	// TaxTable is optional MasterFiles/TaxTable (RM-SAFT-012). Nil ⇒ omitted; non-nil must validate.
+	// Rates/codes are caller-supplied — never invented here (≠ AO-*).
+	TaxTable *TaxTable
+	Invoices []Invoice
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// ValidateAgainstXSD runs xmllint when true and available.
@@ -121,10 +124,18 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	if err := validateMasterRefs(filtered, req.Customers, req.Products); err != nil {
 		return nil, err
 	}
+	if req.TaxTable != nil {
+		if err := req.TaxTable.ValidateStructural(); err != nil {
+			return nil, fmt.Errorf("TaxTable: %w", err)
+		}
+		if err := validateInvoiceTaxAgainstTable(filtered, req.TaxTable); err != nil {
+			return nil, err
+		}
+	}
 
 	doc := AuditFile{
 		Header:      cloneHeader(&req.Header),
-		MasterFiles: &MasterFiles{Customer: req.Customers, Product: req.Products},
+		MasterFiles: &MasterFiles{Customer: req.Customers, Product: req.Products, TaxTable: req.TaxTable},
 	}
 	if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
 		doc.SourceDocuments = &SourceDocuments{
@@ -156,6 +167,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 			PendingHashAlgorithm,
 			PendingInvoiceTypeSemantics,
 		},
+	}
+	if req.TaxTable != nil {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
 	}
 	if req.ValidateAgainstXSD {
 		if !XSDValidatorAvailable() {
@@ -246,6 +260,33 @@ func validateMasterRefs(invoices []Invoice, customers []Customer, products []Pro
 		for j, ln := range inv.Line {
 			if _, ok := prod[ln.ProductCode]; !ok {
 				return fmt.Errorf("%w: Invoice[%d].Line[%d] ProductCode sem MasterFiles", ErrValidation, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+// validateInvoiceTaxAgainstTable ensures each invoice line Tax (TaxType+TaxCode) exists in TaxTable.
+// Structural integrity only — does not invent rates or claim AO-* tax law.
+func validateInvoiceTaxAgainstTable(invoices []Invoice, table *TaxTable) error {
+	if table == nil {
+		return nil
+	}
+	keys := map[string]struct{}{}
+	for _, e := range table.TaxTableEntry {
+		k := string(e.TaxType) + "|" + strings.TrimSpace(e.TaxCode)
+		keys[k] = struct{}{}
+	}
+	for i, inv := range invoices {
+		for j, ln := range inv.Line {
+			tt := strings.TrimSpace(ln.Tax.TaxType)
+			tc := strings.TrimSpace(ln.Tax.TaxCode)
+			if tt == "" && tc == "" {
+				continue
+			}
+			k := tt + "|" + tc
+			if _, ok := keys[k]; !ok {
+				return fmt.Errorf("%w: Invoice[%d].Line[%d] Tax sem TaxTableEntry", ErrValidation, i, j)
 			}
 		}
 	}
