@@ -1,6 +1,6 @@
 # Observabilidade do backoffice (RM-BO-007)
 
-**Âmbito:** `/admin/v1` + `/admin/ui` · **≠** POS `/v1` · **≠** SecAdm plaintext  
+**Âmbito:** `/admin/v1` + `/admin/ui` · **≠** POS `/v1` · **≠** SecAdm plaintext
 **Data:** 2026-07-27
 
 ## Endpoints
