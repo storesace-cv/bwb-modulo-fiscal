@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.55-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-003** — UI owner-only `/admin/ui/authority-profiles` (criar/editar metadados + readiness sanitizado: fingerprint/validade/alg/key-id/timestamps); OpenAPI admin `0.1.9-draft` (nota UI); ≠ AGT real / plaintext / deploy.
+
 ## 0.2.54-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-002** — `AuthorityProfile` (migração `0007`, Admin API `/admin/v1/authority-profiles`, OpenAPI `0.1.8-draft`); operações FE catalogadas; `pending_external`; `external_verified=false`; ≠ AGT real / segredos / deploy.

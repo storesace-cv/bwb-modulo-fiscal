@@ -1,0 +1,77 @@
+{{define "content"}}
+<p class="hint">Metadados e readiness locais. Sem plaintext. <code>external_verified</code> não é editável (sempre false).</p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+{{if .Profile}}
+<form method="post" action="/admin/ui/authority-profiles/{{.Profile.ID}}">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p><strong>ID</strong> <span class="mono">{{.Profile.ID}}</span> · <strong>Ambiente</strong> {{.Profile.Environment}}</p>
+  <p>
+    <label for="display_name">Nome</label>
+    <input id="display_name" name="display_name" required maxlength="120" value="{{.Profile.DisplayName}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="status">Estado</label>
+    <select id="status" name="status">
+      <option value="draft"{{if eq .Profile.Status "draft"}} selected{{end}}>draft</option>
+      <option value="validated"{{if eq .Profile.Status "validated"}} selected{{end}}>validated</option>
+      <option value="active"{{if eq .Profile.Status "active"}} selected{{end}}>active</option>
+      <option value="revoked"{{if eq .Profile.Status "revoked"}} selected{{end}}>revoked</option>
+    </select>
+  </p>
+  <fieldset>
+    <legend>Operações FE catalogadas</legend>
+    {{$ops := .Profile.AllowedOpsList}}
+    {{range $op := $.KnownOps}}
+    <label><input type="checkbox" name="allowed_operations" value="{{$op}}"{{range $ops}}{{if eq . $op}} checked{{end}}{{end}}> {{$op}}</label>
+    {{end}}
+  </fieldset>
+  <p>
+    <label for="pending_external">pending_external (linhas key=value)</label>
+    <textarea id="pending_external" name="pending_external" rows="3">{{.Profile.PendingExternalLines}}</textarea>
+  </p>
+  <p>
+    <label for="producer_credential_ref">Ref credencial</label>
+    <input id="producer_credential_ref" name="producer_credential_ref" maxlength="64" value="{{.Profile.CredentialRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="producer_key_ref">Ref chave</label>
+    <input id="producer_key_ref" name="producer_key_ref" maxlength="64" value="{{.Profile.KeyRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="certificate_ref">Ref certificado</label>
+    <input id="certificate_ref" name="certificate_ref" maxlength="64" value="{{.Profile.CertRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="algorithm_declared">Algoritmo</label>
+    <select id="algorithm_declared" name="algorithm_declared">
+      <option value=""{{if eq .Profile.Algorithm ""}} selected{{end}}>—</option>
+      <option value="RS256"{{if eq .Profile.Algorithm "RS256"}} selected{{end}}>RS256</option>
+      <option value="pending_external"{{if eq .Profile.Algorithm "pending_external"}} selected{{end}}>pending_external</option>
+    </select>
+  </p>
+  <p>
+    <label for="key_id_sanitized">Key-id</label>
+    <input id="key_id_sanitized" name="key_id_sanitized" maxlength="64" value="{{.Profile.KeyID}}" class="mono" autocomplete="off">
+  </p>
+  <p>
+    <label for="fingerprint_sanitized">Fingerprint</label>
+    <input id="fingerprint_sanitized" name="fingerprint_sanitized" maxlength="128" value="{{.Profile.Fingerprint}}" class="mono" autocomplete="off">
+  </p>
+  <p>
+    <label for="expires_at">Validade (RFC3339 UTC)</label>
+    <input id="expires_at" name="expires_at" value="{{.Profile.ExpiresAt}}" class="mono" autocomplete="off">
+  </p>
+  <fieldset>
+    <legend>Readiness (local; ≠ AGT)</legend>
+    <label><input type="checkbox" name="config_ready" value="on"{{if .Profile.ConfigReady}} checked{{end}}> config_ready</label>
+    <label><input type="checkbox" name="secrets_ready" value="on"{{if .Profile.SecretsReady}} checked{{end}}> secrets_ready</label>
+    <label><input type="checkbox" name="offline_validated" value="on"{{if .Profile.OfflineValidated}} checked{{end}}> offline_validated</label>
+    <p>external_verified = false (fixo)</p>
+  </fieldset>
+  <p class="hint">Criado {{.Profile.CreatedAt}} · Actualizado {{.Profile.UpdatedAt}}</p>
+  <p><button type="submit">Guardar</button> <a href="/admin/ui/authority-profiles">Cancelar</a></p>
+</form>
+{{else}}
+<p>Perfil não encontrado.</p>
+{{end}}
+{{end}}

@@ -1,0 +1,41 @@
+{{define "content"}}
+<p class="hint">Owner-only — metadados de preparação AGT (≠ ligação real). Segredos só em SecAdm. <code>external_verified</code> permanece false.</p>
+<p><a class="btn" href="/admin/ui/authority-profiles/new">Novo perfil</a>
+   <a href="/admin/ui/secadm/metadata">SecAdm metadados</a></p>
+{{if not .Profiles}}
+<p>Nenhum perfil registado.</p>
+{{else}}
+<table>
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Ambiente</th>
+      <th>Estado</th>
+      <th>Algoritmo</th>
+      <th>Key-id</th>
+      <th>Fingerprint</th>
+      <th>Validade</th>
+      <th>Readiness</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Profiles}}
+    <tr>
+      <td>{{.DisplayName}}</td>
+      <td>{{.Environment}}</td>
+      <td>{{.Status}}</td>
+      <td>{{.Algorithm}}</td>
+      <td class="mono">{{.KeyID}}</td>
+      <td class="mono">{{.Fingerprint}}</td>
+      <td class="mono">{{.ExpiresAt}}</td>
+      <td>
+        cfg={{.ConfigReady}} · sec={{.SecretsReady}} · off={{.OfflineValidated}} · ext={{.ExternalVerified}}
+      </td>
+      <td><a href="/admin/ui/authority-profiles/{{.ID}}/edit">Editar</a></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+{{end}}
