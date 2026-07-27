@@ -8,8 +8,8 @@
 
 | # | Declaração | Estado |
 |---|---|---|
-| 1 | **Código online** — `health.revision` = `current-sha` = `origin/main` (após merge do PR de promoção) | **SIM** (após deploy `c82255c…`; revalidar no tip do PR de Nginx) |
-| 2 | **Admin UI alcançável** — HTTPS `/admin/ui/login` devolve HTML; rotas protegidas 401 | **após RM-OPS-007** (Nginx open com proxy `/admin/*`) |
+| 1 | **Código online** — `health.revision` = `current-sha` = tip promovido | **SIM** — `c27b75ef7c354e54f009243784dc3a0b0a12c4f5` (revalidar = `origin/main` após squash merge deste PR) |
+| 2 | **Admin UI alcançável** — HTTPS `/admin/ui/login` HTML; `/admin/ui/` protegido 401 | **SIM** (após `nginx-open-arm` + `confirm` RM-OPS-007) |
 | 3 | **Login interactivo indisponível** — até IdP real + `oidc_jwt` + redirect authorize | **SIM** (`admin_interactive_login=unavailable`, `admin_oidc=not_configured`, `admin_auth_mode=fail_closed`) |
 
 ## Pré-voo (auditoria)
@@ -65,7 +65,7 @@ Aplicado como root (fora do helper): `deploy/postgres/grants-schema12-runtime-ad
 
 Antes de RM-OPS-007, Nginx open **não** fazia proxy de `/admin/*` (404 público).
 
-## RM-OPS-007 — proxy Nginx admin (sandbox)
+## RM-OPS-007 — proxy Nginx admin (sandbox) — CONCLUÍDO
 
 Alteração canónica em `deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf`:
 
@@ -73,12 +73,19 @@ Alteração canónica em `deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf`:
 - `location ^~ /admin/ui` → upstream API
 - `tls.deny.conf` permanece **sem** proxy admin (fail-safe)
 
-Procedimento no host (após deploy do tip com o conf novo):
+### Execução 2026-07-27T19:02Z
 
-1. `nginx-open-arm <sha40>` — activa timer 5 min  
-2. Verificar HTTPS health, documents 401, `/admin/ui/login` HTML, `/admin/v1/ready`  
-3. `nginx-open-confirm <sha40>` **antes** do timer  
-4. Confirmar timer inactive + `state=confirmed`
+| Passo | Resultado |
+|---|---|
+| Deploy tip | `c27b75ef7c354e54f009243784dc3a0b0a12c4f5` (schema 12→12 `dirty=false`) |
+| `nginx-open-arm` | `nginx_open_arm_ok` + timer activo |
+| HTTPS `/v1/health` | 200; `revision=c27b75e…` |
+| HTTPS `POST /v1/documents` | **401** |
+| HTTPS `/admin/v1/ready` | 200; fail_closed / oidc not_configured / interactive unavailable |
+| HTTPS `/admin/ui/login` | **200** HTML «Entrar · BWB Admin» |
+| HTTPS `/admin/ui/` | **401** |
+| `nginx-open-confirm` | `nginx_open_confirm_ok` |
+| Estado final | `state=confirmed` sha=`c27b75e…`; timer **inactive/disabled** |
 
 ## Incidentes
 

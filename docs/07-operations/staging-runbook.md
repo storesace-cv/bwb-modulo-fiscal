@@ -35,7 +35,7 @@ Estado operacional confirmado do sandbox BWB:
 | Kit POS | validação sandbox **9/9** — [s4-pos-kit-ops-validation-report.md](s4-pos-kit-ops-validation-report.md) |
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
 | Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
-| Nginx admin proxy | **RM-OPS-007** — open conf com `/admin/v1/` + `/admin/ui`; deny-all sem admin |
+| Nginx admin proxy | **RM-OPS-007 CONCLUÍDO** — open conf com `/admin/v1/` + `/admin/ui`; deny-all sem admin |
 
 Rotação de credenciais no sandbox: `fiscal-admin` issue/rotate/revoke via helper (`credential_store`). **Não** usar `dev_static` no sandbox.
 
