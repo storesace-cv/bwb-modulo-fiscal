@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.26-draft
+  version: 0.1.27-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -34,6 +34,7 @@ info:
     0.1.24: Painel filas/submissões enriquecido (RM-BO-015); queue_status/attempts/next_attempt/request_id/erro sanitizado; sem payload/JWS.
     0.1.25: Acções ops retry/cancel/manual_review (RM-BO-016); ops.write; Idempotency-Key; concurrency; simulator≠production.
     0.1.26: Dashboard ops + paginação/filtros/alertas (RM-BO-017); sem payload/JWS/NIF.
+    0.1.27: Teste SMTP admin owner-only (RM-OPS-008); implicit TLS 465; sem passwords no email; status sanitizado.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -1005,6 +1006,39 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /ops/notifications/test:
+    post:
+      operationId: postNotificationTest
+      summary: Enviar email de teste SMTP ao endereço admin configurado
+      description: >
+        RM-OPS-008. Requer notify.test (owner-only). Destino fixo
+        FISCAL_SMTP_ADMIN_NOTIFICATION_EMAIL. Implicit TLS porta 465.
+        Resposta sanitizada (status/reason/to_domain); nunca password/DSN/NIF.
+        Corpo do email sem passwords. Sandbox sem IdP: usar helper smtp-send-test.
+      tags: [Ops]
+      responses:
+        "200":
+          description: Entrega aceite pelo transporte (status=sent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SMTPDeliveryStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: Falha de entrega sanitizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SMTPDeliveryStatus"
+        "503":
+          description: SMTP não configurado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /ops/submissions/{submission_id}/actions:
     post:
       operationId: applyOpsSubmissionAction
@@ -1974,6 +2008,27 @@ components:
               code: { type: string }
               severity: { type: string, enum: [info, warning, blocking] }
               message: { type: string }
+    SMTPDeliveryStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [sent, failed, not_configured]
+        reason:
+          type: string
+          description: Código allowlist sanitizado (sem segredos)
+        to_domain:
+          type: string
+        tls_mode:
+          type: string
+          enum: [implicit]
+        port:
+          type: integer
+          enum: [465]
+        request_id:
+          type: string
     SecAdmWriteSecretRequest:
       type: object
       additionalProperties: false

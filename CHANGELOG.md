@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.74-draft — 2026-07-27
+
+- Ops: **RM-OPS-008** — fundação SMTP implicit TLS 465; `smtp.env` root:root 0600; `POST /admin/v1/ops/notifications/test` owner-only; helper `smtp-send-test`; testes com SMTP TLS fake; OpenAPI admin `0.1.27-draft`; sem passwords no email; ≠ AGT/IdP.
+
 ## 0.2.73-draft — 2026-07-27
 
 - Ops: **RM-OPS-006** — sandbox promoveu `main` → schema 12 (`dirty=false`); grants `grants-schema12-runtime-admin.sql`; relatório [rm-ops-006-sandbox-schema12-promotion-report.md](docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md).

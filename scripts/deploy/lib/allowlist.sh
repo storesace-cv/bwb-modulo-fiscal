@@ -339,6 +339,7 @@ deploy_verify_release_manifest() {
     test -f lib/allowlist.sh
     test -f lib/migrate.env.allowlist
     test -f lib/admin.env.allowlist
+    test -f lib/smtp.env.allowlist
     test -f fixtures/sandbox/create-document.min.json
     test -f fixtures/sandbox/create-document.b.json
     test -f fixtures/sandbox/create-document.nif-mismatch.json

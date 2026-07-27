@@ -11,6 +11,8 @@ Group=fiscal
 WorkingDirectory=/opt/bwb-modulo-fiscal/current
 # Runtime secrets only — do not load the migration credentials file here.
 EnvironmentFile=/etc/bwb-modulo-fiscal/fiscal.env
+# Optional SMTP (implicit TLS 465). Missing file is allowed ("-").
+EnvironmentFile=-/etc/bwb-modulo-fiscal/smtp.env
 ExecStart=/opt/bwb-modulo-fiscal/current/fiscal-api
 Restart=on-failure
 RestartSec=2s

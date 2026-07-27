@@ -36,6 +36,7 @@ Estado operacional confirmado do sandbox BWB:
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
 | Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
 | Nginx admin proxy | **RM-OPS-007 CONCLUÍDO** — open conf com `/admin/v1/` + `/admin/ui`; deny-all sem admin |
+| SMTP | **RM-OPS-008** — [smtp-notifications.md](smtp-notifications.md); `smtp.env` 0600; teste owner/helper |
 
 Rotação de credenciais no sandbox: `fiscal-admin` issue/rotate/revoke via helper (`credential_store`). **Não** usar `dev_static` no sandbox.
 
@@ -59,6 +60,7 @@ Relatório de promoção: [s3c2-sandbox-promotion-report.md](s3c2-sandbox-promot
 | `deploy/env.allowlist` | Allowed runtime keys |
 | `deploy/migrate.env.allowlist` | Allowed migrate keys |
 | `deploy/admin.env.allowlist` | Allowed admin keys (`DRIVER`+`URL` only) |
+| `deploy/smtp.env.allowlist` | Allowed SMTP keys (implicit TLS 465) |
 | `deploy/systemd/bwb-fiscal-api.service` | API unit; **only** `fiscal.env` |
 | `deploy/nginx/bwb-fiscal-sandbox-http.conf` | HTTP bootstrap (no cert paths; IPv4 only in D1) |
 | `deploy/nginx/bwb-fiscal-sandbox-tls.conf` | TLS site templates |
@@ -101,7 +103,7 @@ Relatório de promoção: [s3c2-sandbox-promotion-report.md](s3c2-sandbox-promot
 6. **After** activate/restart/health failure: re-read `current`; N-1 rollback (symlink + envs + restart + health) **only** if policy allows (`DEPLOY_N1_COMPAT_PROVEN=1` when schema changed). Otherwise roll-forward/manual.
 7. Health accepts only JSON `"status":"ok"` (exact field); does **not** replace `fiscal-migrate version`.
 8. Config install: temp file `0600` → atomic install by root under `/etc/bwb-modulo-fiscal/`. Never copy env into release dirs, logs, or reports.
-9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate`. Libs em `/usr/local/lib/bwb-fiscal-deploy/`: `allowlist.sh`, `migrate.env.allowlist`, `admin.env.allowlist`, `parse_migrate_dsn.py`, `predeploy_pg.sh`. Install the versioned fragment **as-is** (no textual substitution): `install -m 0440 -o root -g root deploy/sudoers/bwb-fiscal-deploy /etc/sudoers.d/bwb-fiscal-deploy` then `visudo -cf /etc/sudoers.d/bwb-fiscal-deploy`. The rule is fixed to user `bwb-deploy` and only `/usr/local/sbin/bwb-fiscal-deploy-helper`.
+9. D2 bootstrap: install helper + libs + sudoers + create `bwb-fiscal-migrate`. Libs em `/usr/local/lib/bwb-fiscal-deploy/`: `allowlist.sh`, `migrate.env.allowlist`, `admin.env.allowlist`, `smtp.env.allowlist`, `parse_migrate_dsn.py`, `predeploy_pg.sh`. Install the versioned fragment **as-is** (no textual substitution): `install -m 0440 -o root -g root deploy/sudoers/bwb-fiscal-deploy /etc/sudoers.d/bwb-fiscal-deploy` then `visudo -cf /etc/sudoers.d/bwb-fiscal-deploy`. The rule is fixed to user `bwb-deploy` and only `/usr/local/sbin/bwb-fiscal-deploy-helper`.
 
 ## DNS / TLS (D2)
 

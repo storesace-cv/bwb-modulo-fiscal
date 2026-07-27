@@ -18,6 +18,7 @@ ENV_LOCAL="${ENV_LOCAL:-${ROOT}/.env.local}"
 ENV_DEPLOY="${ENV_DEPLOY:-${ROOT}/.env.deploy.local}"
 ENV_MIGRATE="${ENV_MIGRATE:-${ROOT}/.env.migrate.local}"
 ENV_ADMIN="${ENV_ADMIN:-${ROOT}/.env.admin.local}"
+ENV_SMTP="${ENV_SMTP:-${ROOT}/.env.smtp.local}"
 REMOTE_HELPER="/usr/local/sbin/bwb-fiscal-deploy-helper"
 REMOTE_UPLOAD=""
 PREV_SHA=""
@@ -252,6 +253,13 @@ else
   # admin.env required for live/mock remote deploys (credential_store staging).
   [[ "${DEPLOY_DRY_RUN}" == "1" && "${DEPLOY_MOCK_REMOTE}" != "1" ]] || die "missing admin env file"
 fi
+if [[ -f "${ENV_SMTP}" ]]; then
+  deploy_validate_exact_allowlisted_file "${ROOT}/deploy/smtp.env.allowlist" "${ENV_SMTP}" \
+    || die "smtp env allowlist validation failed"
+  report "smtp_env_allowlist=ok"
+else
+  report "smtp_env_allowlist=skipped reason=absent"
+fi
 
 HEAD="$(git rev-parse HEAD)"
 deploy_assert_sha1 "HEAD" "${HEAD}"
@@ -361,6 +369,9 @@ fi
 deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 deploy_assert_restricted_file "ENV_ADMIN" "${ENV_ADMIN}"
+if [[ -f "${ENV_SMTP}" ]]; then
+  deploy_assert_restricted_file "ENV_SMTP" "${ENV_SMTP}"
+fi
 
 deploy_ssh_base
 # Invoked only via EXIT trap; preserve/override the script's exit status.
@@ -458,6 +469,7 @@ report "env_backup=ok id=${ENV_BACKUP_ID}"
 fiscal_tmp="${REMOTE_UPLOAD}/env.fiscal.env.$$"
 migrate_tmp="${REMOTE_UPLOAD}/env.migrate.env.$$"
 admin_tmp="${REMOTE_UPLOAD}/env.admin.env.$$"
+smtp_tmp=""
 
 set +e
 deploy_scp_run "${SCP_BASE[@]}" "${ENV_DEPLOY}" "${DEPLOY_USER}@${DEPLOY_HOST}:${fiscal_tmp}"
@@ -495,7 +507,23 @@ inst_st=$?
 set -e
 [[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env admin.env failed"
 
-report "install_env=ok mode=0600 owner=root names=fiscal,migrate,admin"
+installed_names="fiscal,migrate,admin"
+if [[ -f "${ENV_SMTP}" ]]; then
+  smtp_tmp="${REMOTE_UPLOAD}/env.smtp.env.$$"
+  set +e
+  deploy_scp_run "${SCP_BASE[@]}" "${ENV_SMTP}" "${DEPLOY_USER}@${DEPLOY_HOST}:${smtp_tmp}"
+  scp_st=$?
+  set -e
+  [[ "${scp_st}" -eq 0 ]] || pre_activate_fail "scp smtp.env failed"
+  set +e
+  remote_helper install-env smtp.env "${smtp_tmp}" >/dev/null
+  inst_st=$?
+  set -e
+  [[ "${inst_st}" -eq 0 ]] || pre_activate_fail "install-env smtp.env failed"
+  installed_names="${installed_names},smtp"
+fi
+
+report "install_env=ok mode=0600 owner=root names=${installed_names}"
 
 phase="pre_migrate"
 rollback_allowed="true"
