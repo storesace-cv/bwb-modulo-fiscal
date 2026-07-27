@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.59-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-007** — checklist readiness 4 flags (`GET …/authority-profiles/{id}/readiness`); métricas `route=authority` sem labels sensíveis; OpenAPI `0.1.13-draft`; `external_verified=false`.
+
 ## 0.2.58-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-006** — `internal/authority/prep` (probe simulador + fail-closed produção/`agt-*`); API `/admin/v1/authority/probe-config`; OpenAPI `0.1.12-draft`; ≠ AGT.
