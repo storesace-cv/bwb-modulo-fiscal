@@ -1,4 +1,5 @@
-// Package adminops provides read-only ops visibility for Admin API (RM-BO-003 / RM-BO-015).
+// Package adminops provides ops visibility and secure queue actions for Admin API
+// (RM-BO-003 / RM-BO-015 / RM-BO-016).
 // Never returns secret bodies, credentials, JWS, NIF, or full fiscal document payloads.
 package adminops
 
@@ -34,6 +35,7 @@ type SubmissionSummary struct {
 	SubmissionID       string
 	DocumentID         string
 	OutboxState        string
+	OpsDisposition     string // cancelled|manual_review|"" — never invent AGT codes
 	QueueStatus        string // derived for ops panel
 	LedgerStatus       string
 	LatestOutcome      string
@@ -44,7 +46,7 @@ type SubmissionSummary struct {
 	OutboxUpdatedAt    time.Time
 }
 
-// Store reads ops tables without mutation.
+// Store reads ops tables and applies secure queue mutations (RM-BO-016).
 type Store struct {
 	db      *sql.DB
 	dialect Dialect
@@ -79,7 +81,8 @@ func (s *Store) ListSubmissionSummariesFiltered(ctx context.Context, f Submissio
 	t := s.t
 	ph := s.p
 	q := `
-SELECT o.submission_id, o.document_id, o.state, o.available_at, o.updated_at,
+SELECT o.submission_id, o.document_id, o.state, COALESCE(o.ops_disposition, ''),
+  o.available_at, o.updated_at,
   COALESCE((
     SELECT le.to_status FROM ` + t("ledger_events") + ` le
     WHERE le.document_id = o.document_id
@@ -127,7 +130,8 @@ LIMIT ` + ph(len(args)+1)
 		var row SubmissionSummary
 		var available, updated any
 		if err := rows.Scan(
-			&row.SubmissionID, &row.DocumentID, &row.OutboxState, &available, &updated,
+			&row.SubmissionID, &row.DocumentID, &row.OutboxState, &row.OpsDisposition,
+			&available, &updated,
 			&row.LedgerStatus, &row.LatestOutcome, &row.AuthorityRequestID, &row.Attempts,
 		); err != nil {
 			return nil, err
@@ -140,8 +144,10 @@ LIMIT ` + ph(len(args)+1)
 			row.NextAttemptAt = &at
 		}
 		row.AuthorityRequestID = sanitizeRequestID(row.AuthorityRequestID)
-		row.SanitizedError = SanitizeOpsError(row.LatestOutcome, row.OutboxState)
-		row.QueueStatus = DeriveQueueStatus(row.OutboxState, row.LatestOutcome, row.Attempts)
+		row.SanitizedError = SanitizeOpsError(row.LatestOutcome, row.OutboxState, row.OpsDisposition)
+		row.QueueStatus = DeriveQueueStatusWithDisposition(
+			row.OutboxState, row.LatestOutcome, row.Attempts, row.OpsDisposition,
+		)
 		if wantQueue != "" && row.QueueStatus != wantQueue {
 			continue
 		}
@@ -177,7 +183,13 @@ func DeriveQueueStatus(outboxState, outcome string, attempts int64) string {
 }
 
 // SanitizeOpsError returns an allowlisted error token — never payloads, JWS, NIF, or free text.
-func SanitizeOpsError(outcome, outboxState string) string {
+func SanitizeOpsError(outcome, outboxState, disposition string) string {
+	switch strings.TrimSpace(disposition) {
+	case DispositionCancelled:
+		return "ops_cancelled"
+	case DispositionManualReview:
+		return "ops_manual_review"
+	}
 	outcome = strings.TrimSpace(outcome)
 	switch outcome {
 	case "authority_rejected", "authority_outcome_unknown", "retried_unavailable":

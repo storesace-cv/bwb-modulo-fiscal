@@ -10,6 +10,8 @@
 | `GET /admin/v1/health` | não | Liveness do componente admin |
 | `GET /admin/v1/ready` | não | Readiness: ping BD (timeout 2s), `admin_auth_mode`, presença do gate SecAdm (`configured`/`absent`) |
 | `GET /admin/v1/ops/metrics` | `ops.read` | Contadores de baixa cardinalidade + `auth_ok`/`auth_fail` |
+| `GET /admin/v1/ops/submissions` | `ops.read` | Fila sanitizada (RM-BO-015) |
+| `POST /admin/v1/ops/submissions/{id}/actions` | `ops.write` | retry/cancel/manual_review (RM-BO-016); métricas sem payload |
 
 Todas as respostas admin observáveis incluem / propagam `X-Request-Id` (`areq_…`).
 

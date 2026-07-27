@@ -45,7 +45,7 @@ flowchart TB
 - Adesão FE do contribuinte: enum `not_enrolled|pending|active|suspended` por ambiente (`DEC-PROD-004` / `RM-BO-012`); **nunca** booleano; `active` ≡ aderiu facturação electrónica nesse ambiente; NIF proibido em logs/métricas/audit `resource_id`.
 - Disponibilidade documental calculada (`RM-BO-013` / `DEC-PROD-001`…`006`): 5 grupos; activos; SAF-T sem FE; matriz FE com adesão `active`; pendências AGT (`pending_validation`/`conflito`) indisponíveis; sem inventar códigos.
 - Séries por estabelecimento/ambiente/tipo (`RM-BO-014`): `draft`/`active`/`closed`; código único; sem reutilizar/retroceder; concorrência por versão; metadados ≠ numeração fiscal.
-- Fila ops de submissões (`RM-BO-015`): estados derivados (`pending|processing|accepted|rejected|retry|manual_review`), tentativas, `next_attempt`, `request_id` e erro sanitizado — sem payload/JWS/NIF.
+- Fila ops de submissões (`RM-BO-015`/`016`): estados derivados (`pending|processing|accepted|rejected|retry|manual_review|cancelled`), tentativas, `next_attempt`, `request_id` e erro sanitizado — sem payload/JWS/NIF. Acções `retry`/`cancel`/`manual_review` com `ops.write`, CSRF, Idempotency-Key, concorrência e audit; simulator ≠ production.
 - Séries efectivas no binding (`series_effective_code`), timezone IANA, activação de tipos/grupos, estados (`active`/`inactive`).
 - Listagens de submissões/erros/reconciliação **sem** corpos secretos.
 - Metadados sanitizados de refs: ambiente, estado, fingerprint, validade, última verificação.

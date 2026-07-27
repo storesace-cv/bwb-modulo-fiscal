@@ -15,6 +15,7 @@ Matriz canónica em código: [`internal/adminauth/rbac.go`](../../internal/admin
 | Permissão | owner | admin | operator | auditor |
 |---|---|---|---|---|
 | `cadastro.write` | sim | sim | não | não |
+| `ops.write` (retry/cancel/manual_review) | sim | sim | não | não |
 | `cadastro.read` / `ops.read` / `audit.read` / `secret_meta.read` | sim | sim | sim | sim |
 | `secadm.write` (Put/Rotate/Revoke) | **sim** | não | não | não |
 | Leitura de plaintext de segredo | **não existe** | — | — | — |

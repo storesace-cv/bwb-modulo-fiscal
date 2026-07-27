@@ -6,39 +6,11 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 )
-
-type submissionsPage struct {
-	pageBase
-	Items       []adminops.SubmissionSummary
-	QueueStatus string
-}
 
 type auditPage struct {
 	pageBase
 	Items []adminaudit.Event
-}
-
-func (h *Handler) submissions(w http.ResponseWriter, r *http.Request) {
-	queueStatus := strings.TrimSpace(r.URL.Query().Get("queue_status"))
-	page := submissionsPage{
-		pageBase:    h.baseWithCSRF(w, r, "Submissões", "Fila de submissões", "submissions"),
-		QueueStatus: queueStatus,
-	}
-	if h.Ops != nil {
-		items, err := h.Ops.ListSubmissionSummariesFiltered(r.Context(), adminops.SubmissionFilter{
-			Limit: listLimit, QueueStatus: queueStatus,
-		})
-		if err != nil {
-			h.recordUIAccess(r, "ui.ops.read", "ops_ui", "submissions", adminaudit.ResultError)
-			http.Error(w, "erro interno", http.StatusInternalServerError)
-			return
-		}
-		page.Items = items
-	}
-	h.recordUIAccess(r, "ui.ops.read", "ops_ui", "submissions", adminaudit.ResultSuccess)
-	h.render(w, "submissions.html", page)
 }
 
 func (h *Handler) auditEvents(w http.ResponseWriter, r *http.Request) {

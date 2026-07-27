@@ -25,6 +25,7 @@ type submissionSummaryResp struct {
 	SubmissionID       string  `json:"submission_id"`
 	DocumentID         string  `json:"document_id"`
 	OutboxState        string  `json:"outbox_state"`
+	OpsDisposition     string  `json:"ops_disposition,omitempty"`
 	QueueStatus        string  `json:"queue_status"`
 	LedgerStatus       string  `json:"ledger_status,omitempty"`
 	LatestOutcome      string  `json:"latest_outcome,omitempty"`
@@ -89,7 +90,8 @@ func (h *Handler) listOpsSubmissions(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		item := submissionSummaryResp{
 			SubmissionID: row.SubmissionID, DocumentID: row.DocumentID,
-			OutboxState: row.OutboxState, QueueStatus: row.QueueStatus,
+			OutboxState: row.OutboxState, OpsDisposition: row.OpsDisposition,
+			QueueStatus:  row.QueueStatus,
 			LedgerStatus: row.LedgerStatus, LatestOutcome: row.LatestOutcome,
 			Attempts: row.Attempts, AuthorityRequestID: row.AuthorityRequestID,
 			SanitizedError:  row.SanitizedError,

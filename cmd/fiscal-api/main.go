@@ -160,6 +160,9 @@ func run() int {
 	uiHandler.SecAdm = secGate
 	uiHandler.TokenAuth = adminAuthn
 	uiHandler.Obs = adminObs
+	uiHandler.AuthorityMode = cfg.Authority
+	uiHandler.FiscalEnv = docsCfg.Env
+
 	if uiHandler.CSRF != nil {
 		uiHandler.CSRF.SetSecure(uiHandler.CookieSecure)
 	}

@@ -14,6 +14,8 @@ const (
 	PermCadastroRead Permission = "cadastro.read"
 	// PermOpsRead reads ops submissions / reconciliation summaries (no secret bodies).
 	PermOpsRead Permission = "ops.read"
+	// PermOpsWrite mutates ops queue actions (retry/cancel/manual_review); owner|admin only.
+	PermOpsWrite Permission = "ops.write"
 	// PermAuditRead reads admin audit events.
 	PermAuditRead Permission = "audit.read"
 	// PermSecretMetaRead reads sanitized secret-ref metadata only (no plaintext).
@@ -42,14 +44,14 @@ func roleAllows(role Role, perm Permission) bool {
 	case RoleOwner:
 		// Owner: plano A completo + SecAdm write. Still no plaintext read ACL.
 		switch perm {
-		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermAuditRead, PermSecretMetaRead, PermSecAdmWrite:
+		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermOpsWrite, PermAuditRead, PermSecretMetaRead, PermSecAdmWrite:
 			return true
 		default:
 			return false
 		}
 	case RoleAdmin:
 		switch perm {
-		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermAuditRead, PermSecretMetaRead:
+		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermOpsWrite, PermAuditRead, PermSecretMetaRead:
 			return true
 		case PermSecAdmWrite:
 			return false
@@ -60,7 +62,7 @@ func roleAllows(role Role, perm Permission) bool {
 		switch perm {
 		case PermCadastroRead, PermOpsRead, PermAuditRead, PermSecretMetaRead:
 			return true
-		case PermCadastroWrite, PermSecAdmWrite:
+		case PermCadastroWrite, PermOpsWrite, PermSecAdmWrite:
 			return false
 		default:
 			return false
