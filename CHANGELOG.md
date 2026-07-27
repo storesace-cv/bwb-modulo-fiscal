@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.43-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-015** — `BuildIncrementalExport` com `MovementOfGoods` (filtro período, allowlist MovementType, refs Customer/Supplier/Product); ≠ AO-* / AGT / deploy.
+
 ## 0.2.42-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-014** — `BuildIncrementalExport` com `PurchaseInvoices` (sem Line; Supplier; allowlist PurchaseType; período); ≠ AO-* / AGT / deploy.

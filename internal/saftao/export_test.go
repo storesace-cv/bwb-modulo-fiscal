@@ -236,3 +236,55 @@ func TestIncrementalExportPurchaseInvoices(t *testing.T) {
 		t.Fatal("empty AllowedPurchaseTypes must reject purchases")
 	}
 }
+
+func TestIncrementalExportMovementOfGoods(t *testing.T) {
+	base := saftao.MinimalMovementOfGoodsFixture()
+	out := base.SourceDocuments.MovementOfGoods.StockMovement[0]
+	out.DocumentNumber = "GR S001/2"
+	out.MovementDate = saftao.MustDate("2025-12-31")
+
+	req := saftao.ExportRequest{
+		Header:               *base.Header,
+		EnabledGroups:        []saftao.DocumentGroup{saftao.GroupMovementOfGoods},
+		AllowedMovementTypes: []saftao.MovementType{saftao.MovementTypeGR},
+		Customers:            base.MasterFiles.Customer,
+		Products:             base.MasterFiles.Product,
+		StockMovements:       append([]saftao.StockMovement{}, base.SourceDocuments.MovementOfGoods.StockMovement[0], out),
+		ValidateAgainstXSD:   saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NumberOfStockMovements != 1 || res.NumberOfMovementLines != 1 {
+		t.Fatalf("want 1 movement/1 line, got %d/%d", res.NumberOfStockMovements, res.NumberOfMovementLines)
+	}
+	if res.TotalQuantityIssued.String() != "1" {
+		t.Fatalf("TotalQuantityIssued %q", res.TotalQuantityIssued)
+	}
+	s := string(res.XML)
+	if !strings.Contains(s, "GR S001/1") || strings.Contains(s, "GR S001/2") {
+		t.Fatalf("period filter failed: %s", s)
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingMovementTypeSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingMovementTypeSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("movement export must be deterministic")
+	}
+	req.AllowedMovementTypes = nil
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("empty AllowedMovementTypes must reject movements")
+	}
+}

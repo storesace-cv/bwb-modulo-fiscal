@@ -12,7 +12,7 @@ import (
 type ExportRequest struct {
 	Header Header
 	// EnabledGroups must be a subset of AllDocumentGroups (DEC-PROD-001).
-	// This slice populates SalesInvoices, Payments and/or PurchaseInvoices when enabled.
+	// This slice populates SalesInvoices, Payments, PurchaseInvoices and/or MovementOfGoods when enabled.
 	EnabledGroups []DocumentGroup
 	// AllowedInvoiceTypes gates which XSD InvoiceType values may appear (enrolment / DEC-PROD-002).
 	// Empty ⇒ fail-closed (no invoices accepted).
@@ -21,6 +21,8 @@ type ExportRequest struct {
 	AllowedPaymentTypes []PaymentType
 	// AllowedPurchaseTypes gates PurchaseType. Empty ⇒ fail-closed when PurchaseInvoices present.
 	AllowedPurchaseTypes []PurchaseType
+	// AllowedMovementTypes gates MovementType. Empty ⇒ fail-closed when StockMovements present.
+	AllowedMovementTypes []MovementType
 	Customers            []Customer
 	Suppliers            []Supplier
 	Products             []Product
@@ -30,12 +32,15 @@ type ExportRequest struct {
 	Invoices         []Invoice
 	Payments         []Payment
 	PurchaseInvoices []PurchaseInvoice
+	StockMovements   []StockMovement
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
 	IncludeEmptyPaymentsTotals bool
 	// IncludeEmptyPurchaseEntries emits PurchaseInvoices with NumberOfEntries=0 when enabled and empty.
 	IncludeEmptyPurchaseEntries bool
+	// IncludeEmptyMovementTotals emits MovementOfGoods with zero lines/qty when enabled and empty.
+	IncludeEmptyMovementTotals bool
 	// ValidateAgainstXSD runs xmllint when true and available.
 	ValidateAgainstXSD bool
 }
@@ -51,6 +56,9 @@ type ExportResult struct {
 	PaymentTotalDebit        DecimalNonNeg
 	PaymentTotalCredit       DecimalNonNeg
 	NumberOfPurchaseInvoices int
+	NumberOfStockMovements   int
+	NumberOfMovementLines    int
+	TotalQuantityIssued      DecimalNonNeg
 	EnabledGroups            []DocumentGroup
 	PendingRegulatory        []PendingRegulatory
 	XSDChecked               bool
@@ -98,10 +106,18 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		}
 		allowedPurchase[t] = struct{}{}
 	}
+	allowedMovement := map[MovementType]struct{}{}
+	for _, t := range req.AllowedMovementTypes {
+		if !ValidMovementType(t) {
+			return nil, fmt.Errorf("%w: AllowedMovementType %q", ErrValidation, t)
+		}
+		allowedMovement[t] = struct{}{}
+	}
 
 	salesEnabled := groupEnabled(groups, GroupSalesInvoices)
 	paymentsEnabled := groupEnabled(groups, GroupPayments)
 	purchaseEnabled := groupEnabled(groups, GroupPurchaseInvoices)
+	movementEnabled := groupEnabled(groups, GroupMovementOfGoods)
 
 	var filtered []Invoice
 	var totalDebit, totalCredit DecimalNonNeg
@@ -212,6 +228,39 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, fmt.Errorf("%w: PurchaseInvoices sem PurchaseInvoices enabled", ErrValidation)
 	}
 
+	var filteredMov []StockMovement
+	var movementLineCount int
+	totalQty := MustDecimal("0")
+	if movementEnabled {
+		for i := range req.StockMovements {
+			sm := req.StockMovements[i]
+			if err := sm.MovementDate.Validate(); err != nil {
+				return nil, fmt.Errorf("StockMovement[%d]: %w", i, err)
+			}
+			d := string(sm.MovementDate)
+			if d < string(start) || d > string(end) {
+				continue
+			}
+			if _, ok := allowedMovement[sm.MovementType]; !ok {
+				return nil, fmt.Errorf("%w: MovementType %q não permitido pela adesão/config", ErrValidation, sm.MovementType)
+			}
+			if err := sm.ValidateStructural(); err != nil {
+				return nil, fmt.Errorf("StockMovement[%d]: %w", i, err)
+			}
+			filteredMov = append(filteredMov, sm)
+			for _, ln := range sm.Line {
+				movementLineCount++
+				sum, err := addDecimalNonNeg(totalQty, ln.Quantity)
+				if err != nil {
+					return nil, fmt.Errorf("StockMovement[%d]: %w", i, err)
+				}
+				totalQty = sum
+			}
+		}
+	} else if len(req.StockMovements) > 0 {
+		return nil, fmt.Errorf("%w: StockMovements sem MovementOfGoods enabled", ErrValidation)
+	}
+
 	if err := validateMasterRefs(filtered, req.Customers, req.Products); err != nil {
 		return nil, err
 	}
@@ -219,6 +268,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, err
 	}
 	if err := validatePurchaseSupplierRefs(filteredPurchase, req.Suppliers); err != nil {
+		return nil, err
+	}
+	if err := validateStockMovementRefs(filteredMov, req.Customers, req.Suppliers, req.Products); err != nil {
 		return nil, err
 	}
 	if req.TaxTable != nil {
@@ -229,6 +281,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 			return nil, err
 		}
 		if err := validatePaymentTaxAgainstTable(filteredPay, req.TaxTable); err != nil {
+			return nil, err
+		}
+		if err := validateMovementTaxAgainstTable(filteredMov, req.TaxTable); err != nil {
 			return nil, err
 		}
 	}
@@ -244,7 +299,8 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
 		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals)) ||
-		(purchaseEnabled && (len(filteredPurchase) > 0 || req.IncludeEmptyPurchaseEntries))
+		(purchaseEnabled && (len(filteredPurchase) > 0 || req.IncludeEmptyPurchaseEntries)) ||
+		(movementEnabled && (len(filteredMov) > 0 || req.IncludeEmptyMovementTotals))
 	if needSource {
 		doc.SourceDocuments = &SourceDocuments{}
 		if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
@@ -278,6 +334,16 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 				return nil, err
 			}
 		}
+		if movementEnabled && (len(filteredMov) > 0 || req.IncludeEmptyMovementTotals) {
+			doc.SourceDocuments.MovementOfGoods = &MovementOfGoods{
+				NumberOfMovementLines: strconv.Itoa(movementLineCount),
+				TotalQuantityIssued:   totalQty,
+				StockMovement:         filteredMov,
+			}
+			if err := doc.SourceDocuments.MovementOfGoods.ValidateStructural(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	raw, err := MarshalAuditFile(doc)
@@ -295,6 +361,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		PaymentTotalDebit:        payDebit,
 		PaymentTotalCredit:       payCredit,
 		NumberOfPurchaseInvoices: len(filteredPurchase),
+		NumberOfStockMovements:   len(filteredMov),
+		NumberOfMovementLines:    movementLineCount,
+		TotalQuantityIssued:      totalQty,
 		EnabledGroups:            groups,
 		PendingRegulatory: []PendingRegulatory{
 			PendingHashAlgorithm,
@@ -306,6 +375,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	if purchaseEnabled {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingPurchaseTypeSemantics)
+	}
+	if movementEnabled {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingMovementTypeSemantics)
 	}
 	if req.TaxTable != nil {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
@@ -467,6 +539,135 @@ func validatePurchaseSupplierRefs(invoices []PurchaseInvoice, suppliers []Suppli
 		}
 	}
 	return nil
+}
+
+func validateStockMovementRefs(movements []StockMovement, customers []Customer, suppliers []Supplier, products []Product) error {
+	cust := map[string]struct{}{}
+	for _, c := range customers {
+		if strings.TrimSpace(c.CustomerID) == "" {
+			return fmt.Errorf("%w: CustomerID vazio", ErrValidation)
+		}
+		cust[c.CustomerID] = struct{}{}
+	}
+	sup := map[string]struct{}{}
+	for _, s := range suppliers {
+		if strings.TrimSpace(s.SupplierID) == "" {
+			return fmt.Errorf("%w: SupplierID vazio", ErrValidation)
+		}
+		sup[s.SupplierID] = struct{}{}
+	}
+	prod := map[string]struct{}{}
+	for _, p := range products {
+		if strings.TrimSpace(p.ProductCode) == "" {
+			return fmt.Errorf("%w: ProductCode vazio", ErrValidation)
+		}
+		prod[p.ProductCode] = struct{}{}
+	}
+	for i, sm := range movements {
+		if cid := strings.TrimSpace(sm.CustomerID); cid != "" {
+			if _, ok := cust[cid]; !ok {
+				return fmt.Errorf("%w: StockMovement[%d] CustomerID sem MasterFiles", ErrValidation, i)
+			}
+		}
+		if sid := strings.TrimSpace(sm.SupplierID); sid != "" {
+			if _, ok := sup[sid]; !ok {
+				return fmt.Errorf("%w: StockMovement[%d] SupplierID sem MasterFiles", ErrValidation, i)
+			}
+		}
+		for j, ln := range sm.Line {
+			if _, ok := prod[ln.ProductCode]; !ok {
+				return fmt.Errorf("%w: StockMovement[%d].Line[%d] ProductCode sem MasterFiles", ErrValidation, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+func validateMovementTaxAgainstTable(movements []StockMovement, table *TaxTable) error {
+	if table == nil {
+		return nil
+	}
+	keys := taxTableKeys(table)
+	for i, sm := range movements {
+		for j, ln := range sm.Line {
+			if ln.Tax == nil {
+				continue
+			}
+			tt := strings.TrimSpace(ln.Tax.TaxType)
+			tc := strings.TrimSpace(ln.Tax.TaxCode)
+			if tt == "" && tc == "" {
+				continue
+			}
+			k := tt + "|" + tc
+			if _, ok := keys[k]; !ok {
+				return fmt.Errorf("%w: StockMovement[%d].Line[%d] Tax sem TaxTableEntry", ErrValidation, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+// addDecimalNonNeg adds two SAFdecimalType non-negative values using milli-units (3 frac digits max fail-closed).
+func addDecimalNonNeg(a, b DecimalNonNeg) (DecimalNonNeg, error) {
+	if err := a.Validate(); err != nil {
+		return "", err
+	}
+	if err := b.Validate(); err != nil {
+		return "", err
+	}
+	ai, err := parseDecimalMilli(string(a))
+	if err != nil {
+		return "", err
+	}
+	bi, err := parseDecimalMilli(string(b))
+	if err != nil {
+		return "", err
+	}
+	sum := ai + bi
+	if sum < 0 {
+		return "", fmt.Errorf("%w: soma negativa", ErrValidation)
+	}
+	whole := sum / 1000
+	frac := sum % 1000
+	if frac == 0 {
+		return DecimalNonNeg(fmt.Sprintf("%d", whole)), nil
+	}
+	s := fmt.Sprintf("%d.%03d", whole, frac)
+	s = strings.TrimRight(strings.TrimRight(s, "0"), ".")
+	return DecimalNonNeg(s), nil
+}
+
+func parseDecimalMilli(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	parts := strings.Split(s, ".")
+	var whole, frac int64
+	var err error
+	switch len(parts) {
+	case 1:
+		whole, err = strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("%w: decimal", ErrValidation)
+		}
+	case 2:
+		whole, err = strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("%w: decimal", ErrValidation)
+		}
+		fracStr := parts[1]
+		if len(fracStr) > 3 {
+			return 0, fmt.Errorf("%w: decimal frac", ErrValidation)
+		}
+		for len(fracStr) < 3 {
+			fracStr += "0"
+		}
+		frac, err = strconv.ParseInt(fracStr, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("%w: decimal", ErrValidation)
+		}
+	default:
+		return 0, fmt.Errorf("%w: decimal", ErrValidation)
+	}
+	return whole*1000 + frac, nil
 }
 
 func validatePaymentTaxAgainstTable(payments []Payment, table *TaxTable) error {
