@@ -1,7 +1,7 @@
 # RM-OPS-006 — Promoção sandbox `main` → schema 12
 
-**Host:** `sandbox.fiscalmod.bwb.pt` (`194.9.62.239`) — **nunca** o apex de produção.  
-**Data (UTC):** 2026-07-27  
+**Host:** `sandbox.fiscalmod.bwb.pt` (`194.9.62.239`) — **nunca** o apex de produção.
+**Data (UTC):** 2026-07-27
 **Itens:** `RM-OPS-006`, `RM-BO-018`, `RM-OPS-007`
 
 ## Relatório separado (pós-deploy)
@@ -51,7 +51,7 @@ Updater: `scripts/deploy/update-staging.sh` (lock → upload → `install-releas
 
 ### Grants pós-0012
 
-Aplicado como root (fora do helper): `deploy/postgres/grants-schema12-runtime-admin.sql` → roles `fiscal_runtime` / `fiscal_admin` no schema `fiscal`.  
+Aplicado como root (fora do helper): `deploy/postgres/grants-schema12-runtime-admin.sql` → roles `fiscal_runtime` / `fiscal_admin` no schema `fiscal`.
 **Nota:** grants **não** vão nas migrations (CI sem roles runtime/admin).
 
 ### Admin readiness (loopback)
@@ -97,7 +97,7 @@ Alteração canónica em `deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf`:
 
 ## Evidências de código
 
-- PR #120 — schema12 readiness + IdP diagnostics: https://github.com/storesace-cv/bwb-modulo-fiscal/pull/120  
+- PR #120 — schema12 readiness + IdP diagnostics: https://github.com/storesace-cv/bwb-modulo-fiscal/pull/120
 - PR de promoção/Nginx — (preencher após merge)
 
 ## Não feito / bloqueios conscientes

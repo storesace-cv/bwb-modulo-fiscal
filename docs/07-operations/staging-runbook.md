@@ -86,7 +86,7 @@ Relatório de promoção: [s3c2-sandbox-promotion-report.md](s3c2-sandbox-promot
 
 ## Nginx (actual + rollback)
 
-- **Live (CONFIRMED):** `location = /v1/documents` open autenticado + `limit_req` 10r/s / burst=20 / 429; health fora do limiter.
+- **Live (CONFIRMED):** `location = /v1/documents` open autenticado + `limit_req` 10r/s / burst=20 / 429; health fora do limiter; proxy `/admin/v1/` + `/admin/ui` (app fail-closed; RM-OPS-007).
 - **Rollback:** `nginx-deny-all` / `tls.deny.conf` — fail-safe; não é o estado público actual.
 - Application generates `X-Request-Id`; Nginx clears inbound client `X-Request-Id`.
 - Always `nginx -t` before reload; failed reload keeps previous config.
