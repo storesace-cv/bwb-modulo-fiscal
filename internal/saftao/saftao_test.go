@@ -181,4 +181,33 @@ func TestPendingRegulatoryMarkers(t *testing.T) {
 	if saftao.PendingHashAlgorithm == "" || saftao.PendingInvoiceTypeSemantics == "" {
 		t.Fatal("pending markers required")
 	}
+	if saftao.PendingMovementTypeSemantics == "" {
+		t.Fatal("pending movement marker required")
+	}
+}
+
+func TestMovementOfGoodsStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalMovementOfGoodsFixture()
+	if err := doc.SourceDocuments.MovementOfGoods.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	bad := doc.SourceDocuments.MovementOfGoods.StockMovement[0]
+	bad.CustomerID = ""
+	bad.SupplierID = ""
+	if err := bad.ValidateStructural(); err == nil {
+		t.Fatal("expected CustomerID XOR SupplierID")
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "MovementOfGoods") || !strings.Contains(string(raw), "StockMovement") {
+		t.Fatalf("marshal: %s", raw)
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
 }
