@@ -2,7 +2,7 @@
 
 ## 0.2.74-draft — 2026-07-27
 
-- Ops: **RM-OPS-008** — fundação SMTP implicit TLS 465; `smtp.env` root:root 0600; `POST /admin/v1/ops/notifications/test` owner-only; helper `smtp-send-test`; testes com SMTP TLS fake; OpenAPI admin `0.1.27-draft`; sem passwords no email; ≠ AGT/IdP.
+- Ops: **RM-OPS-008** — fundação SMTP + relatório sandbox [rm-ops-008-smtp-sandbox-report.md](docs/07-operations/rm-ops-008-smtp-sandbox-report.md); INC-OPS-008-2 `smtp_tls_failed` aberto implicit TLS 465; `smtp.env` root:root 0600; `POST /admin/v1/ops/notifications/test` owner-only; helper `smtp-send-test`; testes com SMTP TLS fake; OpenAPI admin `0.1.27-draft`; sem passwords no email; ≠ AGT/IdP.
 
 ## 0.2.73-draft — 2026-07-27
 
