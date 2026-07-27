@@ -85,3 +85,26 @@ func (g *Gate) Metadata(ctx context.Context, actor Actor, ref secretstore.Ref) (
 	}
 	return g.store.Metadata(ctx, ref)
 }
+
+// ValidateOfflineRefs reveals key+cert ephemerally, validates offline, zeros plaintext.
+// Never returns plaintext. ≠ external_verified / AGT.
+func (g *Gate) ValidateOfflineRefs(ctx context.Context, actor Actor, keyRef, certRef secretstore.Ref, intermediatesPEM []byte, now time.Time) (secretstore.OfflineReport, error) {
+	if err := g.authorize(actor); err != nil {
+		return secretstore.OfflineReport{}, err
+	}
+	revealer, ok := g.store.(secretstore.RuntimeReveal)
+	if !ok {
+		return secretstore.OfflineReport{}, fmt.Errorf("%w: store sem Reveal runtime", ErrValidation)
+	}
+	keyPlain, err := revealer.Reveal(ctx, keyRef)
+	if err != nil {
+		return secretstore.OfflineReport{}, err
+	}
+	defer secretstore.ZeroBytes(keyPlain)
+	certPlain, err := revealer.Reveal(ctx, certRef)
+	if err != nil {
+		return secretstore.OfflineReport{}, err
+	}
+	defer secretstore.ZeroBytes(certPlain)
+	return secretstore.ValidateOfflineKeyCert(keyPlain, certPlain, intermediatesPEM, now)
+}

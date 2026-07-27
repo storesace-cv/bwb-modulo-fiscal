@@ -162,6 +162,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("POST /admin/v1/secadm/secret-refs/revoke", wrap(secadmWrite(http.HandlerFunc(h.secadmRevoke))))
 	mux.Handle("POST /admin/v1/secadm/material", wrap(secadmWrite(http.HandlerFunc(h.secadmPutMaterial))))
 	mux.Handle("POST /admin/v1/secadm/material/rotate", wrap(secadmWrite(http.HandlerFunc(h.secadmRotateMaterial))))
+	mux.Handle("POST /admin/v1/secadm/material/validate-offline", wrap(secadmWrite(http.HandlerFunc(h.secadmValidateOffline))))
 }
 
 func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {

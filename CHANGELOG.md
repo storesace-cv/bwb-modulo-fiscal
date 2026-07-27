@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.57-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-005** — validação offline par chave-cert/cadeia/validade/finalidade/fingerprint (`/admin/v1/secadm/material/validate-offline`); OpenAPI `0.1.11-draft`; `external_verified=false`; ≠ AGT.
+
 ## 0.2.56-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-004** — SecAdm import/rotate material PEM/PKCS#12/credencial (`/admin/v1/secadm/material`, UI `/admin/ui/secadm/material`); limites; password efémera; OpenAPI `0.1.10-draft`; ≠ AGT / plaintext.
