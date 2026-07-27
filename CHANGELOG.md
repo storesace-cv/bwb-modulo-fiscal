@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.49-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-021** — loader WorkingDocuments (`WorkingLedgerSource`/`SyntheticWorkingLedger` + `MapWorkingLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-WRK-PERSIST); ≠ AO-* / AGT / deploy.
+
 ## 0.2.48-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-020** — loader MovementOfGoods (`MovementLedgerSource`/`SyntheticMovementLedger` + `MapMovementLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-MOV-PERSIST); ≠ AO-* / AGT / deploy.
