@@ -8,6 +8,7 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/prep"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
@@ -143,6 +144,15 @@ func (h *Handler) secadmMaterialSubmit(w http.ResponseWriter, r *http.Request) {
 	page.Fingerprint = meta.Fingerprint
 	page.Version = meta.Version
 	page.FormatNote = formatNote
+	if pid := strings.TrimSpace(r.FormValue("authority_profile_id")); pid != "" && h.Registry != nil {
+		if p, err := h.Registry.GetAuthorityProfile(r.Context(), pid); err == nil {
+			in := prep.ProfilePatchAfterMaterialChange(p, ref.Kind, ref.Name, meta, false)
+			if _, err := h.Registry.UpdateAuthorityProfile(r.Context(), in); err == nil {
+				page.FlashOK += " · offline_validated invalidado no perfil"
+				h.recordUIAccess(r, "ui.authority.material_sync", "authority_profile", pid, adminaudit.ResultSuccess)
+			}
+		}
+	}
 	h.render(w, "secadm_material.html", page)
 }
 

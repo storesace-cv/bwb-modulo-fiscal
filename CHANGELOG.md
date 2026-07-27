@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.63-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-010** — lifecycle material AuthorityProfile (`GET …/material-lifecycle`); rotate/revoke com `authority_profile_id` invalida `offline_validated` e sincroniza fingerprint sanitizado; OpenAPI `0.1.17-draft`; ≠ AGT / plaintext.
+
 ## 0.2.62-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-009** — gate activação AuthorityProfile fail-closed (`active` exige `config_ready`+`secrets_ready`+`offline_validated`; `external_verified=false`); OpenAPI admin `0.1.16-draft`; ≠ AGT.

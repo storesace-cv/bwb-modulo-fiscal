@@ -100,6 +100,7 @@ func (h *Handler) secadmMaterialWrite(w http.ResponseWriter, r *http.Request, ac
 		meta = res.Metadata
 	}
 	_ = h.Audit.Record(r.Context(), claims, action, "secret_ref", ref.Key(), adminaudit.ResultSuccess, requestID(r))
+	h.syncProfileAfterMaterialChange(r, claims, r.FormValue("authority_profile_id"), ref.Kind, ref.Name, meta, false)
 	base := metadataResp(meta)
 	writeJSON(w, http.StatusOK, materialMetaResp{
 		Kind: base.Kind, Environment: base.Environment, SubjectID: base.SubjectID,

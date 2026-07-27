@@ -14,19 +14,21 @@ import (
 
 // writeSecretReq carries a secret for Put/Rotate. Plaintext is never logged or returned.
 type writeSecretReq struct {
-	Kind        string  `json:"kind"`
-	Environment string  `json:"environment"`
-	SubjectID   string  `json:"subject_id"`
-	Name        string  `json:"name"`
-	Plaintext   string  `json:"plaintext"`
-	ExpiresAt   *string `json:"expires_at"`
+	Kind               string  `json:"kind"`
+	Environment        string  `json:"environment"`
+	SubjectID          string  `json:"subject_id"`
+	Name               string  `json:"name"`
+	Plaintext          string  `json:"plaintext"`
+	ExpiresAt          *string `json:"expires_at"`
+	AuthorityProfileID string  `json:"authority_profile_id"`
 }
 
 type revokeSecretReq struct {
-	Kind        string `json:"kind"`
-	Environment string `json:"environment"`
-	SubjectID   string `json:"subject_id"`
-	Name        string `json:"name"`
+	Kind               string `json:"kind"`
+	Environment        string `json:"environment"`
+	SubjectID          string `json:"subject_id"`
+	Name               string `json:"name"`
+	AuthorityProfileID string `json:"authority_profile_id"`
 }
 
 func (h *Handler) secadmPut(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +87,7 @@ func (h *Handler) secadmWrite(
 		return
 	}
 	_ = h.Audit.Record(r.Context(), claims, action, "secret_ref", ref.Key(), adminaudit.ResultSuccess, requestID(r))
+	h.syncProfileAfterMaterialChange(r, claims, req.AuthorityProfileID, ref.Kind, ref.Name, meta, false)
 	writeJSON(w, http.StatusOK, metadataResp(meta))
 }
 
@@ -111,6 +114,7 @@ func (h *Handler) secadmRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.Audit.Record(r.Context(), claims, "secadm.revoke", "secret_ref", ref.Key(), adminaudit.ResultSuccess, requestID(r))
+	h.syncProfileAfterMaterialChange(r, claims, req.AuthorityProfileID, ref.Kind, ref.Name, meta, true)
 	writeJSON(w, http.StatusOK, metadataResp(meta))
 }
 
