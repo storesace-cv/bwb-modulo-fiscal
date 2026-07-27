@@ -15,7 +15,7 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-018)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-019)
 
 - Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro + TaxTable + GeneralLedgerAccounts.
 - RM-SAFT-007…008: `Payments` e `PurchaseInvoices` (este **sem** `Line` no XSD).
@@ -29,6 +29,7 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 - RM-SAFT-016: `BuildIncrementalExport` popula `WorkingDocuments` (período/`WorkDate`, allowlist `WorkType`, Customer + Product refs); ≠ AO-*. Os **5 grupos L3** estão no export estrutural.
 - RM-SAFT-017: `GeneralLedgerAccounts`/`Account` (GroupingCategory; sem NumberOfEntries no contentor MasterFiles); integração opcional no export; ≠ plano de contas AO-*.
 - RM-SAFT-018: loader Payments via `PaymentLedgerSource` + `MapPaymentsLedgerToExport`; Store → `ErrUnsupported` (GAP-SAFT-PAY-PERSIST).
+- RM-SAFT-019: loader PurchaseInvoices via `PurchaseLedgerSource` + `MapPurchaseLedgerToExport`; Store → `ErrUnsupported` (GAP-SAFT-PUR-PERSIST).
 - Distinção: **estrutura XSD** ≠ conformidade legal / AGT / `AO-*`.
 - XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**.
 
