@@ -1,5 +1,6 @@
 {{define "content"}}
-<p class="hint">Apenas metadados e nomes lógicos de refs. Nunca cole PEM, PKCS#12, passwords ou tokens.</p>
+<p class="hint">Apenas metadados e nomes lógicos de refs. Nunca cole PEM, PKCS#12, passwords ou tokens.
+  Estado <code>active</code> exige readiness local completa (fail-closed); <code>external_verified</code> permanece false.</p>
 {{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
 <form method="post" action="/admin/ui/authority-profiles">
   <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.15-draft
+  version: 0.1.16-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -23,6 +23,7 @@ info:
     0.1.13: Checklist readiness 4 flags + métricas authority (RM-AGTPREP-007).
     0.1.14: UI SSR readiness checklist (RM-BO-011); contrato HTTP inalterado.
     0.1.15: UI SSR wizard owner-only /admin/ui/authority-profiles/wizard (RM-AGTPREP-008); draft only; contrato HTTP inalterado.
+    0.1.16: Gate activação AuthorityProfile fail-closed (RM-AGTPREP-009); active exige config+secrets+offline; external_verified=false.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -1349,6 +1350,9 @@ components:
         status:
           type: string
           enum: [draft, validated, active, revoked]
+          description: >
+            active exige config_ready+secrets_ready+offline_validated (fail-closed, RM-AGTPREP-009).
+            external_verified nunca é aceite como true (≠ AGT).
         allowed_operations:
           type: array
           items:
@@ -1409,6 +1413,9 @@ components:
         status:
           type: string
           enum: [draft, validated, active, revoked]
+          description: >
+            active sem readiness local completa é rejeitado (422 / ADMIN_VALIDATION).
+            external_verified permanece false.
         allowed_operations:
           type: array
           items:
@@ -1441,6 +1448,8 @@ components:
         status:
           type: string
           enum: [draft, validated, active, revoked]
+          description: >
+            Transição para active exige as três flags locais true; limpar flags com status=active falha.
         allowed_operations:
           type: array
           items:

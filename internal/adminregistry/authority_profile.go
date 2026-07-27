@@ -115,6 +115,9 @@ func (r *Registry) CreateAuthorityProfile(ctx context.Context, in CreateAuthorit
 	p.CreatedAt = now
 	p.UpdatedAt = now
 	p.ExternalVerified = false
+	if err := enforceActivationGate(p); err != nil {
+		return AuthorityProfile{}, err
+	}
 	opsJSON, err := json.Marshal(p.AllowedOperations)
 	if err != nil {
 		return AuthorityProfile{}, fmt.Errorf("%w: allowed_operations", ErrValidation)
@@ -270,6 +273,9 @@ func (r *Registry) UpdateAuthorityProfile(ctx context.Context, in UpdateAuthorit
 		cur.OfflineValidated = *in.OfflineValidated
 	}
 	cur.ExternalVerified = false
+	if err := enforceActivationGate(cur); err != nil {
+		return AuthorityProfile{}, err
+	}
 	cur.UpdatedAt = r.now()
 	opsJSON, _ := json.Marshal(cur.AllowedOperations)
 	pendJSON, _ := json.Marshal(cur.PendingExternal)
@@ -368,6 +374,21 @@ func validAuthorityStatus(s string) bool {
 	default:
 		return false
 	}
+}
+
+// enforceActivationGate is fail-closed: active requires local readiness triad;
+// external_verified is never a gate input and must remain false (≠ AGT).
+func enforceActivationGate(p AuthorityProfile) error {
+	if p.ExternalVerified {
+		return fmt.Errorf("%w: external_verified não permitido (≠ AGT)", ErrValidation)
+	}
+	if p.Status != AuthorityStatusActive {
+		return nil
+	}
+	if !p.ConfigReady || !p.SecretsReady || !p.OfflineValidated {
+		return fmt.Errorf("%w: activação exige config_ready+secrets_ready+offline_validated (fail-closed)", ErrValidation)
+	}
+	return nil
 }
 
 func validateAllowedOperations(ops []string) ([]string, error) {
