@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.61-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-008** — wizard owner-only `/admin/ui/authority-profiles/wizard` (3 passos; permanece `draft`; `external_verified=false`); roadmap `RM-AGTPREP-009`…`013`; OpenAPI admin `0.1.15-draft`; ≠ AGT / plaintext / activação.
+
 ## 0.2.60-draft — 2026-07-27
 
 - Backoffice: **RM-BO-011** — UI owner-only `/admin/ui/authority-profiles/{id}/readiness` (checklist 4 flags); ≠ AGT / plaintext.
