@@ -212,10 +212,11 @@ func (m *clientMailer) send(ctx context.Context, to, subject, body string) error
 	defer func() { _ = c.Close() }()
 
 	auth := smtp.PlainAuth("", m.cfg.Username, m.cfg.Password, m.cfg.Host)
-	if ok, _ := c.Extension("AUTH"); ok {
-		if err := c.Auth(auth); err != nil {
-			return err
-		}
+	if ok, _ := c.Extension("AUTH"); !ok {
+		return errors.New("smtp auth extension required")
+	}
+	if err := c.Auth(auth); err != nil {
+		return err
 	}
 	from := m.cfg.FromAddress
 	if err := c.Mail(from); err != nil {

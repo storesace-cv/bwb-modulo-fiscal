@@ -317,28 +317,33 @@ func openStoreDB(ctx context.Context, cfg config.DocumentsRuntime) (*sql.DB, per
 // runSMTPSendTest sends one authorized admin test email using env (smtp.env / fiscal.env).
 // Prints only a sanitized JSON delivery status — never passwords or full addresses.
 func runSMTPSendTest() int {
+	writeStatus := func(st smtp.DeliveryStatus) int {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetEscapeHTML(true)
+		if err := enc.Encode(st); err != nil {
+			return 1
+		}
+		if st.Status != "sent" {
+			return 1
+		}
+		return 0
+	}
 	cfg, err := smtp.LoadConfigFromEnv()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=config_invalid\n")
-		return 1
+		return writeStatus(smtp.DeliveryStatus{Status: "failed", Reason: "config_invalid"})
 	}
 	mailer, err := smtp.NewMailer(cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=mailer_invalid\n")
-		return 1
+		return writeStatus(smtp.DeliveryStatus{Status: "failed", Reason: "mailer_invalid"})
 	}
 	if !mailer.Configured() {
-		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=not_configured\n")
-		return 1
+		return writeStatus(smtp.DeliveryStatus{Status: "not_configured", Reason: "smtp_not_configured"})
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	st, err := mailer.SendAdminTest(ctx, "cli_smtp_send_test")
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetEscapeHTML(true)
-	_ = enc.Encode(st)
-	if err != nil || st.Status != "sent" {
-		return 1
+	if err != nil && st.Status == "" {
+		st = smtp.DeliveryStatus{Status: "failed", Reason: "smtp_send_failed"}
 	}
-	return 0
+	return writeStatus(st)
 }

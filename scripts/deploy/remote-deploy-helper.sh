@@ -533,8 +533,11 @@ op_smtp_send_test() {
   local env_file="${ETC_ROOT}/smtp.env"
   [[ -f "${env_file}" ]] || die "smtp.env missing"
   [[ ! -L "${env_file}" ]] || die "smtp.env must not be a symlink"
-  local allowlist="${HELPER_LIB}/smtp.env.allowlist"
-  [[ -f "${allowlist}" ]] || die "helper smtp allowlist missing"
+  local allowlist="${release}/lib/smtp.env.allowlist"
+  if [[ ! -f "${allowlist}" ]]; then
+    allowlist="${HELPER_LIB}/smtp.env.allowlist"
+  fi
+  [[ -f "${allowlist}" ]] || die "smtp allowlist missing (release lib or helper lib)"
   deploy_validate_exact_allowlisted_file "${allowlist}" "${env_file}"
 
   local host port user pass mode from_addr from_name admin_to

@@ -369,6 +369,9 @@ fi
 deploy_assert_restricted_file "ENV_DEPLOY" "${ENV_DEPLOY}"
 deploy_assert_restricted_file "ENV_MIGRATE" "${ENV_MIGRATE}"
 deploy_assert_restricted_file "ENV_ADMIN" "${ENV_ADMIN}"
+if [[ -f "${ENV_SMTP}" ]]; then
+  deploy_assert_restricted_file "ENV_SMTP" "${ENV_SMTP}"
+fi
 
 deploy_ssh_base
 # Invoked only via EXIT trap; preserve/override the script's exit status.
