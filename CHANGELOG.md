@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.54-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-002** — `AuthorityProfile` (migração `0007`, Admin API `/admin/v1/authority-profiles`, OpenAPI `0.1.8-draft`); operações FE catalogadas; `pending_external`; `external_verified=false`; ≠ AGT real / segredos / deploy.
+
 ## 0.2.53-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-001** / **DEC-BO-004** — separação config pública `AuthorityProfile` vs SecAdm/`SecretStore`; roadmap `RM-AGTPREP-002`…`007`; ≠ AGT real / deploy / segredos.

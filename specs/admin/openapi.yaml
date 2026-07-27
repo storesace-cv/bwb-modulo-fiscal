@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.7-draft
+  version: 0.1.8-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -15,6 +15,7 @@ info:
     0.1.5: listagens cadastro + PATCH status taxpayer/establishment (RM-BO-005).
     0.1.6: fundação OIDC/JWT provider-neutral documentada (RM-BO-006).
     0.1.7: observabilidade admin — health/ready/metrics + request_id (RM-BO-007).
+    0.1.8: AuthorityProfile metadados HML/PRD (RM-AGTPREP-002 / DEC-BO-004); sem segredos; external_verified=false.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -364,6 +365,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScopeBinding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /authority-profiles:
+    get:
+      operationId: listAuthorityProfiles
+      summary: Lista perfis de autoridade (metadados; sem segredos)
+      description: >
+        DEC-BO-004 / RM-AGTPREP-002. ops.read. Nunca devolve PEM, passwords ou tokens.
+        external_verified é sempre false até probe AGT real.
+      tags: [Autoridade]
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuthorityProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createAuthorityProfile
+      summary: Cria perfil de autoridade (owner-only; sem segredos)
+      tags: [Autoridade]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAuthorityProfileRequest"
+      responses:
+        "201":
+          description: Criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorityProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /authority-profiles/{profile_id}:
+    get:
+      operationId: getAuthorityProfile
+      summary: Obtém perfil de autoridade
+      tags: [Autoridade]
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Perfil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorityProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: patchAuthorityProfile
+      summary: Actualiza metadados/readiness do perfil (owner-only)
+      description: external_verified não pode ser true por este endpoint.
+      tags: [Autoridade]
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAuthorityProfileRequest"
+      responses:
+        "200":
+          description: Actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorityProfile"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -947,6 +1053,158 @@ components:
         last_verified_at:
           type: string
           format: date-time
+    AuthorityProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - profile_id
+        - environment
+        - display_name
+        - status
+        - allowed_operations
+        - pending_external
+        - config_ready
+        - secrets_ready
+        - offline_validated
+        - external_verified
+        - created_at
+        - updated_at
+      properties:
+        profile_id:
+          type: string
+        environment:
+          type: string
+          enum: [homologation, production]
+        taxpayer_id:
+          type: string
+        scope_id:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+          enum: [draft, validated, active, revoked]
+        allowed_operations:
+          type: array
+          items:
+            type: string
+            enum: [registarFactura, solicitarSerie, listarSeries, obterEstado, listarFacturas]
+          description: Só chaves catalogadas FE HML (pending_validation); não inventar paths
+        pending_external:
+          type: object
+          additionalProperties:
+            type: string
+          description: Campos ainda desconhecidos / conflitos (ex. C-FE-001); nunca segredos
+        producer_credential_ref:
+          type: string
+          description: Nome lógico de ref SecretStore (não o segredo)
+        producer_key_ref:
+          type: string
+        certificate_ref:
+          type: string
+        algorithm_declared:
+          type: string
+          enum: [RS256, pending_external]
+        key_id_sanitized:
+          type: string
+        fingerprint_sanitized:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        config_ready:
+          type: boolean
+        secrets_ready:
+          type: boolean
+        offline_validated:
+          type: boolean
+        external_verified:
+          type: boolean
+          description: Sempre false até probe AGT real autorizada
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateAuthorityProfileRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, display_name]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production]
+        taxpayer_id:
+          type: string
+        scope_id:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+          enum: [draft, validated, active, revoked]
+        allowed_operations:
+          type: array
+          items:
+            type: string
+        pending_external:
+          type: object
+          additionalProperties:
+            type: string
+        producer_credential_ref:
+          type: string
+        producer_key_ref:
+          type: string
+        certificate_ref:
+          type: string
+        algorithm_declared:
+          type: string
+        key_id_sanitized:
+          type: string
+        fingerprint_sanitized:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    UpdateAuthorityProfileRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+        status:
+          type: string
+          enum: [draft, validated, active, revoked]
+        allowed_operations:
+          type: array
+          items:
+            type: string
+        pending_external:
+          type: object
+          additionalProperties:
+            type: string
+        producer_credential_ref:
+          type: string
+        producer_key_ref:
+          type: string
+        certificate_ref:
+          type: string
+        algorithm_declared:
+          type: string
+        key_id_sanitized:
+          type: string
+        fingerprint_sanitized:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        config_ready:
+          type: boolean
+        secrets_ready:
+          type: boolean
+        offline_validated:
+          type: boolean
     Problem:
       type: object
       additionalProperties: false

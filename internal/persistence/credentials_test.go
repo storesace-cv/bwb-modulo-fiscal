@@ -604,7 +604,7 @@ func runCredentialsSuite(t *testing.T, ctx context.Context, store *persistence.C
 }
 
 func TestMigrationParityExpectedVersion(t *testing.T) {
-	if dbmigrate.ExpectedVersion != 6 {
+	if dbmigrate.ExpectedVersion != 7 {
 		t.Fatalf("ExpectedVersion=%d", dbmigrate.ExpectedVersion)
 	}
 }

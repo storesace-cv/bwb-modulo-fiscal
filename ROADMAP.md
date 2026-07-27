@@ -41,8 +41,8 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | POS `0.1.6-draft` · Admin `0.1.5-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
-| Schema | `ExpectedVersion=6` |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.8-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
+| Schema | `ExpectedVersion=7` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -306,7 +306,7 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 | [x] | RM-SECADM-002 | Contrato write-only SecretStore + simulator fail-closed + metadados | CONCLUÍDO | [internal/secretstore/secretstore.go](internal/secretstore/secretstore.go) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 | Sem GET admin; AES-GCM memória; HML≠PRD; sem credenciais reais |
 | [x] | RM-SECADM-003 | HTTP SecAdm Put/Rotate/Revoke write-only + audit | CONCLUÍDO | [internal/adminapi/secadm_handlers.go](internal/adminapi/secadm_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) | RM-SECADM-001 + RM-SECADM-002 + RM-BO-004 | `/admin/v1/secadm/*`; owner role+subject; sem plaintext na resposta; sem AGT real |
 | [x] | RM-AGTPREP-001 | DEC-BO-004: config AGT pública vs SecAdm segredos + roadmap prep | CONCLUÍDO | [PR #100](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/100) · [docs/06-delivery/open-decisions.md](docs/06-delivery/open-decisions.md) · [docs/02-architecture/backoffice-architecture.md](docs/02-architecture/backoffice-architecture.md) · [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) · [CHANGELOG.md](CHANGELOG.md) | DEC-BO-001 + DEC-DEL-002 | Separação AuthorityProfile vs SecretStore; ≠ AGT real |
-| [ ] | RM-AGTPREP-002 | Modelo + API admin AuthorityProfile (HML/PRD; sem segredos) | PENDENTE | — | RM-AGTPREP-001 + RM-BO-001 | draft/validated/active/revoked; pending_external extensível |
+| [x] | RM-AGTPREP-002 | Modelo + API admin AuthorityProfile (HML/PRD; sem segredos) | CONCLUÍDO | [internal/adminregistry/authority_profile.go](internal/adminregistry/authority_profile.go) · [internal/adminapi/authority_handlers.go](internal/adminapi/authority_handlers.go) · [migrations/postgres/0007_authority_profiles.up.sql](migrations/postgres/0007_authority_profiles.up.sql) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) | RM-AGTPREP-001 + RM-BO-001 | draft/validated/active/revoked; pending_external; ExpectedVersion=7; ≠ AGT |
 | [ ] | RM-AGTPREP-003 | UI owner-only perfis autoridade + readiness sanitizado | PENDENTE | — | RM-AGTPREP-002 + RM-UI-005 | Fingerprint/validade/alg/key-id; sem plaintext |
 | [ ] | RM-AGTPREP-004 | SecAdm import/rotate/revoke cert+chave+credencial (SecretStore) | PENDENTE | — | RM-AGTPREP-001 + RM-SECADM-003 | Limites upload; password efémera; sem plaintext |
 | [ ] | RM-AGTPREP-005 | Validação offline par chave-cert / cadeia / fingerprint | PENDENTE | — | RM-AGTPREP-004 | ≠ external_verified / AGT |
