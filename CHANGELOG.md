@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.46-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-018** — loader Payments (`PaymentLedgerSource`/`SyntheticPaymentLedger` + `MapPaymentsLedgerToExport`); `Store` → `ErrUnsupported` (GAP-SAFT-PAY-PERSIST); omissões sem dados sensíveis; ≠ AO-* / AGT / deploy.
+
 ## 0.2.45-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-017** — tipagem `GeneralLedgerAccounts`/`Account` (GroupingCategory; sem NumberOfEntries) + integração opcional no export; fixture XSD; ≠ AO-* / AGT / deploy.
