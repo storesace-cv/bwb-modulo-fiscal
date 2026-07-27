@@ -132,6 +132,9 @@ func (m *Memory) Put(ctx context.Context, ref Ref, plaintext []byte, expiresAt *
 	if len(plaintext) == 0 {
 		return PutResult{}, fmt.Errorf("%w: plaintext vazio", ErrValidation)
 	}
+	if len(plaintext) > MaxBytesForKind(ref.Kind) {
+		return PutResult{}, fmt.Errorf("%w: plaintext demasiado grande", ErrValidation)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := ref.Key()
@@ -155,6 +158,9 @@ func (m *Memory) Rotate(ctx context.Context, ref Ref, plaintext []byte, expiresA
 	}
 	if len(plaintext) == 0 {
 		return PutResult{}, fmt.Errorf("%w: plaintext vazio", ErrValidation)
+	}
+	if len(plaintext) > MaxBytesForKind(ref.Kind) {
+		return PutResult{}, fmt.Errorf("%w: plaintext demasiado grande", ErrValidation)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -286,6 +292,9 @@ func validateRef(ref Ref) error {
 	name := strings.TrimSpace(ref.Name)
 	if kind == "" || subj == "" || name == "" {
 		return fmt.Errorf("%w: kind/subject/name obrigatórios", ErrValidation)
+	}
+	if !ValidKind(kind) {
+		return fmt.Errorf("%w: kind não admitido", ErrValidation)
 	}
 	switch env {
 	case EnvHomologation, EnvProduction:

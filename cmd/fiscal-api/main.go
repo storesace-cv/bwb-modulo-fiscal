@@ -155,6 +155,7 @@ func run() int {
 	uiHandler.Ops = opsStore
 	uiHandler.Audit = auditStore
 	uiHandler.SecretsMeta = secretsMeta
+	uiHandler.SecAdm = secGate
 	uiHandler.TokenAuth = adminAuthn
 	uiHandler.Obs = adminObs
 	if uiHandler.CSRF != nil {

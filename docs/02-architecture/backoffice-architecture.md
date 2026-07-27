@@ -104,7 +104,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 | Camada | Superfície | Conteúdo | Segredos |
 |---|---|---|---|
 | Perfil / metadados | Admin API + UI operacional (mutação owner) `/admin/ui/authority-profiles` | `AuthorityProfile`, endpoints/operation keys conhecidos ou `pending_external`, estados, readiness | **Nunca** |
-| Material criptográfico | SecAdm owner-only → `SecretStore` | Credencial produtor, chave, certificado/PKCS#12 | Write-only; password efémera não persistida |
+| Material criptográfico | SecAdm owner-only → `SecretStore` (`/admin/v1/secadm/material` + UI `/admin/ui/secadm/material`) | Credencial produtor, chave, certificado/PKCS#12 | Write-only; password efémera não persistida; limites de tamanho |
 | Probe externa | Reservada | Ligação AGT real | Bloqueada até GAP-006 / `RM-FE-001` |
 
 Readiness canónico (checklist): `config_ready` · `secrets_ready` · `offline_validated` · `external_verified` (**fix** até AGT real).

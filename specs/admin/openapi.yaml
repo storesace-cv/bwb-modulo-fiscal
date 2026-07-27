@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.9-draft
+  version: 0.1.10-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -17,6 +17,7 @@ info:
     0.1.7: observabilidade admin — health/ready/metrics + request_id (RM-BO-007).
     0.1.8: AuthorityProfile metadados HML/PRD (RM-AGTPREP-002 / DEC-BO-004); sem segredos; external_verified=false.
     0.1.9: UI SSR owner-only /admin/ui/authority-profiles (RM-AGTPREP-003); contrato HTTP inalterado; sem plaintext.
+    0.1.10: SecAdm material multipart PEM/PKCS#12/credencial (RM-AGTPREP-004); password efémera; limites; ≠ AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -624,6 +625,107 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /secadm/material:
+    post:
+      operationId: secadmPutMaterial
+      summary: Importa material PEM/PKCS#12/credencial (multipart; owner)
+      description: >
+        Multipart: kind, environment, subject_id, name, encoding (pem|pkcs12|credential),
+        material (ficheiro), password (só PKCS#12; efémera, nunca persistida/devolvida/auditada),
+        expires_at opcional. Limites de tamanho fail-closed. Resposta só metadados + format_note.
+        ≠ AGT real. UI: /admin/ui/secadm/material.
+      tags: [SecAdm]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [kind, environment, subject_id, name, encoding, material]
+              properties:
+                kind:
+                  type: string
+                  enum: [producer_credential, producer_key, taxpayer_key, certificate]
+                environment:
+                  type: string
+                  enum: [homologation, production]
+                subject_id:
+                  type: string
+                name:
+                  type: string
+                encoding:
+                  type: string
+                  enum: [credential, pem, pkcs12]
+                material:
+                  type: string
+                  format: binary
+                password:
+                  type: string
+                  format: password
+                  description: Efémera — nunca persistida
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Metadados após import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecAdmMaterialMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /secadm/material/rotate:
+    post:
+      operationId: secadmRotateMaterial
+      summary: Rotaciona material PEM/PKCS#12/credencial (multipart; owner)
+      tags: [SecAdm]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [kind, environment, subject_id, name, encoding, material]
+              properties:
+                kind:
+                  type: string
+                environment:
+                  type: string
+                  enum: [homologation, production]
+                subject_id:
+                  type: string
+                name:
+                  type: string
+                encoding:
+                  type: string
+                  enum: [credential, pem, pkcs12]
+                material:
+                  type: string
+                  format: binary
+                password:
+                  type: string
+                  format: password
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Metadados após rotate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecAdmMaterialMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /secadm/secret-refs/revoke:
     post:
       operationId: secadmRevokeSecretRef
@@ -1029,6 +1131,19 @@ components:
           type: string
         name:
           type: string
+    SecAdmMaterialMetadata:
+      allOf:
+        - $ref: "#/components/schemas/SecretRefMetadata"
+        - type: object
+          additionalProperties: false
+          required: [encoding, format_note]
+          properties:
+            encoding:
+              type: string
+              enum: [credential, pem, pkcs12]
+            format_note:
+              type: string
+              description: Nota sanitizada (ex. pem_private_key); nunca plaintext
     SecretRefMetadata:
       type: object
       additionalProperties: false
