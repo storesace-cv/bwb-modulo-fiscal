@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.21-draft
+  version: 0.1.22-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -29,6 +29,7 @@ info:
     0.1.19: Alertas sanitizados readiness (RM-AGTPREP-012); expiry/refs/flags; ≠ external_verified.
     0.1.20: Testes de segurança superfície autoridade documentados (RM-AGTPREP-013); contrato HTTP inalterado.
     0.1.21: Adesão FE enum por contribuinte+ambiente (DEC-PROD-004 / RM-BO-012); ≠ booleano; NIF nunca em audit resource_id.
+    0.1.22: Política calculada documentos disponíveis (RM-BO-013 / DEC-PROD-001…006); 5 grupos; sem inventar códigos.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -309,6 +310,87 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Establishment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /establishments/{establishment_id}/document-availability:
+    get:
+      operationId: getDocumentAvailability
+      summary: Política calculada de documentos disponíveis (5 grupos)
+      description: >
+        DEC-PROD-001…006 / RM-BO-013. Só tipos do seed; activos; sem FE activa só SAF-T-compatíveis;
+        com adesão FE active só matriz FE (L4 no seed); pending_validation/conflito indisponíveis.
+        Não inventa códigos FE-RNG. fe_aderiu é derivado (status==active), não modelo booleano.
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+        - name: environment
+          in: query
+          schema:
+            type: string
+            enum: [homologation, production, development]
+            default: homologation
+      responses:
+        "200":
+          description: Relatório de disponibilidade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentAvailabilityReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /establishments/{establishment_id}/document-groups:
+    put:
+      operationId: upsertDocumentGroupConfig
+      summary: Activa/desactiva um dos 5 grupos (DEC-PROD-003)
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertDocumentGroupRequest"
+      responses:
+        "200":
+          description: Grupo actualizado
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /establishments/{establishment_id}/document-types:
+    put:
+      operationId: upsertDocumentTypeConfig
+      summary: Override de activação de tipo canónico do catálogo
+      description: codigo_canonico deve existir no seed; proibido inventar códigos.
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertDocumentTypeRequest"
+      responses:
+        "200":
+          description: Tipo actualizado
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1246,6 +1328,123 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Establishment"
+    UpsertDocumentGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, grupo, active]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        grupo:
+          type: string
+          enum: [vendas, movimentacao, conferencia, pagamentos, compras]
+        active:
+          type: boolean
+    UpsertDocumentTypeRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, codigo_canonico, active]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        codigo_canonico:
+          type: string
+          description: Must exist in catalog seed (bwb.ao.*); never invent FE-RNG codes.
+        active:
+          type: boolean
+    DocumentAvailabilityReport:
+      type: object
+      additionalProperties: false
+      required:
+        - establishment_id
+        - taxpayer_id
+        - environment
+        - fe_enrollment_status
+        - fe_aderiu
+        - groups
+        - types
+        - computed_at
+      properties:
+        establishment_id:
+          type: string
+        taxpayer_id:
+          type: string
+        environment:
+          type: string
+        fe_enrollment_status:
+          type: string
+          enum: [not_enrolled, pending, active, suspended]
+        fe_aderiu:
+          type: boolean
+          description: Derived (status==active); not a stored boolean model (DEC-PROD-004).
+        groups:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [grupo, active]
+            properties:
+              grupo:
+                type: string
+              active:
+                type: boolean
+        types:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentTypeAvailability"
+        computed_at:
+          type: string
+          format: date-time
+    DocumentTypeAvailability:
+      type: object
+      additionalProperties: false
+      required:
+        - grupo
+        - codigo_canonico
+        - designacao
+        - available
+        - reasons
+        - eligibility
+        - estado_normativo
+        - seed_activo
+        - effective_activo
+        - group_active
+      properties:
+        grupo:
+          type: string
+        codigo_canonico:
+          type: string
+        designacao:
+          type: string
+        available:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+            enum:
+              - group_inactive
+              - type_inactive
+              - agt_pending
+              - saft_incompatible
+              - fe_matrix_unsupported
+              - unknown_canonical
+        eligibility:
+          type: string
+        fe_code:
+          type: string
+        saft_type:
+          type: string
+        estado_normativo:
+          type: string
+        seed_activo:
+          type: string
+        effective_activo:
+          type: boolean
+        group_active:
+          type: boolean
     CreateScopeBindingRequest:
       type: object
       additionalProperties: false
