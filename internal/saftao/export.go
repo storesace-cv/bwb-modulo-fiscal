@@ -34,11 +34,19 @@ type ExportRequest struct {
 	// GeneralLedgerAccounts is optional MasterFiles/GeneralLedgerAccounts (RM-SAFT-017).
 	// Empty ⇒ omitted; non-empty must validate (≥1 Account each). Caller-supplied — never invented.
 	GeneralLedgerAccounts []GeneralLedgerAccounts
-	Invoices              []Invoice
-	Payments              []Payment
-	PurchaseInvoices      []PurchaseInvoice
-	StockMovements        []StockMovement
-	WorkDocuments         []WorkDocument
+	// GeneralLedgerEntries is optional AuditFile/GeneralLedgerEntries (RM-SAFT-023).
+	// Nil ⇒ omitted; non-nil is period-filtered by TransactionDate and must validate.
+	GeneralLedgerEntries *GeneralLedgerEntries
+	// AllowedTransactionTypes gates TransactionType when GeneralLedgerEntries present.
+	// Empty ⇒ fail-closed (no transactions accepted).
+	AllowedTransactionTypes []TransactionType
+	// IncludeEmptyGeneralLedgerEntries emits GLE with zero totals when input filters to empty.
+	IncludeEmptyGeneralLedgerEntries bool
+	Invoices                         []Invoice
+	Payments                         []Payment
+	PurchaseInvoices                 []PurchaseInvoice
+	StockMovements                   []StockMovement
+	WorkDocuments                    []WorkDocument
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
@@ -362,6 +370,19 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		}
 	}
 
+	filteredGLE, err := filterGeneralLedgerEntries(req, start, end)
+	if err != nil {
+		return nil, err
+	}
+	if filteredGLE != nil {
+		if err := validateGLEAccountRefs(filteredGLE, req.GeneralLedgerAccounts); err != nil {
+			return nil, err
+		}
+		if err := validateGLEPartyRefs(filteredGLE, req.Customers, req.Suppliers); err != nil {
+			return nil, err
+		}
+	}
+
 	doc := AuditFile{
 		Header: cloneHeader(&req.Header),
 		MasterFiles: &MasterFiles{
@@ -371,6 +392,7 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 			Product:               req.Products,
 			TaxTable:              req.TaxTable,
 		},
+		GeneralLedgerEntries: filteredGLE,
 	}
 	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
 		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals)) ||
@@ -477,6 +499,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	if len(req.GeneralLedgerAccounts) > 0 {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingGLAccountSemantics)
+	}
+	if filteredGLE != nil {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingGLEntriesSemantics)
 	}
 	if req.ValidateAgainstXSD {
 		if !XSDValidatorAvailable() {
@@ -852,6 +877,148 @@ func taxTableKeys(table *TaxTable) map[string]struct{} {
 		keys[k] = struct{}{}
 	}
 	return keys
+}
+
+func filterGeneralLedgerEntries(req ExportRequest, start, end Date) (*GeneralLedgerEntries, error) {
+	if req.GeneralLedgerEntries == nil {
+		return nil, nil
+	}
+	allowed := map[TransactionType]struct{}{}
+	for _, t := range req.AllowedTransactionTypes {
+		allowed[t] = struct{}{}
+	}
+	var outJournals []Journal
+	txCount := 0
+	totalDebit := MustDecimal("0.00")
+	totalCredit := MustDecimal("0.00")
+	for ji, j := range req.GeneralLedgerEntries.Journal {
+		var kept []Transaction
+		for ti, tx := range j.Transaction {
+			if err := tx.TransactionDate.Validate(); err != nil {
+				return nil, fmt.Errorf("GeneralLedgerEntries.Journal[%d].Transaction[%d]: %w", ji, ti, err)
+			}
+			d := string(tx.TransactionDate)
+			if d < string(start) || d > string(end) {
+				continue
+			}
+			if _, ok := allowed[tx.TransactionType]; !ok {
+				return nil, fmt.Errorf("%w: TransactionType %q não permitido pela adesão/config", ErrValidation, tx.TransactionType)
+			}
+			if err := tx.ValidateStructural(); err != nil {
+				return nil, fmt.Errorf("GeneralLedgerEntries.Journal[%d].Transaction[%d]: %w", ji, ti, err)
+			}
+			kept = append(kept, tx)
+			txCount++
+			for _, ln := range tx.Lines.DebitLine {
+				sum, err := addMoney2AsDecimal(totalDebit, ln.DebitAmount)
+				if err != nil {
+					return nil, err
+				}
+				totalDebit = sum
+			}
+			for _, ln := range tx.Lines.CreditLine {
+				sum, err := addMoney2AsDecimal(totalCredit, ln.CreditAmount)
+				if err != nil {
+					return nil, err
+				}
+				totalCredit = sum
+			}
+		}
+		if len(kept) == 0 {
+			continue
+		}
+		jOut := Journal{
+			JournalID:   j.JournalID,
+			Description: j.Description,
+			Transaction: kept,
+		}
+		if err := jOut.ValidateStructural(); err != nil {
+			return nil, fmt.Errorf("GeneralLedgerEntries.Journal[%d]: %w", ji, err)
+		}
+		outJournals = append(outJournals, jOut)
+	}
+	if txCount == 0 {
+		if !req.IncludeEmptyGeneralLedgerEntries {
+			return nil, nil
+		}
+		empty := &GeneralLedgerEntries{
+			NumberOfEntries: "0",
+			TotalDebit:      MustDecimal("0.00"),
+			TotalCredit:     MustDecimal("0.00"),
+		}
+		if err := empty.ValidateStructural(); err != nil {
+			return nil, err
+		}
+		return empty, nil
+	}
+	out := &GeneralLedgerEntries{
+		NumberOfEntries: strconv.Itoa(txCount),
+		TotalDebit:      totalDebit,
+		TotalCredit:     totalCredit,
+		Journal:         outJournals,
+	}
+	if err := out.ValidateStructural(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func validateGLEAccountRefs(gle *GeneralLedgerEntries, accounts []GeneralLedgerAccounts) error {
+	if gle == nil || len(accounts) == 0 {
+		return nil // AccountID shape already checked; MasterFiles GL optional
+	}
+	have := map[string]struct{}{}
+	for _, block := range accounts {
+		for _, a := range block.Account {
+			have[strings.TrimSpace(a.AccountID)] = struct{}{}
+		}
+	}
+	for ji, j := range gle.Journal {
+		for ti, tx := range j.Transaction {
+			for li, ln := range tx.Lines.DebitLine {
+				id := strings.TrimSpace(ln.AccountID)
+				if _, ok := have[id]; !ok {
+					return fmt.Errorf("%w: Journal[%d].Transaction[%d].DebitLine[%d] AccountID sem MasterFiles", ErrValidation, ji, ti, li)
+				}
+			}
+			for li, ln := range tx.Lines.CreditLine {
+				id := strings.TrimSpace(ln.AccountID)
+				if _, ok := have[id]; !ok {
+					return fmt.Errorf("%w: Journal[%d].Transaction[%d].CreditLine[%d] AccountID sem MasterFiles", ErrValidation, ji, ti, li)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateGLEPartyRefs(gle *GeneralLedgerEntries, customers []Customer, suppliers []Supplier) error {
+	if gle == nil {
+		return nil
+	}
+	cust := map[string]struct{}{}
+	for _, c := range customers {
+		cust[strings.TrimSpace(c.CustomerID)] = struct{}{}
+	}
+	supp := map[string]struct{}{}
+	for _, s := range suppliers {
+		supp[strings.TrimSpace(s.SupplierID)] = struct{}{}
+	}
+	for ji, j := range gle.Journal {
+		for ti, tx := range j.Transaction {
+			if id := strings.TrimSpace(tx.CustomerID); id != "" {
+				if _, ok := cust[id]; !ok {
+					return fmt.Errorf("%w: Journal[%d].Transaction[%d] CustomerID sem MasterFiles", ErrValidation, ji, ti)
+				}
+			}
+			if id := strings.TrimSpace(tx.SupplierID); id != "" {
+				if _, ok := supp[id]; !ok {
+					return fmt.Errorf("%w: Journal[%d].Transaction[%d] SupplierID sem MasterFiles", ErrValidation, ji, ti)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func cloneHeader(h *Header) *Header {

@@ -54,4 +54,6 @@ const (
 	PendingTaxTableSemantics PendingRegulatory = "tax_table_semantics_pending_ao"
 	// PendingGLAccountSemantics: chart/GroupingCategory from XSD; ≠ AO-* chart rules.
 	PendingGLAccountSemantics PendingRegulatory = "gl_account_semantics_pending_ao"
+	// PendingGLEntriesSemantics: Journal/TransactionType from XSD; ≠ AO-* ledger posting rules.
+	PendingGLEntriesSemantics PendingRegulatory = "gl_entries_semantics_pending_ao"
 )

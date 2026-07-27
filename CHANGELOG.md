@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.51-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-023** — tipagem `GeneralLedgerEntries`/`Journal`/`Transaction` (TransactionType; Lines Debit+Credit) + export opcional (período/allowlist); fixture XSD; ≠ AO-* / AGT / deploy.
+
 ## 0.2.50-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-022** — UI admin read-only `/admin/ui/saft` (metadados estruturais + GAPs persistência; sem download XML/NIF/tokens); ≠ AO-* / AGT / deploy.

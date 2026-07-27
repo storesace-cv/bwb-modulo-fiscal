@@ -527,3 +527,46 @@ func MinimalGeneralLedgerAccountsFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalGeneralLedgerEntriesFixture returns synthetic AuditFile/GeneralLedgerEntries for XSD validation.
+// Journal/posting values are placeholders — ≠ AO-* ledger rules. Requires matching GL accounts for keyrefs.
+func MinimalGeneralLedgerEntriesFixture() AuditFile {
+	base := MinimalGeneralLedgerAccountsFixture()
+	base.GeneralLedgerEntries = &GeneralLedgerEntries{
+		NumberOfEntries: "1",
+		TotalDebit:      MustDecimal("50.00"),
+		TotalCredit:     MustDecimal("50.00"),
+		Journal: []Journal{{
+			JournalID:   "J1",
+			Description: "Diario sintetico",
+			Transaction: []Transaction{{
+				TransactionID:     "2026-01-15 J1 ARC001",
+				Period:            1,
+				TransactionDate:   MustDate("2026-01-15"),
+				SourceID:          "USER1",
+				Description:       "Lancamento sintetico",
+				DocArchivalNumber: "ARC001",
+				TransactionType:   TransactionTypeN,
+				GLPostingDate:     MustDate("2026-01-15"),
+				CustomerID:        "", // no party keyref needed
+				Lines: TransactionLines{
+					DebitLine: []DebitLine{{
+						RecordID:        "1",
+						AccountID:       "11.1",
+						SystemEntryDate: MustDateTime("2026-01-15T10:00:00"),
+						Description:     "Debito sintetico",
+						DebitAmount:     MustMoney2("50.00"),
+					}},
+					CreditLine: []CreditLine{{
+						RecordID:        "2",
+						AccountID:       "11",
+						SystemEntryDate: MustDateTime("2026-01-15T10:00:00"),
+						Description:     "Credito sintetico",
+						CreditAmount:    MustMoney2("50.00"),
+					}},
+				},
+			}},
+		}},
+	}
+	return base
+}

@@ -79,13 +79,6 @@ type Product struct {
 	ProductNumberCode  string `xml:"ProductNumberCode"`
 }
 
-// GeneralLedgerEntries placeholder container.
-type GeneralLedgerEntries struct {
-	NumberOfEntries string `xml:"NumberOfEntries"`
-	TotalDebit      string `xml:"TotalDebit"`
-	TotalCredit     string `xml:"TotalCredit"`
-}
-
 // SourceDocuments holds the five L3 document tables (DEC-PROD-001); exposure follows enrolment.
 type SourceDocuments struct {
 	SalesInvoices    *SalesInvoices    `xml:"SalesInvoices,omitempty"`
