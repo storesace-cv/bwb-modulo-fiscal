@@ -15,6 +15,10 @@
   </select>
   <button type="submit">Filtrar</button>
 </form>
+<p class="hint">Página {{.Page}} · matched {{.Matched}} · limite {{.Limit}}
+  {{if .PrevPage}}· <a href="/admin/ui/submissions?queue_status={{.QueueStatus}}&amp;page={{.PrevPage}}">anterior</a>{{end}}
+  {{if .NextPage}}· <a href="/admin/ui/submissions?queue_status={{.QueueStatus}}&amp;page={{.NextPage}}">seguinte</a>{{end}}
+</p>
 {{if .Items}}
 <table>
   <caption class="sr-only">Submissões</caption>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.72-draft — 2026-07-27
+
+- Backoffice: **RM-BO-017** — dashboard ops (contagens + alertas sanitizados), paginação/`page` na fila, filtros; OpenAPI admin `0.1.26-draft`; UI painel + submissions; testes; sem payload/JWS/NIF/segredos; sem migração.
+
 ## 0.2.71-draft — 2026-07-27
 
 - Backoffice: **RM-BO-016** — acções ops `retry`/`cancel`/`manual_review` (RBAC `ops.write`, CSRF UI, Idempotency-Key, concorrência `updated_at`, audit); migração `0012` (`ops_disposition` + idempotency); OpenAPI admin `0.1.25-draft`; `ExpectedVersion=12`; simulator proibido em production; sem payload/JWS/NIF/segredos.

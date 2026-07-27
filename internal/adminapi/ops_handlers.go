@@ -77,8 +77,9 @@ func (h *Handler) listOpsSubmissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := adminops.ClampLimit(r.URL.Query().Get("limit"))
-	rows, err := h.Ops.ListSubmissionSummariesFiltered(r.Context(), adminops.SubmissionFilter{
-		Limit:       limit,
+	page := adminops.ClampPage(r.URL.Query().Get("page"))
+	result, err := h.Ops.ListSubmissionPage(r.Context(), adminops.SubmissionFilter{
+		Limit: limit, Page: page,
 		QueueStatus: r.URL.Query().Get("queue_status"),
 		OutboxState: r.URL.Query().Get("outbox_state"),
 	})
@@ -86,8 +87,8 @@ func (h *Handler) listOpsSubmissions(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
 		return
 	}
-	out := make([]submissionSummaryResp, 0, len(rows))
-	for _, row := range rows {
+	out := make([]submissionSummaryResp, 0, len(result.Items))
+	for _, row := range result.Items {
 		item := submissionSummaryResp{
 			SubmissionID: row.SubmissionID, DocumentID: row.DocumentID,
 			OutboxState: row.OutboxState, OpsDisposition: row.OpsDisposition,
@@ -103,7 +104,37 @@ func (h *Handler) listOpsSubmissions(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, item)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": out, "page": result.Page, "limit": result.Limit,
+		"has_more": result.HasMore, "matched": result.Matched,
+	})
+}
+
+func (h *Handler) getOpsDashboard(w http.ResponseWriter, r *http.Request) {
+	if h.Ops == nil {
+		writeProblem(w, r, http.StatusServiceUnavailable, "ADMIN_OPS_UNAVAILABLE", "Ops Unavailable")
+		return
+	}
+	dash, err := h.Ops.LoadOpsDashboard(r.Context())
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	alerts := make([]map[string]string, 0, len(dash.Alerts))
+	for _, a := range dash.Alerts {
+		alerts = append(alerts, map[string]string{
+			"code": a.Code, "severity": string(a.Severity), "message": a.Message,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"counts": map[string]int64{
+			"pending": dash.Counts.Pending, "processing": dash.Counts.Processing,
+			"accepted": dash.Counts.Accepted, "rejected": dash.Counts.Rejected,
+			"retry": dash.Counts.Retry, "manual_review": dash.Counts.ManualReview,
+			"cancelled": dash.Counts.Cancelled, "total": dash.Counts.Total,
+		},
+		"alerts": alerts,
+	})
 }
 
 func (h *Handler) getSecretRefMetadata(w http.ResponseWriter, r *http.Request) {

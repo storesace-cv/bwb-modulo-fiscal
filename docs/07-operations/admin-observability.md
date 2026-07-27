@@ -10,8 +10,22 @@
 | `GET /admin/v1/health` | não | Liveness do componente admin |
 | `GET /admin/v1/ready` | não | Readiness: ping BD (timeout 2s), `admin_auth_mode`, presença do gate SecAdm (`configured`/`absent`) |
 | `GET /admin/v1/ops/metrics` | `ops.read` | Contadores de baixa cardinalidade + `auth_ok`/`auth_fail` |
-| `GET /admin/v1/ops/submissions` | `ops.read` | Fila sanitizada (RM-BO-015) |
+| `GET /admin/v1/ops/submissions` | `ops.read` | Fila sanitizada + `page`/`has_more` (RM-BO-015/017) |
+| `GET /admin/v1/ops/dashboard` | `ops.read` | Contagens + alertas allowlist (RM-BO-017) |
 | `POST /admin/v1/ops/submissions/{id}/actions` | `ops.write` | retry/cancel/manual_review (RM-BO-016); métricas sem payload |
+
+## Alertas ops (RM-BO-017)
+
+Códigos allowlist (sem IDs fiscais, NIF, payload ou JWS):
+
+| Código | Severidade típica |
+|---|---|
+| `ops_manual_review_backlog` | warning (≥1) / blocking (≥10) |
+| `ops_retry_backlog` | info / warning (≥20) |
+| `ops_processing_inflight` | info |
+| `ops_queue_empty` | info |
+
+Horizonte de agregação: ≤10 000 linhas outbox (fail-closed; não é warehouse).
 
 Todas as respostas admin observáveis incluem / propagam `X-Request-Id` (`areq_…`).
 
