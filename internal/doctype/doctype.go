@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -48,6 +49,7 @@ type Entry struct {
 	CodigoCanonico  string
 	Designacao      string
 	Activo          string
+	EstadoNormativo string
 	ChannelAdapters ChannelAdapters
 }
 
@@ -162,10 +164,11 @@ func entryFromCells(cells []string) (Entry, error) {
 		estrutura = ""
 	}
 	return Entry{
-		Grupo:          cells[0],
-		CodigoCanonico: canon,
-		Designacao:     cells[2],
-		Activo:         activo,
+		Grupo:           cells[0],
+		CodigoCanonico:  canon,
+		Designacao:      cells[2],
+		Activo:          activo,
+		EstadoNormativo: cells[11],
 		ChannelAdapters: ChannelAdapters{
 			FECode:        fe,
 			SAFTType:      saft,
@@ -209,6 +212,36 @@ func (r *Registry) Lookup(canonical string) (Entry, bool) {
 	}
 	e, ok := r.byCanonical[canonical]
 	return e, ok
+}
+
+// All returns a stable copy of all seed entries (sorted by canonical id).
+func (r *Registry) All() []Entry {
+	if r == nil {
+		return nil
+	}
+	out := make([]Entry, 0, len(r.byCanonical))
+	for _, e := range r.byCanonical {
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].CodigoCanonico < out[j].CodigoCanonico
+	})
+	return out
+}
+
+// Groups returns the closed set of five product groups (DEC-PROD-001).
+func Groups() []string {
+	return []string{"vendas", "movimentacao", "conferencia", "pagamentos", "compras"}
+}
+
+// ValidGroup reports whether g is one of the five catalog groups.
+func ValidGroup(g string) bool {
+	switch g {
+	case "vendas", "movimentacao", "conferencia", "pagamentos", "compras":
+		return true
+	default:
+		return false
+	}
 }
 
 // ResolveAPI maps OpenAPI document_type to an active canonical entry.
