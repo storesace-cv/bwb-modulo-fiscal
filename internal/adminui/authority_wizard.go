@@ -19,13 +19,10 @@ type authorityWizardPage struct {
 }
 
 func (h *Handler) authorityWizardStart(w http.ResponseWriter, r *http.Request) {
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority")
 	h.render(w, "authority_wizard.html", authorityWizardPage{
-		pageBase:  h.baseWithCSRF(w, r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		Step:      1,
 		KnownOps:  knownAuthorityOpsOrdered(),
 	})
@@ -65,14 +62,11 @@ func (h *Handler) authorityWizardContinue(w http.ResponseWriter, r *http.Request
 	if step > 3 {
 		step = 3
 	}
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority")
 	v := viewAuthorityProfile(p)
 	h.render(w, "authority_wizard.html", authorityWizardPage{
-		pageBase:  h.baseWithCSRF(w, r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		Step:      step,
 		KnownOps:  knownAuthorityOpsOrdered(),
 		Profile:   &v,
@@ -144,10 +138,7 @@ func wizardStep(r *http.Request) int {
 }
 
 func (h *Handler) wizardError(w http.ResponseWriter, r *http.Request, step int, profile *authorityProfileView, err error) {
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority")
 	msg := "validação falhou"
 	if err != nil {
 		msg = err.Error()
@@ -156,8 +147,8 @@ func (h *Handler) wizardError(w http.ResponseWriter, r *http.Request, step int, 
 		}
 	}
 	h.render(w, "authority_wizard.html", authorityWizardPage{
-		pageBase:  h.base(r, "Wizard autoridade", "Wizard preparação AGT (owner)", "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		Error:     msg,
 		Step:      step,
 		KnownOps:  knownAuthorityOpsOrdered(),

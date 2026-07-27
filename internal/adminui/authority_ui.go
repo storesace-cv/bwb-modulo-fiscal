@@ -114,13 +114,10 @@ func (h *Handler) authorityProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) newAuthorityProfileForm(w http.ResponseWriter, r *http.Request) {
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, "Novo perfil autoridade", "Novo perfil de autoridade", "authority")
 	h.render(w, "form_authority_profile.html", authorityProfileFormPage{
-		pageBase:  h.baseWithCSRF(w, r, "Novo perfil autoridade", "Novo perfil de autoridade", "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		KnownOps:  knownAuthorityOpsOrdered(),
 	})
 }
@@ -150,14 +147,11 @@ func (h *Handler) editAuthorityProfileForm(w http.ResponseWriter, r *http.Reques
 		http.NotFound(w, r)
 		return
 	}
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, "Editar perfil autoridade", "Editar perfil (metadados)", "authority")
 	v := viewAuthorityProfile(p)
 	h.render(w, "form_authority_profile_edit.html", authorityProfileFormPage{
-		pageBase:  h.baseWithCSRF(w, r, "Editar perfil autoridade", "Editar perfil (metadados)", "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		Profile:   &v,
 		KnownOps:  knownAuthorityOpsOrdered(),
 	})
@@ -193,10 +187,7 @@ func (h *Handler) patchAuthorityProfileForm(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) authorityFormError(w http.ResponseWriter, r *http.Request, tmpl, heading string, profile *authorityProfileView, err error) {
-	tok := ""
-	if h.CSRF != nil {
-		tok, _ = h.CSRF.Issue(w)
-	}
+	pb := h.baseWithCSRF(w, r, heading, heading, "authority")
 	msg := "validação falhou"
 	if err != nil {
 		msg = err.Error()
@@ -205,8 +196,8 @@ func (h *Handler) authorityFormError(w http.ResponseWriter, r *http.Request, tmp
 		}
 	}
 	h.render(w, tmpl, authorityProfileFormPage{
-		pageBase:  h.base(r, heading, heading, "authority"),
-		CSRFToken: tok,
+		pageBase:  pb,
+		CSRFToken: pb.CSRFToken,
 		Error:     msg,
 		Profile:   profile,
 		KnownOps:  knownAuthorityOpsOrdered(),
