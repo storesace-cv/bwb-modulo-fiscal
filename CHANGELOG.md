@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.41-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-013** — `BuildIncrementalExport` com `Payments` (filtro período, allowlist PaymentType, Customer refs, XML determinístico); ≠ AO-* / AGT / deploy.
+
 ## 0.2.40-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-012** — `BuildIncrementalExport` com `TaxTable` opcional (validação + refs TaxType/TaxCode das linhas; sem inventar taxas); ≠ AO-* / AGT / deploy.

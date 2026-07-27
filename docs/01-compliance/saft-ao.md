@@ -15,7 +15,7 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-012)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-013)
 
 - Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro + TaxTable.
 - RM-SAFT-007…008: `Payments` e `PurchaseInvoices` (este **sem** `Line` no XSD).
@@ -23,6 +23,7 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 - RM-SAFT-010: `Store.ListSealedSalesForSAFT` lê `documents`/`document_lines` → `SalesLedgerRecord` (escala quantidade 1/10000); enriquecimento SAF-T continua explícito.
 - RM-SAFT-011: `TaxTable`/`TaxTableEntry` (TaxType IVA|IS|NS; TaxPercentage XOR TaxAmount; caps fail-closed); taxas sintéticas ≠ AO-*.
 - RM-SAFT-012: `BuildIncrementalExport` aceita `TaxTable` opcional; se presente, valida e exige `TaxType`+`TaxCode` das linhas em `TaxTableEntry` (sem inventar taxas).
+- RM-SAFT-013: `BuildIncrementalExport` popula `Payments` (período/`TransactionDate`, allowlist `PaymentType`, Customer refs); ≠ AO-*.
 - Distinção: **estrutura XSD** ≠ conformidade legal / AGT / `AO-*`.
 - XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**.
 
