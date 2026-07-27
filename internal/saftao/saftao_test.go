@@ -184,6 +184,9 @@ func TestPendingRegulatoryMarkers(t *testing.T) {
 	if saftao.PendingMovementTypeSemantics == "" || saftao.PendingWorkTypeSemantics == "" {
 		t.Fatal("pending movement/work markers required")
 	}
+	if saftao.PendingPaymentTypeSemantics == "" {
+		t.Fatal("pending payment marker required")
+	}
 }
 
 func TestMovementOfGoodsStructuralAndXSD(t *testing.T) {
@@ -222,6 +225,26 @@ func TestWorkingDocumentsStructuralAndXSD(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(raw), "WorkingDocuments") || !strings.Contains(string(raw), "WorkDocument") {
+		t.Fatalf("marshal: %s", raw)
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
+}
+
+func TestPaymentsStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalPaymentsFixture()
+	if err := doc.SourceDocuments.Payments.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "Payments") || !strings.Contains(string(raw), "PaymentRefNo") {
 		t.Fatalf("marshal: %s", raw)
 	}
 	if !saftao.XSDValidatorAvailable() {

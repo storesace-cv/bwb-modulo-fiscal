@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.35-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-007** — tipagem `Payments`/`Payment`/`Line` (+ PaymentTax/PaymentMethod; enums XSD); caps fail-closed; fixture XSD; ≠ AO-* / AGT / deploy.
+
 ## 0.2.34-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-006** — tipagem `WorkingDocuments`/`WorkDocument`/`Line` (enums WorkType/Status); fixture XSD; WorkType semantics pending; ≠ AO-* / AGT / deploy.

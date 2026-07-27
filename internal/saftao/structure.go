@@ -102,7 +102,7 @@ type SourceDocuments struct {
 	SalesInvoices    *SalesInvoices       `xml:"SalesInvoices,omitempty"`
 	MovementOfGoods  *MovementOfGoods     `xml:"MovementOfGoods,omitempty"`
 	WorkingDocuments *WorkingDocuments    `xml:"WorkingDocuments,omitempty"`
-	Payments         *DocumentTableTotals `xml:"Payments,omitempty"`
+	Payments         *Payments            `xml:"Payments,omitempty"`
 	PurchaseInvoices *DocumentTableTotals `xml:"PurchaseInvoices,omitempty"`
 }
 

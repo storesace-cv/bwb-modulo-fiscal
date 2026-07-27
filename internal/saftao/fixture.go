@@ -282,3 +282,83 @@ func MinimalWorkingDocumentsFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalPaymentsFixture returns a synthetic AuditFile with one RC payment for local XSD validation.
+func MinimalPaymentsFixture() AuditFile {
+	credit := MustMoney2("114.00")
+	addr := &AddressStructure{
+		AddressDetail: "Rua Sintetica 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	pay := Payment{
+		PaymentRefNo:    "RC S001/1",
+		TransactionDate: MustDate("2026-01-16"),
+		PaymentType:     PaymentTypeRC,
+		DocumentStatus: PaymentDocStatus{
+			PaymentStatus:     PaymentStatusN,
+			PaymentStatusDate: MustDateTime("2026-01-16T11:00:00"),
+			SourceID:          "POS1",
+			SourcePayment:     SourcePaymentP,
+		},
+		PaymentMethod: []SAFPaymentMethod{{
+			PaymentMechanism: "NU",
+			PaymentAmount:    MustDecimal("114.00"),
+			PaymentDate:      MustDate("2026-01-16"),
+		}},
+		SourceID:        "POS1",
+		SystemEntryDate: MustDateTime("2026-01-16T11:00:00"),
+		CustomerID:      "C1",
+		Line: []PaymentLine{{
+			LineNumber: "1",
+			SourceDocumentID: []SourceDocumentID{{
+				OriginatingON: "FT S001/1",
+				InvoiceDate:   MustDate("2026-01-15"),
+			}},
+			CreditAmount: &credit,
+		}},
+		DocumentTotals: PaymentDocTotals{
+			TaxPayable: MustMoney2("14.00"),
+			NetTotal:   MustMoney2("100.00"),
+			GrossTotal: MustMoney2("114.00"),
+		},
+	}
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "F",
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			Customer: []Customer{{
+				CustomerID:           "C1",
+				AccountID:            "Desconhecido",
+				CustomerTaxID:        "999999999",
+				CompanyName:          "Cliente Sintetico",
+				BillingAddress:       addr,
+				SelfBillingIndicator: 0,
+			}},
+		},
+		SourceDocuments: &SourceDocuments{
+			Payments: &Payments{
+				NumberOfEntries: "1",
+				TotalDebit:      MustDecimal("0.00"),
+				TotalCredit:     MustDecimal("114.00"),
+				Payment:         []Payment{pay},
+			},
+		},
+	}
+}
