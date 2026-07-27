@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.27-draft
+  version: 0.1.28-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -35,6 +35,7 @@ info:
     0.1.25: Acções ops retry/cancel/manual_review (RM-BO-016); ops.write; Idempotency-Key; concurrency; simulator≠production.
     0.1.26: Dashboard ops + paginação/filtros/alertas (RM-BO-017); sem payload/JWS/NIF.
     0.1.27: Teste SMTP admin owner-only (RM-OPS-008); implicit TLS 465; sem passwords no email; status sanitizado.
+    0.1.28: Digest SMTP alertas ops owner-only (RM-OPS-009); códigos allowlist; sem passwords/NIF; ≠ AGT/IdP.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -1039,6 +1040,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /ops/notifications/alerts-digest:
+    post:
+      operationId: postNotificationAlertsDigest
+      summary: Enviar digest SMTP dos alertas ops sanitizados ao admin configurado
+      description: >
+        RM-OPS-009. Requer notify.test (owner-only). Destino fixo
+        FISCAL_SMTP_ADMIN_NOTIFICATION_EMAIL. Corpo só códigos/severidade/mensagens
+        allowlist da fila ops (RM-BO-017); sem passwords/NIF/payload/JWS. Implicit TLS 465.
+        Resposta inclui DeliveryStatus + alert_count + alert_codes.
+      tags: [Ops]
+      responses:
+        "200":
+          description: Digest enviado (status=sent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SMTPAlertDigestStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: Falha de entrega sanitizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SMTPAlertDigestStatus"
+        "503":
+          description: SMTP ou ops store indisponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /ops/submissions/{submission_id}/actions:
     post:
       operationId: applyOpsSubmissionAction
@@ -2029,6 +2063,21 @@ components:
           enum: [465]
         request_id:
           type: string
+    SMTPAlertDigestStatus:
+      allOf:
+        - $ref: "#/components/schemas/SMTPDeliveryStatus"
+        - type: object
+          additionalProperties: false
+          required: [alert_count, alert_codes]
+          properties:
+            alert_count:
+              type: integer
+              minimum: 0
+            alert_codes:
+              type: array
+              items:
+                type: string
+              description: Códigos allowlist dos alertas incluídos no digest
     SecAdmWriteSecretRequest:
       type: object
       additionalProperties: false
