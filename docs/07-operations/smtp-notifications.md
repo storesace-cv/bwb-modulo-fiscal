@@ -1,7 +1,7 @@
 # SMTP notifications (sandbox / ops)
 
-**Item:** `RM-OPS-008`  
-**Âmbito:** notificações operacionais do backoffice (teste autorizado)  
+**Item:** `RM-OPS-008`
+**Âmbito:** notificações operacionais do backoffice (teste autorizado)
 **≠** AGT · **≠** emails com passwords · **≠** IdP
 
 ## Política
