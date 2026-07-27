@@ -167,5 +167,18 @@ input, select {
 form.inline { display: flex; gap: 0.35rem; align-items: center; }
 form.inline select { width: auto; }
 .flash.error { color: #8b1e1e; background: #fdecec; padding: 0.5rem 0.75rem; border-radius: 0.3rem; }
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  color: var(--muted);
+}
+.wizard-steps li[aria-current="step"] {
+  color: var(--accent);
+  font-weight: 700;
+}
 /* Dashboard tables use page context via parent — keep compact */
 section table { margin-bottom: 1rem; }

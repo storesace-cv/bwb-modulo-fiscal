@@ -95,8 +95,8 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) + gate owner-only (`RM-SECADM-001`) — concluídos em código; HTTP SecAdm ainda futuro.
 4. Superfície Admin API (`DEC-BO-002` / `RM-BO-001`) — `/admin/v1` cadastros + auth injectável fail-closed + audit append-only; IdP real e UI ainda futuros.
 5. Séries/config não secreta, visibilidade ops, matriz permissões (`RM-BO-002`/`003`/`004`).
-6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados; `RM-SAFT-022` estado SAF-T estrutural read-only (`/admin/ui/saft`, sem XML fiscal); `RM-AGTPREP-003` perfis autoridade owner-only (`/admin/ui/authority-profiles`, metadados + readiness sanitizado).
-7. Preparação autoridade AGT no backoffice (`DEC-BO-004` / `RM-AGTPREP-*`): perfis públicos + SecAdm para material criptográfico; **sem** chamada AGT real; `external_verified=false`.
+6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados; `RM-SAFT-022` estado SAF-T estrutural read-only (`/admin/ui/saft`, sem XML fiscal); `RM-AGTPREP-003` perfis autoridade owner-only (`/admin/ui/authority-profiles`, metadados + readiness sanitizado); `RM-AGTPREP-008` wizard owner-only (3 passos, permanece `draft`).
+7. Preparação autoridade AGT no backoffice (`DEC-BO-004` / `RM-AGTPREP-*`): perfis públicos + SecAdm para material criptográfico; **sem** chamada AGT real; `external_verified=false`; wizard não activa nem marca verificação externa.
 8. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
 
 ### Preparação autoridade AGT (`DEC-BO-004`)

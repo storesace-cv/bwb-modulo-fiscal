@@ -1,0 +1,104 @@
+{{define "content"}}
+<p class="hint">Wizard owner-only — só metadados. Segredos em SecAdm. Estado permanece <code>draft</code>; <code>external_verified=false</code>; simulator ≠ AGT.</p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<ol class="wizard-steps" aria-label="Passos">
+  <li{{if eq .Step 1}} aria-current="step"{{end}}>1. Perfil</li>
+  <li{{if eq .Step 2}} aria-current="step"{{end}}>2. Refs lógicas</li>
+  <li{{if eq .Step 3}} aria-current="step"{{end}}>3. Checklist</li>
+</ol>
+
+{{if eq .Step 1}}
+<form method="post" action="/admin/ui/authority-profiles/wizard">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="display_name">Nome</label>
+    <input id="display_name" name="display_name" required maxlength="120" autocomplete="off">
+  </p>
+  <p>
+    <label for="environment">Ambiente AGT (metadado)</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation">homologation</option>
+      <option value="production">production</option>
+    </select>
+  </p>
+  <fieldset>
+    <legend>Operações FE catalogadas</legend>
+    {{range .KnownOps}}
+    <label><input type="checkbox" name="allowed_operations" value="{{.}}"> {{.}}</label>
+    {{end}}
+  </fieldset>
+  <p>
+    <label for="algorithm_declared">Algoritmo declarado</label>
+    <select id="algorithm_declared" name="algorithm_declared">
+      <option value="">—</option>
+      <option value="RS256">RS256</option>
+      <option value="pending_external">pending_external</option>
+    </select>
+  </p>
+  <p><button type="submit">Criar draft e continuar</button>
+     <a href="/admin/ui/authority-profiles">Cancelar</a></p>
+</form>
+{{end}}
+
+{{if and (eq .Step 2) .Profile}}
+<form method="post" action="/admin/ui/authority-profiles/{{.Profile.ID}}/wizard/step2">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>Perfil <span class="mono">{{.Profile.ID}}</span> · {{.Profile.Environment}} · draft</p>
+  <p class="hint">Apenas nomes lógicos de refs SecretStore — nunca PEM/password.</p>
+  <p>
+    <label for="producer_credential_ref">Ref credencial</label>
+    <input id="producer_credential_ref" name="producer_credential_ref" maxlength="64" value="{{.Profile.CredentialRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="producer_key_ref">Ref chave</label>
+    <input id="producer_key_ref" name="producer_key_ref" maxlength="64" value="{{.Profile.KeyRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="certificate_ref">Ref certificado</label>
+    <input id="certificate_ref" name="certificate_ref" maxlength="64" value="{{.Profile.CertRef}}" autocomplete="off">
+  </p>
+  <p>
+    <label for="algorithm_declared">Algoritmo</label>
+    <select id="algorithm_declared" name="algorithm_declared">
+      <option value=""{{if eq .Profile.Algorithm ""}} selected{{end}}>—</option>
+      <option value="RS256"{{if eq .Profile.Algorithm "RS256"}} selected{{end}}>RS256</option>
+      <option value="pending_external"{{if eq .Profile.Algorithm "pending_external"}} selected{{end}}>pending_external</option>
+    </select>
+  </p>
+  <p>
+    <label for="key_id_sanitized">Key-id sanitizado</label>
+    <input id="key_id_sanitized" name="key_id_sanitized" maxlength="64" value="{{.Profile.KeyID}}" class="mono" autocomplete="off">
+  </p>
+  <p>
+    <label for="fingerprint_sanitized">Fingerprint sanitizado</label>
+    <input id="fingerprint_sanitized" name="fingerprint_sanitized" maxlength="128" value="{{.Profile.Fingerprint}}" class="mono" autocomplete="off">
+  </p>
+  <p><button type="submit">Guardar refs e continuar</button>
+     <a href="/admin/ui/secadm/material">Abrir SecAdm material</a></p>
+</form>
+{{end}}
+
+{{if and (eq .Step 3) .Profile}}
+<section>
+  <h2>Checklist (sem activação)</h2>
+  <p>O wizard <strong>não</strong> activa o perfil nem marca <code>external_verified</code>.</p>
+  <ul>
+    <li><a href="/admin/ui/secadm/material">Importar material (SecAdm)</a></li>
+    <li><a href="/admin/ui/secadm/material">Validação offline (form SecAdm)</a></li>
+    <li><a href="/admin/ui/authority-profiles/{{.Profile.ID}}/readiness">Ver readiness</a></li>
+    <li>API probe: <code>POST /admin/v1/authority/probe-config</code> (só simulator)</li>
+  </ul>
+  <dl>
+    <dt>config_ready</dt><dd>{{.Profile.ConfigReady}}</dd>
+    <dt>secrets_ready</dt><dd>{{.Profile.SecretsReady}}</dd>
+    <dt>offline_validated</dt><dd>{{.Profile.OfflineValidated}}</dd>
+    <dt>external_verified</dt><dd>{{.Profile.ExternalVerified}}</dd>
+  </dl>
+  <form method="post" action="/admin/ui/authority-profiles/{{.Profile.ID}}/wizard/step3">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <p><button type="submit">Marcar config_ready e ir ao readiness</button>
+       <a href="/admin/ui/authority-profiles">Lista</a></p>
+  </form>
+</section>
+{{end}}
+{{end}}
