@@ -42,3 +42,28 @@ func TestEmptyAuditFileMarshalSkeleton(t *testing.T) {
 		t.Fatal("unexpected certified claim")
 	}
 }
+
+func TestHeaderAndSourceDocumentsShape(t *testing.T) {
+	if err := saftao.EnsureHeaderShape(); err != nil {
+		t.Fatal(err)
+	}
+	if err := saftao.EnsureSourceDocumentsTables(); err != nil {
+		t.Fatal(err)
+	}
+	fields, err := saftao.HeaderFieldInventory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fields) < len(saftao.RequiredHeaderChildren) {
+		t.Fatalf("header fields too short: %v", fields)
+	}
+	doc := saftao.NewSalesSkeleton()
+	raw, err := xml.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "SalesInvoices") || !strings.Contains(s, "NumberOfEntries") {
+		t.Fatalf("sales skeleton: %s", s)
+	}
+}
