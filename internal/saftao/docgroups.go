@@ -44,4 +44,6 @@ const (
 	PendingInvoiceTypeSemantics PendingRegulatory = "invoice_type_semantics_pending_ao"
 	// PendingMovementTypeSemantics: MovementType enum from XSD; activation gated by enrolment/DEC-PROD.
 	PendingMovementTypeSemantics PendingRegulatory = "movement_type_semantics_pending_ao"
+	// PendingWorkTypeSemantics: WorkType enum from XSD; activation gated by enrolment/DEC-PROD.
+	PendingWorkTypeSemantics PendingRegulatory = "work_type_semantics_pending_ao"
 )

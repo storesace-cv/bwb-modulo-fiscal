@@ -15,15 +15,16 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-005)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-006)
 
 - Pacote Go [`internal/saftao`](../../internal/saftao/): skeleton `AuditFile` + inventário de elementos do XSD embutido.
 - RM-SAFT-002: inventário dos filhos obrigatórios de `Header`; stubs tipados `MasterFiles` / `SourceDocuments`; `NewSalesSkeleton()` para totais vazios.
 - RM-SAFT-003: tipagem `SalesInvoices` / `Invoice` / `Line` / `Tax` / `DocumentTotals`; `Money2` e datas sem float; cinco grupos L3 (`DEC-PROD-001`, inclui `MovementOfGoods`); serialização XML determinística; validação estrutural + fixture sintética contra o XSD (`xmllint`) quando disponível.
 - RM-SAFT-004: `BuildIncrementalExport` — filtro por período (`Header.StartDate`/`EndDate`), allowlist de `InvoiceType` (adesão/config fail-closed), agregação de totais, SHA-256 do XML (integridade do artefacto ≠ `Invoice.Hash`), validação XSD opcional. **Ainda sem** leitura do livro fiscal persistido.
 - RM-SAFT-005: tipagem `MovementOfGoods` / `StockMovement` / `Line` / `MovementTax`; enums `MovementType`/`MovementStatus`; `CustomerID` XOR `SupplierID`; fixture XSD sintética.
+- RM-SAFT-006: tipagem `WorkingDocuments` / `WorkDocument` / `Line`; enums `WorkType`/`WorkStatus`; fixture XSD sintética.
 - Distinção: **estrutura XSD** (forma/enums/padrões do schema) ≠ **conformidade legal** / aceitação AGT / requisitos `AO-*` confirmados.
-- Pendências regulatórias no modelo (não bloqueiam o slice estrutural): algoritmo de `Hash`/`HashControl`; semântica de activação de `InvoiceType`/`MovementType` por adesão (`DEC-PROD-002`/`004`).
+- Pendências regulatórias no modelo (não bloqueiam o slice estrutural): algoritmo de `Hash`/`HashControl`; semântica de activação de `InvoiceType`/`MovementType`/`WorkType` por adesão (`DEC-PROD-002`/`004`).
 - XSD: `source_id` **AO-SAFT-XSD-1.01_01** (`compliance/catalog/sources.yaml`), status **`pending_validation`** — **não** afirmado como XSD validado/certificado pela AGT.
 - Integridade: SHA-256 `e9a938e1f47ac3d84ffbb26d0d95b827fc769a065c9d20533d0262c12f8c2631` (NOTICE + catálogo).
 - Namespace: `urn:OECD:StandardAuditFile-Tax:AO_1.01_01` · versão `1.01_01`.
