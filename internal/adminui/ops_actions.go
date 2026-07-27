@@ -24,26 +24,44 @@ type submissionsPage struct {
 	Items       []submissionActionRow
 	QueueStatus string
 	FlashError  string
+	Page        int
+	Limit       int
+	HasMore     bool
+	Matched     int
+	PrevPage    int
+	NextPage    int
 }
 
 func (h *Handler) submissions(w http.ResponseWriter, r *http.Request) {
 	queueStatus := strings.TrimSpace(r.URL.Query().Get("queue_status"))
+	pageN := adminops.ClampPage(r.URL.Query().Get("page"))
 	page := submissionsPage{
 		pageBase:    h.baseWithCSRF(w, r, "Submissões", "Fila de submissões", "submissions"),
 		QueueStatus: queueStatus,
 		FlashError:  strings.TrimSpace(r.URL.Query().Get("err")),
+		Page:        pageN,
+		Limit:       listLimit,
 	}
 	if h.Ops != nil {
-		items, err := h.Ops.ListSubmissionSummariesFiltered(r.Context(), adminops.SubmissionFilter{
-			Limit: listLimit, QueueStatus: queueStatus,
+		result, err := h.Ops.ListSubmissionPage(r.Context(), adminops.SubmissionFilter{
+			Limit: listLimit, Page: pageN, QueueStatus: queueStatus,
 		})
 		if err != nil {
 			h.recordUIAccess(r, "ui.ops.read", "ops_ui", "submissions", adminaudit.ResultError)
 			http.Error(w, "erro interno", http.StatusInternalServerError)
 			return
 		}
-		page.Items = make([]submissionActionRow, 0, len(items))
-		for _, it := range items {
+		page.HasMore = result.HasMore
+		page.Matched = result.Matched
+		page.Limit = result.Limit
+		if pageN > 1 {
+			page.PrevPage = pageN - 1
+		}
+		if result.HasMore {
+			page.NextPage = pageN + 1
+		}
+		page.Items = make([]submissionActionRow, 0, len(result.Items))
+		for _, it := range result.Items {
 			page.Items = append(page.Items, submissionActionRow{
 				SubmissionSummary: it,
 				IdemRetry:         newIdemKey(),

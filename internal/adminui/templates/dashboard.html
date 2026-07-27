@@ -8,6 +8,28 @@
   </ul>
   <p class="hint">Mutações (com CSRF) disponíveis para quem tem <code>cadastro.write</code>.</p>
 </section>
+{{if .CanOpsRead}}
+<section aria-labelledby="ops-heading">
+  <h2 id="ops-heading">Fila ops</h2>
+  <ul class="stats">
+    <li><span class="n">{{.OpsCounts.Pending}}</span> pending</li>
+    <li><span class="n">{{.OpsCounts.Processing}}</span> processing</li>
+    <li><span class="n">{{.OpsCounts.Retry}}</span> retry</li>
+    <li><span class="n">{{.OpsCounts.ManualReview}}</span> manual_review</li>
+    <li><span class="n">{{.OpsCounts.Accepted}}</span> accepted</li>
+    <li><span class="n">{{.OpsCounts.Rejected}}</span> rejected</li>
+    <li><span class="n">{{.OpsCounts.Cancelled}}</span> cancelled</li>
+  </ul>
+  {{if .OpsAlerts}}
+  <ul class="alerts">
+    {{range .OpsAlerts}}
+    <li class="alert {{.Severity}}" role="status"><code>{{.Code}}</code> — {{.Message}}</li>
+    {{end}}
+  </ul>
+  {{end}}
+  <p class="hint"><a href="/admin/ui/submissions">Abrir fila de submissões</a> (sem payload/JWS/NIF).</p>
+</section>
+{{end}}
 <section aria-labelledby="tp-heading">
   <h2 id="tp-heading">Contribuintes recentes</h2>
   {{template "taxpayer_table" .}}

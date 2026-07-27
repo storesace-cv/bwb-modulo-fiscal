@@ -173,6 +173,9 @@ type dashboardPage struct {
 	Taxpayers          []taxpayerRow
 	Establishments     []adminregistry.Establishment
 	Bindings           []adminregistry.ScopeBinding
+	OpsCounts          adminops.QueueCounts
+	OpsAlerts          []adminops.OpsAlert
+	CanOpsRead         bool
 }
 
 type taxpayersPage struct {
@@ -241,6 +244,19 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "erro interno", http.StatusInternalServerError)
 		return
 	}
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	var opsCounts adminops.QueueCounts
+	var opsAlerts []adminops.OpsAlert
+	canOps := adminauth.Allows(claims, adminauth.PermOpsRead)
+	if canOps && h.Ops != nil {
+		dash, err := h.Ops.LoadOpsDashboard(r.Context())
+		if err != nil {
+			http.Error(w, "erro interno", http.StatusInternalServerError)
+			return
+		}
+		opsCounts = dash.Counts
+		opsAlerts = dash.Alerts
+	}
 	h.render(w, "dashboard.html", dashboardPage{
 		pageBase:           h.baseWithCSRF(w, r, "Painel", "Painel operacional", "dashboard"),
 		TaxpayerCount:      len(tps),
@@ -249,6 +265,9 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		Taxpayers:          toTaxpayerRows(r.Context(), h, tps),
 		Establishments:     ests,
 		Bindings:           binds,
+		OpsCounts:          opsCounts,
+		OpsAlerts:          opsAlerts,
+		CanOpsRead:         canOps,
 	})
 }
 

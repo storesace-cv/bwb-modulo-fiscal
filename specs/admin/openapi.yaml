@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.25-draft
+  version: 0.1.26-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -33,6 +33,7 @@ info:
     0.1.23: Séries por estabelecimento/ambiente/tipo (RM-BO-014); draft/active/closed; sem reutilizar/retroceder.
     0.1.24: Painel filas/submissões enriquecido (RM-BO-015); queue_status/attempts/next_attempt/request_id/erro sanitizado; sem payload/JWS.
     0.1.25: Acções ops retry/cancel/manual_review (RM-BO-016); ops.write; Idempotency-Key; concurrency; simulator≠production.
+    0.1.26: Dashboard ops + paginação/filtros/alertas (RM-BO-017); sem payload/JWS/NIF.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -958,6 +959,12 @@ paths:
             minimum: 1
             maximum: 200
             default: 50
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
         - name: queue_status
           in: query
           schema:
@@ -970,11 +977,30 @@ paths:
             enum: [pending, in_flight, succeeded, dead]
       responses:
         "200":
-          description: Resumos sanitizados
+          description: Resumos sanitizados paginados
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SubmissionSummaryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /ops/dashboard:
+    get:
+      operationId: getOpsDashboard
+      summary: Dashboard ops (contagens + alertas sanitizados)
+      description: >
+        RM-BO-017. Contagens por queue_status derivado e alertas allowlist
+        (manual_review/retry/processing). Sem payload, JWS, NIF ou segredos.
+      tags: [Ops]
+      responses:
+        "200":
+          description: Snapshot sanitizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1902,12 +1928,52 @@ components:
     SubmissionSummaryList:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page, limit, has_more, matched]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/SubmissionSummary"
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        has_more:
+          type: boolean
+        matched:
+          type: integer
+          minimum: 0
+          description: Itens no horizonte de scan/página (≤10000); não é warehouse.
+    OpsDashboard:
+      type: object
+      additionalProperties: false
+      required: [counts, alerts]
+      properties:
+        counts:
+          type: object
+          additionalProperties: false
+          required: [pending, processing, accepted, rejected, retry, manual_review, cancelled, total]
+          properties:
+            pending: { type: integer, minimum: 0 }
+            processing: { type: integer, minimum: 0 }
+            accepted: { type: integer, minimum: 0 }
+            rejected: { type: integer, minimum: 0 }
+            retry: { type: integer, minimum: 0 }
+            manual_review: { type: integer, minimum: 0 }
+            cancelled: { type: integer, minimum: 0 }
+            total: { type: integer, minimum: 0 }
+        alerts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [code, severity, message]
+            properties:
+              code: { type: string }
+              severity: { type: string, enum: [info, warning, blocking] }
+              message: { type: string }
     SecAdmWriteSecretRequest:
       type: object
       additionalProperties: false
