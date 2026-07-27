@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.32-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-004** — export incremental estrutural (`BuildIncrementalExport`: período, allowlist InvoiceType, SHA-256 do XML, XSD opcional); ≠ livro fiscal/AGT/AO-* / deploy.
+
 ## 0.2.31-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-003** — tipagem `SalesInvoices`/`Invoice`/`Line` (+ Money2/datas; 5 grupos L3); XML determinístico; fixture sintética validada contra XSD embutido; Hash/InvoiceType semantics pendentes; ≠ conformidade legal / AO-* / AGT / deploy.
