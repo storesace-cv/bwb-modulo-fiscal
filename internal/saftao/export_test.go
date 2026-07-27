@@ -337,3 +337,48 @@ func TestIncrementalExportWorkingDocuments(t *testing.T) {
 		t.Fatal("empty AllowedWorkTypes must reject work documents")
 	}
 }
+
+func TestIncrementalExportGeneralLedgerAccounts(t *testing.T) {
+	base := saftao.MinimalSalesInvoiceFixture()
+	gla := saftao.MinimalGeneralLedgerAccountsFixture().MasterFiles.GeneralLedgerAccounts
+	req := saftao.ExportRequest{
+		Header:                *base.Header,
+		EnabledGroups:         []saftao.DocumentGroup{saftao.GroupSalesInvoices},
+		AllowedInvoiceTypes:   []saftao.InvoiceType{saftao.InvoiceTypeFT},
+		Customers:             base.MasterFiles.Customer,
+		Products:              base.MasterFiles.Product,
+		GeneralLedgerAccounts: gla,
+		Invoices:              base.SourceDocuments.SalesInvoices.Invoice,
+		ValidateAgainstXSD:    saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(res.XML), "GeneralLedgerAccounts") || !strings.Contains(string(res.XML), "GroupingCategory") {
+		t.Fatalf("GL missing: %s", res.XML)
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingGLAccountSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingGLAccountSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("GL export must be deterministic")
+	}
+	bad := gla[0]
+	bad.Account[1].GroupingCode = "MISSING"
+	req.GeneralLedgerAccounts = []saftao.GeneralLedgerAccounts{bad}
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("GroupingCode without AccountID must fail-closed")
+	}
+}

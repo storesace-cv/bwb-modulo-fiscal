@@ -51,11 +51,6 @@ type MasterFiles struct {
 	TaxTable              *TaxTable               `xml:"TaxTable,omitempty"`
 }
 
-// GeneralLedgerAccounts stub.
-type GeneralLedgerAccounts struct {
-	NumberOfEntries string `xml:"NumberOfEntries,omitempty"`
-}
-
 // Customer is MasterFiles/Customer (fields required by XSD sequence for keyref fixtures).
 type Customer struct {
 	CustomerID           string            `xml:"CustomerID"`
