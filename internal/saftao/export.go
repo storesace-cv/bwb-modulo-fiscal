@@ -12,7 +12,7 @@ import (
 type ExportRequest struct {
 	Header Header
 	// EnabledGroups must be a subset of AllDocumentGroups (DEC-PROD-001).
-	// This slice populates SalesInvoices, Payments, PurchaseInvoices and/or MovementOfGoods when enabled.
+	// This slice populates the five L3 SourceDocuments groups when enabled.
 	EnabledGroups []DocumentGroup
 	// AllowedInvoiceTypes gates which XSD InvoiceType values may appear (enrolment / DEC-PROD-002).
 	// Empty ⇒ fail-closed (no invoices accepted).
@@ -23,9 +23,11 @@ type ExportRequest struct {
 	AllowedPurchaseTypes []PurchaseType
 	// AllowedMovementTypes gates MovementType. Empty ⇒ fail-closed when StockMovements present.
 	AllowedMovementTypes []MovementType
-	Customers            []Customer
-	Suppliers            []Supplier
-	Products             []Product
+	// AllowedWorkTypes gates WorkType. Empty ⇒ fail-closed when WorkDocuments present.
+	AllowedWorkTypes []WorkType
+	Customers        []Customer
+	Suppliers        []Supplier
+	Products         []Product
 	// TaxTable is optional MasterFiles/TaxTable (RM-SAFT-012). Nil ⇒ omitted; non-nil must validate.
 	// Rates/codes are caller-supplied — never invented here (≠ AO-*).
 	TaxTable         *TaxTable
@@ -33,6 +35,7 @@ type ExportRequest struct {
 	Payments         []Payment
 	PurchaseInvoices []PurchaseInvoice
 	StockMovements   []StockMovement
+	WorkDocuments    []WorkDocument
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
@@ -41,6 +44,8 @@ type ExportRequest struct {
 	IncludeEmptyPurchaseEntries bool
 	// IncludeEmptyMovementTotals emits MovementOfGoods with zero lines/qty when enabled and empty.
 	IncludeEmptyMovementTotals bool
+	// IncludeEmptyWorkingTotals emits WorkingDocuments with zero totals when enabled and empty.
+	IncludeEmptyWorkingTotals bool
 	// ValidateAgainstXSD runs xmllint when true and available.
 	ValidateAgainstXSD bool
 }
@@ -59,6 +64,9 @@ type ExportResult struct {
 	NumberOfStockMovements   int
 	NumberOfMovementLines    int
 	TotalQuantityIssued      DecimalNonNeg
+	NumberOfWorkDocuments    int
+	WorkTotalDebit           DecimalNonNeg
+	WorkTotalCredit          DecimalNonNeg
 	EnabledGroups            []DocumentGroup
 	PendingRegulatory        []PendingRegulatory
 	XSDChecked               bool
@@ -113,11 +121,19 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		}
 		allowedMovement[t] = struct{}{}
 	}
+	allowedWork := map[WorkType]struct{}{}
+	for _, t := range req.AllowedWorkTypes {
+		if !ValidWorkType(t) {
+			return nil, fmt.Errorf("%w: AllowedWorkType %q", ErrValidation, t)
+		}
+		allowedWork[t] = struct{}{}
+	}
 
 	salesEnabled := groupEnabled(groups, GroupSalesInvoices)
 	paymentsEnabled := groupEnabled(groups, GroupPayments)
 	purchaseEnabled := groupEnabled(groups, GroupPurchaseInvoices)
 	movementEnabled := groupEnabled(groups, GroupMovementOfGoods)
+	workingEnabled := groupEnabled(groups, GroupWorkingDocuments)
 
 	var filtered []Invoice
 	var totalDebit, totalCredit DecimalNonNeg
@@ -261,6 +277,47 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, fmt.Errorf("%w: StockMovements sem MovementOfGoods enabled", ErrValidation)
 	}
 
+	var filteredWork []WorkDocument
+	workDebit := MustDecimal("0.00")
+	workCredit := MustDecimal("0.00")
+	if workingEnabled {
+		for i := range req.WorkDocuments {
+			wd := req.WorkDocuments[i]
+			if err := wd.WorkDate.Validate(); err != nil {
+				return nil, fmt.Errorf("WorkDocument[%d]: %w", i, err)
+			}
+			d := string(wd.WorkDate)
+			if d < string(start) || d > string(end) {
+				continue
+			}
+			if _, ok := allowedWork[wd.WorkType]; !ok {
+				return nil, fmt.Errorf("%w: WorkType %q não permitido pela adesão/config", ErrValidation, wd.WorkType)
+			}
+			if err := wd.ValidateStructural(); err != nil {
+				return nil, fmt.Errorf("WorkDocument[%d]: %w", i, err)
+			}
+			filteredWork = append(filteredWork, wd)
+			for _, ln := range wd.Line {
+				if ln.DebitAmount != nil {
+					sum, err := addMoney2AsDecimal(workDebit, *ln.DebitAmount)
+					if err != nil {
+						return nil, err
+					}
+					workDebit = sum
+				}
+				if ln.CreditAmount != nil {
+					sum, err := addMoney2AsDecimal(workCredit, *ln.CreditAmount)
+					if err != nil {
+						return nil, err
+					}
+					workCredit = sum
+				}
+			}
+		}
+	} else if len(req.WorkDocuments) > 0 {
+		return nil, fmt.Errorf("%w: WorkDocuments sem WorkingDocuments enabled", ErrValidation)
+	}
+
 	if err := validateMasterRefs(filtered, req.Customers, req.Products); err != nil {
 		return nil, err
 	}
@@ -271,6 +328,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, err
 	}
 	if err := validateStockMovementRefs(filteredMov, req.Customers, req.Suppliers, req.Products); err != nil {
+		return nil, err
+	}
+	if err := validateWorkDocumentRefs(filteredWork, req.Customers, req.Products); err != nil {
 		return nil, err
 	}
 	if req.TaxTable != nil {
@@ -284,6 +344,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 			return nil, err
 		}
 		if err := validateMovementTaxAgainstTable(filteredMov, req.TaxTable); err != nil {
+			return nil, err
+		}
+		if err := validateWorkTaxAgainstTable(filteredWork, req.TaxTable); err != nil {
 			return nil, err
 		}
 	}
@@ -300,7 +363,8 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
 		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals)) ||
 		(purchaseEnabled && (len(filteredPurchase) > 0 || req.IncludeEmptyPurchaseEntries)) ||
-		(movementEnabled && (len(filteredMov) > 0 || req.IncludeEmptyMovementTotals))
+		(movementEnabled && (len(filteredMov) > 0 || req.IncludeEmptyMovementTotals)) ||
+		(workingEnabled && (len(filteredWork) > 0 || req.IncludeEmptyWorkingTotals))
 	if needSource {
 		doc.SourceDocuments = &SourceDocuments{}
 		if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
@@ -344,6 +408,17 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 				return nil, err
 			}
 		}
+		if workingEnabled && (len(filteredWork) > 0 || req.IncludeEmptyWorkingTotals) {
+			doc.SourceDocuments.WorkingDocuments = &WorkingDocuments{
+				NumberOfEntries: strconv.Itoa(len(filteredWork)),
+				TotalDebit:      workDebit,
+				TotalCredit:     workCredit,
+				WorkDocument:    filteredWork,
+			}
+			if err := doc.SourceDocuments.WorkingDocuments.ValidateStructural(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	raw, err := MarshalAuditFile(doc)
@@ -364,6 +439,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		NumberOfStockMovements:   len(filteredMov),
 		NumberOfMovementLines:    movementLineCount,
 		TotalQuantityIssued:      totalQty,
+		NumberOfWorkDocuments:    len(filteredWork),
+		WorkTotalDebit:           workDebit,
+		WorkTotalCredit:          workCredit,
 		EnabledGroups:            groups,
 		PendingRegulatory: []PendingRegulatory{
 			PendingHashAlgorithm,
@@ -378,6 +456,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	if movementEnabled {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingMovementTypeSemantics)
+	}
+	if workingEnabled {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingWorkTypeSemantics)
 	}
 	if req.TaxTable != nil {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
@@ -536,6 +617,58 @@ func validatePurchaseSupplierRefs(invoices []PurchaseInvoice, suppliers []Suppli
 	for i, inv := range invoices {
 		if _, ok := sup[inv.SupplierID]; !ok {
 			return fmt.Errorf("%w: PurchaseInvoice[%d] SupplierID sem MasterFiles", ErrValidation, i)
+		}
+	}
+	return nil
+}
+
+func validateWorkDocumentRefs(docs []WorkDocument, customers []Customer, products []Product) error {
+	cust := map[string]struct{}{}
+	for _, c := range customers {
+		if strings.TrimSpace(c.CustomerID) == "" {
+			return fmt.Errorf("%w: CustomerID vazio", ErrValidation)
+		}
+		cust[c.CustomerID] = struct{}{}
+	}
+	prod := map[string]struct{}{}
+	for _, p := range products {
+		if strings.TrimSpace(p.ProductCode) == "" {
+			return fmt.Errorf("%w: ProductCode vazio", ErrValidation)
+		}
+		prod[p.ProductCode] = struct{}{}
+	}
+	for i, wd := range docs {
+		if _, ok := cust[wd.CustomerID]; !ok {
+			return fmt.Errorf("%w: WorkDocument[%d] CustomerID sem MasterFiles", ErrValidation, i)
+		}
+		for j, ln := range wd.Line {
+			if _, ok := prod[ln.ProductCode]; !ok {
+				return fmt.Errorf("%w: WorkDocument[%d].Line[%d] ProductCode sem MasterFiles", ErrValidation, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+func validateWorkTaxAgainstTable(docs []WorkDocument, table *TaxTable) error {
+	if table == nil {
+		return nil
+	}
+	keys := taxTableKeys(table)
+	for i, wd := range docs {
+		for j, ln := range wd.Line {
+			if ln.Tax == nil {
+				continue
+			}
+			tt := strings.TrimSpace(ln.Tax.TaxType)
+			tc := strings.TrimSpace(ln.Tax.TaxCode)
+			if tt == "" && tc == "" {
+				continue
+			}
+			k := tt + "|" + tc
+			if _, ok := keys[k]; !ok {
+				return fmt.Errorf("%w: WorkDocument[%d].Line[%d] Tax sem TaxTableEntry", ErrValidation, i, j)
+			}
 		}
 	}
 	return nil
