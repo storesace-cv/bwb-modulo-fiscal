@@ -42,18 +42,18 @@ type ExportRequest struct {
 
 // ExportResult is the deterministic export artifact (structural only).
 type ExportResult struct {
-	XML                    []byte
-	SHA256                 string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
-	NumberOfInvoices       int
-	TotalDebit             DecimalNonNeg // SalesInvoices totals
-	TotalCredit            DecimalNonNeg
-	NumberOfPayments       int
-	PaymentTotalDebit      DecimalNonNeg
-	PaymentTotalCredit     DecimalNonNeg
+	XML                      []byte
+	SHA256                   string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
+	NumberOfInvoices         int
+	TotalDebit               DecimalNonNeg // SalesInvoices totals
+	TotalCredit              DecimalNonNeg
+	NumberOfPayments         int
+	PaymentTotalDebit        DecimalNonNeg
+	PaymentTotalCredit       DecimalNonNeg
 	NumberOfPurchaseInvoices int
-	EnabledGroups          []DocumentGroup
-	PendingRegulatory      []PendingRegulatory
-	XSDChecked             bool
+	EnabledGroups            []DocumentGroup
+	PendingRegulatory        []PendingRegulatory
+	XSDChecked               bool
 }
 
 // BuildIncrementalExport builds a period-filtered AuditFile, marshals XML, hashes the artifact,
