@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.33-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-005** — tipagem `MovementOfGoods`/`StockMovement`/`Line` (+ MovementTax; enums XSD); fixture sintética XSD; MovementType semantics pending; ≠ AO-* / AGT / deploy.
+
 ## 0.2.32-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-004** — export incremental estrutural (`BuildIncrementalExport`: período, allowlist InvoiceType, SHA-256 do XML, XSD opcional); ≠ livro fiscal/AGT/AO-* / deploy.

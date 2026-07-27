@@ -42,4 +42,6 @@ const (
 	PendingHashAlgorithm PendingRegulatory = "hash_algorithm_pending_ao"
 	// PendingInvoiceTypeSemantics: enum values from XSD; product activation gated by DEC-REG-003 / doctype.
 	PendingInvoiceTypeSemantics PendingRegulatory = "invoice_type_semantics_pending_ao"
+	// PendingMovementTypeSemantics: MovementType enum from XSD; activation gated by enrolment/DEC-PROD.
+	PendingMovementTypeSemantics PendingRegulatory = "movement_type_semantics_pending_ao"
 )

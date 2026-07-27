@@ -100,16 +100,10 @@ type GeneralLedgerEntries struct {
 // SourceDocuments holds the five L3 document tables (DEC-PROD-001); exposure follows enrolment.
 type SourceDocuments struct {
 	SalesInvoices    *SalesInvoices       `xml:"SalesInvoices,omitempty"`
-	MovementOfGoods  *MovementOfGoodsStub `xml:"MovementOfGoods,omitempty"`
+	MovementOfGoods  *MovementOfGoods     `xml:"MovementOfGoods,omitempty"`
 	WorkingDocuments *DocumentTableTotals `xml:"WorkingDocuments,omitempty"`
 	Payments         *DocumentTableTotals `xml:"Payments,omitempty"`
 	PurchaseInvoices *DocumentTableTotals `xml:"PurchaseInvoices,omitempty"`
-}
-
-// MovementOfGoodsStub is the XSD MovementOfGoods prefix (StockMovement typed in a later slice).
-type MovementOfGoodsStub struct {
-	NumberOfMovementLines string        `xml:"NumberOfMovementLines"`
-	TotalQuantityIssued   DecimalNonNeg `xml:"TotalQuantityIssued"`
 }
 
 // DocumentTableTotals is the NumberOfEntries/TotalDebit/TotalCredit prefix shared by several tables.

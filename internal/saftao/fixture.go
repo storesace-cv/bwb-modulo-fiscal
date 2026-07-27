@@ -98,3 +98,94 @@ func MinimalSalesInvoiceFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalMovementOfGoodsFixture returns a synthetic AuditFile with one GR stock movement
+// for local XSD validation. Placeholders only — ≠ AGT / AO-* / Hash algorithm.
+func MinimalMovementOfGoodsFixture() AuditFile {
+	credit := MustMoney2("50.00")
+	addr := &AddressStructure{
+		AddressDetail: "Rua Sintetica 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	sm := StockMovement{
+		DocumentNumber: "GR S001/1",
+		DocumentStatus: MovementDocumentStatus{
+			MovementStatus:     MovementStatusN,
+			MovementStatusDate: MustDateTime("2026-01-15T10:00:00"),
+			SourceID:           "POS1",
+			SourceBilling:      SourceBillingP,
+		},
+		Hash:              "SYNTHETIC-HASH-NOT-A-SIGNATURE",
+		HashControl:       "0",
+		MovementDate:      MustDate("2026-01-15"),
+		MovementType:      MovementTypeGR,
+		SystemEntryDate:   MustDateTime("2026-01-15T10:00:00"),
+		CustomerID:        "C1",
+		SourceID:          "POS1",
+		MovementStartTime: MustDateTime("2026-01-15T09:00:00"),
+		Line: []StockMovementLine{{
+			LineNumber:         "1",
+			ProductCode:        "P1",
+			ProductDescription: "Mercadoria sintetica",
+			Quantity:           MustDecimal("1"),
+			UnitOfMeasure:      "UN",
+			UnitPrice:          MustDecimal("50.00"),
+			Description:        "Linha movimentacao",
+			CreditAmount:       &credit,
+			Tax: &MovementTax{
+				TaxType:       "IVA",
+				TaxCode:       "NOR",
+				TaxPercentage: "14.00",
+			},
+		}},
+		DocumentTotals: DocumentTotals{
+			TaxPayable: MustMoney2("7.00"),
+			NetTotal:   MustMoney2("50.00"),
+			GrossTotal: MustMoney2("57.00"),
+		},
+	}
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "F",
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			Customer: []Customer{{
+				CustomerID:           "C1",
+				AccountID:            "Desconhecido",
+				CustomerTaxID:        "999999999",
+				CompanyName:          "Cliente Sintetico",
+				BillingAddress:       addr,
+				SelfBillingIndicator: 0,
+			}},
+			Product: []Product{{
+				ProductType:        "P",
+				ProductCode:        "P1",
+				ProductDescription: "Mercadoria sintetica",
+				ProductNumberCode:  "P1",
+			}},
+		},
+		SourceDocuments: &SourceDocuments{
+			MovementOfGoods: &MovementOfGoods{
+				NumberOfMovementLines: "1",
+				TotalQuantityIssued:   MustDecimal("1"),
+				StockMovement:         []StockMovement{sm},
+			},
+		},
+	}
+}
