@@ -32,7 +32,6 @@ func TestBuildReadinessAlerts(t *testing.T) {
 		}
 	}
 
-	trueVal := true
 	p2 := adminregistry.AuthorityProfile{
 		ConfigReady: true, SecretsReady: true, OfflineValidated: true,
 		CertificateRef: "c", ProducerKeyRef: "k",
