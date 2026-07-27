@@ -44,8 +44,8 @@ type SalesLedgerLine struct {
 	TaxCode        string
 }
 
-// QuantityScale is the fixed divisor for QuantityScaled (1000 = 3 decimal places).
-const QuantityScale int64 = 1000
+// QuantityScale is the fixed divisor for QuantityScaled (matches quantity.Factor = 10000).
+const QuantityScale int64 = 10000
 
 // Omission records why a document/field was excluded from the export payload.
 type Omission struct {
@@ -417,7 +417,7 @@ func formatQuantity(scaled int64) (string, error) {
 	if frac == 0 {
 		return strconv.FormatInt(whole, 10), nil
 	}
-	s := fmt.Sprintf("%d.%03d", whole, frac)
+	s := fmt.Sprintf("%d.%04d", whole, frac)
 	s = strings.TrimRight(s, "0")
 	s = strings.TrimRight(s, ".")
 	return s, nil
