@@ -56,7 +56,7 @@ func TestComputeAvailabilityWithFE(t *testing.T) {
 		FEEnrollmentStatus: "active",
 		Config: doctype.AvailabilityConfig{
 			TypeActiveOverride: map[string]bool{
-				"bwb.ao.vendas.fa": true, // still conflito → unavailable
+				"bwb.ao.vendas.fa":       true, // still conflito → unavailable
 				"bwb.ao.movimentacao.gr": true,
 			},
 		},
