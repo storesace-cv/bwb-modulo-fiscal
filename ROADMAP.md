@@ -41,8 +41,8 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | POS `0.1.6-draft` · Admin `0.1.24-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
-| Schema | `ExpectedVersion=11` |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.25-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
+| Schema | `ExpectedVersion=12` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -323,7 +323,7 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 | [x] | RM-BO-013 | Política calculada documentos disponíveis (5 grupos; SAF-T; FE se aderiu; pendências AGT indisponíveis) | CONCLUÍDO | [internal/doctype/availability.go](internal/doctype/availability.go) · [internal/adminregistry/doc_policy.go](internal/adminregistry/doc_policy.go) · [internal/adminapi/doc_policy_handlers.go](internal/adminapi/doc_policy_handlers.go) · [migrations/postgres/0010_establishment_doc_policy.up.sql](migrations/postgres/0010_establishment_doc_policy.up.sql) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-BO-012 + DEC-PROD-003/005 + RM-REQ-001 | Sem inventar códigos FE-RNG; só tipos activos/compatíveis |
 | [x] | RM-BO-014 | Séries por loja/ambiente/tipo (draft/active/closed; código único; sem reutilizar/retroceder; audit) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/116 · [internal/adminregistry/series.go](internal/adminregistry/series.go) · [internal/adminapi/series_handlers.go](internal/adminapi/series_handlers.go) · [internal/adminui/series_ui.go](internal/adminui/series_ui.go) · [migrations/postgres/0011_establishment_series.up.sql](migrations/postgres/0011_establishment_series.up.sql) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-BO-002 + RM-BO-012 | Séries no estabelecimento; concorrência transaccional; ≠ numeração fiscal |
 | [x] | RM-BO-015 | Painel filas/submissões (estados; tentativas; next_attempt; request_id; erro sanitizado) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/117 · [internal/adminops/ops.go](internal/adminops/ops.go) · [internal/adminapi/ops_handlers.go](internal/adminapi/ops_handlers.go) · [internal/adminui/templates/submissions.html](internal/adminui/templates/submissions.html) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-BO-003 + RM-UI-003 | Sem payload/JWS/segredo na UI/API |
-| [ ] | RM-BO-016 | Acções retry/cancel/manual-review (RBAC/CSRF/idempotência/audit); simulador ≠ produção | PENDENTE | [docs/05-security/security-baseline.md](docs/05-security/security-baseline.md) | RM-BO-015 + RM-BO-004 | Simulator só development/homologation interno |
+| [x] | RM-BO-016 | Acções retry/cancel/manual-review (RBAC/CSRF/idempotência/audit); simulador ≠ produção | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/118 · [internal/adminops/actions.go](internal/adminops/actions.go) · [internal/adminapi/ops_action_handlers.go](internal/adminapi/ops_action_handlers.go) · [migrations/postgres/0012_ops_queue_actions.up.sql](migrations/postgres/0012_ops_queue_actions.up.sql) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-BO-015 + RM-BO-004 | Simulator só development/homologation interno; ExpectedVersion=12 |
 | [ ] | RM-BO-017 | Dashboards/filtros/paginação/alertas + testes backoffice ops | PENDENTE | [docs/07-operations/admin-observability.md](docs/07-operations/admin-observability.md) | RM-BO-013…016 + RM-BO-007 | Filtros/paginação/alertas cobertos por testes |
 
 ---

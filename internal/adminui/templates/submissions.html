@@ -1,5 +1,6 @@
 {{define "content"}}
-<p class="hint">Fila ops (RM-BO-015): estados derivados, tentativas, next_attempt e erro sanitizado — sem payload, JWS, NIF ou segredos.</p>
+<p class="hint">Fila ops (RM-BO-015/016): estados derivados, tentativas, next_attempt e erro sanitizado — sem payload, JWS, NIF ou segredos. Acções owner/admin com CSRF + idempotência.</p>
+{{if .FlashError}}<p class="flash error">Acção recusada ({{.FlashError}}).</p>{{end}}
 <form method="get" action="/admin/ui/submissions" class="inline">
   <label for="queue_status">Fila</label>
   <select id="queue_status" name="queue_status">
@@ -10,6 +11,7 @@
     <option value="rejected"{{if eq .QueueStatus "rejected"}} selected{{end}}>rejected</option>
     <option value="retry"{{if eq .QueueStatus "retry"}} selected{{end}}>retry</option>
     <option value="manual_review"{{if eq .QueueStatus "manual_review"}} selected{{end}}>manual_review</option>
+    <option value="cancelled"{{if eq .QueueStatus "cancelled"}} selected{{end}}>cancelled</option>
   </select>
   <button type="submit">Filtrar</button>
 </form>
@@ -27,6 +29,7 @@
       <th scope="col">Request ID</th>
       <th scope="col">Erro</th>
       <th scope="col">Actualizado</th>
+      {{if .CanOpsWrite}}<th scope="col">Acções</th>{{end}}
     </tr>
   </thead>
   <tbody>
@@ -41,6 +44,33 @@
       <td class="mono">{{if .AuthorityRequestID}}{{.AuthorityRequestID}}{{else}}—{{end}}</td>
       <td>{{if .SanitizedError}}{{.SanitizedError}}{{else}}—{{end}}</td>
       <td>{{.OutboxUpdatedAt.UTC.Format "2006-01-02 15:04:05"}}Z</td>
+      {{if $.CanOpsWrite}}
+      <td class="actions">
+        {{if and (ne .QueueStatus "accepted") (ne .QueueStatus "cancelled")}}
+        <form method="post" action="/admin/ui/submissions/{{.SubmissionID}}/actions" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="action" value="retry">
+          <input type="hidden" name="idempotency_key" value="{{.IdemRetry}}">
+          <input type="hidden" name="expected_updated_at" value="{{.OutboxUpdatedAt.UTC.Format "2006-01-02T15:04:05.000000000Z07:00"}}">
+          <button type="submit">retry</button>
+        </form>
+        <form method="post" action="/admin/ui/submissions/{{.SubmissionID}}/actions" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="action" value="cancel">
+          <input type="hidden" name="idempotency_key" value="{{.IdemCancel}}">
+          <input type="hidden" name="expected_updated_at" value="{{.OutboxUpdatedAt.UTC.Format "2006-01-02T15:04:05.000000000Z07:00"}}">
+          <button type="submit">cancel</button>
+        </form>
+        <form method="post" action="/admin/ui/submissions/{{.SubmissionID}}/actions" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="action" value="manual_review">
+          <input type="hidden" name="idempotency_key" value="{{.IdemReview}}">
+          <input type="hidden" name="expected_updated_at" value="{{.OutboxUpdatedAt.UTC.Format "2006-01-02T15:04:05.000000000Z07:00"}}">
+          <button type="submit">review</button>
+        </form>
+        {{else}}—{{end}}
+      </td>
+      {{end}}
     </tr>
   {{end}}
   </tbody>

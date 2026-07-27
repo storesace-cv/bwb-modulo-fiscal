@@ -33,17 +33,19 @@ const (
 
 // Handler serves /admin/ui pages.
 type Handler struct {
-	Registry     *adminregistry.Registry
-	Ops          *adminops.Store
-	Audit        *adminaudit.Store
-	SecretsMeta  secretstore.AdminView // Metadata only — never Reveal
-	SecAdm       *secadm.Gate          // owner subject gate for material write
-	Sessions     *SessionStore
-	TokenAuth    adminauth.Authenticator // Bearer validator for session mint (oidc_jwt)
-	Obs          *adminobs.Observer
-	EnvLabel     string
-	CSRF         *CSRFStore
-	CookieSecure bool
+	Registry      *adminregistry.Registry
+	Ops           *adminops.Store
+	Audit         *adminaudit.Store
+	SecretsMeta   secretstore.AdminView // Metadata only — never Reveal
+	SecAdm        *secadm.Gate          // owner subject gate for material write
+	Sessions      *SessionStore
+	TokenAuth     adminauth.Authenticator // Bearer validator for session mint (oidc_jwt)
+	Obs           *adminobs.Observer
+	EnvLabel      string
+	AuthorityMode string
+	FiscalEnv     string
+	CSRF          *CSRFStore
+	CookieSecure  bool
 }
 
 // New builds a Handler. Ops/Audit may be nil (pages return empty/unavailable).
@@ -107,6 +109,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/establishments/{establishment_id}/series", wrapRead(http.HandlerFunc(h.establishmentSeries)))
 	mux.Handle("GET /admin/ui/bindings", wrapRead(http.HandlerFunc(h.bindings)))
 	mux.Handle("GET /admin/ui/submissions", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.submissions)))
+	mux.Handle("POST /admin/ui/submissions/{submission_id}/actions", wrapPerm(adminauth.PermOpsWrite, http.HandlerFunc(h.submissionActionForm)))
 	mux.Handle("GET /admin/ui/saft", wrapPerm(adminauth.PermOpsRead, http.HandlerFunc(h.saftStatus)))
 	mux.Handle("GET /admin/ui/audit", wrapPerm(adminauth.PermAuditRead, http.HandlerFunc(h.auditEvents)))
 	wrapOwner := func(next http.Handler) http.Handler {
@@ -149,16 +152,17 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 }
 
 type pageBase struct {
-	Title      string
-	Heading    string
-	Nav        string
-	EnvLabel   string
-	Subject    string
-	RolesLabel string
-	Flash      string
-	CanWrite   bool
-	IsOwner    bool
-	CSRFToken  string
+	Title       string
+	Heading     string
+	Nav         string
+	EnvLabel    string
+	Subject     string
+	RolesLabel  string
+	Flash       string
+	CanWrite    bool
+	CanOpsWrite bool
+	IsOwner     bool
+	CSRFToken   string
 }
 
 type dashboardPage struct {
@@ -200,8 +204,9 @@ func (h *Handler) base(r *http.Request, title, heading, nav string) pageBase {
 	return pageBase{
 		Title: title, Heading: heading, Nav: nav,
 		EnvLabel: h.EnvLabel, Subject: claims.Subject, RolesLabel: strings.Join(roles, ", "),
-		CanWrite: adminauth.Allows(claims, adminauth.PermCadastroWrite),
-		IsOwner:  adminauth.Allows(claims, adminauth.PermSecAdmWrite),
+		CanWrite:    adminauth.Allows(claims, adminauth.PermCadastroWrite),
+		CanOpsWrite: adminauth.Allows(claims, adminauth.PermOpsWrite),
+		IsOwner:     adminauth.Allows(claims, adminauth.PermSecAdmWrite),
 	}
 }
 

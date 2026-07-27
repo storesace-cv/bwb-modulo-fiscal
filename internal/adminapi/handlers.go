@@ -135,6 +135,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	readCadastro := adminauth.RequirePermission(adminauth.PermCadastroRead)
 	readAudit := adminauth.RequirePermission(adminauth.PermAuditRead)
 	readOps := adminauth.RequirePermission(adminauth.PermOpsRead)
+	writeOps := adminauth.RequirePermission(adminauth.PermOpsWrite)
 	readSecretMeta := adminauth.RequirePermission(adminauth.PermSecretMetaRead)
 
 	wrap := func(next http.Handler) http.Handler {
@@ -173,6 +174,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("PATCH /admin/v1/scope-bindings/{scope_id}", wrap(writeCadastro(http.HandlerFunc(h.patchScopeBinding))))
 	mux.Handle("GET /admin/v1/audit-events", wrap(readAudit(http.HandlerFunc(h.listAuditEvents))))
 	mux.Handle("GET /admin/v1/ops/submissions", wrap(readOps(http.HandlerFunc(h.listOpsSubmissions))))
+	mux.Handle("POST /admin/v1/ops/submissions/{submission_id}/actions", wrap(writeOps(http.HandlerFunc(h.applyOpsSubmissionAction))))
 	mux.Handle("GET /admin/v1/secret-refs/metadata", wrap(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 
 	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)

@@ -18,7 +18,7 @@ Estado operacional confirmado do sandbox BWB:
 |---|---|
 | Auth runtime | `FISCAL_ENV=homologation` + `FISCAL_AUTH_MODE=credential_store` |
 | Significado de `homologation` | Designação **técnica** do ambiente sandbox BWB — **não** é homologação oficial AGT, nem certificação |
-| Schema | `ExpectedVersion=11` / `dirty=false` |
+| Schema | `ExpectedVersion=12` / `dirty=false` |
 | HTTPS `/v1/health` | 200 |
 | HTTPS `/v1/documents` sem token | **401** |
 | Create / replay autenticados | **201** |

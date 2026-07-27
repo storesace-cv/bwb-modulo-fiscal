@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.24-draft
+  version: 0.1.25-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -32,6 +32,7 @@ info:
     0.1.22: Política calculada documentos disponíveis (RM-BO-013 / DEC-PROD-001…006); 5 grupos; sem inventar códigos.
     0.1.23: Séries por estabelecimento/ambiente/tipo (RM-BO-014); draft/active/closed; sem reutilizar/retroceder.
     0.1.24: Painel filas/submissões enriquecido (RM-BO-015); queue_status/attempts/next_attempt/request_id/erro sanitizado; sem payload/JWS.
+    0.1.25: Acções ops retry/cancel/manual_review (RM-BO-016); ops.write; Idempotency-Key; concurrency; simulator≠production.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -961,7 +962,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, processing, accepted, rejected, retry, manual_review]
+            enum: [pending, processing, accepted, rejected, retry, manual_review, cancelled]
         - name: outbox_state
           in: query
           schema:
@@ -978,6 +979,50 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /ops/submissions/{submission_id}/actions:
+    post:
+      operationId: applyOpsSubmissionAction
+      summary: Acção ops na fila (retry|cancel|manual_review)
+      description: >
+        RM-BO-016. Requer ops.write (owner|admin), header Idempotency-Key e
+        expected_updated_at (concorrência). Simulator proibido em production.
+        Sem payload/JWS/NIF/segredos. Auditoria append-only.
+      tags: [Ops]
+      parameters:
+        - name: submission_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsQueueActionRequest"
+      responses:
+        "200":
+          description: Snapshot sanitizado pós-acção
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsQueueActionResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /secret-refs/metadata:
     get:
       operationId: getSecretRefMetadata
@@ -1796,9 +1841,12 @@ components:
         outbox_state:
           type: string
           enum: [pending, in_flight, succeeded, dead]
+        ops_disposition:
+          type: string
+          enum: [cancelled, manual_review]
         queue_status:
           type: string
-          enum: [pending, processing, accepted, rejected, retry, manual_review]
+          enum: [pending, processing, accepted, rejected, retry, manual_review, cancelled]
         ledger_status:
           type: string
         latest_outcome:
@@ -1814,8 +1862,41 @@ components:
           description: Correlação sanitizada; nunca segredo/JWS/NIF.
         sanitized_error:
           type: string
-          description: Allowlist (authority_rejected|authority_outcome_unknown|retried_unavailable|outbox_dead).
+          description: Allowlist (authority_rejected|authority_outcome_unknown|retried_unavailable|outbox_dead|ops_cancelled|ops_manual_review).
         outbox_updated_at:
+          type: string
+          format: date-time
+    OpsQueueActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, expected_updated_at]
+      properties:
+        action:
+          type: string
+          enum: [retry, cancel, manual_review]
+        expected_updated_at:
+          type: string
+          format: date-time
+          description: outbox_updated_at observado (optimistic concurrency).
+    OpsQueueActionResult:
+      type: object
+      additionalProperties: false
+      required: [submission_id, queue_status, outbox_state, updated_at, idempotent_replay]
+      properties:
+        submission_id:
+          type: string
+        queue_status:
+          type: string
+          enum: [pending, processing, accepted, rejected, retry, manual_review, cancelled]
+        outbox_state:
+          type: string
+          enum: [pending, in_flight, succeeded, dead]
+        ops_disposition:
+          type: string
+          enum: [cancelled, manual_review]
+        idempotent_replay:
+          type: boolean
+        updated_at:
           type: string
           format: date-time
     SubmissionSummaryList:
