@@ -12,41 +12,48 @@ import (
 type ExportRequest struct {
 	Header Header
 	// EnabledGroups must be a subset of AllDocumentGroups (DEC-PROD-001).
-	// This slice populates SalesInvoices and/or Payments when enabled; other groups stay absent.
+	// This slice populates SalesInvoices, Payments and/or PurchaseInvoices when enabled.
 	EnabledGroups []DocumentGroup
 	// AllowedInvoiceTypes gates which XSD InvoiceType values may appear (enrolment / DEC-PROD-002).
 	// Empty ⇒ fail-closed (no invoices accepted).
 	AllowedInvoiceTypes []InvoiceType
 	// AllowedPaymentTypes gates PaymentType (enrolment). Empty ⇒ fail-closed when Payments present.
 	AllowedPaymentTypes []PaymentType
-	Customers           []Customer
-	Products            []Product
+	// AllowedPurchaseTypes gates PurchaseType. Empty ⇒ fail-closed when PurchaseInvoices present.
+	AllowedPurchaseTypes []PurchaseType
+	Customers            []Customer
+	Suppliers            []Supplier
+	Products             []Product
 	// TaxTable is optional MasterFiles/TaxTable (RM-SAFT-012). Nil ⇒ omitted; non-nil must validate.
 	// Rates/codes are caller-supplied — never invented here (≠ AO-*).
-	TaxTable *TaxTable
-	Invoices []Invoice
-	Payments []Payment
+	TaxTable         *TaxTable
+	Invoices         []Invoice
+	Payments         []Payment
+	PurchaseInvoices []PurchaseInvoice
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
 	IncludeEmptyPaymentsTotals bool
+	// IncludeEmptyPurchaseEntries emits PurchaseInvoices with NumberOfEntries=0 when enabled and empty.
+	IncludeEmptyPurchaseEntries bool
 	// ValidateAgainstXSD runs xmllint when true and available.
 	ValidateAgainstXSD bool
 }
 
 // ExportResult is the deterministic export artifact (structural only).
 type ExportResult struct {
-	XML                []byte
-	SHA256             string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
-	NumberOfInvoices   int
-	TotalDebit         DecimalNonNeg // SalesInvoices totals
-	TotalCredit        DecimalNonNeg
-	NumberOfPayments   int
-	PaymentTotalDebit  DecimalNonNeg
-	PaymentTotalCredit DecimalNonNeg
-	EnabledGroups      []DocumentGroup
-	PendingRegulatory  []PendingRegulatory
-	XSDChecked         bool
+	XML                    []byte
+	SHA256                 string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
+	NumberOfInvoices       int
+	TotalDebit             DecimalNonNeg // SalesInvoices totals
+	TotalCredit            DecimalNonNeg
+	NumberOfPayments       int
+	PaymentTotalDebit      DecimalNonNeg
+	PaymentTotalCredit     DecimalNonNeg
+	NumberOfPurchaseInvoices int
+	EnabledGroups          []DocumentGroup
+	PendingRegulatory      []PendingRegulatory
+	XSDChecked             bool
 }
 
 // BuildIncrementalExport builds a period-filtered AuditFile, marshals XML, hashes the artifact,
@@ -84,9 +91,17 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		}
 		allowedPay[t] = struct{}{}
 	}
+	allowedPurchase := map[PurchaseType]struct{}{}
+	for _, t := range req.AllowedPurchaseTypes {
+		if !ValidPurchaseType(t) {
+			return nil, fmt.Errorf("%w: AllowedPurchaseType %q", ErrValidation, t)
+		}
+		allowedPurchase[t] = struct{}{}
+	}
 
 	salesEnabled := groupEnabled(groups, GroupSalesInvoices)
 	paymentsEnabled := groupEnabled(groups, GroupPayments)
+	purchaseEnabled := groupEnabled(groups, GroupPurchaseInvoices)
 
 	var filtered []Invoice
 	var totalDebit, totalCredit DecimalNonNeg
@@ -174,10 +189,36 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, fmt.Errorf("%w: Payments sem Payments enabled", ErrValidation)
 	}
 
+	var filteredPurchase []PurchaseInvoice
+	if purchaseEnabled {
+		for i := range req.PurchaseInvoices {
+			inv := req.PurchaseInvoices[i]
+			if err := inv.InvoiceDate.Validate(); err != nil {
+				return nil, fmt.Errorf("PurchaseInvoice[%d]: %w", i, err)
+			}
+			d := string(inv.InvoiceDate)
+			if d < string(start) || d > string(end) {
+				continue
+			}
+			if _, ok := allowedPurchase[inv.PurchaseType]; !ok {
+				return nil, fmt.Errorf("%w: PurchaseType %q não permitido pela adesão/config", ErrValidation, inv.PurchaseType)
+			}
+			if err := inv.ValidateStructural(); err != nil {
+				return nil, fmt.Errorf("PurchaseInvoice[%d]: %w", i, err)
+			}
+			filteredPurchase = append(filteredPurchase, inv)
+		}
+	} else if len(req.PurchaseInvoices) > 0 {
+		return nil, fmt.Errorf("%w: PurchaseInvoices sem PurchaseInvoices enabled", ErrValidation)
+	}
+
 	if err := validateMasterRefs(filtered, req.Customers, req.Products); err != nil {
 		return nil, err
 	}
 	if err := validatePaymentCustomerRefs(filteredPay, req.Customers); err != nil {
+		return nil, err
+	}
+	if err := validatePurchaseSupplierRefs(filteredPurchase, req.Suppliers); err != nil {
 		return nil, err
 	}
 	if req.TaxTable != nil {
@@ -193,11 +234,17 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 
 	doc := AuditFile{
-		Header:      cloneHeader(&req.Header),
-		MasterFiles: &MasterFiles{Customer: req.Customers, Product: req.Products, TaxTable: req.TaxTable},
+		Header: cloneHeader(&req.Header),
+		MasterFiles: &MasterFiles{
+			Customer: req.Customers,
+			Supplier: req.Suppliers,
+			Product:  req.Products,
+			TaxTable: req.TaxTable,
+		},
 	}
 	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
-		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals))
+		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals)) ||
+		(purchaseEnabled && (len(filteredPurchase) > 0 || req.IncludeEmptyPurchaseEntries))
 	if needSource {
 		doc.SourceDocuments = &SourceDocuments{}
 		if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
@@ -222,6 +269,15 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 				return nil, err
 			}
 		}
+		if purchaseEnabled && (len(filteredPurchase) > 0 || req.IncludeEmptyPurchaseEntries) {
+			doc.SourceDocuments.PurchaseInvoices = &PurchaseInvoices{
+				NumberOfEntries: strconv.Itoa(len(filteredPurchase)),
+				Invoice:         filteredPurchase,
+			}
+			if err := doc.SourceDocuments.PurchaseInvoices.ValidateStructural(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	raw, err := MarshalAuditFile(doc)
@@ -230,15 +286,16 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	sum := sha256.Sum256(raw)
 	out := &ExportResult{
-		XML:                raw,
-		SHA256:             hex.EncodeToString(sum[:]),
-		NumberOfInvoices:   len(filtered),
-		TotalDebit:         totalDebit,
-		TotalCredit:        totalCredit,
-		NumberOfPayments:   len(filteredPay),
-		PaymentTotalDebit:  payDebit,
-		PaymentTotalCredit: payCredit,
-		EnabledGroups:      groups,
+		XML:                      raw,
+		SHA256:                   hex.EncodeToString(sum[:]),
+		NumberOfInvoices:         len(filtered),
+		TotalDebit:               totalDebit,
+		TotalCredit:              totalCredit,
+		NumberOfPayments:         len(filteredPay),
+		PaymentTotalDebit:        payDebit,
+		PaymentTotalCredit:       payCredit,
+		NumberOfPurchaseInvoices: len(filteredPurchase),
+		EnabledGroups:            groups,
 		PendingRegulatory: []PendingRegulatory{
 			PendingHashAlgorithm,
 			PendingInvoiceTypeSemantics,
@@ -246,6 +303,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	if paymentsEnabled {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingPaymentTypeSemantics)
+	}
+	if purchaseEnabled {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingPurchaseTypeSemantics)
 	}
 	if req.TaxTable != nil {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
@@ -388,6 +448,22 @@ func validatePaymentCustomerRefs(payments []Payment, customers []Customer) error
 	for i, pay := range payments {
 		if _, ok := cust[pay.CustomerID]; !ok {
 			return fmt.Errorf("%w: Payment[%d] CustomerID sem MasterFiles", ErrValidation, i)
+		}
+	}
+	return nil
+}
+
+func validatePurchaseSupplierRefs(invoices []PurchaseInvoice, suppliers []Supplier) error {
+	sup := map[string]struct{}{}
+	for _, s := range suppliers {
+		if strings.TrimSpace(s.SupplierID) == "" {
+			return fmt.Errorf("%w: SupplierID vazio", ErrValidation)
+		}
+		sup[s.SupplierID] = struct{}{}
+	}
+	for i, inv := range invoices {
+		if _, ok := sup[inv.SupplierID]; !ok {
+			return fmt.Errorf("%w: PurchaseInvoice[%d] SupplierID sem MasterFiles", ErrValidation, i)
 		}
 	}
 	return nil
