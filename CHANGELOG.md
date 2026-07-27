@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.53-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-001** / **DEC-BO-004** — separação config pública `AuthorityProfile` vs SecAdm/`SecretStore`; roadmap `RM-AGTPREP-002`…`007`; ≠ AGT real / deploy / segredos.
+
 ## 0.2.52-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-024** — loader GeneralLedgerEntries (`GLEntriesLedgerSource`/`SyntheticGLEntriesLedger` + `MapGLEntriesLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-GLE-PERSIST); ≠ AO-* / AGT / deploy.
