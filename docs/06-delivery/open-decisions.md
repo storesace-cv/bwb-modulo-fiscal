@@ -1020,6 +1020,61 @@ Gere e observa, **sem** material secreto:
 
 ---
 
+## DEC-BO-004 — Preparação backoffice para autoridade AGT (config pública vs SecAdm)
+
+| Campo | Valor |
+|---|---|
+| Estado | **decidida** |
+| Tipo | Produto / arquitectura / segurança |
+| Prazo máximo | — |
+| Responsável | Product Owner + Arquitectura + Segurança |
+| Decisão | 2026-07-27 |
+
+**Contexto:** a integração HTTP real com a AGT permanece `BLOQUEADO_EXTERNO` (`DEC-DEL-002`, GAP-006, `RM-FE-001`). A **preparação** do backoffice para receber mais tarde certificados, chaves e autenticação **não** está bloqueada e deve avançar sem inventar endpoints, claims JWS ou regras fiscais.
+
+**Decisão:** separar explicitamente duas superfícies alinhadas a `DEC-BO-001`:
+
+### A — Configuração pública / metadados de autoridade (backoffice operacional)
+
+Persiste e expõe **apenas** configuração não secreta e metadados sanitizados:
+
+| Conceito | Conteúdo permitido | Plano |
+|---|---|---|
+| `AuthorityProfile` | Ambiente `homologation` \| `production`; NIF/tenant/scope binding; lista de **operation keys** conhecidas (refs a serviços FE catalogados) ou `pending_external`; estado do perfil `draft` \| `validated` \| `active` \| `revoked`; readiness flags | Plano A (leitura ops) + mutação **owner** |
+| Metadados de refs | Fingerprint (público/derivado), validade, algoritmo declarado, key-id, timestamps, estado da ref | Plano A (só sanitizado) |
+| Readiness | `config_ready`, `secrets_ready`, `offline_validated`, `external_verified` (**sempre `false`** até probe AGT real autorizada) | Plano A |
+
+**Proibido** nesta superfície: Basic Auth, passwords, PEM/PKCS#12 privados, tokens, DSN, URLs privadas de override, plaintext de chave/certificado, qualquer claim JWS inventado.
+
+Campos ainda **não confirmados** nos snapshots FE (`AO-FE-SNAP-HML-2026-07-25-*`, `pending_validation`) ou na documentação arquivada ficam em mapa extensível `pending_external` — **não** inventar paths, FE-RNG nem claims.
+
+Fontes admitidas para modelar (não confirmam AO-*): `docs/01-compliance/sources.md` (RS256, RSA ≥2048 observados); snapshots FE HML catalogados; `ProducerCredential` / `ProducerKeyRef` / `TaxpayerKeyRef` em domain-model (metadados).
+
+### B — Segredos e material criptográfico (SecAdm owner-only)
+
+| Material | Onde | Notas |
+|---|---|---|
+| Credencial produtor (Basic Auth AGT) | `SecretStore` via SecAdm | Write-only; HML≠PRD; ≠ login backoffice |
+| Chave privada / certificado / PKCS#12 | `SecretStore` via SecAdm | Upload com limites; password efémera **nunca** persistida; sem plaintext em BD/resposta/log/HTML/audit |
+| Overrides privados (URL base secreta, headers) | `SecretStore` | Nunca no perfil público |
+
+Fluxos SecAdm: importar / rotacionar / revogar através da interface `SecretStore` existente (`RM-SECADM-002`/`003`). Validação **offline** (par chave-certificado, cadeia, validade, finalidade, fingerprint) é preparação interna — **≠** `external_verified`.
+
+### Fail-closed runtime
+
+| Condição | Comportamento |
+|---|---|
+| `FISCAL_AUTHORITY=simulator` | Único modo habilitado sem AGT; testes de ligação usam adaptador simulador |
+| `agt-hml` / `agt-prd` sem perfil `active` + segredos + offline_validated | Fail-closed (já reservado em config) |
+| Produção com `simulator` ou sem secrets_ready | Fail-closed |
+| Pedido de `external_verified=true` sem probe AGT real | Proibido |
+
+**Não fecha:** `DEC-REG-KEY-CUSTODY`, GAP-006, `RM-FE-001`/`002`, confirmação AGT de endpoints/claims. **Não autoriza:** SSH/deploy, credenciais reais, alegar HML/PRD AGT.
+
+**Evidência:** este registo; [`backoffice-architecture.md`](../02-architecture/backoffice-architecture.md); ROADMAP `RM-AGTPREP-*`.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
@@ -1031,7 +1086,7 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**, **DEC-BO-003**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**, **DEC-BO-003**, **DEC-BO-004**.
 
 ---
 

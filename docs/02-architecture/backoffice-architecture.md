@@ -1,6 +1,6 @@
 # Arquitetura do backoffice operacional
 
-**Estado:** formalizado (DEC-BO-001 + DEC-BO-002); API admin + UI SSR `RM-UI-001`…`RM-UI-004` (M7 mínimo)
+**Estado:** formalizado (DEC-BO-001…004); API admin + UI SSR `RM-UI-001`…`RM-UI-004` (M7 mínimo); preparação autoridade AGT `RM-AGTPREP-*` (sem integração real)
 **Âmbito:** ops administrativas — fora do primeiro vertical slice POS
 **Stack:** DEC-STACK-001 — API + UI no monólito Go (`html/template` + `embed`); **sem** SPA/npm
 
@@ -96,7 +96,18 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 4. Superfície Admin API (`DEC-BO-002` / `RM-BO-001`) — `/admin/v1` cadastros + auth injectável fail-closed + audit append-only; IdP real e UI ainda futuros.
 5. Séries/config não secreta, visibilidade ops, matriz permissões (`RM-BO-002`/`003`/`004`).
 6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados; `RM-SAFT-022` estado SAF-T estrutural read-only (`/admin/ui/saft`, sem XML fiscal).
-7. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
+7. Preparação autoridade AGT no backoffice (`DEC-BO-004` / `RM-AGTPREP-*`): perfis públicos + SecAdm para material criptográfico; **sem** chamada AGT real; `external_verified=false`.
+8. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
+
+### Preparação autoridade AGT (`DEC-BO-004`)
+
+| Camada | Superfície | Conteúdo | Segredos |
+|---|---|---|---|
+| Perfil / metadados | Admin API + UI operacional (mutação owner) | `AuthorityProfile`, endpoints/operation keys conhecidos ou `pending_external`, estados, readiness | **Nunca** |
+| Material criptográfico | SecAdm owner-only → `SecretStore` | Credencial produtor, chave, certificado/PKCS#12 | Write-only; password efémera não persistida |
+| Probe externa | Reservada | Ligação AGT real | Bloqueada até GAP-006 / `RM-FE-001` |
+
+Readiness canónico (checklist): `config_ready` · `secrets_ready` · `offline_validated` · `external_verified` (**fix** até AGT real).
 
 ### UI (RM-UI-*)
 
@@ -114,7 +125,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 
 - [domain-model.md](../04-domain/domain-model.md)
 - [security-baseline.md](../05-security/security-baseline.md)
-- [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`, `DEC-BO-002`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
+- [open-decisions.md](../06-delivery/open-decisions.md) (`DEC-BO-001`…`004`, DEC-REG-KEY-CUSTODY, DEC-SEC-EDGE-KEYS)
 - [regulatory-gaps.md](../01-compliance/regulatory-gaps.md) (GAP-013)
 - [ROADMAP.md](../../ROADMAP.md)
 - [admin-observability.md](../07-operations/admin-observability.md) (RM-BO-007)
