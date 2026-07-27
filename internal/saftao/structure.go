@@ -3,7 +3,7 @@ package saftao
 import "encoding/xml"
 
 // AuditFile is a structural skeleton aligned with XSD element AuditFile (SAFTAO1.01_01).
-// Field set is intentionally incomplete — not export-ready; ≠ conformidade AGT.
+// Field set grows with typed slices; still ≠ conformidade AGT / export de produção.
 type AuditFile struct {
 	XMLName xml.Name `xml:"urn:OECD:StandardAuditFile-Tax:AO_1.01_01 AuditFile"`
 
@@ -13,7 +13,7 @@ type AuditFile struct {
 	SourceDocuments      *SourceDocuments      `xml:"SourceDocuments,omitempty"`
 }
 
-// Header mirrors required XSD Header children (CompanyAddress typed as stub).
+// Header mirrors required XSD Header children (CompanyAddress typed as AddressStructureAO shape).
 type Header struct {
 	AuditFileVersion         string            `xml:"AuditFileVersion"`
 	CompanyID                string            `xml:"CompanyID"`
@@ -34,7 +34,7 @@ type Header struct {
 	ProductVersion           string            `xml:"ProductVersion"`
 }
 
-// AddressStructure is a minimal address stub (full XSD mapping later).
+// AddressStructure matches AddressStructure / AddressStructureAO child sequence (Country "AO" for Header).
 type AddressStructure struct {
 	AddressDetail string `xml:"AddressDetail"`
 	City          string `xml:"City"`
@@ -42,7 +42,7 @@ type AddressStructure struct {
 	Country       string `xml:"Country"`
 }
 
-// MasterFiles is the XSD MasterFiles container (typed stubs).
+// MasterFiles is the XSD MasterFiles container.
 type MasterFiles struct {
 	GeneralLedgerAccounts []GeneralLedgerAccounts `xml:"GeneralLedgerAccounts,omitempty"`
 	Customer              []Customer              `xml:"Customer,omitempty"`
@@ -56,9 +56,14 @@ type GeneralLedgerAccounts struct {
 	NumberOfEntries string `xml:"NumberOfEntries,omitempty"`
 }
 
-// Customer stub (IDs only — no personal payload helpers here).
+// Customer is MasterFiles/Customer (fields required by XSD sequence for keyref fixtures).
 type Customer struct {
-	CustomerID string `xml:"CustomerID"`
+	CustomerID           string            `xml:"CustomerID"`
+	AccountID            string            `xml:"AccountID"`
+	CustomerTaxID        string            `xml:"CustomerTaxID"`
+	CompanyName          string            `xml:"CompanyName"`
+	BillingAddress       *AddressStructure `xml:"BillingAddress"`
+	SelfBillingIndicator int               `xml:"SelfBillingIndicator"`
 }
 
 // Supplier stub.
@@ -66,11 +71,12 @@ type Supplier struct {
 	SupplierID string `xml:"SupplierID"`
 }
 
-// Product stub.
+// Product is MasterFiles/Product (XSD order: ProductType before ProductCode).
 type Product struct {
-	ProductCode        string `xml:"ProductCode"`
 	ProductType        string `xml:"ProductType"`
+	ProductCode        string `xml:"ProductCode"`
 	ProductDescription string `xml:"ProductDescription"`
+	ProductNumberCode  string `xml:"ProductNumberCode"`
 }
 
 // TaxTable stub.
@@ -91,15 +97,22 @@ type GeneralLedgerEntries struct {
 	TotalCredit     string `xml:"TotalCredit"`
 }
 
-// SourceDocuments holds optional document tables from the XSD.
+// SourceDocuments holds the five L3 document tables (DEC-PROD-001); exposure follows enrolment.
 type SourceDocuments struct {
-	SalesInvoices    *DocumentTableTotals `xml:"SalesInvoices,omitempty"`
+	SalesInvoices    *SalesInvoices       `xml:"SalesInvoices,omitempty"`
+	MovementOfGoods  *MovementOfGoodsStub `xml:"MovementOfGoods,omitempty"`
 	WorkingDocuments *DocumentTableTotals `xml:"WorkingDocuments,omitempty"`
 	Payments         *DocumentTableTotals `xml:"Payments,omitempty"`
 	PurchaseInvoices *DocumentTableTotals `xml:"PurchaseInvoices,omitempty"`
 }
 
-// DocumentTableTotals is the NumberOfEntries/TotalDebit/TotalCredit prefix shared by tables.
+// MovementOfGoodsStub is the XSD MovementOfGoods prefix (StockMovement typed in a later slice).
+type MovementOfGoodsStub struct {
+	NumberOfMovementLines string        `xml:"NumberOfMovementLines"`
+	TotalQuantityIssued   DecimalNonNeg `xml:"TotalQuantityIssued"`
+}
+
+// DocumentTableTotals is the NumberOfEntries/TotalDebit/TotalCredit prefix shared by several tables.
 type DocumentTableTotals struct {
 	NumberOfEntries string `xml:"NumberOfEntries"`
 	TotalDebit      string `xml:"TotalDebit"`
@@ -122,10 +135,10 @@ func NewEmptyAuditFile() AuditFile {
 func NewSalesSkeleton() AuditFile {
 	doc := NewEmptyAuditFile()
 	doc.SourceDocuments = &SourceDocuments{
-		SalesInvoices: &DocumentTableTotals{
+		SalesInvoices: &SalesInvoices{
 			NumberOfEntries: "0",
-			TotalDebit:      "0.00",
-			TotalCredit:     "0.00",
+			TotalDebit:      MustDecimal("0.00"),
+			TotalCredit:     MustDecimal("0.00"),
 		},
 	}
 	return doc

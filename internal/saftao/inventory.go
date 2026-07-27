@@ -15,8 +15,9 @@ var requiredGlobalElements = []string{
 }
 
 // SourceDocuments child table names (local elements under SourceDocuments in XSD).
+// Exactly the five L3 groups (DEC-PROD-001); includes MovementOfGoods.
 var requiredSourceDocumentTables = []string{
-	"SalesInvoices", "WorkingDocuments", "Payments", "PurchaseInvoices",
+	"SalesInvoices", "MovementOfGoods", "WorkingDocuments", "Payments", "PurchaseInvoices",
 }
 
 // Inventory lists global xs:element names found in the embedded XSD.
