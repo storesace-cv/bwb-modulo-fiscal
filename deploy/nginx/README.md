@@ -3,7 +3,7 @@
 | File | Role |
 |---|---|
 | `tls.deny.conf` | Immutable deny-all site (rollback / default safe); HSTS; ACME-safe redirect |
-| `tls.open.conf` | Public `location = /v1/documents` open with `limit_req` rate=10r/s burst=20 |
+| `tls.open.conf` | Public `location = /v1/documents` open with `limit_req` rate=10r/s burst=20; also proxies `/admin/v1/` + `/admin/ui` (app fail-closed) |
 | `limit-req-documents.conf` | `limit_req_zone` for `bwb_documents` |
 
 Installed on the host **only** by closed helper ops (exclusive flock on `/var/lock/bwb-fiscal-nginx-open.lock`):

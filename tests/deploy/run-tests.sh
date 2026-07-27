@@ -524,6 +524,9 @@ if grep -q 'deny all' "${DENY_CONF}" \
     "${ROOT}/deploy/nginx/measure/bwb-fiscal-sandbox-measure-loopback.conf" \
   && grep -q 'limit_req zone=bwb_documents burst=20' "${OPEN_CONF}" \
   && grep -q 'limit_req_status 429' "${OPEN_CONF}" \
+  && grep -q 'location ^~ /admin/v1/' "${OPEN_CONF}" \
+  && grep -q 'location ^~ /admin/ui' "${OPEN_CONF}" \
+  && ! grep -q 'location ^~ /admin/' "${DENY_CONF}" \
   && grep -q 'rate=10r/s' \
     "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" \
   && grep -q 'proxy_set_header X-Request-Id ""' "${OPEN_CONF}" \

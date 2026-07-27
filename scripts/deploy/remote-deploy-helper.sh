@@ -235,6 +235,11 @@ verify_release_tree() {
   grep -q 'limit_req zone=bwb_documents burst=20' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing burst=20"
   grep -q 'limit_req_status 429' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing limit_req_status 429"
   grep -q 'proxy_set_header X-Request-Id ""' "${dir}/nginx/tls.open.conf" || die "tls.open.conf must clear X-Request-Id"
+  grep -q 'location ^~ /admin/v1/' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing /admin/v1/ proxy"
+  grep -q 'location ^~ /admin/ui' "${dir}/nginx/tls.open.conf" || die "tls.open.conf missing /admin/ui proxy"
+  if grep -q 'location ^~ /admin/' "${dir}/nginx/tls.deny.conf"; then
+    die "tls.deny.conf must not proxy /admin/"
+  fi
   grep -q 'rate=10r/s' "${dir}/nginx/limit-req-documents.conf" || die "limit zone must be 10r/s"
   sha256_check "${dir}"
 }

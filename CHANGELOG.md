@@ -2,7 +2,8 @@
 
 ## 0.2.73-draft — 2026-07-27
 
-- Ops: **RM-OPS-006** (em curso) — default deploy `EXPECTED_SCHEMA_VERSION=12`; grants explícitos `grants-schema12-runtime-admin.sql` (0004…0012); promoção sandbox via updater endurecido.
+- Ops: **RM-OPS-006** — sandbox promoveu `main` → schema 12 (`dirty=false`); grants `grants-schema12-runtime-admin.sql`; relatório [rm-ops-006-sandbox-schema12-promotion-report.md](docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md).
+- Ops: **RM-OPS-007** — Nginx open sandbox proxy `/admin/v1/` + `/admin/ui`; deny-all permanece sem admin; arm+confirm no host.
 - Backoffice: **RM-BO-018** — onboarding IdP provider-neutral + diagnostics em `/admin/v1/ready` (`admin_oidc`, `admin_interactive_login`); sem IdP local inseguro; fail_closed até decisão IdP.
 
 ## 0.2.72-draft — 2026-07-27
