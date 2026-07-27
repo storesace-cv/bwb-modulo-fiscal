@@ -12,33 +12,41 @@ import (
 type ExportRequest struct {
 	Header Header
 	// EnabledGroups must be a subset of AllDocumentGroups (DEC-PROD-001).
-	// Only SalesInvoices is populated in this slice; others stay absent unless stubs requested.
+	// This slice populates SalesInvoices and/or Payments when enabled; other groups stay absent.
 	EnabledGroups []DocumentGroup
 	// AllowedInvoiceTypes gates which XSD InvoiceType values may appear (enrolment / DEC-PROD-002).
 	// Empty ⇒ fail-closed (no invoices accepted).
 	AllowedInvoiceTypes []InvoiceType
+	// AllowedPaymentTypes gates PaymentType (enrolment). Empty ⇒ fail-closed when Payments present.
+	AllowedPaymentTypes []PaymentType
 	Customers           []Customer
 	Products            []Product
 	// TaxTable is optional MasterFiles/TaxTable (RM-SAFT-012). Nil ⇒ omitted; non-nil must validate.
 	// Rates/codes are caller-supplied — never invented here (≠ AO-*).
 	TaxTable *TaxTable
 	Invoices []Invoice
+	Payments []Payment
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
+	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
+	IncludeEmptyPaymentsTotals bool
 	// ValidateAgainstXSD runs xmllint when true and available.
 	ValidateAgainstXSD bool
 }
 
 // ExportResult is the deterministic export artifact (structural only).
 type ExportResult struct {
-	XML               []byte
-	SHA256            string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
-	NumberOfInvoices  int
-	TotalDebit        DecimalNonNeg
-	TotalCredit       DecimalNonNeg
-	EnabledGroups     []DocumentGroup
-	PendingRegulatory []PendingRegulatory
-	XSDChecked        bool
+	XML                []byte
+	SHA256             string // of XML bytes — artifact integrity; ≠ Invoice.Hash algorithm
+	NumberOfInvoices   int
+	TotalDebit         DecimalNonNeg // SalesInvoices totals
+	TotalCredit        DecimalNonNeg
+	NumberOfPayments   int
+	PaymentTotalDebit  DecimalNonNeg
+	PaymentTotalCredit DecimalNonNeg
+	EnabledGroups      []DocumentGroup
+	PendingRegulatory  []PendingRegulatory
+	XSDChecked         bool
 }
 
 // BuildIncrementalExport builds a period-filtered AuditFile, marshals XML, hashes the artifact,
@@ -69,14 +77,16 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		}
 		allowed[t] = struct{}{}
 	}
-
-	salesEnabled := false
-	for _, g := range groups {
-		if g == GroupSalesInvoices {
-			salesEnabled = true
-			break
+	allowedPay := map[PaymentType]struct{}{}
+	for _, t := range req.AllowedPaymentTypes {
+		if !ValidPaymentType(t) {
+			return nil, fmt.Errorf("%w: AllowedPaymentType %q", ErrValidation, t)
 		}
+		allowedPay[t] = struct{}{}
 	}
+
+	salesEnabled := groupEnabled(groups, GroupSalesInvoices)
+	paymentsEnabled := groupEnabled(groups, GroupPayments)
 
 	var filtered []Invoice
 	var totalDebit, totalCredit DecimalNonNeg
@@ -121,7 +131,53 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		return nil, fmt.Errorf("%w: Invoices sem SalesInvoices enabled", ErrValidation)
 	}
 
+	var filteredPay []Payment
+	var payDebit, payCredit DecimalNonNeg
+	payDebit = MustDecimal("0.00")
+	payCredit = MustDecimal("0.00")
+
+	if paymentsEnabled {
+		for i := range req.Payments {
+			pay := req.Payments[i]
+			if err := pay.TransactionDate.Validate(); err != nil {
+				return nil, fmt.Errorf("Payment[%d]: %w", i, err)
+			}
+			d := string(pay.TransactionDate)
+			if d < string(start) || d > string(end) {
+				continue
+			}
+			if _, ok := allowedPay[pay.PaymentType]; !ok {
+				return nil, fmt.Errorf("%w: PaymentType %q não permitido pela adesão/config", ErrValidation, pay.PaymentType)
+			}
+			if err := pay.ValidateStructural(); err != nil {
+				return nil, fmt.Errorf("Payment[%d]: %w", i, err)
+			}
+			filteredPay = append(filteredPay, pay)
+			for _, ln := range pay.Line {
+				if ln.DebitAmount != nil {
+					sum, err := addMoney2AsDecimal(payDebit, *ln.DebitAmount)
+					if err != nil {
+						return nil, err
+					}
+					payDebit = sum
+				}
+				if ln.CreditAmount != nil {
+					sum, err := addMoney2AsDecimal(payCredit, *ln.CreditAmount)
+					if err != nil {
+						return nil, err
+					}
+					payCredit = sum
+				}
+			}
+		}
+	} else if len(req.Payments) > 0 {
+		return nil, fmt.Errorf("%w: Payments sem Payments enabled", ErrValidation)
+	}
+
 	if err := validateMasterRefs(filtered, req.Customers, req.Products); err != nil {
+		return nil, err
+	}
+	if err := validatePaymentCustomerRefs(filteredPay, req.Customers); err != nil {
 		return nil, err
 	}
 	if req.TaxTable != nil {
@@ -131,23 +187,40 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 		if err := validateInvoiceTaxAgainstTable(filtered, req.TaxTable); err != nil {
 			return nil, err
 		}
+		if err := validatePaymentTaxAgainstTable(filteredPay, req.TaxTable); err != nil {
+			return nil, err
+		}
 	}
 
 	doc := AuditFile{
 		Header:      cloneHeader(&req.Header),
 		MasterFiles: &MasterFiles{Customer: req.Customers, Product: req.Products, TaxTable: req.TaxTable},
 	}
-	if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
-		doc.SourceDocuments = &SourceDocuments{
-			SalesInvoices: &SalesInvoices{
+	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
+		(paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals))
+	if needSource {
+		doc.SourceDocuments = &SourceDocuments{}
+		if salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals) {
+			doc.SourceDocuments.SalesInvoices = &SalesInvoices{
 				NumberOfEntries: strconv.Itoa(len(filtered)),
 				TotalDebit:      totalDebit,
 				TotalCredit:     totalCredit,
 				Invoice:         filtered,
-			},
+			}
+			if err := doc.SourceDocuments.SalesInvoices.ValidateStructural(); err != nil {
+				return nil, err
+			}
 		}
-		if err := doc.SourceDocuments.SalesInvoices.ValidateStructural(); err != nil {
-			return nil, err
+		if paymentsEnabled && (len(filteredPay) > 0 || req.IncludeEmptyPaymentsTotals) {
+			doc.SourceDocuments.Payments = &Payments{
+				NumberOfEntries: strconv.Itoa(len(filteredPay)),
+				TotalDebit:      payDebit,
+				TotalCredit:     payCredit,
+				Payment:         filteredPay,
+			}
+			if err := doc.SourceDocuments.Payments.ValidateStructural(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -157,16 +230,22 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	sum := sha256.Sum256(raw)
 	out := &ExportResult{
-		XML:              raw,
-		SHA256:           hex.EncodeToString(sum[:]),
-		NumberOfInvoices: len(filtered),
-		TotalDebit:       totalDebit,
-		TotalCredit:      totalCredit,
-		EnabledGroups:    groups,
+		XML:                raw,
+		SHA256:             hex.EncodeToString(sum[:]),
+		NumberOfInvoices:   len(filtered),
+		TotalDebit:         totalDebit,
+		TotalCredit:        totalCredit,
+		NumberOfPayments:   len(filteredPay),
+		PaymentTotalDebit:  payDebit,
+		PaymentTotalCredit: payCredit,
+		EnabledGroups:      groups,
 		PendingRegulatory: []PendingRegulatory{
 			PendingHashAlgorithm,
 			PendingInvoiceTypeSemantics,
 		},
+	}
+	if paymentsEnabled {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingPaymentTypeSemantics)
 	}
 	if req.TaxTable != nil {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
@@ -238,6 +317,15 @@ func normalizeEnabledGroups(in []DocumentGroup) ([]DocumentGroup, error) {
 	return out, nil
 }
 
+func groupEnabled(groups []DocumentGroup, want DocumentGroup) bool {
+	for _, g := range groups {
+		if g == want {
+			return true
+		}
+	}
+	return false
+}
+
 func validateMasterRefs(invoices []Invoice, customers []Customer, products []Product) error {
 	cust := map[string]struct{}{}
 	for _, c := range customers {
@@ -272,11 +360,7 @@ func validateInvoiceTaxAgainstTable(invoices []Invoice, table *TaxTable) error {
 	if table == nil {
 		return nil
 	}
-	keys := map[string]struct{}{}
-	for _, e := range table.TaxTableEntry {
-		k := string(e.TaxType) + "|" + strings.TrimSpace(e.TaxCode)
-		keys[k] = struct{}{}
-	}
+	keys := taxTableKeys(table)
 	for i, inv := range invoices {
 		for j, ln := range inv.Line {
 			tt := strings.TrimSpace(ln.Tax.TaxType)
@@ -291,6 +375,58 @@ func validateInvoiceTaxAgainstTable(invoices []Invoice, table *TaxTable) error {
 		}
 	}
 	return nil
+}
+
+func validatePaymentCustomerRefs(payments []Payment, customers []Customer) error {
+	cust := map[string]struct{}{}
+	for _, c := range customers {
+		if strings.TrimSpace(c.CustomerID) == "" {
+			return fmt.Errorf("%w: CustomerID vazio", ErrValidation)
+		}
+		cust[c.CustomerID] = struct{}{}
+	}
+	for i, pay := range payments {
+		if _, ok := cust[pay.CustomerID]; !ok {
+			return fmt.Errorf("%w: Payment[%d] CustomerID sem MasterFiles", ErrValidation, i)
+		}
+	}
+	return nil
+}
+
+func validatePaymentTaxAgainstTable(payments []Payment, table *TaxTable) error {
+	if table == nil {
+		return nil
+	}
+	keys := taxTableKeys(table)
+	for i, pay := range payments {
+		for j, ln := range pay.Line {
+			if ln.Tax == nil {
+				continue
+			}
+			tt := strings.TrimSpace(ln.Tax.TaxType)
+			tc := strings.TrimSpace(ln.Tax.TaxCode)
+			if tt == "" && tc == "" {
+				continue
+			}
+			k := tt + "|" + tc
+			if _, ok := keys[k]; !ok {
+				return fmt.Errorf("%w: Payment[%d].Line[%d] Tax sem TaxTableEntry", ErrValidation, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+func taxTableKeys(table *TaxTable) map[string]struct{} {
+	keys := map[string]struct{}{}
+	if table == nil {
+		return keys
+	}
+	for _, e := range table.TaxTableEntry {
+		k := string(e.TaxType) + "|" + strings.TrimSpace(e.TaxCode)
+		keys[k] = struct{}{}
+	}
+	return keys
 }
 
 func cloneHeader(h *Header) *Header {
