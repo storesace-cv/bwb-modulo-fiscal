@@ -386,14 +386,14 @@ func TestIncrementalExportGeneralLedgerAccounts(t *testing.T) {
 func TestIncrementalExportGeneralLedgerEntries(t *testing.T) {
 	base := saftao.MinimalGeneralLedgerEntriesFixture()
 	req := saftao.ExportRequest{
-		Header:                       *base.Header,
-		EnabledGroups:                []saftao.DocumentGroup{saftao.GroupSalesInvoices},
-		AllowedInvoiceTypes:          []saftao.InvoiceType{saftao.InvoiceTypeFT},
-		IncludeEmptySalesTotals:      true,
-		GeneralLedgerAccounts:        base.MasterFiles.GeneralLedgerAccounts,
-		GeneralLedgerEntries:         base.GeneralLedgerEntries,
-		AllowedTransactionTypes:      []saftao.TransactionType{saftao.TransactionTypeN},
-		ValidateAgainstXSD:           saftao.XSDValidatorAvailable(),
+		Header:                  *base.Header,
+		EnabledGroups:           []saftao.DocumentGroup{saftao.GroupSalesInvoices},
+		AllowedInvoiceTypes:     []saftao.InvoiceType{saftao.InvoiceTypeFT},
+		IncludeEmptySalesTotals: true,
+		GeneralLedgerAccounts:   base.MasterFiles.GeneralLedgerAccounts,
+		GeneralLedgerEntries:    base.GeneralLedgerEntries,
+		AllowedTransactionTypes: []saftao.TransactionType{saftao.TransactionTypeN},
+		ValidateAgainstXSD:      saftao.XSDValidatorAvailable(),
 	}
 	res, err := saftao.BuildIncrementalExport(req)
 	if err != nil {
