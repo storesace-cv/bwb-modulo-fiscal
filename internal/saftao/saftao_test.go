@@ -363,3 +363,35 @@ func TestGeneralLedgerAccountsStructuralAndXSD(t *testing.T) {
 		t.Fatalf("XSD: %v\n%s", err, raw)
 	}
 }
+
+func TestGeneralLedgerEntriesStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalGeneralLedgerEntriesFixture()
+	if err := doc.GeneralLedgerEntries.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "GeneralLedgerEntries") || !strings.Contains(s, "DebitLine") || !strings.Contains(s, "CreditLine") {
+		t.Fatalf("marshal: %s", s)
+	}
+	bad := *doc.GeneralLedgerEntries
+	bad.Journal[0].Transaction[0].Lines.DebitLine = nil
+	if err := bad.ValidateStructural(); err == nil {
+		t.Fatal("missing DebitLine must fail-closed")
+	}
+	if !saftao.ValidTransactionType(saftao.TransactionTypeN) || saftao.ValidTransactionType("X") {
+		t.Fatal("TransactionType enum gate")
+	}
+	if !saftao.ValidTransactionID("2026-01-15 J1 ARC001") || saftao.ValidTransactionID("bad") {
+		t.Fatal("TransactionID pattern gate")
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
+}

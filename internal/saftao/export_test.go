@@ -382,3 +382,61 @@ func TestIncrementalExportGeneralLedgerAccounts(t *testing.T) {
 		t.Fatal("GroupingCode without AccountID must fail-closed")
 	}
 }
+
+func TestIncrementalExportGeneralLedgerEntries(t *testing.T) {
+	base := saftao.MinimalGeneralLedgerEntriesFixture()
+	req := saftao.ExportRequest{
+		Header:                       *base.Header,
+		EnabledGroups:                []saftao.DocumentGroup{saftao.GroupSalesInvoices},
+		AllowedInvoiceTypes:          []saftao.InvoiceType{saftao.InvoiceTypeFT},
+		IncludeEmptySalesTotals:      true,
+		GeneralLedgerAccounts:        base.MasterFiles.GeneralLedgerAccounts,
+		GeneralLedgerEntries:         base.GeneralLedgerEntries,
+		AllowedTransactionTypes:      []saftao.TransactionType{saftao.TransactionTypeN},
+		ValidateAgainstXSD:           saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	xml := string(res.XML)
+	if !strings.Contains(xml, "GeneralLedgerEntries") || !strings.Contains(xml, "TransactionType") {
+		t.Fatalf("GLE missing: %s", xml)
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingGLEntriesSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingGLEntriesSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("GLE export must be deterministic")
+	}
+	// Outside period ⇒ omitted (no IncludeEmpty).
+	out := *base.GeneralLedgerEntries
+	out.Journal = append([]saftao.Journal(nil), out.Journal...)
+	out.Journal[0].Transaction = append([]saftao.Transaction(nil), out.Journal[0].Transaction...)
+	out.Journal[0].Transaction[0].TransactionDate = saftao.MustDate("2025-12-31")
+	out.Journal[0].Transaction[0].TransactionID = "2025-12-31 J1 ARC001"
+	req.GeneralLedgerEntries = &out
+	res3, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(res3.XML), "GeneralLedgerEntries") {
+		t.Fatal("out-of-period GLE must be omitted")
+	}
+	req.AllowedTransactionTypes = nil
+	req.GeneralLedgerEntries = base.GeneralLedgerEntries
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("empty AllowedTransactionTypes must reject transactions")
+	}
+}
