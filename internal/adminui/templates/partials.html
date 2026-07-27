@@ -70,7 +70,7 @@
       <th scope="col">Estado</th>
       <th scope="col">Contribuinte</th>
       <th scope="col">ID</th>
-      {{if .CanWrite}}<th scope="col">Acções</th>{{end}}
+      <th scope="col">Acções</th>
     </tr>
   </thead>
   <tbody>
@@ -81,8 +81,9 @@
       <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
       <td class="mono">{{.TaxpayerID}}</td>
       <td class="mono">{{.ID}}</td>
-      {{if $.CanWrite}}
       <td>
+        <a href="/admin/ui/establishments/{{.ID}}/series">Séries</a>
+        {{if $.CanWrite}}
         <form method="post" action="/admin/ui/establishments/{{.ID}}/status" class="inline">
           <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
           <label class="sr-only" for="est-{{.ID}}">Estado</label>
@@ -92,8 +93,8 @@
           </select>
           <button type="submit">Guardar</button>
         </form>
+        {{end}}
       </td>
-      {{end}}
     </tr>
   {{end}}
   </tbody>

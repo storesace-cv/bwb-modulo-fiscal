@@ -1,0 +1,27 @@
+{{define "content"}}
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/ui/establishments/{{.Establishment.ID}}/series">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="environment">Ambiente</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation">homologation</option>
+      <option value="production">production</option>
+      <option value="development">development</option>
+    </select>
+  </p>
+  <p>
+    <label for="codigo_canonico">Tipo canónico</label>
+    <select id="codigo_canonico" name="codigo_canonico" required>
+      <option value="bwb.ao.vendas.ft">bwb.ao.vendas.ft</option>
+      <option value="bwb.ao.vendas.nc">bwb.ao.vendas.nc</option>
+    </select>
+  </p>
+  <p>
+    <label for="code">Código de série</label>
+    <input id="code" name="code" required autocomplete="off" maxlength="32">
+  </p>
+  <p class="hint">Criada como draft. Código único por loja+ambiente; sem reutilizar após closed.</p>
+  <p><button type="submit">Criar draft</button> <a href="/admin/ui/establishments/{{.Establishment.ID}}/series">Cancelar</a></p>
+</form>
+{{end}}

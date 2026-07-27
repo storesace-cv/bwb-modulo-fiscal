@@ -1,0 +1,66 @@
+{{define "content"}}
+<p>Estabelecimento <span class="mono">{{.Establishment.Code}}</span> — {{.Establishment.Name}}</p>
+<p class="hint">Metadados de série (draft/active/closed). Não é autoridade de numeração fiscal; códigos únicos sem reutilizar/retroceder.</p>
+{{if .CanWrite}}
+<p><a class="btn" href="/admin/ui/establishments/{{.Establishment.ID}}/series/new">Nova série</a></p>
+{{end}}
+{{if .Series}}
+<table>
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Tipo</th>
+      <th>Ambiente</th>
+      <th>Estado</th>
+      <th>Versão</th>
+      <th>Valid from</th>
+      <th>Valid to</th>
+      {{if .CanWrite}}<th>Transição</th>{{end}}
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Series}}
+    <tr>
+      <td class="mono">{{.Code}}</td>
+      <td class="mono">{{.CodigoCanonico}}</td>
+      <td>{{.Environment}}</td>
+      <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+      <td>{{.Version}}</td>
+      <td class="mono">{{.ValidFrom.UTC.Format "2006-01-02"}}</td>
+      <td class="mono">{{if .ValidTo}}{{.ValidTo.UTC.Format "2006-01-02"}}{{else}}—{{end}}</td>
+      {{if $.CanWrite}}
+      <td>
+        {{if eq .Status "draft"}}
+        <form method="post" action="/admin/ui/series/{{.ID}}/transition" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="expected_version" value="{{.Version}}">
+          <input type="hidden" name="status" value="active">
+          <button type="submit">Activar</button>
+        </form>
+        <form method="post" action="/admin/ui/series/{{.ID}}/transition" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="expected_version" value="{{.Version}}">
+          <input type="hidden" name="status" value="closed">
+          <button type="submit">Fechar</button>
+        </form>
+        {{else if eq .Status "active"}}
+        <form method="post" action="/admin/ui/series/{{.ID}}/transition" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="expected_version" value="{{.Version}}">
+          <input type="hidden" name="status" value="closed">
+          <button type="submit">Fechar</button>
+        </form>
+        {{else}}
+        —
+        {{end}}
+      </td>
+      {{end}}
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>Sem séries.</p>
+{{end}}
+<p><a href="/admin/ui/establishments">Voltar</a></p>
+{{end}}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.22-draft
+  version: 0.1.23-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -30,6 +30,7 @@ info:
     0.1.20: Testes de segurança superfície autoridade documentados (RM-AGTPREP-013); contrato HTTP inalterado.
     0.1.21: Adesão FE enum por contribuinte+ambiente (DEC-PROD-004 / RM-BO-012); ≠ booleano; NIF nunca em audit resource_id.
     0.1.22: Política calculada documentos disponíveis (RM-BO-013 / DEC-PROD-001…006); 5 grupos; sem inventar códigos.
+    0.1.23: Séries por estabelecimento/ambiente/tipo (RM-BO-014); draft/active/closed; sem reutilizar/retroceder.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -397,6 +398,126 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /establishments/{establishment_id}/series:
+    get:
+      operationId: listEstablishmentSeries
+      summary: Lista séries do estabelecimento (metadados)
+      description: >
+        RM-BO-014. Metadados locais draft/active/closed — ≠ autoridade de numeração fiscal;
+        ≠ solicitarSerie AGT. Código único por loja+ambiente.
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+        - name: environment
+          in: query
+          schema:
+            type: string
+            enum: [homologation, production, development]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Lista de séries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeriesList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    post:
+      operationId: createEstablishmentSeries
+      summary: Cria série em draft
+      tags: [Cadastros]
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSeriesRequest"
+      responses:
+        "201":
+          description: Série criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstablishmentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /series/{series_id}:
+    get:
+      operationId: getSeries
+      summary: Obtém série por id
+      tags: [Cadastros]
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Série
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstablishmentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /series/{series_id}/transition:
+    post:
+      operationId: transitionSeries
+      summary: Transição draft→active ou active/draft→closed (optimistic concurrency)
+      description: Proibido retroceder; closed é terminal; expected_version obrigatório.
+      tags: [Cadastros]
+      parameters:
+        - name: series_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransitionSeriesRequest"
+      responses:
+        "200":
+          description: Série actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstablishmentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/Unprocessable"
   /scope-bindings:
@@ -1474,6 +1595,84 @@ components:
           type: string
           enum: [active, inactive]
           default: active
+    CreateSeriesRequest:
+      type: object
+      additionalProperties: false
+      required: [environment, codigo_canonico, code]
+      properties:
+        environment:
+          type: string
+          enum: [homologation, production, development]
+        codigo_canonico:
+          type: string
+        code:
+          type: string
+          minLength: 1
+        valid_from:
+          type: string
+          format: date-time
+    TransitionSeriesRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_version, status]
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [active, closed]
+    EstablishmentSeries:
+      type: object
+      additionalProperties: false
+      required:
+        - series_id
+        - establishment_id
+        - environment
+        - codigo_canonico
+        - code
+        - status
+        - valid_from
+        - version
+        - created_at
+        - updated_at
+      properties:
+        series_id:
+          type: string
+        establishment_id:
+          type: string
+        environment:
+          type: string
+        codigo_canonico:
+          type: string
+        code:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, closed]
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SeriesList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EstablishmentSeries"
     UpdateScopeConfigRequest:
       type: object
       additionalProperties: false

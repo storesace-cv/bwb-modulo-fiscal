@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.69-draft — 2026-07-27
+
+- Backoffice: **RM-BO-014** — séries por estabelecimento/ambiente/tipo (`draft`→`active`→`closed`; código único; sem reutilizar/retroceder; optimistic concurrency); migração `0011`; UI/API admin; OpenAPI `0.1.23-draft`; `ExpectedVersion=11`; ≠ autoridade de numeração / solicitarSerie AGT.
+
 ## 0.2.68-draft — 2026-07-27
 
 - Backoffice: **RM-BO-013** — política calculada de documentos disponíveis (5 grupos configuráveis; seed `doctype`; FE `active`⇒matriz FE; sem FE⇒SAF-T; `pending_validation`/`conflito` indisponíveis); migração `0010`; OpenAPI admin `0.1.22-draft`; `ExpectedVersion=10`; ≠ inventar FE-RNG / AGT.
