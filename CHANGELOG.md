@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.73-draft — 2026-07-27
+
+- Ops: **RM-OPS-006** (em curso) — default deploy `EXPECTED_SCHEMA_VERSION=12`; grants explícitos `grants-schema12-runtime-admin.sql` (0004…0012); promoção sandbox via updater endurecido.
+- Backoffice: **RM-BO-018** — onboarding IdP provider-neutral + diagnostics em `/admin/v1/ready` (`admin_oidc`, `admin_interactive_login`); sem IdP local inseguro; fail_closed até decisão IdP.
+
 ## 0.2.72-draft — 2026-07-27
 
 - Backoffice: **RM-BO-017** — dashboard ops (contagens + alertas sanitizados), paginação/`page` na fila, filtros; OpenAPI admin `0.1.26-draft`; UI painel + submissions; testes; sem payload/JWS/NIF/segredos; sem migração.

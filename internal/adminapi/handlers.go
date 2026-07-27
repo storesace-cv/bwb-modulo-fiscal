@@ -27,18 +27,20 @@ const (
 
 // Handler serves admin cadastro, ops visibility and SecAdm write-only endpoints.
 type Handler struct {
-	Registry      *adminregistry.Registry
-	Audit         *adminaudit.Store
-	Ops           *adminops.Store
-	SecretsMeta   secretstore.AdminView // optional; Metadata only — never Reveal
-	SecAdm        *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
-	Obs           *adminobs.Observer    // optional; RM-BO-007
-	DB            *sql.DB               // readiness ping only
-	AuthMode      string                // fail_closed|injected|oidc_jwt
-	Version       string
-	Revision      string
-	AuthorityMode string // FISCAL_AUTHORITY (simulator|…)
-	FiscalEnv     string // FISCAL_ENV
+	Registry         *adminregistry.Registry
+	Audit            *adminaudit.Store
+	Ops              *adminops.Store
+	SecretsMeta      secretstore.AdminView // optional; Metadata only — never Reveal
+	SecAdm           *secadm.Gate          // optional; owner-only Put/Rotate/Revoke
+	Obs              *adminobs.Observer    // optional; RM-BO-007
+	DB               *sql.DB               // readiness ping only
+	AuthMode         string                // fail_closed|injected|oidc_jwt
+	Version          string
+	Revision         string
+	AuthorityMode    string // FISCAL_AUTHORITY (simulator|…)
+	FiscalEnv        string // FISCAL_ENV
+	OIDCReady        string // ok|not_configured|incomplete — sanitized
+	InteractiveLogin string // unavailable|ready
 }
 
 type problem struct {
@@ -149,6 +151,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/ready", wrapPublic(adminobs.ReadyHandler(adminobs.ReadyDeps{
 		DB: h.DB, AuthMode: h.AuthMode, SecAdmReady: h.SecAdm != nil,
 		Version: h.Version, Revision: h.Revision,
+		OIDCConfigured: h.OIDCReady, InteractiveLogin: h.InteractiveLogin,
 	})))
 	mux.Handle("GET /admin/v1/ops/metrics", wrap(readOps(adminobs.MetricsHandler(obs))))
 

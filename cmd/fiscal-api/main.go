@@ -133,20 +133,34 @@ func run() int {
 	if adminAuthMode == "" {
 		adminAuthMode = "fail_closed"
 	}
+	authReady := adminauth.DiagnoseAuthReadiness(docsCfg.Env)
+	oidcReady := "not_configured"
+	switch {
+	case authReady.OIDCConfigured:
+		oidcReady = "ok"
+	case authReady.Mode == adminauth.AuthModeOIDCJWT:
+		oidcReady = "incomplete"
+	}
+	interactive := "unavailable"
+	if authReady.InteractiveLogin {
+		interactive = "ready"
+	}
 	adminObs := adminobs.New(logger, adminAuthMode)
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
-		Registry:      registry,
-		Audit:         auditStore,
-		Ops:           opsStore,
-		SecretsMeta:   secretsMeta,
-		SecAdm:        secGate,
-		Obs:           adminObs,
-		DB:            sqlDB,
-		AuthMode:      adminAuthMode,
-		Version:       cfg.Version,
-		Revision:      buildinfo.Revision,
-		AuthorityMode: cfg.Authority,
-		FiscalEnv:     docsCfg.Env,
+		Registry:         registry,
+		Audit:            auditStore,
+		Ops:              opsStore,
+		SecretsMeta:      secretsMeta,
+		SecAdm:           secGate,
+		Obs:              adminObs,
+		DB:               sqlDB,
+		AuthMode:         adminAuthMode,
+		Version:          cfg.Version,
+		Revision:         buildinfo.Revision,
+		AuthorityMode:    cfg.Authority,
+		FiscalEnv:        docsCfg.Env,
+		OIDCReady:        oidcReady,
+		InteractiveLogin: interactive,
 	})
 
 	uiHandler, err := adminui.New(registry, docsCfg.Env)

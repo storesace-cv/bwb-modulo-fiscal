@@ -17,6 +17,9 @@ type ReadyDeps struct {
 	SecAdmReady bool // gate configured (not secrets)
 	Version     string
 	Revision    string
+	// Auth diagnostics (RM-BO-018); optional — empty means legacy behaviour.
+	OIDCConfigured   string // ok|not_configured|incomplete
+	InteractiveLogin string // unavailable|ready
 }
 
 // HealthHandler serves GET /admin/v1/health (liveness; no auth; no secrets).
@@ -44,6 +47,15 @@ func ReadyHandler(deps ReadyDeps) http.Handler {
 		}
 		// fail_closed is a valid configured mode (explicit deny); injected/oidc_jwt also ok.
 		checks["admin_auth_configured"] = "ok"
+
+		if deps.OIDCConfigured != "" {
+			checks["admin_oidc"] = deps.OIDCConfigured
+		}
+		if deps.InteractiveLogin != "" {
+			checks["admin_interactive_login"] = deps.InteractiveLogin
+		} else {
+			checks["admin_interactive_login"] = "unavailable"
+		}
 
 		if deps.SecAdmReady {
 			checks["secadm_gate"] = "configured"
