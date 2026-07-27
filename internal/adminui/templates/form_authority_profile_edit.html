@@ -1,5 +1,6 @@
 {{define "content"}}
-<p class="hint">Metadados e readiness locais. Sem plaintext. <code>external_verified</code> não é editável (sempre false).</p>
+<p class="hint">Metadados e readiness locais. Sem plaintext. <code>external_verified</code> não é editável (sempre false).
+  Activação (<code>active</code>) exige <code>config_ready</code>+<code>secrets_ready</code>+<code>offline_validated</code> (fail-closed; ≠ AGT).</p>
 {{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
 {{if .Profile}}
 <form method="post" action="/admin/ui/authority-profiles/{{.Profile.ID}}">

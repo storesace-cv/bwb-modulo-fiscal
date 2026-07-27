@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.62-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-009** — gate activação AuthorityProfile fail-closed (`active` exige `config_ready`+`secrets_ready`+`offline_validated`; `external_verified=false`); OpenAPI admin `0.1.16-draft`; ≠ AGT.
+
 ## 0.2.61-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-008** — wizard owner-only `/admin/ui/authority-profiles/wizard` (3 passos; permanece `draft`; `external_verified=false`); roadmap `RM-AGTPREP-009`…`013`; OpenAPI admin `0.1.15-draft`; ≠ AGT / plaintext / activação.
