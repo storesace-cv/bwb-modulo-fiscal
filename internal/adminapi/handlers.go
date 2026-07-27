@@ -38,10 +38,10 @@ type Handler struct {
 	AuthMode         string                // fail_closed|injected|oidc_jwt
 	Version          string
 	Revision         string
-	AuthorityMode    string // FISCAL_AUTHORITY (simulator|…)
-	FiscalEnv        string // FISCAL_ENV
-	OIDCReady        string // ok|not_configured|incomplete — sanitized
-	InteractiveLogin string // unavailable|ready
+	AuthorityMode    string      // FISCAL_AUTHORITY (simulator|…)
+	FiscalEnv        string      // FISCAL_ENV
+	OIDCReady        string      // ok|not_configured|incomplete — sanitized
+	InteractiveLogin string      // unavailable|ready
 	Mailer           smtp.Mailer // optional; RM-OPS-008
 }
 
