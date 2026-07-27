@@ -150,6 +150,44 @@ func TestAdminUIAuthorityWizardOwnerOnly(t *testing.T) {
 		t.Fatalf("refs: %#v", final)
 	}
 
+	// Resume wizard on validated profile must not silent-downgrade to draft.
+	trueVal := true
+	validated, err := reg.UpdateAuthorityProfile(ctx, adminregistry.UpdateAuthorityProfileInput{
+		ProfileID:   final.ID,
+		Status:      adminregistry.AuthorityStatusValidated,
+		ConfigReady: &trueVal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr = httptest.NewRecorder()
+	ownerMux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/authority-profiles/"+validated.ID+"/wizard?step=2", nil))
+	csrf = csrfFromSetCookie(rr)
+	rr = httptest.NewRecorder()
+	resume := url.Values{
+		"csrf_token":              {csrf},
+		"producer_credential_ref": {"agt-cred-wiz"},
+		"producer_key_ref":        {"agt-key-wiz"},
+		"certificate_ref":         {"agt-cert-wiz"},
+		"algorithm_declared":      {"RS256"},
+		"key_id_sanitized":        {"kid-wiz"},
+		"fingerprint_sanitized":   {"sha256:aabb"},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/admin/ui/authority-profiles/"+validated.ID+"/wizard/step2", strings.NewReader(resume.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "fiscal_admin_csrf", Value: csrf})
+	ownerMux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("resume step2 %d", rr.Code)
+	}
+	after, err := reg.GetAuthorityProfile(ctx, validated.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Status != adminregistry.AuthorityStatusValidated {
+		t.Fatalf("wizard must not downgrade validated→draft, got %s", after.Status)
+	}
+
 	adminMux := http.NewServeMux()
 	adminui.Mount(adminMux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{
 		Subject: "admin-wiz", Roles: []adminauth.Role{adminauth.RoleAdmin},

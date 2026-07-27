@@ -87,7 +87,7 @@ func (h *Handler) authorityWizardStep2(w http.ResponseWriter, r *http.Request) {
 	_, err = h.Registry.UpdateAuthorityProfile(r.Context(), adminregistry.UpdateAuthorityProfileInput{
 		ProfileID:             id,
 		DisplayName:           cur.DisplayName,
-		Status:                adminregistry.AuthorityStatusDraft, // never escalate via wizard
+		// Preserve status — wizard never escalates to active; do not silent-downgrade.
 		ProducerCredentialRef: r.FormValue("producer_credential_ref"),
 		ProducerKeyRef:        r.FormValue("producer_key_ref"),
 		CertificateRef:        r.FormValue("certificate_ref"),
@@ -116,7 +116,6 @@ func (h *Handler) authorityWizardStep3Ack(w http.ResponseWriter, r *http.Request
 	cfg := true
 	_, err := h.Registry.UpdateAuthorityProfile(r.Context(), adminregistry.UpdateAuthorityProfileInput{
 		ProfileID:   id,
-		Status:      adminregistry.AuthorityStatusDraft,
 		ConfigReady: &cfg,
 	})
 	if err != nil {
