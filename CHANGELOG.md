@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.48-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-020** — loader MovementOfGoods (`MovementLedgerSource`/`SyntheticMovementLedger` + `MapMovementLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-MOV-PERSIST); ≠ AO-* / AGT / deploy.
+
 ## 0.2.47-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-019** — loader PurchaseInvoices (`PurchaseLedgerSource`/`SyntheticPurchaseLedger` + `MapPurchaseLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-PUR-PERSIST); sem Line; ≠ AO-* / AGT / deploy.
