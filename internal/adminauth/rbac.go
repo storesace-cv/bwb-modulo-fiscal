@@ -22,6 +22,8 @@ const (
 	PermSecretMetaRead Permission = "secret_meta.read"
 	// PermSecAdmWrite provisions/rotates/revokes secrets (owner-only; plano B).
 	PermSecAdmWrite Permission = "secadm.write"
+	// PermNotifyTest sends the configured admin SMTP test (owner-only; RM-OPS-008).
+	PermNotifyTest Permission = "notify.test"
 )
 
 // Allows reports whether any claim role grants permission.
@@ -44,7 +46,7 @@ func roleAllows(role Role, perm Permission) bool {
 	case RoleOwner:
 		// Owner: plano A completo + SecAdm write. Still no plaintext read ACL.
 		switch perm {
-		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermOpsWrite, PermAuditRead, PermSecretMetaRead, PermSecAdmWrite:
+		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermOpsWrite, PermAuditRead, PermSecretMetaRead, PermSecAdmWrite, PermNotifyTest:
 			return true
 		default:
 			return false
@@ -53,7 +55,7 @@ func roleAllows(role Role, perm Permission) bool {
 		switch perm {
 		case PermCadastroWrite, PermCadastroRead, PermOpsRead, PermOpsWrite, PermAuditRead, PermSecretMetaRead:
 			return true
-		case PermSecAdmWrite:
+		case PermSecAdmWrite, PermNotifyTest:
 			return false
 		default:
 			return false
@@ -62,7 +64,7 @@ func roleAllows(role Role, perm Permission) bool {
 		switch perm {
 		case PermCadastroRead, PermOpsRead, PermAuditRead, PermSecretMetaRead:
 			return true
-		case PermCadastroWrite, PermOpsWrite, PermSecAdmWrite:
+		case PermCadastroWrite, PermOpsWrite, PermSecAdmWrite, PermNotifyTest:
 			return false
 		default:
 			return false

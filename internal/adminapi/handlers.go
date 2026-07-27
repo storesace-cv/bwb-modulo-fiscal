@@ -16,6 +16,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/notify/smtp"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
@@ -41,6 +42,7 @@ type Handler struct {
 	FiscalEnv        string // FISCAL_ENV
 	OIDCReady        string // ok|not_configured|incomplete — sanitized
 	InteractiveLogin string // unavailable|ready
+	Mailer           smtp.Mailer // optional; RM-OPS-008
 }
 
 type problem struct {
@@ -138,6 +140,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	readAudit := adminauth.RequirePermission(adminauth.PermAuditRead)
 	readOps := adminauth.RequirePermission(adminauth.PermOpsRead)
 	writeOps := adminauth.RequirePermission(adminauth.PermOpsWrite)
+	writeNotify := adminauth.RequirePermission(adminauth.PermNotifyTest)
 	readSecretMeta := adminauth.RequirePermission(adminauth.PermSecretMetaRead)
 
 	wrap := func(next http.Handler) http.Handler {
@@ -179,6 +182,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/ops/submissions", wrap(readOps(http.HandlerFunc(h.listOpsSubmissions))))
 	mux.Handle("GET /admin/v1/ops/dashboard", wrap(readOps(http.HandlerFunc(h.getOpsDashboard))))
 	mux.Handle("POST /admin/v1/ops/submissions/{submission_id}/actions", wrap(writeOps(http.HandlerFunc(h.applyOpsSubmissionAction))))
+	mux.Handle("POST /admin/v1/ops/notifications/test", wrap(writeNotify(http.HandlerFunc(h.postNotificationTest))))
 	mux.Handle("GET /admin/v1/secret-refs/metadata", wrap(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 
 	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminapi"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
@@ -23,6 +25,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/notify/smtp"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/config"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/db"
@@ -48,6 +51,9 @@ func run() int {
 		}
 		fmt.Printf("version=%s revision=%s\n", version, rev)
 		return 0
+	}
+	if len(os.Args) >= 2 && os.Args[1] == "smtp-send-test" {
+		return runSMTPSendTest()
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -146,6 +152,16 @@ func run() int {
 		interactive = "ready"
 	}
 	adminObs := adminobs.New(logger, adminAuthMode)
+	smtpCfg, err := smtp.LoadConfigFromEnv()
+	if err != nil {
+		logger.Error("smtp_config_invalid", "error", err.Error())
+		return 1
+	}
+	mailer, err := smtp.NewMailer(smtpCfg)
+	if err != nil {
+		logger.Error("smtp_mailer_invalid", "error", err.Error())
+		return 1
+	}
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
 		Registry:         registry,
 		Audit:            auditStore,
@@ -161,6 +177,7 @@ func run() int {
 		FiscalEnv:        docsCfg.Env,
 		OIDCReady:        oidcReady,
 		InteractiveLogin: interactive,
+		Mailer:           mailer,
 	})
 
 	uiHandler, err := adminui.New(registry, docsCfg.Env)
@@ -295,4 +312,33 @@ func openStoreDB(ctx context.Context, cfg config.DocumentsRuntime) (*sql.DB, per
 	default:
 		return nil, "", fmt.Errorf("unsupported database driver %q", cfg.DatabaseDriver)
 	}
+}
+
+// runSMTPSendTest sends one authorized admin test email using env (smtp.env / fiscal.env).
+// Prints only a sanitized JSON delivery status — never passwords or full addresses.
+func runSMTPSendTest() int {
+	cfg, err := smtp.LoadConfigFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=config_invalid\n")
+		return 1
+	}
+	mailer, err := smtp.NewMailer(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=mailer_invalid\n")
+		return 1
+	}
+	if !mailer.Configured() {
+		fmt.Fprintf(os.Stderr, "smtp_send_test=fail reason=not_configured\n")
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	st, err := mailer.SendAdminTest(ctx, "cli_smtp_send_test")
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(true)
+	_ = enc.Encode(st)
+	if err != nil || st.Status != "sent" {
+		return 1
+	}
+	return 0
 }

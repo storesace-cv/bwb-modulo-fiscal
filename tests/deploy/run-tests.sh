@@ -146,6 +146,7 @@ if bash "${ROOT}/scripts/deploy/build-linux-release.sh" >"${TMP}/build.out" 2>"$
     && grep -q 'fiscal-admin' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'fiscal-sandbox-e2e' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/admin.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
+    && grep -q 'lib/smtp.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/allowlist.sh' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'lib/migrate.env.allowlist' "${OUT_DIR}/SHA256SUMS" \
     && grep -q 'EXPECTED_SCHEMA_VERSION' "${OUT_DIR}/SHA256SUMS" \
@@ -212,6 +213,7 @@ cp -a "${OUT_DIR}/." "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/"
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${TMP}/helprefs/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${TMP}/helprefs/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${TMP}/helprefs/lib/admin.env.allowlist"
+cp "${ROOT}/deploy/smtp.env.allowlist" "${TMP}/helprefs/lib/smtp.env.allowlist"
 cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${TMP}/helprefs/lib/parse_migrate_dsn.py"
 cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${TMP}/helprefs/lib/predeploy_pg.sh"
 cat >"${TMP}/helprefs/etc/bwb-modulo-fiscal/migrate.env" <<'EOF'
@@ -238,7 +240,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-migrat
   cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -323,7 +325,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-admin"
   cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -421,7 +423,7 @@ chmod 0755 "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}/fiscal-sandbo
   cd "${TMP}/helprefs/opt/bwb-modulo-fiscal/releases/${HEAD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -1591,7 +1593,7 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
   cd "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${ACT_OLD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -1606,7 +1608,7 @@ printf '%s\n' "${HEAD}" >"${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
   cd "${ACT_ROOT}/opt/bwb-modulo-fiscal/releases/${HEAD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -1660,7 +1662,7 @@ printf '%s\n' "${HEAD}" >"${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}/COM
   cd "${ACT_FAIL}/opt/bwb-modulo-fiscal/releases/${HEAD}"
   deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -1832,7 +1834,7 @@ seed_sha_release() {
     cd "${dest}"
     deploy_sha256_files \
     fiscal-api fiscal-migrate fiscal-admin fiscal-sandbox-e2e fiscal-sandbox-measure \
-    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist \
+    lib/allowlist.sh lib/migrate.env.allowlist lib/admin.env.allowlist lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \
@@ -2780,6 +2782,7 @@ mkdir -p "${PRE_ROOT}/lib" "${PRE_ROOT}/etc" "${PRE_ROOT}/run" "${PRE_ROOT}/back
 cp "${ROOT}/scripts/deploy/lib/allowlist.sh" "${PRE_ROOT}/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${PRE_ROOT}/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${PRE_ROOT}/lib/admin.env.allowlist"
+cp "${ROOT}/deploy/smtp.env.allowlist" "${PRE_ROOT}/lib/smtp.env.allowlist"
 cp "${ROOT}/scripts/deploy/lib/parse_migrate_dsn.py" "${PRE_ROOT}/lib/parse_migrate_dsn.py"
 cp "${ROOT}/scripts/deploy/lib/predeploy_pg.sh" "${PRE_ROOT}/lib/predeploy_pg.sh"
 cat >"${PRE_ROOT}/etc/migrate.env" <<'EOF'

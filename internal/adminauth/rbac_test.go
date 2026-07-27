@@ -16,28 +16,32 @@ func TestRBACMatrix(t *testing.T) {
 	perms := []adminauth.Permission{
 		adminauth.PermCadastroWrite, adminauth.PermCadastroRead,
 		adminauth.PermOpsRead, adminauth.PermOpsWrite, adminauth.PermAuditRead,
-		adminauth.PermSecretMetaRead, adminauth.PermSecAdmWrite,
+		adminauth.PermSecretMetaRead, adminauth.PermSecAdmWrite, adminauth.PermNotifyTest,
 	}
 	want := map[adminauth.Role]map[adminauth.Permission]bool{
 		adminauth.RoleOwner: {
 			adminauth.PermCadastroWrite: true, adminauth.PermCadastroRead: true,
 			adminauth.PermOpsRead: true, adminauth.PermOpsWrite: true,
 			adminauth.PermAuditRead: true, adminauth.PermSecretMetaRead: true, adminauth.PermSecAdmWrite: true,
+			adminauth.PermNotifyTest: true,
 		},
 		adminauth.RoleAdmin: {
 			adminauth.PermCadastroWrite: true, adminauth.PermCadastroRead: true,
 			adminauth.PermOpsRead: true, adminauth.PermOpsWrite: true,
 			adminauth.PermAuditRead: true, adminauth.PermSecretMetaRead: true, adminauth.PermSecAdmWrite: false,
+			adminauth.PermNotifyTest: false,
 		},
 		adminauth.RoleOperator: {
 			adminauth.PermCadastroWrite: false, adminauth.PermCadastroRead: true,
 			adminauth.PermOpsRead: true, adminauth.PermOpsWrite: false,
 			adminauth.PermAuditRead: true, adminauth.PermSecretMetaRead: true, adminauth.PermSecAdmWrite: false,
+			adminauth.PermNotifyTest: false,
 		},
 		adminauth.RoleAuditor: {
 			adminauth.PermCadastroWrite: false, adminauth.PermCadastroRead: true,
 			adminauth.PermOpsRead: true, adminauth.PermOpsWrite: false,
 			adminauth.PermAuditRead: true, adminauth.PermSecretMetaRead: true, adminauth.PermSecAdmWrite: false,
+			adminauth.PermNotifyTest: false,
 		},
 	}
 	for _, role := range roles {

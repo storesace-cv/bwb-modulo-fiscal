@@ -79,6 +79,7 @@ CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -trimpath -ldflags="${L
 cp "${SCRIPT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/allowlist.sh"
 cp "${ROOT}/deploy/migrate.env.allowlist" "${OUT_DIR}/lib/migrate.env.allowlist"
 cp "${ROOT}/deploy/admin.env.allowlist" "${OUT_DIR}/lib/admin.env.allowlist"
+cp "${ROOT}/deploy/smtp.env.allowlist" "${OUT_DIR}/lib/smtp.env.allowlist"
 install -m 0755 "${SCRIPT_DIR}/fiscal-sandbox-e2e.sh" "${OUT_DIR}/fiscal-sandbox-e2e"
 cp "${ROOT}/deploy/fixtures/sandbox/"*.json "${OUT_DIR}/fixtures/sandbox/"
 # S3C2 nginx + fail-safe units (open only activatable via closed helper ops).
@@ -95,7 +96,7 @@ cp "${ROOT}/deploy/systemd/nginx.service.d/bwb-fiscal-open-boot-recovery.conf" \
 chmod 0755 "${OUT_DIR}/fiscal-api" "${OUT_DIR}/fiscal-migrate" "${OUT_DIR}/fiscal-admin" \
   "${OUT_DIR}/fiscal-sandbox-e2e" "${OUT_DIR}/fiscal-sandbox-measure"
 chmod 0644 "${OUT_DIR}/lib/allowlist.sh" "${OUT_DIR}/lib/migrate.env.allowlist" \
-  "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json \
+  "${OUT_DIR}/lib/admin.env.allowlist" "${OUT_DIR}/lib/smtp.env.allowlist" "${OUT_DIR}/fixtures/sandbox/"*.json \
   "${OUT_DIR}/nginx/"*.conf "${OUT_DIR}/nginx/README.md" \
   "${OUT_DIR}/systemd/"*.service "${OUT_DIR}/systemd/"*.timer \
   "${OUT_DIR}/systemd/nginx.service.d/"*.conf
@@ -154,6 +155,7 @@ fi
     lib/allowlist.sh \
     lib/migrate.env.allowlist \
     lib/admin.env.allowlist \
+    lib/smtp.env.allowlist \
     fixtures/sandbox/create-document.min.json \
     fixtures/sandbox/create-document.b.json \
     fixtures/sandbox/create-document.nif-mismatch.json \

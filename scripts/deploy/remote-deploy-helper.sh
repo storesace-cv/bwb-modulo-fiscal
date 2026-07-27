@@ -131,7 +131,7 @@ assert_env_temp() {
   local path="$1"
   local name="$2"
   local mapped
-  [[ "${path}" =~ ^/tmp/bwb-upload\.[A-Za-z0-9._-]+/env\.(fiscal|migrate|admin)\.env\.[0-9]+$ ]] || die "env temp path rejected"
+  [[ "${path}" =~ ^/tmp/bwb-upload\.[A-Za-z0-9._-]+/env\.(fiscal|migrate|admin|smtp)\.env\.[0-9]+$ ]] || die "env temp path rejected"
   case "${name}" in
     fiscal.env)
       [[ "${path}" == */env.fiscal.env.* ]] || die "env temp name mismatch"
@@ -141,6 +141,9 @@ assert_env_temp() {
       ;;
     admin.env)
       [[ "${path}" == */env.admin.env.* ]] || die "env temp name mismatch"
+      ;;
+    smtp.env)
+      [[ "${path}" == */env.smtp.env.* ]] || die "env temp name mismatch"
       ;;
     *) die "invalid env name" ;;
   esac
@@ -201,6 +204,7 @@ verify_release_tree() {
   [[ -f "${dir}/lib/allowlist.sh" ]] || die "lib/allowlist.sh missing"
   [[ -f "${dir}/lib/migrate.env.allowlist" ]] || die "lib/migrate.env.allowlist missing"
   [[ -f "${dir}/lib/admin.env.allowlist" ]] || die "lib/admin.env.allowlist missing"
+  [[ -f "${dir}/lib/smtp.env.allowlist" ]] || die "lib/smtp.env.allowlist missing"
   [[ -f "${dir}/nginx/tls.open.conf" ]] || die "nginx/tls.open.conf missing"
   [[ -f "${dir}/nginx/tls.deny.conf" ]] || die "nginx/tls.deny.conf missing"
   [[ -f "${dir}/nginx/limit-req-documents.conf" ]] || die "nginx/limit-req-documents.conf missing"
@@ -271,6 +275,12 @@ op_backup_envs() {
   else
     printf 'admin.env=absent\n' >>"${meta}"
   fi
+  if [[ -f "${ETC_ROOT}/smtp.env" && ! -L "${ETC_ROOT}/smtp.env" ]]; then
+    install -m 0600 -o root -g root "${ETC_ROOT}/smtp.env" "${BACKUPS}/smtp.env.${backup_id}"
+    printf 'smtp.env=present\n' >>"${meta}"
+  else
+    printf 'smtp.env=absent\n' >>"${meta}"
+  fi
   printf 'backup_ok id=%s\n' "${backup_id}"
 }
 
@@ -294,6 +304,7 @@ op_install_release() {
     "${partial}/fiscal-sandbox-e2e" "${partial}/fiscal-sandbox-measure"
   chmod 0644 "${partial}/COMMIT" "${partial}/EXPECTED_SCHEMA_VERSION" "${partial}/SHA256SUMS" \
     "${partial}/lib/allowlist.sh" "${partial}/lib/migrate.env.allowlist" "${partial}/lib/admin.env.allowlist" \
+    "${partial}/lib/smtp.env.allowlist" \
     "${partial}/nginx/tls.open.conf" "${partial}/nginx/tls.deny.conf" \
     "${partial}/nginx/limit-req-documents.conf" "${partial}/nginx/README.md" \
     "${partial}/systemd/${NGINX_ROLLBACK_SERVICE}" "${partial}/systemd/${NGINX_ROLLBACK_TIMER}" \
@@ -311,6 +322,7 @@ op_install_release() {
     "${dest}/fiscal-sandbox-e2e" "${dest}/fiscal-sandbox-measure"
   chmod 0644 "${dest}/COMMIT" "${dest}/EXPECTED_SCHEMA_VERSION" "${dest}/SHA256SUMS" \
     "${dest}/lib/allowlist.sh" "${dest}/lib/migrate.env.allowlist" "${dest}/lib/admin.env.allowlist" \
+    "${dest}/lib/smtp.env.allowlist" \
     "${dest}/nginx/tls.open.conf" "${dest}/nginx/tls.deny.conf" \
     "${dest}/nginx/limit-req-documents.conf" "${dest}/nginx/README.md" \
     "${dest}/systemd/${NGINX_ROLLBACK_SERVICE}" "${dest}/systemd/${NGINX_ROLLBACK_TIMER}" \
@@ -327,12 +339,13 @@ op_install_env() {
   local tmp_arg="$2"
   local tmp
   case "${name}" in
-    fiscal.env | migrate.env | admin.env) ;;
+    fiscal.env | migrate.env | admin.env | smtp.env) ;;
     *) die "invalid env name" ;;
   esac
   tmp="$(assert_env_temp "${tmp_arg}" "${name}")"
   install -d -m 0750 -o root -g root "${ETC_ROOT}"
-  # admin.env is root:root 0600 — bwb-fiscal-admin must not read it directly.
+  # admin.env / smtp.env are root:root 0600 — app users must not read files directly
+  # (smtp reaches the process via systemd EnvironmentFile).
   install -m 0600 -o root -g root "${tmp}" "${ETC_ROOT}/${name}"
   rm -f -- "${tmp}"
   printf 'install_env_ok name=%s\n' "${name}"
@@ -511,6 +524,74 @@ run_fiscal_migrate_dropped() {
   die "runuser or setpriv required to drop privileges for migrate"
 }
 
+op_smtp_send_test() {
+  local sha="$1"
+  assert_sha1 "sha" "${sha}"
+  local release="${RELEASES}/${sha}"
+  verify_release_tree "${release}" "${sha}"
+
+  local env_file="${ETC_ROOT}/smtp.env"
+  [[ -f "${env_file}" ]] || die "smtp.env missing"
+  [[ ! -L "${env_file}" ]] || die "smtp.env must not be a symlink"
+  local allowlist="${HELPER_LIB}/smtp.env.allowlist"
+  [[ -f "${allowlist}" ]] || die "helper smtp allowlist missing"
+  deploy_validate_exact_allowlisted_file "${allowlist}" "${env_file}"
+
+  local host port user pass mode from_addr from_name admin_to
+  host="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_HOST)"
+  port="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_PORT)"
+  user="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_USERNAME)"
+  pass="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_PASSWORD)"
+  mode="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_TLS_MODE)"
+  from_addr="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_FROM_ADDRESS)"
+  from_name="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_FROM_NAME)"
+  admin_to="$(deploy_read_env_value "${env_file}" FISCAL_SMTP_ADMIN_NOTIFICATION_EMAIL)"
+  [[ "${port}" == "465" ]] || die "smtp port must be 465"
+  case "${mode}" in
+    implicit | implicit_tls) ;;
+    *) die "smtp tls mode must be implicit" ;;
+  esac
+  mode="implicit"
+
+  local bin="${release}/fiscal-api"
+  [[ -f "${bin}" && -x "${bin}" ]] || die "fiscal-api missing or not executable"
+  [[ ! -L "${bin}" ]] || die "fiscal-api must not be a symlink"
+
+  local api_user="${BWB_API_USER:-fiscal}"
+  # Never print env values. Binary prints sanitized JSON only.
+  if [[ "${EUID}" -ne 0 ]]; then
+    env -i \
+      PATH="/usr/bin:/bin:/usr/local/bin" \
+      FISCAL_SMTP_HOST="${host}" \
+      FISCAL_SMTP_PORT="${port}" \
+      FISCAL_SMTP_USERNAME="${user}" \
+      FISCAL_SMTP_PASSWORD="${pass}" \
+      FISCAL_SMTP_TLS_MODE="${mode}" \
+      FISCAL_SMTP_FROM_ADDRESS="${from_addr}" \
+      FISCAL_SMTP_FROM_NAME="${from_name}" \
+      FISCAL_SMTP_ADMIN_NOTIFICATION_EMAIL="${admin_to}" \
+      "${bin}" smtp-send-test
+    return $?
+  fi
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "${api_user}" -- env -i \
+      PATH="/usr/bin:/bin" \
+      HOME="/nonexistent" \
+      FISCAL_SMTP_HOST="${host}" \
+      FISCAL_SMTP_PORT="${port}" \
+      FISCAL_SMTP_USERNAME="${user}" \
+      FISCAL_SMTP_PASSWORD="${pass}" \
+      FISCAL_SMTP_TLS_MODE="${mode}" \
+      FISCAL_SMTP_FROM_ADDRESS="${from_addr}" \
+      FISCAL_SMTP_FROM_NAME="${from_name}" \
+      FISCAL_SMTP_ADMIN_NOTIFICATION_EMAIL="${admin_to}" \
+      "${bin}" smtp-send-test
+    return $?
+  fi
+  die "runuser required to drop privileges for smtp-send-test"
+}
+
+
 op_migrate() {
   local sha="$1"
   local cmd="$2"
@@ -546,20 +627,23 @@ op_restore_env() {
   [[ -f "${meta}" ]] || die "backup meta missing"
   [[ ! -L "${meta}" ]] || die "backup meta must not be a symlink"
 
-  local fiscal_state migrate_state admin_state line
+  local fiscal_state migrate_state admin_state smtp_state line
   fiscal_state=""
   migrate_state=""
   admin_state=""
+  smtp_state=""
   while IFS= read -r line || [[ -n "${line}" ]]; do
     case "${line}" in
       fiscal.env=present | fiscal.env=absent) fiscal_state="${line#fiscal.env=}" ;;
       migrate.env=present | migrate.env=absent) migrate_state="${line#migrate.env=}" ;;
       admin.env=present | admin.env=absent) admin_state="${line#admin.env=}" ;;
+      smtp.env=present | smtp.env=absent) smtp_state="${line#smtp.env=}" ;;
     esac
   done <"${meta}"
   [[ -n "${fiscal_state}" && -n "${migrate_state}" ]] || die "backup meta incomplete"
-  # Older backups may omit admin.env; treat missing key as absent.
+  # Older backups may omit admin.env/smtp.env; treat missing key as absent.
   [[ -n "${admin_state}" ]] || admin_state="absent"
+  [[ -n "${smtp_state}" ]] || smtp_state="absent"
 
   if [[ "${fiscal_state}" == "present" ]]; then
     [[ -f "${BACKUPS}/fiscal.env.${backup_id}" ]] || die "fiscal backup missing"
@@ -578,6 +662,12 @@ op_restore_env() {
     install -m 0600 -o root -g root "${BACKUPS}/admin.env.${backup_id}" "${ETC_ROOT}/admin.env"
   else
     rm -f -- "${ETC_ROOT}/admin.env"
+  fi
+  if [[ "${smtp_state}" == "present" ]]; then
+    [[ -f "${BACKUPS}/smtp.env.${backup_id}" ]] || die "smtp backup missing"
+    install -m 0600 -o root -g root "${BACKUPS}/smtp.env.${backup_id}" "${ETC_ROOT}/smtp.env"
+  else
+    rm -f -- "${ETC_ROOT}/smtp.env"
   fi
   printf 'restore_env_ok id=%s\n' "${backup_id}"
 }
@@ -1492,8 +1582,12 @@ case "${OP}" in
     op_install_release "$1" "$2"
     ;;
   install-env)
-    [[ $# -eq 2 ]] || die "usage: install-env fiscal.env|migrate.env|admin.env <temp-file>"
+    [[ $# -eq 2 ]] || die "usage: install-env fiscal.env|migrate.env|admin.env|smtp.env <temp-file>"
     op_install_env "$1" "$2"
+    ;;
+  smtp-send-test)
+    [[ $# -eq 1 ]] || die "usage: smtp-send-test <sha40>"
+    op_smtp_send_test "$1"
     ;;
   activate)
     [[ $# -eq 1 ]] || die "usage: activate <sha40>"
