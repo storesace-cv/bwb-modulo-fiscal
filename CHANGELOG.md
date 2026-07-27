@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.52-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-024** — loader GeneralLedgerEntries (`GLEntriesLedgerSource`/`SyntheticGLEntriesLedger` + `MapGLEntriesLedgerToExport`); Store → `ErrUnsupported` (GAP-SAFT-GLE-PERSIST); ≠ AO-* / AGT / deploy.
+
 ## 0.2.51-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-023** — tipagem `GeneralLedgerEntries`/`Journal`/`Transaction` (TransactionType; Lines Debit+Credit) + export opcional (período/allowlist); fixture XSD; ≠ AO-* / AGT / deploy.

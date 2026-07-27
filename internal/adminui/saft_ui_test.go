@@ -48,6 +48,7 @@ func TestAdminUISAFStatusReadOnly(t *testing.T) {
 		"GAP-SAFT-PAY-PERSIST",
 		"SalesInvoices",
 		"Estrutura XSD",
+		"GAP-SAFT-GLE-PERSIST",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("missing %q in body: %s", want, body)

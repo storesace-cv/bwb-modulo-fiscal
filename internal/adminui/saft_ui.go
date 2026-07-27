@@ -41,6 +41,7 @@ func (h *Handler) saftStatus(w http.ResponseWriter, r *http.Request) {
 			"GAP-SAFT-PUR-PERSIST — compras",
 			"GAP-SAFT-MOV-PERSIST — movimentos de stock",
 			"GAP-SAFT-WRK-PERSIST — documentos de trabalho",
+			"GAP-SAFT-GLE-PERSIST — diário contabilístico",
 		},
 		Disclaimer: "Estrutura XSD ≠ conformidade AGT. Sem download de XML fiscal nesta página. Fonte pending_validation.",
 	}
