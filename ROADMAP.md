@@ -42,7 +42,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
 | OpenAPI | POS `0.1.6-draft` · Admin `0.1.8-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
-| Schema | `ExpectedVersion=7` |
+| Schema | `ExpectedVersion=8` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -316,7 +316,7 @@ Separação obrigatória (`DEC-BO-001` / `RM-ARCH-006`): **plano A** = backoffic
 | [x] | RM-AGTPREP-008 | Wizard owner-only preparação AuthorityProfile (3 passos; draft only) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/108 · [internal/adminui/authority_wizard.go](internal/adminui/authority_wizard.go) · [internal/adminui/templates/authority_wizard.html](internal/adminui/templates/authority_wizard.html) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-AGTPREP-003 + RM-BO-011 | Sem activação; external_verified=false; ≠ AGT/plaintext |
 | [x] | RM-AGTPREP-009 | Gate activação fail-closed (active exige config+secrets+offline; nunca external_verified) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/109 · [internal/adminregistry/authority_profile.go](internal/adminregistry/authority_profile.go) · [internal/adminregistry/authority_activation_gate_test.go](internal/adminregistry/authority_activation_gate_test.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-AGTPREP-007 + RM-AGTPREP-008 | Simulator≠produção; ≠ AGT |
 | [x] | RM-AGTPREP-010 | Lifecycle/rotação certificados (metadados SecretStore; sem plaintext) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/110 · [internal/authority/prep/lifecycle.go](internal/authority/prep/lifecycle.go) · [internal/adminapi/authority_lifecycle_handlers.go](internal/adminapi/authority_lifecycle_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-AGTPREP-004 + RM-AGTPREP-005 | ≠ AGT |
-| [ ] | RM-AGTPREP-011 | Histórico append-only eventos perfil/material autoridade | PENDENTE | — | RM-AGTPREP-007 + RM-BO-003 | Sem plaintext / NIF completo |
+| [x] | RM-AGTPREP-011 | Histórico append-only eventos perfil/material autoridade | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/111 · [internal/adminaudit/audit.go](internal/adminaudit/audit.go) · [internal/adminapi/authority_history_handlers.go](internal/adminapi/authority_history_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [CHANGELOG.md](CHANGELOG.md) · 2026-07-27 | RM-AGTPREP-007 + RM-BO-003 | Sem plaintext / NIF completo |
 | [ ] | RM-AGTPREP-012 | Alertas sanitizados readiness (expiração/refs/flags) | PENDENTE | — | RM-AGTPREP-007 + RM-BO-011 | ≠ external_verified |
 | [ ] | RM-AGTPREP-013 | Testes de segurança superfície autoridade (RBAC/CSRF/leaks) | PENDENTE | — | RM-AGTPREP-008…012 | Owner-only; sem PEM/password |
 

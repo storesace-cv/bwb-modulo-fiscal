@@ -158,6 +158,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/authority-profiles", wrap(readOps(http.HandlerFunc(h.listAuthorityProfiles))))
 	mux.Handle("GET /admin/v1/authority-profiles/{profile_id}", wrap(readOps(http.HandlerFunc(h.getAuthorityProfile))))
 	mux.Handle("GET /admin/v1/authority-profiles/{profile_id}/readiness", wrap(readOps(http.HandlerFunc(h.getAuthorityReadiness))))
+	mux.Handle("GET /admin/v1/authority-profiles/{profile_id}/history", wrap(readAudit(http.HandlerFunc(h.getAuthorityProfileHistory))))
 	mux.Handle("PATCH /admin/v1/authority-profiles/{profile_id}", wrap(secadmWrite(http.HandlerFunc(h.patchAuthorityProfile))))
 
 	mux.Handle("PUT /admin/v1/secadm/secret-refs", wrap(secadmWrite(http.HandlerFunc(h.secadmPut))))

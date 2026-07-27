@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS admin_audit_events_resource_occurred_idx;

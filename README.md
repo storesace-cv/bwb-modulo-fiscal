@@ -42,7 +42,7 @@ Antes de qualquer ação, Cursor/agentes devem ainda ler [ENGINEERING_PRINCIPLES
 - Contrato OpenAPI POS: `specs/openapi/openapi.yaml` (`0.1.6-draft`).
 - Admin API: [`specs/admin/openapi.yaml`](specs/admin/openapi.yaml) (`0.1.5-draft`, `/admin/v1`).
 - Backoffice UI (M7): `/admin/ui/` — SSR Go (`internal/adminui`); owner: AuthorityProfile + SecAdm metadados.
-- Schema: `ExpectedVersion=7`.
+- Schema: `ExpectedVersion=8`.
 - Integração POS: [docs/03-api/quickstart.md](docs/03-api/quickstart.md) · kit [scripts/integration/](scripts/integration/).
 - Desenvolvimento local: [docs/06-delivery/local-dev.md](docs/06-delivery/local-dev.md).
 - Staging: [docs/07-operations/staging-runbook.md](docs/07-operations/staging-runbook.md).
