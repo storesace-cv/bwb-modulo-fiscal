@@ -1193,7 +1193,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FEEnrollment"
-          description: Linhas persistidas; ambiente ausente ⇒ efectivo not_enrolled.    TaxpayerList:
+          description: Linhas persistidas; ambiente ausente ⇒ efectivo not_enrolled.
+    TaxpayerList:
       type: object
       additionalProperties: false
       required: [items]
