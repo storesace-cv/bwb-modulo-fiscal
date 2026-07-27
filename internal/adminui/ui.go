@@ -18,6 +18,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminobs"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminops"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secadm"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
@@ -35,6 +36,7 @@ type Handler struct {
 	Ops          *adminops.Store
 	Audit        *adminaudit.Store
 	SecretsMeta  secretstore.AdminView // Metadata only — never Reveal
+	SecAdm       *secadm.Gate          // owner subject gate for material write
 	Sessions     *SessionStore
 	TokenAuth    adminauth.Authenticator // Bearer validator for session mint (oidc_jwt)
 	Obs          *adminobs.Observer
@@ -110,6 +112,9 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	}
 	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
 	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
+	mux.Handle("GET /admin/ui/secadm/material", wrapOwner(http.HandlerFunc(h.secadmMaterialForm)))
+	mux.Handle("POST /admin/ui/secadm/material", wrapOwner(http.HandlerFunc(h.secadmMaterialSubmit)))
+	mux.Handle("POST /admin/ui/secadm/material/revoke", wrapOwner(http.HandlerFunc(h.secadmRevokeForm)))
 	mux.Handle("GET /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.authorityProfiles)))
 	mux.Handle("GET /admin/ui/authority-profiles/new", wrapOwner(http.HandlerFunc(h.newAuthorityProfileForm)))
 	mux.Handle("POST /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.createAuthorityProfileForm)))

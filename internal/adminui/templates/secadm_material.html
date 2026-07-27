@@ -1,0 +1,92 @@
+{{define "content"}}
+<p class="hint">Owner-only. Upload PEM / PKCS#12 / credencial. Password PKCS#12 é <strong>efémera</strong> (nunca persistida, nunca auditada, nunca mostrada). Resposta: só metadados.</p>
+<p><a href="/admin/ui/secadm/metadata">Consultar metadados</a></p>
+{{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+{{if .FlashOK}}<p class="flash" role="status">{{.FlashOK}}</p>{{end}}
+<form method="post" action="/admin/ui/secadm/material" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <p>
+    <label for="action">Acção</label>
+    <select id="action" name="action">
+      <option value="put">importar (put)</option>
+      <option value="rotate">rotacionar</option>
+    </select>
+  </p>
+  <p>
+    <label for="kind">Kind</label>
+    <select id="kind" name="kind" required>
+      <option value="certificate"{{if eq .Kind "certificate"}} selected{{end}}>certificate</option>
+      <option value="producer_key"{{if eq .Kind "producer_key"}} selected{{end}}>producer_key</option>
+      <option value="taxpayer_key"{{if eq .Kind "taxpayer_key"}} selected{{end}}>taxpayer_key</option>
+      <option value="producer_credential"{{if eq .Kind "producer_credential"}} selected{{end}}>producer_credential</option>
+    </select>
+  </p>
+  <p>
+    <label for="encoding">Encoding</label>
+    <select id="encoding" name="encoding" required>
+      <option value="pem"{{if eq .Encoding "pem"}} selected{{end}}>pem</option>
+      <option value="pkcs12"{{if eq .Encoding "pkcs12"}} selected{{end}}>pkcs12</option>
+      <option value="credential"{{if eq .Encoding "credential"}} selected{{end}}>credential</option>
+    </select>
+  </p>
+  <p>
+    <label for="environment">Ambiente</label>
+    <select id="environment" name="environment" required>
+      <option value="homologation"{{if eq .Environment "homologation"}} selected{{end}}>homologation</option>
+      <option value="production"{{if eq .Environment "production"}} selected{{end}}>production</option>
+    </select>
+  </p>
+  <p>
+    <label for="subject_id">Subject ID</label>
+    <input id="subject_id" name="subject_id" value="{{.SubjectID}}" required autocomplete="off">
+  </p>
+  <p>
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{.Name}}" required autocomplete="off">
+  </p>
+  <p>
+    <label for="material">Ficheiro</label>
+    <input id="material" name="material" type="file" required>
+  </p>
+  <p>
+    <label for="password">Password PKCS#12 (efémera)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password">
+  </p>
+  <p><button type="submit">Submeter</button></p>
+</form>
+<form method="post" action="/admin/ui/secadm/material/revoke">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <h2>Revogar</h2>
+  <p>
+    <label for="rev_kind">Kind</label>
+    <input id="rev_kind" name="kind" value="{{.Kind}}" required>
+  </p>
+  <p>
+    <label for="rev_environment">Ambiente</label>
+    <select id="rev_environment" name="environment" required>
+      <option value="homologation">homologation</option>
+      <option value="production">production</option>
+    </select>
+  </p>
+  <p>
+    <label for="rev_subject">Subject ID</label>
+    <input id="rev_subject" name="subject_id" value="{{.SubjectID}}" required>
+  </p>
+  <p>
+    <label for="rev_name">Name</label>
+    <input id="rev_name" name="name" value="{{.Name}}" required>
+  </p>
+  <p><button type="submit">Revogar</button></p>
+</form>
+{{if .HasResult}}
+<section aria-labelledby="mat-meta">
+  <h2 id="mat-meta">Metadados</h2>
+  <dl>
+    <dt>Status</dt><dd>{{.Status}}</dd>
+    <dt>Fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
+    <dt>Version</dt><dd>{{.Version}}</dd>
+    {{if .FormatNote}}<dt>Format</dt><dd>{{.FormatNote}}</dd>{{end}}
+  </dl>
+</section>
+{{end}}
+{{end}}

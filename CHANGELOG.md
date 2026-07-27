@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.56-draft — 2026-07-27
+
+- Backoffice: **RM-AGTPREP-004** — SecAdm import/rotate material PEM/PKCS#12/credencial (`/admin/v1/secadm/material`, UI `/admin/ui/secadm/material`); limites; password efémera; OpenAPI `0.1.10-draft`; ≠ AGT / plaintext.
+
 ## 0.2.55-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-003** — UI owner-only `/admin/ui/authority-profiles` (criar/editar metadados + readiness sanitizado: fingerprint/validade/alg/key-id/timestamps); OpenAPI admin `0.1.9-draft` (nota UI); ≠ AGT real / plaintext / deploy.

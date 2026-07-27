@@ -58,8 +58,8 @@ func TestHMLPRDCopyRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	from := secretstore.Ref{Kind: "k", Environment: secretstore.EnvHomologation, SubjectID: "platform", Name: "x"}
-	to := secretstore.Ref{Kind: "k", Environment: secretstore.EnvProduction, SubjectID: "platform", Name: "x"}
+	from := secretstore.Ref{Kind: secretstore.KindProducerCredential, Environment: secretstore.EnvHomologation, SubjectID: "platform", Name: "x"}
+	to := secretstore.Ref{Kind: secretstore.KindProducerCredential, Environment: secretstore.EnvProduction, SubjectID: "platform", Name: "x"}
 	err = store.CopyAcrossEnvironments(context.Background(), from, to)
 	if !errors.Is(err, secretstore.ErrEnvIsolation) {
 		t.Fatalf("got %v", err)
