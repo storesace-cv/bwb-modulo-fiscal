@@ -331,7 +331,6 @@ func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v := viewAuthorityProfile(p)
-	v.ExternalVerified = false
 	complete := v.ConfigReady && v.SecretsReady && v.OfflineValidated && !v.ExternalVerified
 	h.recordUIAccess(r, "ui.authority.readiness", "authority_profile", id, adminaudit.ResultSuccess)
 	h.render(w, "authority_readiness.html", authorityReadinessPage{

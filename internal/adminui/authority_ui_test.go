@@ -209,7 +209,7 @@ func TestAdminUIAuthorityReadinessPage(t *testing.T) {
 		t.Fatalf("%d", rr.Code)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, "config_ready") || !strings.Contains(body, "external_verified") {
+	if !strings.Contains(body, "config_ready") || !strings.Contains(body, "external_verified") || !strings.Contains(body, "checklist_complete") {
 		t.Fatalf("%s", body)
 	}
 	if strings.Contains(body, "BEGIN ") {
