@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.45-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-017** — tipagem `GeneralLedgerAccounts`/`Account` (GroupingCategory; sem NumberOfEntries) + integração opcional no export; fixture XSD; ≠ AO-* / AGT / deploy.
+
 ## 0.2.44-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-016** — `BuildIncrementalExport` com `WorkingDocuments` (filtro período, allowlist WorkType, refs Customer/Product); 5 grupos L3 no export estrutural; ≠ AO-* / AGT / deploy.

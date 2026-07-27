@@ -52,4 +52,6 @@ const (
 	PendingPurchaseTypeSemantics PendingRegulatory = "purchase_type_semantics_pending_ao"
 	// PendingTaxTableSemantics: TaxType/TaxCode enums from XSD; rates/activation ≠ AO-* confirmed.
 	PendingTaxTableSemantics PendingRegulatory = "tax_table_semantics_pending_ao"
+	// PendingGLAccountSemantics: chart/GroupingCategory from XSD; ≠ AO-* chart rules.
+	PendingGLAccountSemantics PendingRegulatory = "gl_account_semantics_pending_ao"
 )

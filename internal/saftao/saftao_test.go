@@ -193,6 +193,9 @@ func TestPendingRegulatoryMarkers(t *testing.T) {
 	if saftao.PendingTaxTableSemantics == "" {
 		t.Fatal("pending tax table marker required")
 	}
+	if saftao.PendingGLAccountSemantics == "" {
+		t.Fatal("pending GL account marker required")
+	}
 }
 
 func TestMovementOfGoodsStructuralAndXSD(t *testing.T) {
@@ -317,6 +320,41 @@ func TestTaxTableStructuralAndXSD(t *testing.T) {
 	}
 	if !saftao.ValidTaxTableEntryTaxCode("NOR") || saftao.ValidTaxTableEntryTaxCode("INVALIDCODE") {
 		t.Fatal("TaxCode pattern gate")
+	}
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD: %v\n%s", err, raw)
+	}
+}
+
+func TestGeneralLedgerAccountsStructuralAndXSD(t *testing.T) {
+	doc := saftao.MinimalGeneralLedgerAccountsFixture()
+	if err := doc.MasterFiles.GeneralLedgerAccounts[0].ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "GeneralLedgerAccounts") || !strings.Contains(s, "AccountID") {
+		t.Fatalf("marshal: %s", s)
+	}
+	if strings.Contains(s, "NumberOfEntries") {
+		t.Fatal("MasterFiles/GeneralLedgerAccounts XSD has no NumberOfEntries")
+	}
+	bad := doc.MasterFiles.GeneralLedgerAccounts[0]
+	bad.Account = nil
+	if err := bad.ValidateStructural(); err == nil {
+		t.Fatal("empty Account must fail-closed")
+	}
+	if !saftao.ValidGroupingCategory(saftao.GroupingCategoryGR) || saftao.ValidGroupingCategory("XX") {
+		t.Fatal("GroupingCategory enum gate")
+	}
+	if !saftao.ValidGLAccountID("11.1") || saftao.ValidGLAccountID("") {
+		t.Fatal("AccountID pattern gate")
 	}
 	if !saftao.XSDValidatorAvailable() {
 		t.Skip("xmllint not available")

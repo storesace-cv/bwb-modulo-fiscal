@@ -15,9 +15,9 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 | C | Requisitos `AO-*` + rastreabilidade | Só fontes oficiais + páginas OCR `reviewed` |
 | D | Implementação/testes | Vetores aprovados da matriz B0; sem autofix sem requisito |
 
-## Fundação estrutural (RM-SAFT-001 … RM-SAFT-016)
+## Fundação estrutural (RM-SAFT-001 … RM-SAFT-017)
 
-- Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro + TaxTable.
+- Pacote Go [`internal/saftao`](../../internal/saftao/): tipagem dos 5 grupos L3 + export incremental + mapeamento livro + TaxTable + GeneralLedgerAccounts.
 - RM-SAFT-007…008: `Payments` e `PurchaseInvoices` (este **sem** `Line` no XSD).
 - RM-SAFT-009: `MapSalesLedgerToExport` com omissões (Hash/imposto não inventados).
 - RM-SAFT-010: `Store.ListSealedSalesForSAFT` lê `documents`/`document_lines` → `SalesLedgerRecord` (escala quantidade 1/10000); enriquecimento SAF-T continua explícito.
@@ -27,8 +27,13 @@ Gerar um ficheiro SAF-T (AO) determinístico, completo e validável a partir do 
 - RM-SAFT-014: `BuildIncrementalExport` popula `PurchaseInvoices` (sem Line; Supplier refs; allowlist `PurchaseType`); ≠ AO-*.
 - RM-SAFT-015: `BuildIncrementalExport` popula `MovementOfGoods` (período/`MovementDate`, allowlist `MovementType`, Customer XOR Supplier + Product refs); ≠ AO-*.
 - RM-SAFT-016: `BuildIncrementalExport` popula `WorkingDocuments` (período/`WorkDate`, allowlist `WorkType`, Customer + Product refs); ≠ AO-*. Os **5 grupos L3** estão no export estrutural.
+- RM-SAFT-017: `GeneralLedgerAccounts`/`Account` (GroupingCategory; sem NumberOfEntries no contentor MasterFiles); integração opcional no export; ≠ plano de contas AO-*.
 - Distinção: **estrutura XSD** ≠ conformidade legal / AGT / `AO-*`.
 - XSD: `source_id` **AO-SAFT-XSD-1.01_01**, **`pending_validation`**.
+
+## Nota GeneralLedgerAccounts (XSD)
+
+`MasterFiles/GeneralLedgerAccounts` contém apenas `Account*` (sem `NumberOfEntries`). Tipado em RM-SAFT-017. Saldos/categorias são estruturais — **não** plano de contas legal confirmado.
 
 ## Nota TaxTable (XSD)
 

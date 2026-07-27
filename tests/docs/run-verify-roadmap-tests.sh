@@ -699,7 +699,7 @@ for line in text.splitlines():
 print(n)
 PY
 )"
-if [[ "${COUNT}" == "131" ]]; then ok "131 itens RM-*"; else bad "131 itens RM-* (got ${COUNT})"; fi
+if [[ "${COUNT}" == "132" ]]; then ok "132 itens RM-*"; else bad "132 itens RM-* (got ${COUNT})"; fi
 
 printf '\n%d passed, %d failed\n' "${pass}" "${fail}"
 if [[ "${fail}" -ne 0 ]]; then

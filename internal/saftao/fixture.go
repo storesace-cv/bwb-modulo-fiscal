@@ -471,3 +471,59 @@ func MinimalPurchaseInvoicesFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalGeneralLedgerAccountsFixture returns synthetic MasterFiles/GeneralLedgerAccounts for XSD validation.
+// Balances/categories are placeholders — ≠ AO-* chart of accounts.
+func MinimalGeneralLedgerAccountsFixture() AuditFile {
+	addr := &AddressStructure{
+		AddressDetail: "Rua Sintetica 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	zero := MustMoney2("0.00")
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "C", // Contabilidade
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			GeneralLedgerAccounts: []GeneralLedgerAccounts{{
+				Account: []GLAccount{
+					{
+						AccountID:            "11",
+						AccountDescription:   "Caixa sintetica",
+						OpeningDebitBalance:  MustMoney2("100.00"),
+						OpeningCreditBalance: zero,
+						ClosingDebitBalance:  MustMoney2("150.00"),
+						ClosingCreditBalance: zero,
+						GroupingCategory:     GroupingCategoryGR,
+					},
+					{
+						AccountID:            "11.1",
+						AccountDescription:   "Caixa movimento",
+						OpeningDebitBalance:  MustMoney2("100.00"),
+						OpeningCreditBalance: zero,
+						ClosingDebitBalance:  MustMoney2("150.00"),
+						ClosingCreditBalance: zero,
+						GroupingCategory:     GroupingCategoryGM,
+						GroupingCode:         "11",
+					},
+				},
+			}},
+		},
+	}
+}

@@ -30,12 +30,15 @@ type ExportRequest struct {
 	Products         []Product
 	// TaxTable is optional MasterFiles/TaxTable (RM-SAFT-012). Nil ⇒ omitted; non-nil must validate.
 	// Rates/codes are caller-supplied — never invented here (≠ AO-*).
-	TaxTable         *TaxTable
-	Invoices         []Invoice
-	Payments         []Payment
-	PurchaseInvoices []PurchaseInvoice
-	StockMovements   []StockMovement
-	WorkDocuments    []WorkDocument
+	TaxTable *TaxTable
+	// GeneralLedgerAccounts is optional MasterFiles/GeneralLedgerAccounts (RM-SAFT-017).
+	// Empty ⇒ omitted; non-empty must validate (≥1 Account each). Caller-supplied — never invented.
+	GeneralLedgerAccounts []GeneralLedgerAccounts
+	Invoices              []Invoice
+	Payments              []Payment
+	PurchaseInvoices      []PurchaseInvoice
+	StockMovements        []StockMovement
+	WorkDocuments         []WorkDocument
 	// IncludeEmptySalesTotals emits SalesInvoices with zero totals when enabled and no invoices.
 	IncludeEmptySalesTotals bool
 	// IncludeEmptyPaymentsTotals emits Payments with zero totals when enabled and no payments.
@@ -350,14 +353,23 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 			return nil, err
 		}
 	}
+	if len(req.GeneralLedgerAccounts) > MaxTableEntries {
+		return nil, fmt.Errorf("%w: GeneralLedgerAccounts excedeu MaxTableEntries", ErrValidation)
+	}
+	for i := range req.GeneralLedgerAccounts {
+		if err := req.GeneralLedgerAccounts[i].ValidateStructural(); err != nil {
+			return nil, fmt.Errorf("GeneralLedgerAccounts[%d]: %w", i, err)
+		}
+	}
 
 	doc := AuditFile{
 		Header: cloneHeader(&req.Header),
 		MasterFiles: &MasterFiles{
-			Customer: req.Customers,
-			Supplier: req.Suppliers,
-			Product:  req.Products,
-			TaxTable: req.TaxTable,
+			GeneralLedgerAccounts: req.GeneralLedgerAccounts,
+			Customer:              req.Customers,
+			Supplier:              req.Suppliers,
+			Product:               req.Products,
+			TaxTable:              req.TaxTable,
 		},
 	}
 	needSource := (salesEnabled && (len(filtered) > 0 || req.IncludeEmptySalesTotals)) ||
@@ -462,6 +474,9 @@ func BuildIncrementalExport(req ExportRequest) (*ExportResult, error) {
 	}
 	if req.TaxTable != nil {
 		out.PendingRegulatory = append(out.PendingRegulatory, PendingTaxTableSemantics)
+	}
+	if len(req.GeneralLedgerAccounts) > 0 {
+		out.PendingRegulatory = append(out.PendingRegulatory, PendingGLAccountSemantics)
 	}
 	if req.ValidateAgainstXSD {
 		if !XSDValidatorAvailable() {
