@@ -6,6 +6,7 @@
 package adminui
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -133,6 +134,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/taxpayers/new", wrapWrite(http.HandlerFunc(h.newTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers", wrapWrite(http.HandlerFunc(h.createTaxpayerForm)))
 	mux.Handle("POST /admin/ui/taxpayers/{taxpayer_id}/status", wrapWrite(http.HandlerFunc(h.patchTaxpayerForm)))
+	mux.Handle("POST /admin/ui/taxpayers/{taxpayer_id}/fe-enrollment", wrapWrite(http.HandlerFunc(h.patchTaxpayerFEForm)))
 	mux.Handle("GET /admin/ui/establishments/new", wrapWrite(http.HandlerFunc(h.newEstablishmentForm)))
 	mux.Handle("POST /admin/ui/establishments", wrapWrite(http.HandlerFunc(h.createEstablishmentForm)))
 	mux.Handle("POST /admin/ui/establishments/{establishment_id}/status", wrapWrite(http.HandlerFunc(h.patchEstablishmentForm)))
@@ -160,14 +162,19 @@ type dashboardPage struct {
 	TaxpayerCount      int
 	EstablishmentCount int
 	BindingCount       int
-	Taxpayers          []adminregistry.Taxpayer
+	Taxpayers          []taxpayerRow
 	Establishments     []adminregistry.Establishment
 	Bindings           []adminregistry.ScopeBinding
 }
 
 type taxpayersPage struct {
 	pageBase
-	Taxpayers []adminregistry.Taxpayer
+	Taxpayers []taxpayerRow
+}
+
+type taxpayerRow struct {
+	adminregistry.Taxpayer
+	FESummary string
 }
 
 type establishmentsPage struct {
@@ -230,10 +237,23 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		TaxpayerCount:      len(tps),
 		EstablishmentCount: len(ests),
 		BindingCount:       len(binds),
-		Taxpayers:          tps,
+		Taxpayers:          toTaxpayerRows(r.Context(), h, tps),
 		Establishments:     ests,
 		Bindings:           binds,
 	})
+}
+
+func toTaxpayerRows(ctx context.Context, h *Handler, tps []adminregistry.Taxpayer) []taxpayerRow {
+	rows := make([]taxpayerRow, 0, len(tps))
+	for _, tp := range tps {
+		enrollments, err := h.Registry.ListFEEnrollments(ctx, tp.ID)
+		if err != nil {
+			rows = append(rows, taxpayerRow{Taxpayer: tp, FESummary: "—"})
+			continue
+		}
+		rows = append(rows, taxpayerRow{Taxpayer: tp, FESummary: formatFESummary(enrollments)})
+	}
+	return rows
 }
 
 func (h *Handler) taxpayers(w http.ResponseWriter, r *http.Request) {
@@ -244,8 +264,19 @@ func (h *Handler) taxpayers(w http.ResponseWriter, r *http.Request) {
 	}
 	h.render(w, "taxpayers.html", taxpayersPage{
 		pageBase:  h.baseWithCSRF(w, r, "Contribuintes", "Contribuintes", "taxpayers"),
-		Taxpayers: tps,
+		Taxpayers: toTaxpayerRows(r.Context(), h, tps),
 	})
+}
+
+func formatFESummary(enrollments []adminregistry.FEEnrollment) string {
+	if len(enrollments) == 0 {
+		return "—"
+	}
+	parts := make([]string, 0, len(enrollments))
+	for _, e := range enrollments {
+		parts = append(parts, e.Environment+"="+e.Status)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (h *Handler) establishments(w http.ResponseWriter, r *http.Request) {

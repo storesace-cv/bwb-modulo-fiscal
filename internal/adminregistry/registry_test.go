@@ -164,4 +164,39 @@ func runRegistrySuite(t *testing.T, ctx context.Context, reg *adminregistry.Regi
 			t.Fatalf("want ErrValidation, got %v", err)
 		}
 	})
+
+	t.Run("fe_enrollment_per_environment", func(t *testing.T) {
+		tp, err := reg.CreateTaxpayer(ctx, adminregistry.CreateTaxpayerInput{NIF: "5000000006", LegalName: "FE Co"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := reg.UpsertFEEnrollment(ctx, adminregistry.UpsertFEEnrollmentInput{
+			TaxpayerID: tp.ID, Environment: adminregistry.EnvHomologation, Status: adminregistry.FEEnrollmentActive,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !adminregistry.FEAderiu(got.Status) || got.Environment != adminregistry.EnvHomologation {
+			t.Fatalf("%+v", got)
+		}
+		_, err = reg.UpsertFEEnrollment(ctx, adminregistry.UpsertFEEnrollmentInput{
+			TaxpayerID: tp.ID, Environment: adminregistry.EnvProduction, Status: adminregistry.FEEnrollmentPending,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		list, err := reg.ListFEEnrollments(ctx, tp.ID)
+		if err != nil || len(list) != 2 {
+			t.Fatalf("list=%v err=%v", list, err)
+		}
+		if adminregistry.EffectiveFEStatus(list, adminregistry.EnvProduction) != adminregistry.FEEnrollmentPending {
+			t.Fatalf("%+v", list)
+		}
+		_, err = reg.UpsertFEEnrollment(ctx, adminregistry.UpsertFEEnrollmentInput{
+			TaxpayerID: tp.ID, Environment: adminregistry.EnvHomologation, Status: "boolean",
+		})
+		if !errors.Is(err, adminregistry.ErrValidation) {
+			t.Fatalf("want validation, got %v", err)
+		}
+	})
 }

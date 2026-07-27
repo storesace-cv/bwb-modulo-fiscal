@@ -35,7 +35,7 @@
 ### Backoffice UI (M7 / RM-UI-001…005)
 
 - URL local: `http://127.0.0.1:8080/admin/ui/` (SSR Go; sem SPA; CSP `script-src` ausente / sem JS).
-- Rotas: painel/cadastros, formulários CSRF, `/admin/ui/submissions`, `/admin/ui/saft` (estado estrutural SAF-T; sem download XML), `/admin/ui/audit`, SecAdm metadados owner-only em `/admin/ui/secadm/metadata` (nunca plaintext).
+- Rotas: painel/cadastros (contribuintes com adesão FE enum DEC-PROD-004), formulários CSRF, `/admin/ui/submissions`, `/admin/ui/saft` (estado estrutural SAF-T; sem download XML), `/admin/ui/audit`, SecAdm metadados owner-only em `/admin/ui/secadm/metadata` (nunca plaintext).
 - Sessão (RM-UI-005): `POST /admin/ui/auth/session` com `Authorization: Bearer <JWT>` (validado por `oidc_jwt`) → cookie opaca `fiscal_admin_session` (HttpOnly, SameSite=Strict, Secure fora de `development`). Logout: `POST /admin/ui/auth/logout` + CSRF. **Não** guardar JWT no browser.
 - Produção: `fail_closed` até `oidc_jwt` configurado; redirect authorize IdP ainda não ligado.
 - Dev browser (opcional): com `FISCAL_ADMIN_AUTH_MODE=injected` e `FISCAL_ADMIN_UI_DEV_COOKIE`, definir cookie HttpOnly (ex. via DevTools Application → Cookies, ou `curl` com `--cookie`) igual ao valor da env — **não** é login local improvisado nem credencial AGT.

@@ -17,6 +17,28 @@
       <option value="inactive">inactive</option>
     </select>
   </p>
+  <fieldset>
+    <legend>Adesão FE (DEC-PROD-004; opcional)</legend>
+    <p>
+      <label for="fe_environment">Ambiente</label>
+      <select id="fe_environment" name="fe_environment">
+        <option value="">—</option>
+        <option value="homologation">homologation</option>
+        <option value="production">production</option>
+        <option value="development">development</option>
+      </select>
+    </p>
+    <p>
+      <label for="fe_enrollment_status">Estado FE</label>
+      <select id="fe_enrollment_status" name="fe_enrollment_status">
+        <option value="not_enrolled">not_enrolled</option>
+        <option value="pending">pending</option>
+        <option value="active">active (aderiu)</option>
+        <option value="suspended">suspended</option>
+      </select>
+    </p>
+    <p class="hint">Enum canónico — nunca booleano. active ≡ aderiu facturação electrónica nesse ambiente.</p>
+  </fieldset>
   <p><button type="submit">Criar</button> <a href="/admin/ui/taxpayers">Cancelar</a></p>
 </form>
 {{end}}

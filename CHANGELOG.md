@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.67-draft — 2026-07-27
+
+- Backoffice: **RM-BO-012** — adesão FE enum por contribuinte+ambiente (`taxpayer_fe_enrollments`, DEC-PROD-004; `active`≡aderiu); PUT `/admin/v1/taxpayers/{id}/fe-enrollments` + UI; audit sem NIF em `resource_id`; OpenAPI admin `0.1.21-draft`; `ExpectedVersion=9`; roadmap `RM-BO-013`…`017`; ≠ booleano / AGT / plaintext.
+
 ## 0.2.66-draft — 2026-07-27
 
 - Backoffice: **RM-AGTPREP-013** — testes de segurança superfície autoridade (RBAC owner-only, CSRF, ausência de PEM/password, `external_verified=false`); ≠ AGT.

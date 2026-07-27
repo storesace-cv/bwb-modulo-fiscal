@@ -2,6 +2,7 @@
 package adminapi
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -49,17 +50,30 @@ type problem struct {
 }
 
 type createTaxpayerReq struct {
-	NIF       string `json:"nif"`
-	LegalName string `json:"legal_name"`
-	Status    string `json:"status"`
+	NIF          string           `json:"nif"`
+	LegalName    string           `json:"legal_name"`
+	Status       string           `json:"status"`
+	FEEnrollment *feEnrollmentReq `json:"fe_enrollment,omitempty"`
+}
+
+type feEnrollmentReq struct {
+	Environment string `json:"environment"`
+	Status      string `json:"status"`
+}
+
+type feEnrollmentResp struct {
+	Environment string `json:"environment"`
+	Status      string `json:"status"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type taxpayerResp struct {
-	TaxpayerID string `json:"taxpayer_id"`
-	NIF        string `json:"nif"`
-	LegalName  string `json:"legal_name"`
-	Status     string `json:"status"`
-	CreatedAt  string `json:"created_at"`
+	TaxpayerID    string             `json:"taxpayer_id"`
+	NIF           string             `json:"nif"`
+	LegalName     string             `json:"legal_name"`
+	Status        string             `json:"status"`
+	CreatedAt     string             `json:"created_at"`
+	FEEnrollments []feEnrollmentResp `json:"fe_enrollments"`
 }
 
 type createEstablishmentReq struct {
@@ -141,6 +155,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/taxpayers", wrap(readCadastro(http.HandlerFunc(h.listTaxpayers))))
 	mux.Handle("GET /admin/v1/taxpayers/{taxpayer_id}", wrap(readCadastro(http.HandlerFunc(h.getTaxpayer))))
 	mux.Handle("PATCH /admin/v1/taxpayers/{taxpayer_id}", wrap(writeCadastro(http.HandlerFunc(h.patchTaxpayer))))
+	mux.Handle("PUT /admin/v1/taxpayers/{taxpayer_id}/fe-enrollments", wrap(writeCadastro(http.HandlerFunc(h.putTaxpayerFEEnrollment))))
 	mux.Handle("POST /admin/v1/establishments", wrap(writeCadastro(http.HandlerFunc(h.createEstablishment))))
 	mux.Handle("GET /admin/v1/establishments", wrap(readCadastro(http.HandlerFunc(h.listEstablishments))))
 	mux.Handle("GET /admin/v1/establishments/{establishment_id}", wrap(readCadastro(http.HandlerFunc(h.getEstablishment))))
@@ -183,14 +198,27 @@ func (h *Handler) createTaxpayer(w http.ResponseWriter, r *http.Request) {
 		NIF: req.NIF, LegalName: req.LegalName, Status: req.Status,
 	})
 	if err != nil {
-		h.writeRegistryErr(w, r, claims, "taxpayer.create", "taxpayer", req.NIF, err)
+		// Never put NIF in audit resource_id (RM-BO-007 / RM-BO-012).
+		h.writeRegistryErr(w, r, claims, "taxpayer.create", "taxpayer", "-", err)
 		return
 	}
+	if req.FEEnrollment != nil {
+		_, err = h.Registry.UpsertFEEnrollment(r.Context(), adminregistry.UpsertFEEnrollmentInput{
+			TaxpayerID: out.ID, Environment: req.FEEnrollment.Environment, Status: req.FEEnrollment.Status,
+		})
+		if err != nil {
+			h.writeRegistryErr(w, r, claims, "taxpayer.fe_enrollment.upsert", "taxpayer", out.ID, err)
+			return
+		}
+		_ = h.Audit.Record(r.Context(), claims, "taxpayer.fe_enrollment.upsert", "taxpayer", out.ID, adminaudit.ResultSuccess, requestID(r))
+	}
 	_ = h.Audit.Record(r.Context(), claims, "taxpayer.create", "taxpayer", out.ID, adminaudit.ResultSuccess, requestID(r))
-	writeJSON(w, http.StatusCreated, taxpayerResp{
-		TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
-		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
-	})
+	resp, err := h.taxpayerJSON(r.Context(), out)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (h *Handler) getTaxpayer(w http.ResponseWriter, r *http.Request) {
@@ -204,10 +232,12 @@ func (h *Handler) getTaxpayer(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
 		return
 	}
-	writeJSON(w, http.StatusOK, taxpayerResp{
-		TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
-		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
-	})
+	resp, err := h.taxpayerJSON(r.Context(), out)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) listTaxpayers(w http.ResponseWriter, r *http.Request) {
@@ -219,10 +249,12 @@ func (h *Handler) listTaxpayers(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]taxpayerResp, 0, len(rows))
 	for _, out := range rows {
-		items = append(items, taxpayerResp{
-			TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
-			CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
-		})
+		resp, err := h.taxpayerJSON(r.Context(), out)
+		if err != nil {
+			writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+			return
+		}
+		items = append(items, resp)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
@@ -246,10 +278,55 @@ func (h *Handler) patchTaxpayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.Audit.Record(r.Context(), claims, "taxpayer.update_status", "taxpayer", out.ID, adminaudit.ResultSuccess, requestID(r))
-	writeJSON(w, http.StatusOK, taxpayerResp{
-		TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
-		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano),
+	resp, err := h.taxpayerJSON(r.Context(), out)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) putTaxpayerFEEnrollment(w http.ResponseWriter, r *http.Request) {
+	claims, _ := adminauth.ClaimsFromContext(r.Context())
+	id := r.PathValue("taxpayer_id")
+	var req feEnrollmentReq
+	if err := decodeJSON(r, &req); err != nil {
+		h.audit(r, claims, "taxpayer.fe_enrollment.upsert", "taxpayer", id, adminaudit.ResultError)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
+	out, err := h.Registry.UpsertFEEnrollment(r.Context(), adminregistry.UpsertFEEnrollmentInput{
+		TaxpayerID: id, Environment: req.Environment, Status: req.Status,
 	})
+	if err != nil {
+		h.writeRegistryErr(w, r, claims, "taxpayer.fe_enrollment.upsert", "taxpayer", id, err)
+		return
+	}
+	_ = h.Audit.Record(r.Context(), claims, "taxpayer.fe_enrollment.upsert", "taxpayer", out.TaxpayerID, adminaudit.ResultSuccess, requestID(r))
+	writeJSON(w, http.StatusOK, feEnrollmentResp{
+		Environment: out.Environment,
+		Status:      out.Status,
+		UpdatedAt:   out.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	})
+}
+
+func (h *Handler) taxpayerJSON(ctx context.Context, out adminregistry.Taxpayer) (taxpayerResp, error) {
+	enrollments, err := h.Registry.ListFEEnrollments(ctx, out.ID)
+	if err != nil {
+		return taxpayerResp{}, err
+	}
+	fe := make([]feEnrollmentResp, 0, len(enrollments))
+	for _, e := range enrollments {
+		fe = append(fe, feEnrollmentResp{
+			Environment: e.Environment,
+			Status:      e.Status,
+			UpdatedAt:   e.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return taxpayerResp{
+		TaxpayerID: out.ID, NIF: out.NIF, LegalName: out.LegalName, Status: out.Status,
+		CreatedAt: out.CreatedAt.UTC().Format(time.RFC3339Nano), FEEnrollments: fe,
+	}, nil
 }
 
 func (h *Handler) createEstablishment(w http.ResponseWriter, r *http.Request) {
