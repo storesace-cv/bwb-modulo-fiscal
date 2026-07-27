@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.18-draft
+  version: 0.1.19-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -26,6 +26,7 @@ info:
     0.1.16: Gate activação AuthorityProfile fail-closed (RM-AGTPREP-009); active exige config+secrets+offline; external_verified=false.
     0.1.17: Lifecycle material AuthorityProfile (RM-AGTPREP-010); rotate invalida offline_validated; sem plaintext.
     0.1.18: Histórico append-only AuthorityProfile (RM-AGTPREP-011); audit list por perfil; sem plaintext.
+    0.1.19: Alertas sanitizados readiness (RM-AGTPREP-012); expiry/refs/flags; ≠ external_verified.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -627,10 +628,11 @@ paths:
   /authority-profiles/{profile_id}/readiness:
     get:
       operationId: getAuthorityProfileReadiness
-      summary: Checklist readiness (4 flags; external_verified=false)
+      summary: Checklist readiness (4 flags + alertas; external_verified=false)
       description: >
-        RM-AGTPREP-007. ops.read. Distingue config_ready, secrets_ready, offline_validated
-        e external_verified (sempre false). Auditoria append-only; métricas route=authority sem labels sensíveis.
+        RM-AGTPREP-007/012. ops.read. Distingue config_ready, secrets_ready, offline_validated
+        e external_verified (sempre false). Alertas sanitizados (expiração/refs/flags).
+        Auditoria append-only; métricas route=authority sem labels sensíveis.
       tags: [Autoridade]
       parameters:
         - name: profile_id
@@ -646,7 +648,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [profile_id, config_ready, secrets_ready, offline_validated, external_verified, checklist_complete]
+                required: [profile_id, config_ready, secrets_ready, offline_validated, external_verified, checklist_complete, alerts]
                 properties:
                   profile_id: { type: string }
                   environment: { type: string }
@@ -656,6 +658,16 @@ paths:
                   offline_validated: { type: boolean }
                   external_verified: { type: boolean }
                   checklist_complete: { type: boolean }
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [code, severity, message]
+                      properties:
+                        code: { type: string }
+                        severity: { type: string, enum: [info, warning, blocking] }
+                        message: { type: string }
                   rbac: { type: object, additionalProperties: true }
                   notes:
                     type: array

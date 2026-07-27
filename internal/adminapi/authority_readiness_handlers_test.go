@@ -69,6 +69,10 @@ func TestAuthorityReadinessChecklist(t *testing.T) {
 	if body["external_verified"] != false || body["checklist_complete"] != true {
 		t.Fatalf("%v", body)
 	}
+	alerts, ok := body["alerts"].([]any)
+	if !ok || len(alerts) < 1 {
+		t.Fatalf("expected alerts: %v", body["alerts"])
+	}
 	snap := obs.Snapshot()
 	found := false
 	for _, s := range snap.Series {
