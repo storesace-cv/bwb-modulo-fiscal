@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.44-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-016** — `BuildIncrementalExport` com `WorkingDocuments` (filtro período, allowlist WorkType, refs Customer/Product); 5 grupos L3 no export estrutural; ≠ AO-* / AGT / deploy.
+
 ## 0.2.43-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-015** — `BuildIncrementalExport` com `MovementOfGoods` (filtro período, allowlist MovementType, refs Customer/Supplier/Product); ≠ AO-* / AGT / deploy.

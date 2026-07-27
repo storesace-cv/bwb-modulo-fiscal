@@ -288,3 +288,52 @@ func TestIncrementalExportMovementOfGoods(t *testing.T) {
 		t.Fatal("empty AllowedMovementTypes must reject movements")
 	}
 }
+
+func TestIncrementalExportWorkingDocuments(t *testing.T) {
+	base := saftao.MinimalWorkingDocumentsFixture()
+	out := base.SourceDocuments.WorkingDocuments.WorkDocument[0]
+	out.DocumentNumber = "PF S001/2"
+	out.WorkDate = saftao.MustDate("2025-12-31")
+
+	req := saftao.ExportRequest{
+		Header:             *base.Header,
+		EnabledGroups:      []saftao.DocumentGroup{saftao.GroupWorkingDocuments},
+		AllowedWorkTypes:   []saftao.WorkType{saftao.WorkTypePF},
+		Customers:          base.MasterFiles.Customer,
+		Products:           base.MasterFiles.Product,
+		WorkDocuments:      append([]saftao.WorkDocument{}, base.SourceDocuments.WorkingDocuments.WorkDocument[0], out),
+		ValidateAgainstXSD: saftao.XSDValidatorAvailable(),
+	}
+	res, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NumberOfWorkDocuments != 1 {
+		t.Fatalf("want 1 work doc, got %d", res.NumberOfWorkDocuments)
+	}
+	s := string(res.XML)
+	if !strings.Contains(s, "PF S001/1") || strings.Contains(s, "PF S001/2") {
+		t.Fatalf("period filter failed: %s", s)
+	}
+	found := false
+	for _, p := range res.PendingRegulatory {
+		if p == saftao.PendingWorkTypeSemantics {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected PendingWorkTypeSemantics")
+	}
+	res2, err := saftao.BuildIncrementalExport(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SHA256 != res2.SHA256 {
+		t.Fatal("working export must be deterministic")
+	}
+	req.AllowedWorkTypes = nil
+	if _, err := saftao.BuildIncrementalExport(req); err == nil {
+		t.Fatal("empty AllowedWorkTypes must reject work documents")
+	}
+}
