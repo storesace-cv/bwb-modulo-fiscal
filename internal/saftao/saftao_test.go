@@ -37,7 +37,6 @@ func TestEmptyAuditFileMarshalSkeleton(t *testing.T) {
 	if !strings.Contains(s, "AuditFile") || !strings.Contains(s, "Header") {
 		t.Fatalf("skeleton: %s", s)
 	}
-	// Never claim certification in payload comments / fields.
 	if strings.Contains(strings.ToLower(s), "certified=\"true\"") {
 		t.Fatal("unexpected certified claim")
 	}
@@ -65,5 +64,121 @@ func TestHeaderAndSourceDocumentsShape(t *testing.T) {
 	s := string(raw)
 	if !strings.Contains(s, "SalesInvoices") || !strings.Contains(s, "NumberOfEntries") {
 		t.Fatalf("sales skeleton: %s", s)
+	}
+}
+
+func TestDocumentGroupsFiveL3(t *testing.T) {
+	groups := saftao.AllDocumentGroups()
+	if len(groups) != 5 {
+		t.Fatalf("want 5 groups, got %d", len(groups))
+	}
+	want := map[saftao.DocumentGroup]bool{
+		saftao.GroupSalesInvoices:    true,
+		saftao.GroupMovementOfGoods:  true,
+		saftao.GroupWorkingDocuments: true,
+		saftao.GroupPayments:         true,
+		saftao.GroupPurchaseInvoices: true,
+	}
+	for _, g := range groups {
+		if !want[g] || !saftao.ValidDocumentGroup(g) {
+			t.Fatalf("unexpected group %q", g)
+		}
+	}
+	if saftao.ValidDocumentGroup("Invented") {
+		t.Fatal("invented group must fail")
+	}
+}
+
+func TestMoneyAndDatesNoFloat(t *testing.T) {
+	if _, err := saftao.NewMoney2("10.5"); err == nil {
+		t.Fatal("Money2 must require exactly 2 decimals")
+	}
+	m, err := saftao.NewMoney2("10.50")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.String() != "10.50" {
+		t.Fatalf("got %q", m)
+	}
+	if _, err := saftao.NewDate("2026-13-01"); err == nil {
+		t.Fatal("invalid date")
+	}
+	if _, err := saftao.NewDateTime("not-a-datetime"); err == nil {
+		t.Fatal("invalid datetime")
+	}
+}
+
+func TestInvoiceStructuralValidation(t *testing.T) {
+	doc := saftao.MinimalSalesInvoiceFixture()
+	if err := doc.SourceDocuments.SalesInvoices.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	bad := doc.SourceDocuments.SalesInvoices.Invoice[0]
+	bad.InvoiceNo = "BAD"
+	if err := bad.ValidateStructural(); err == nil {
+		t.Fatal("expected InvoiceNo failure")
+	}
+	line := bad
+	line.InvoiceNo = "FT S001/1"
+	line.Line[0].DebitAmount = line.Line[0].CreditAmount
+	line.Line[0].CreditAmount = nil
+	// both set or both nil — set both
+	c := saftao.MustMoney2("1.00")
+	d := saftao.MustMoney2("1.00")
+	line.Line[0].CreditAmount = &c
+	line.Line[0].DebitAmount = &d
+	if err := line.ValidateStructural(); err == nil {
+		t.Fatal("expected Debit XOR Credit failure")
+	}
+}
+
+func TestMarshalDeterministicAndNamespace(t *testing.T) {
+	doc := saftao.MinimalSalesInvoiceFixture()
+	a, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(a) != string(b) {
+		t.Fatal("marshal not deterministic")
+	}
+	s := string(a)
+	if !strings.HasPrefix(s, xml.Header) {
+		t.Fatal("missing XML declaration")
+	}
+	if !strings.Contains(s, saftao.Namespace) {
+		t.Fatalf("missing namespace: %s", s[:200])
+	}
+	if !strings.Contains(s, "<Invoice>") || !strings.Contains(s, "<Line>") {
+		t.Fatalf("missing Invoice/Line: %s", s)
+	}
+	if strings.Contains(strings.ToLower(s), "certified") {
+		t.Fatal("must not claim certified")
+	}
+}
+
+func TestMinimalFixtureAgainstXSD(t *testing.T) {
+	if !saftao.XSDValidatorAvailable() {
+		t.Skip("xmllint not available")
+	}
+	doc := saftao.MinimalSalesInvoiceFixture()
+	if err := doc.SourceDocuments.SalesInvoices.ValidateStructural(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := saftao.MarshalAuditFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := saftao.ValidateXMLAgainstEmbeddedXSD(raw); err != nil {
+		t.Fatalf("XSD structural validation failed:\n%s\nXML:\n%s", err, raw)
+	}
+}
+
+func TestPendingRegulatoryMarkers(t *testing.T) {
+	if saftao.PendingHashAlgorithm == "" || saftao.PendingInvoiceTypeSemantics == "" {
+		t.Fatal("pending markers required")
 	}
 }
