@@ -95,7 +95,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 3. Contrato write-only + simulator de cofre (`RM-SECADM-002`) + gate owner-only (`RM-SECADM-001`) — concluídos em código; HTTP SecAdm ainda futuro.
 4. Superfície Admin API (`DEC-BO-002` / `RM-BO-001`) — `/admin/v1` cadastros + auth injectável fail-closed + audit append-only; IdP real e UI ainda futuros.
 5. Séries/config não secreta, visibilidade ops, matriz permissões (`RM-BO-002`/`003`/`004`).
-6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados.
+6. UI backoffice mínimo (M7 / `RM-ARCH-005`): SSR em `/admin/ui/` — `RM-UI-001` shell/dashboard read-only; `RM-UI-002` mutações; `RM-UI-003` ops/audit; `RM-UI-004` SecAdm metadados; `RM-SAFT-022` estado SAF-T estrutural read-only (`/admin/ui/saft`, sem XML fiscal).
 7. Funcionalidades fiscais avançadas — após decisões bloqueantes e pacote AO.
 
 ### UI (RM-UI-*)

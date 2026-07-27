@@ -1,0 +1,31 @@
+{{define "content"}}
+<section class="panel" aria-labelledby="saft-status">
+  <h2 id="saft-status">Estado do gerador estrutural</h2>
+  <p class="flash" role="status">{{.Disclaimer}}</p>
+  <dl class="meta">
+    <dt>source_id</dt><dd><code>{{.SourceID}}</code></dd>
+    <dt>SchemaVersion</dt><dd><code>{{.SchemaVersion}}</code></dd>
+    <dt>Catálogo</dt><dd><code>{{.CatalogStatus}}</code></dd>
+    <dt>Certified</dt><dd>{{if .Certified}}true{{else}}false{{end}}</dd>
+    <dt>TargetNamespace</dt><dd><code>{{.TargetNamespace}}</code></dd>
+  </dl>
+</section>
+<section class="panel" aria-labelledby="saft-groups">
+  <h2 id="saft-groups">Grupos L3 tipados no export</h2>
+  <ul>
+    {{range .DocumentGroups}}
+    <li><code>{{.}}</code></li>
+    {{end}}
+  </ul>
+</section>
+<section class="panel" aria-labelledby="saft-gaps">
+  <h2 id="saft-gaps">Lacunas de persistência (sem inventar tabelas)</h2>
+  <ul>
+    {{range .PersistenceGaps}}
+    <li>{{.}}</li>
+    {{else}}
+    <li>Nenhuma lacuna listada.</li>
+    {{end}}
+  </ul>
+</section>
+{{end}}

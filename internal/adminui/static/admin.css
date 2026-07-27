@@ -99,6 +99,10 @@ h2 { font-size: 1.15rem; margin: 1.75rem 0 0.75rem; }
   color: var(--accent);
 }
 .hint, footer { color: var(--muted); font-size: 0.9rem; }
+.panel { margin: 1.25rem 0; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; }
 footer { padding: 1rem 1.25rem 2rem; }
 table {
   width: 100%;
