@@ -189,3 +189,96 @@ func MinimalMovementOfGoodsFixture() AuditFile {
 		},
 	}
 }
+
+// MinimalWorkingDocumentsFixture returns a synthetic AuditFile with one PF work document
+// for local XSD validation. Placeholders only — ≠ AGT / AO-* / Hash algorithm.
+func MinimalWorkingDocumentsFixture() AuditFile {
+	credit := MustMoney2("25.00")
+	taxPct := "14.00"
+	addr := &AddressStructure{
+		AddressDetail: "Rua Sintetica 1",
+		City:          "Luanda",
+		Country:       "AO",
+	}
+	wd := WorkDocument{
+		DocumentNumber: "PF S001/1",
+		DocumentStatus: WorkDocumentStatus{
+			WorkStatus:     WorkStatusN,
+			WorkStatusDate: MustDateTime("2026-01-15T10:00:00"),
+			SourceID:       "POS1",
+			SourceBilling:  SourceBillingP,
+		},
+		Hash:            "SYNTHETIC-HASH-NOT-A-SIGNATURE",
+		HashControl:     "0",
+		WorkDate:        MustDate("2026-01-15"),
+		WorkType:        WorkTypePF,
+		SourceID:        "POS1",
+		SystemEntryDate: MustDateTime("2026-01-15T10:00:00"),
+		CustomerID:      "C1",
+		Line: []WorkDocumentLine{{
+			LineNumber:         "1",
+			ProductCode:        "P1",
+			ProductDescription: "Servico conferencia",
+			Quantity:           MustDecimal("1"),
+			UnitOfMeasure:      "UN",
+			UnitPrice:          MustDecimal("25.00"),
+			TaxPointDate:       MustDate("2026-01-15"),
+			Description:        "Linha proforma",
+			CreditAmount:       &credit,
+			Tax: &Tax{
+				TaxType:       "IVA",
+				TaxCode:       "NOR",
+				TaxPercentage: &taxPct,
+			},
+		}},
+		DocumentTotals: DocumentTotals{
+			TaxPayable: MustMoney2("3.50"),
+			NetTotal:   MustMoney2("25.00"),
+			GrossTotal: MustMoney2("28.50"),
+		},
+	}
+	return AuditFile{
+		Header: &Header{
+			AuditFileVersion:         SchemaVersion(),
+			CompanyID:                "5000000000",
+			TaxRegistrationNumber:    "5000000000",
+			TaxAccountingBasis:       "F",
+			CompanyName:              "Empresa Sintetica Lda",
+			CompanyAddress:           addr,
+			FiscalYear:               "2026",
+			StartDate:                "2026-01-01",
+			EndDate:                  "2026-12-31",
+			CurrencyCode:             "AOA",
+			DateCreated:              "2026-01-31",
+			TaxEntity:                "Global",
+			ProductCompanyTaxID:      "5417000000",
+			SoftwareValidationNumber: "0",
+			ProductID:                "BWBFiscal/BWB",
+			ProductVersion:           "0.0.0-test",
+		},
+		MasterFiles: &MasterFiles{
+			Customer: []Customer{{
+				CustomerID:           "C1",
+				AccountID:            "Desconhecido",
+				CustomerTaxID:        "999999999",
+				CompanyName:          "Cliente Sintetico",
+				BillingAddress:       addr,
+				SelfBillingIndicator: 0,
+			}},
+			Product: []Product{{
+				ProductType:        "S",
+				ProductCode:        "P1",
+				ProductDescription: "Servico conferencia",
+				ProductNumberCode:  "P1",
+			}},
+		},
+		SourceDocuments: &SourceDocuments{
+			WorkingDocuments: &WorkingDocuments{
+				NumberOfEntries: "1",
+				TotalDebit:      MustDecimal("0.00"),
+				TotalCredit:     MustDecimal("25.00"),
+				WorkDocument:    []WorkDocument{wd},
+			},
+		},
+	}
+}
