@@ -115,6 +115,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/ui/secadm/material", wrapOwner(http.HandlerFunc(h.secadmMaterialForm)))
 	mux.Handle("POST /admin/ui/secadm/material", wrapOwner(http.HandlerFunc(h.secadmMaterialSubmit)))
 	mux.Handle("POST /admin/ui/secadm/material/revoke", wrapOwner(http.HandlerFunc(h.secadmRevokeForm)))
+	mux.Handle("POST /admin/ui/secadm/material/validate-offline", wrapOwner(http.HandlerFunc(h.secadmValidateOfflineForm)))
 	mux.Handle("GET /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.authorityProfiles)))
 	mux.Handle("GET /admin/ui/authority-profiles/new", wrapOwner(http.HandlerFunc(h.newAuthorityProfileForm)))
 	mux.Handle("POST /admin/ui/authority-profiles", wrapOwner(http.HandlerFunc(h.createAuthorityProfileForm)))

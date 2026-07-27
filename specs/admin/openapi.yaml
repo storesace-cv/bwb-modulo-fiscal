@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.10-draft
+  version: 0.1.11-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -18,6 +18,7 @@ info:
     0.1.8: AuthorityProfile metadados HML/PRD (RM-AGTPREP-002 / DEC-BO-004); sem segredos; external_verified=false.
     0.1.9: UI SSR owner-only /admin/ui/authority-profiles (RM-AGTPREP-003); contrato HTTP inalterado; sem plaintext.
     0.1.10: SecAdm material multipart PEM/PKCS#12/credencial (RM-AGTPREP-004); password efémera; limites; ≠ AGT.
+    0.1.11: Validação offline par chave-cert (RM-AGTPREP-005); ≠ external_verified / AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -726,6 +727,34 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /secadm/material/validate-offline:
+    post:
+      operationId: secadmValidateOfflineMaterial
+      summary: Validação offline par chave-certificado (owner)
+      description: >
+        Reveal efémero no runtime do store; resposta só relatório sanitizado (pair/chain/validity/purpose/fingerprint).
+        Nunca devolve PEM. external_verified permanece false. Opcionalmente actualiza AuthorityProfile.offline_validated.
+        ≠ AGT real.
+      tags: [SecAdm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecAdmOfflineValidateRequest"
+      responses:
+        "200":
+          description: Relatório offline sanitizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecAdmOfflineValidateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /secadm/secret-refs/revoke:
     post:
       operationId: secadmRevokeSecretRef
@@ -1144,6 +1173,46 @@ components:
             format_note:
               type: string
               description: Nota sanitizada (ex. pem_private_key); nunca plaintext
+    SecAdmOfflineValidateRequest:
+      type: object
+      additionalProperties: false
+      required: [key_kind, key_environment, key_subject_id, key_name, cert_kind, cert_environment, cert_subject_id, cert_name]
+      properties:
+        key_kind: { type: string }
+        key_environment: { type: string, enum: [homologation, production] }
+        key_subject_id: { type: string }
+        key_name: { type: string }
+        cert_kind: { type: string }
+        cert_environment: { type: string, enum: [homologation, production] }
+        cert_subject_id: { type: string }
+        cert_name: { type: string }
+        profile_id: { type: string }
+        intermediates_pem:
+          type: string
+          description: Cadeia pública opcional; rejeita PRIVATE KEY
+    SecAdmOfflineValidateResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, pair_match, chain_ok, within_validity, purpose_ok, fingerprint_sha256, external_verified]
+      properties:
+        ok: { type: boolean }
+        pair_match: { type: boolean }
+        chain_ok: { type: boolean }
+        within_validity: { type: boolean }
+        purpose_ok: { type: boolean }
+        purpose_note: { type: string }
+        fingerprint_sha256: { type: string }
+        not_before: { type: string, format: date-time }
+        not_after: { type: string, format: date-time }
+        key_bits: { type: integer }
+        algorithm_note: { type: string }
+        issues:
+          type: array
+          items: { type: string }
+        offline_validated_set: { type: boolean }
+        external_verified:
+          type: boolean
+          description: Sempre false nesta superfície
     SecretRefMetadata:
       type: object
       additionalProperties: false

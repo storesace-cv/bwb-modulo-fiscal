@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
@@ -185,5 +186,52 @@ func (h *Handler) secadmRevokeForm(w http.ResponseWriter, r *http.Request) {
 	page.Status = meta.Status
 	page.Fingerprint = meta.Fingerprint
 	page.Version = meta.Version
+	h.render(w, "secadm_material.html", page)
+}
+
+func (h *Handler) secadmValidateOfflineForm(w http.ResponseWriter, r *http.Request) {
+	if h.CSRF == nil || !h.requireCSRF(w, r) {
+		return
+	}
+	tok, _ := h.CSRF.Issue(w)
+	page := secadmMaterialPage{
+		pageBase:  h.baseWithCSRF(w, r, "SecAdm material", "Validação offline (owner)", "secadm"),
+		CSRFToken: tok,
+	}
+	if h.SecAdm == nil {
+		page.Error = "SecAdm indisponível"
+		h.render(w, "secadm_material.html", page)
+		return
+	}
+	claims, ok := adminauth.ClaimsFromContext(r.Context())
+	if !ok {
+		page.Error = "sessão inválida"
+		h.render(w, "secadm_material.html", page)
+		return
+	}
+	keyRef := secretstore.Ref{
+		Kind: strings.TrimSpace(r.FormValue("key_kind")), Environment: strings.TrimSpace(r.FormValue("key_environment")),
+		SubjectID: strings.TrimSpace(r.FormValue("key_subject_id")), Name: strings.TrimSpace(r.FormValue("key_name")),
+	}
+	certRef := secretstore.Ref{
+		Kind: strings.TrimSpace(r.FormValue("cert_kind")), Environment: strings.TrimSpace(r.FormValue("cert_environment")),
+		SubjectID: strings.TrimSpace(r.FormValue("cert_subject_id")), Name: strings.TrimSpace(r.FormValue("cert_name")),
+	}
+	rep, err := h.SecAdm.ValidateOfflineRefs(r.Context(), secadm.Actor{SubjectID: claims.Subject}, keyRef, certRef, nil, time.Time{})
+	if err != nil {
+		page.Error = "validação offline falhou"
+		h.render(w, "secadm_material.html", page)
+		return
+	}
+	h.recordUIAccess(r, "ui.secadm.validate_offline", "secret_ref", keyRef.Key()+"+"+certRef.Key(), adminaudit.ResultSuccess)
+	page.HasResult = true
+	if rep.OK {
+		page.FlashOK = "offline OK — fingerprint " + rep.FingerprintSHA256 + " (external_verified=false)"
+	} else {
+		page.Error = "offline NÃO OK (ver issues no audit/API); fingerprint " + rep.FingerprintSHA256
+	}
+	page.Status = "offline_check"
+	page.Fingerprint = rep.FingerprintSHA256
+	page.FormatNote = rep.AlgorithmNote
 	h.render(w, "secadm_material.html", page)
 }

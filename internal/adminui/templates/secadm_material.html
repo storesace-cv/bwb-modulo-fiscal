@@ -89,4 +89,22 @@
   </dl>
 </section>
 {{end}}
+<form method="post" action="/admin/ui/secadm/material/validate-offline">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <h2>Validação offline (≠ AGT)</h2>
+  <p class="hint">Usa refs já importadas no SecretStore. Marca só preparação local.</p>
+  <p><label>Key kind <input name="key_kind" value="producer_key" required></label></p>
+  <p><label>Key env
+    <select name="key_environment"><option value="homologation">homologation</option><option value="production">production</option></select>
+  </label></p>
+  <p><label>Key subject <input name="key_subject_id" value="platform" required></label></p>
+  <p><label>Key name <input name="key_name" required></label></p>
+  <p><label>Cert kind <input name="cert_kind" value="certificate" required></label></p>
+  <p><label>Cert env
+    <select name="cert_environment"><option value="homologation">homologation</option><option value="production">production</option></select>
+  </label></p>
+  <p><label>Cert subject <input name="cert_subject_id" value="platform" required></label></p>
+  <p><label>Cert name <input name="cert_name" required></label></p>
+  <p><button type="submit">Validar offline</button></p>
+</form>
 {{end}}
