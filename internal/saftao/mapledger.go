@@ -65,6 +65,8 @@ type LedgerMapConfig struct {
 	EnabledGroups       []DocumentGroup
 	ValidateAgainstXSD  bool
 	IncludeEmptySales   bool
+	// TaxTable optional MasterFiles pass-through (caller-supplied; never invented).
+	TaxTable *TaxTable
 	// MaxOmissions caps omission report size (fail-closed if exceeded).
 	MaxOmissions int
 }
@@ -172,6 +174,7 @@ func MapSalesLedgerToExport(cfg LedgerMapConfig, records []SalesLedgerRecord) (*
 		AllowedInvoiceTypes:     cfg.AllowedInvoiceTypes,
 		Customers:               customers,
 		Products:                products,
+		TaxTable:                cfg.TaxTable,
 		Invoices:                invoices,
 		IncludeEmptySalesTotals: cfg.IncludeEmptySales,
 		ValidateAgainstXSD:      cfg.ValidateAgainstXSD,

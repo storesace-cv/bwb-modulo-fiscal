@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.40-draft — 2026-07-27
+
+- SAF-T AO: **RM-SAFT-012** — `BuildIncrementalExport` com `TaxTable` opcional (validação + refs TaxType/TaxCode das linhas; sem inventar taxas); ≠ AO-* / AGT / deploy.
+
 ## 0.2.39-draft — 2026-07-27
 
 - SAF-T AO: **RM-SAFT-011** — tipagem `TaxTable`/`TaxTableEntry` (TaxType IVA|IS|NS; TaxPercentage XOR TaxAmount; caps fail-closed); fixture XSD; ≠ AO-* / AGT / deploy.
