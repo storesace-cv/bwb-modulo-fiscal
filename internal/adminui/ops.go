@@ -11,7 +11,8 @@ import (
 
 type submissionsPage struct {
 	pageBase
-	Items []adminops.SubmissionSummary
+	Items       []adminops.SubmissionSummary
+	QueueStatus string
 }
 
 type auditPage struct {
@@ -20,9 +21,15 @@ type auditPage struct {
 }
 
 func (h *Handler) submissions(w http.ResponseWriter, r *http.Request) {
-	page := submissionsPage{pageBase: h.baseWithCSRF(w, r, "Submissões", "Submissões e reconciliação", "submissions")}
+	queueStatus := strings.TrimSpace(r.URL.Query().Get("queue_status"))
+	page := submissionsPage{
+		pageBase:    h.baseWithCSRF(w, r, "Submissões", "Fila de submissões", "submissions"),
+		QueueStatus: queueStatus,
+	}
 	if h.Ops != nil {
-		items, err := h.Ops.ListSubmissionSummaries(r.Context(), listLimit)
+		items, err := h.Ops.ListSubmissionSummariesFiltered(r.Context(), adminops.SubmissionFilter{
+			Limit: listLimit, QueueStatus: queueStatus,
+		})
 		if err != nil {
 			h.recordUIAccess(r, "ui.ops.read", "ops_ui", "submissions", adminaudit.ResultError)
 			http.Error(w, "erro interno", http.StatusInternalServerError)
