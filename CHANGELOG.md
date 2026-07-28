@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.78-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / RM-REQ-001** — mitigação fail-closed C-DOC-003 (`doctype.CheckCDOC003Invariants` + testes FA/RC/RG); C-DOC-001 confronto texto searchable.pdf (GF omitido); C-DOC-002 rótulos `RG` documentados; **sem** AO-* confirmados; ≠ fecho jurídico DEC-REG-003.
+
 ## 0.2.77-draft — 2026-07-28
 
 - Compliance: **RM-REQ-001 / RM-M2-D / RM-SRC-006** — inventário FE HML alargado (`validarDocumento`, `consultarFactura`, GESTAO, QRCODE, INDEX); Citações I–J (terminal na série DE74; chaves software≠contribuinte); C-FE-001 actualizado; GAP-013 anotado sem fecho; **sem** AO-* confirmados; ≠ B1.

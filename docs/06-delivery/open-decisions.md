@@ -260,9 +260,9 @@ Estados: `aberta` | `recomendada` | `decidida` | `bloqueada-por-lacuna`.
 - Pedido FE para tipo não elegível no endpoint / série não autorizada ⇒ rejeitar.
 - Sem FE activa: não simular transmissão FE «offline» como substituto (contingência = `DEC-REG-004` / `AO-OFF-*`, não esta decisão).
 
-**Não autoriza:** inventar mapeamento FE→`InvoiceType` para FE-only; fechar C-DOC-003; confirmar `AO-AGT-*`.
+**Não autoriza:** inventar mapeamento FE→`InvoiceType` para FE-only; declarar C-DOC-003 juridicamente resolvido (mitigação engenharia/seed ≠ fecho normativo); confirmar `AO-AGT-*`.
 
-**Evidência:** este registo; [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) C.7; [`domain-model.md`](../04-domain/domain-model.md). Conceito canónico + adaptadores: `DEC-PROD-007`.
+**Evidência:** este registo; [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/DOCUMENT-TYPES-MATRIX-RM-REQ-001.md) C.7; [`C-DOC-003`](../../compliance/derived/conflicts/C-DOC-003-fe-vs-saft-invoice-type.md); [`domain-model.md`](../04-domain/domain-model.md). Conceito canónico + adaptadores: `DEC-PROD-007`.
 
 ---
 

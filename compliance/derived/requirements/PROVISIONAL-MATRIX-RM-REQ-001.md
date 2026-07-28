@@ -229,11 +229,13 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 
 1. Fechar C-FE-001 (paths HML `/ws/` vs `/v1`; URL solicitarSerie) + GAP-006 credenciais — manter `AO-AGT-001` `pending_validation` (VALIDAR/CONSULTAR-FATURA alinhados **não** fecham o conflito).
 2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
-3. Fechar C-DOC-003 (L4 `FA`/`RC`/`RG` vs L2 `InvoiceType` vs L3 `Payments` — sem confundir camadas).
-4. AO-DOC-001: fechar C-DOC-* + DEC-REG-003 — manter `scaffold`.
-5. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial` até revisão compliance + campo FE explícito se existir.
-6. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-7. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003.
+3. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
+4. C-DOC-001: confronto texto searchable.pdf omite `GF` (como OCR) — residual confronto visual PNG; manter `GF` `conflito`/`off`.
+5. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
+6. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
+7. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+8. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+9. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003.
 
 ## Referências
 
