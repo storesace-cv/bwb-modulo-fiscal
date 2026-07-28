@@ -528,6 +528,9 @@ if grep -q 'deny all' "${DENY_CONF}" \
   && grep -q 'limit_req_status 429' "${OPEN_CONF}" \
   && grep -q 'location ^~ /admin/v1/' "${OPEN_CONF}" \
   && grep -q 'location ^~ /admin/ui' "${OPEN_CONF}" \
+  && grep -q 'location = /' "${OPEN_CONF}" \
+  && grep -A2 'location = / {' "${OPEN_CONF}" | grep -q 'proxy_pass' \
+  && ! grep -qE 'location[[:space:]]+=[[:space:]]+/[[:space:]]*\{' "${DENY_CONF}" \
   && ! grep -q 'location ^~ /admin/' "${DENY_CONF}" \
   && grep -q 'rate=10r/s' \
     "${ROOT}/deploy/nginx/http.d/bwb-limit-req-documents.conf" \

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.84-draft — 2026-07-28
+
+- Ops: **RM-OPS-010** — landing HTML em `GET /` (sandbox open + app); Nginx `location = /` proxy; disclaimer «404 na raiz ≠ serviço em baixo»; deny-all sem landing; ≠ health; ≠ AGT.
+
 ## 0.2.83-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / C-FE-QR-001** — Citação K (DE 683 QR @19194–19195 vs FE HML Quiosque); pacote `internal/feqr` fail-closed; ENG-007 → `BLOQUEADO` até fecho URL; **sem** geração QR; **sem** AO-* confirmados.

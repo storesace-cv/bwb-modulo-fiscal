@@ -25,6 +25,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/landing"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/notify/smtp"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/persistence"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/platform/config"
@@ -103,6 +104,9 @@ func run() int {
 	}
 
 	mux := http.NewServeMux()
+	// Exact root only — UX landing; availability remains /v1/health (≠ AGT).
+	mux.Handle("GET /{$}", landing.NewHandler())
+	mux.Handle("HEAD /{$}", landing.NewHandler())
 	mux.Handle("/v1/health", health.NewHandler(cfg.Version, buildinfo.Revision, cfg.FiscalPackage))
 	mux.Handle("/v1/documents", httpapi.WithRequestID(docs))
 
