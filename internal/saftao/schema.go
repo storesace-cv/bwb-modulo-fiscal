@@ -2,7 +2,7 @@
 //
 // Builds on XSD SAFTAO1.01_01 (source_id AO-SAFT-XSD-1.01_01, pending_validation).
 // Does NOT claim AGT validation, certification, or AO-* compliance.
-// Distinct from FE JWS/RS256.
+// Distinct from FE JWS/RS256 (see C-SIGN-001 / internal/signsep).
 package saftao
 
 import (
