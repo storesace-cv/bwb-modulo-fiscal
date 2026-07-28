@@ -20,6 +20,7 @@ Estado operacional confirmado do sandbox BWB:
 | Significado de `homologation` | Designação **técnica** do ambiente sandbox BWB — **não** é homologação oficial AGT, nem certificação |
 | Schema | `ExpectedVersion=12` / `dirty=false` |
 | HTTPS `/v1/health` | 200 |
+| HTTPS `GET /` | **200** landing HTML (UX; ≠ health) — **RM-OPS-010**; [sandbox-root-landing.md](sandbox-root-landing.md) · [rm-ops-010-sandbox-landing-promotion-report.md](rm-ops-010-sandbox-landing-promotion-report.md) |
 | HTTPS `/v1/documents` sem token | **401** |
 | HTTPS `/admin/v1/ready` | 200 (`fail_closed`; IdP não configurado) — após **RM-OPS-007** |
 | HTTPS `/admin/ui/login` | HTML login; login interactivo **indisponível** até IdP |
@@ -37,6 +38,7 @@ Estado operacional confirmado do sandbox BWB:
 | Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
 | Nginx admin proxy | **RM-OPS-007 CONCLUÍDO** — open conf com `/admin/v1/` + `/admin/ui`; deny-all sem admin |
 | SMTP | **RM-OPS-008/009** — teste + digest alertas; [smtp-notifications.md](smtp-notifications.md); `smtp.env` 0600; INC-OPS-008-2 **RESOLVIDO** |
+| Landing raiz | **RM-OPS-010 CONCLUÍDO** — promote `8063763…` + open arm/confirm; [rm-ops-010-sandbox-landing-promotion-report.md](rm-ops-010-sandbox-landing-promotion-report.md) |
 
 Rotação de credenciais no sandbox: `fiscal-admin` issue/rotate/revoke via helper (`credential_store`). **Não** usar `dev_static` no sandbox.
 
