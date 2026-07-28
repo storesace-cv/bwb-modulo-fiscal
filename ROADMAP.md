@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**
 
-**Estado revisto em:** 2026-07-27
+**Estado revisto em:** 2026-07-28
 
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
