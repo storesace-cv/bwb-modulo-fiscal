@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
-**Data:** 2026-07-20 (actualização OCR Rect v2 + DP 71/25 2026-07-26)
-**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **CONCLUÍDOS** (OCR `reviewed` 74/19 + Rect. 10/19 v2 + 683/25 v2; DP 71/25 também `reviewed`). Extração AO-* confirmados permanece aberta (RM-REQ-001 / RM-SRC-006).
+**Data:** 2026-07-20 (actualização OCR Rect v2 + DP 71/25 2026-07-26; inventário FE HML + Citação J 2026-07-28)
+**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **CONCLUÍDOS** (OCR `reviewed` 74/19 + Rect. 10/19 v2 + 683/25 v2; DP 71/25 também `reviewed`). Extração AO-* confirmados permanece aberta (RM-REQ-001 / RM-SRC-006 / RM-M2-D **EM_CURSO**).
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais; OCR `rejected` não é base de conhecimento.
 
 Documentos relacionados:
@@ -36,7 +36,7 @@ A documentação pública de Facturação Electrónica e os portais AGT/MINFIN e
 | GAP-010 | Vetores / resultados de testes oficiais AGT | Não disponíveis | Declaração de conformidade | Relatórios oficiais ou harness alinhado aos testes publicados |
 | GAP-011 | Portal do Contribuinte / guias operacionais estáveis | Manutenção / timeout em 2026-07-20 | Orientação operacional | Reconsulta + arquivo permitido de conteúdo/versão |
 | GAP-012 | Manifesto de fontes versionado no repositório | **Parcialmente fechado:** `compliance/catalog/sources.yaml` + schema + CI (metadados; sem binários) | Rastreabilidade contínua | Manter catálogo actualizado; importar artefactos autorizados nos PRs B+ |
-| GAP-013 | Confirmação oficial AGT sobre custódia/uso da chave privada do contribuinte por módulo fiscal externo | Não confirmada; **`BLOQUEADO_EXTERNO`**; `DEC-PROD-012` constraints ≠ fecho; **não** trava chave efémera/testes | `TaxpayerKeyRef` definitivo; DEC-REG-KEY-CUSTODY; DEC-SEC-EDGE-KEYS | Escrito AGT / norma; **não** inventar autorização; ver [agt-dependencies.md](agt-dependencies.md) |
+| GAP-013 | Confirmação oficial AGT sobre custódia/uso da chave privada do contribuinte por módulo fiscal externo | Não confirmada; **`BLOQUEADO_EXTERNO`**; `DEC-PROD-012` constraints ≠ fecho; snapshot FE GESTAO (`de423e66…`) distingue chave **software** (produtor) vs **contribuinte** (HTML: emitida AGT / portal) — **não** autoriza custódia por módulo externo; **não** trava chave efémera/testes | `TaxpayerKeyRef` definitivo; DEC-REG-KEY-CUSTODY; DEC-SEC-EDGE-KEYS | Escrito AGT / norma; **não** inventar autorização; ver [agt-dependencies.md](agt-dependencies.md) · Citação J em [`PROVISIONAL-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md) |
 
 ## Decreto Executivo n.º 74/19 e respetiva rectificação
 

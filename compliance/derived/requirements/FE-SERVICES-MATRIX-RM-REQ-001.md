@@ -1,15 +1,16 @@
 # Matriz FE HML — serviços, endpoints e FE-RNG (provisória)
 
 **Estado:** rascunho rastreável — **não** confirma `AO-AGT-001` / `AO-AGT-002` / `AO-SEQ-002`.
-**Data:** 2026-07-26
+**Data:** 2026-07-28
 **Regra:** snapshots HTML HML são auxiliares (`pending_validation`); **não** inventar `FE-RNG-*`, endpoints nem campos. Bytes HTML permanecem no privado (`license_redistribution: uncertain`); este ficheiro só cita `source_id` + sha256 + extractos.
 
-`private_commit` FE alinhado: `c93db4f89352eab884a4862943faa2ed874217fc`.
+`private_commit` FE alinhado: `c93db4f89352eab884a4862943faa2ed874217fc` (originais); inventário expandido 2026-07-28 sem cópia de bytes HTML para o Git público.
 
 ## Fontes (catálogo)
 
 | Serviço / tema | source_id | Artefacto privado | SHA256 (prefixo) | Estado |
 |---|---|---|---|---|
+| Índice / arquitectura | `AO-FE-SNAP-HML-2026-07-25-INDEX` | `…/index.html` | `67fc40a6…` | `pending_validation` |
 | Auth / exemplos | `AO-FE-SNAP-HML-2026-07-25-API` | `…/api.html` | `06a9dbdf…` | `pending_validation` |
 | JWS RS256 | `AO-FE-SNAP-HML-2026-07-25-ESTRUTURA` | `…/estrutura.html` | `50ba18e0…` | `pending_validation` |
 | Registar factura + FE-RNG | `AO-FE-SNAP-HML-2026-07-25-REGISTAR` | `…/servico_registar.html` | `eb430954…` | `pending_validation` |
@@ -17,7 +18,11 @@
 | Listar séries | `AO-FE-SNAP-HML-2026-07-25-LISTAR` | `…/servico_listar.html` | `5729f02c…` | `pending_validation` |
 | Listar facturas | `AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS` | `…/servico_listar_faturas.html` | `c748caca…` | `pending_validation` |
 | Obter estado | `AO-FE-SNAP-HML-2026-07-25-CONSULTAR` | `…/servico_consultar.html` | `1cac2844…` | `pending_validation` |
+| Consultar factura | `AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA` | `…/servico_consultar_fatura.html` | `6d5cc1a0…` | `pending_validation` |
+| Validar documento | `AO-FE-SNAP-HML-2026-07-25-VALIDAR` | `…/servico_validar.html` | `7ab70629…` | `pending_validation` |
 | Modelo assíncrono | `AO-FE-SNAP-HML-2026-07-25-MODELO` | `…/modelo.html` | `f851f512…` | `pending_validation` |
+| Gestão certificados/chaves | `AO-FE-SNAP-HML-2026-07-25-GESTAO` | `…/gestao.html` | `de423e66…` | `pending_validation` |
+| QR Code impresso | `AO-FE-SNAP-HML-2026-07-25-QRCODE` | `…/qrcode.html` | `ccade20b…` | `pending_validation` |
 
 Cruzamento diploma: DE 683 Anexo I–III (Citação G) · [`PROVISIONAL-MATRIX-RM-REQ-001.md`](PROVISIONAL-MATRIX-RM-REQ-001.md).
 
@@ -30,8 +35,12 @@ Cruzamento diploma: DE 683 Anexo I–III (Citação G) · [`PROVISIONAL-MATRIX-R
 | `listarSeries` | POST | `https://sifphml.minfin.gov.ao/sigt/fe/v1/listarSeries` | `https://sifp.minfin.gov.ao/sigt/fe/v1/listarSeries` | LISTAR |
 | `listarFacturas` | POST | `https://sifphml.minfin.gov.ao/sigt/fe/ws/v1/listarFacturas` (`/ws/`) | `https://sifp.minfin.gov.ao/sigt/fe/v1/listarFacturas` | LISTAR-FATURAS — C-FE-001 |
 | `obterEstado` | POST | `https://sifphml.minfin.gov.ao/sigt/fe/v1/obterEstado` | `https://sifp.minfin.gov.ao/sigt/fe/v1/obterEstado` | CONSULTAR |
+| `consultarFactura` | POST | `https://sifphml.minfin.gov.ao/sigt/fe/v1/consultarFactura` | `https://sifp.minfin.gov.ao/sigt/fe/v1/consultarFactura` | CONSULTAR-FATURA (HML/PRD `/v1/` alinhados) |
+| `validarDocumento` | POST | `https://sifphml.minfin.gov.ao/sigt/fe/v1/validarDocumento` | `https://sifp.minfin.gov.ao/sigt/fe/v1/validarDocumento` | VALIDAR (HML/PRD `/v1/` alinhados) |
 
 Auth (API): Basic Auth (`Authorization: Basic …`); credenciais via pedido formal AGT — **GAP-006**; **nunca** versionar credenciais reais (exemplos do HTML são ilustrativos).
+
+**Nota C-FE-001:** `consultarFactura` e `validarDocumento` **não** resolvem o conflito `/ws/` vs `/v1/` em `solicitarSerie` / `listarFacturas`; apenas documentam serviços adicionais com paths alinhados no snapshot.
 
 ## B. Modelo assíncrono (AO-AGT-002 candidato)
 
@@ -110,6 +119,44 @@ Fonte: `AO-FE-SNAP-HML-2026-07-25-SOLICITAR` · `f8fb22e7…` (também `FE-RNG-0
 **Referências de campo (não inventar E-code):** o HTML de resposta de `solicitarSerie` menciona orientações **FE-RNG-082** e **FE-RNG-083** junto de `authorizedQuantity` — **sem** linha de tabela de erro isolada extractável neste inventário.
 
 Campos série relevantes (SOLICITAR/LISTAR, alinháveis a DE 683): `seriesCode`, `seriesYear`, `documentType`, `establishmentNumber`, `seriesContingencyIndicator`, `seriesStatus` (A/U/F), `invoicingMethod` (FEPC/FESF/SF), `firstDocumentNo`, `authorizedQuantity`.
+
+### C.3 Validar documento — `servico_validar.html`
+
+Fonte: `AO-FE-SNAP-HML-2026-07-25-VALIDAR` · `7ab70629…`.
+
+| Código | Código erro | Tema (resumo extractado) |
+|---|---|---|
+| FE-RNG-033 | E44 | Estado do documento **não** permite confirmação pelo adquirente |
+| FE-RNG-034 | E45 | Estado do documento **não** permite rejeição pelo adquirente |
+| FE-RNG-077 | E47 | `deductibleVATPercentage` **não** pode coexistir com `nonDeductibleAmount` |
+
+Limite: snapshot auxiliar; **não** inventar outros `FE-RNG-*` deste serviço; **não** fechar máquina de estados jurídica (DEC-API-004).
+
+### C.4 Consultar factura — campos observados
+
+Fonte: `AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA` · `6d5cc1a0…`.
+
+Campos citados no HTML (entrada/saída, sem inventar semântica): `taxRegistrationNumber`, `documentNo`, `jwsSignature`, `documents`, `statusFEResult` / `statusResult`, `validationStatus`. Também referencia `FE-RNG-010` / `011` / `032` (assinaturas software/chamada).
+
+### C.5 Gestão de certificados e chaves (≠ fecho GAP-013)
+
+Fonte: `AO-FE-SNAP-HML-2026-07-25-GESTAO` · `de423e66…` · `pending_validation`.
+
+Extractos auxiliares (HTML; **não** norma publicada autenticada):
+
+1. Software (`jwsSoftwareSignature`): produtor gera RSA localmente; **chave privada não sai** do ambiente do produtor; pública submetida à AGT no registo; RSA **mínimo 2048 bits**.
+2. Contribuinte (`jwsDocumentSignature` / `jwsSignature`): HTML afirma emissão pela AGT e disponibilidade na conta do portal do contribuinte.
+3. Comprometimento: revogar chave do produtor; documentos já aceites pela AGT permanecem válidos segundo o texto do snapshot; novas submissões com chave revogada deixam de ser aceites.
+
+**Não fecha** GAP-013 / `DEC-REG-KEY-CUSTODY`: o snapshot **não** autoriza custódia da chave privada do contribuinte por módulo fiscal externo. Manter `AO-KEY-001` `blocked`.
+
+### C.6 QR Code impresso
+
+Fonte: `AO-FE-SNAP-HML-2026-07-25-QRCODE` · `ccade20b…` · `pending_validation`.
+
+Parâmetros extractados: Model 2; versão 4 (33×33); correção M (15%); modo Byte; UTF-8; PNG 350×350; URL `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=nifEmissor&document=documentNo` (espaços em `documentNo` → `%20`); logotipo AGT &lt;20% da imagem se incluído.
+
+Limite: **não** implementa `RM-ENG-007` nem confirma FE-RNG QR; snapshot ≠ aceite AGT.
 
 ## D. Implicações fail-closed
 

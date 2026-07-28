@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.77-draft — 2026-07-28
+
+- Compliance: **RM-REQ-001 / RM-M2-D / RM-SRC-006** — inventário FE HML alargado (`validarDocumento`, `consultarFactura`, GESTAO, QRCODE, INDEX); Citações I–J (terminal na série DE74; chaves software≠contribuinte); C-FE-001 actualizado; GAP-013 anotado sem fecho; **sem** AO-* confirmados; ≠ B1.
+
 ## 0.2.76-draft — 2026-07-27
 
 - Ops: **RM-OPS-009** — `POST /admin/v1/ops/notifications/alerts-digest` owner-only; digest SMTP de alertas da fila ops (códigos allowlist); OpenAPI admin `0.1.28-draft`; testes fake TLS; sem passwords/NIF; ≠ AGT/IdP.
