@@ -55,7 +55,7 @@ func (v CDOC003Violation) String() string {
 
 // CheckCDOC003Invariants validates seed adapters against the documented conflict:
 // FA is FE-only (no InvoiceType/PaymentType); RC/RG must not be InvoiceType.
-// AR may appear in InvoiceType or PaymentType (distinct L3) — not flagged here.
+// AR dual L3 membership is enforced separately by CheckCDOC004Invariants.
 // Returns violations; empty slice means seed respects the fail-closed binding.
 func (r *Registry) CheckCDOC003Invariants() []CDOC003Violation {
 	if r == nil {
@@ -113,6 +113,151 @@ func (r *Registry) CheckCDOC003Invariants() []CDOC003Violation {
 				Reason:         "InvoiceType não enumera FA/RC/RG no XSD ASSOFT (C-DOC-003)",
 			})
 		}
+	}
+	return out
+}
+
+// CDOC004Violation is a catalog row that breaks documented C-DOC-004 invariants (AR dual L3).
+type CDOC004Violation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v CDOC004Violation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+const (
+	canonicalVendasAR     = "bwb.ao.vendas.ar"
+	canonicalPagamentosAR = "bwb.ao.pagamentos.ar"
+)
+
+// CheckCDOC004Invariants validates the AR dual-homonym seed:
+// two distinct canonicals; InvoiceType=AR only under SalesInvoices; PaymentType=AR only under Payments.
+// Does not choose «grupo único por emissão» and does not confirm AO-DOC-*.
+func (r *Registry) CheckCDOC004Invariants() []CDOC004Violation {
+	if r == nil {
+		return nil
+	}
+	out := make([]CDOC004Violation, 0)
+
+	vendas, okV := r.Lookup(canonicalVendasAR)
+	pag, okP := r.Lookup(canonicalPagamentosAR)
+	if !okV {
+		out = append(out, CDOC004Violation{CodigoCanonico: canonicalVendasAR, Reason: "seed vendas.ar obrigatório (C-DOC-004)"})
+	}
+	if !okP {
+		out = append(out, CDOC004Violation{CodigoCanonico: canonicalPagamentosAR, Reason: "seed pagamentos.ar obrigatório (C-DOC-004)"})
+	}
+	if okV && okP && vendas.CodigoCanonico == pag.CodigoCanonico {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: vendas.CodigoCanonico,
+			FECode:         "AR",
+			Reason:         "proibido colapsar vendas.ar e pagamentos.ar no mesmo canónico (C-DOC-004)",
+		})
+	}
+
+	if okV {
+		out = append(out, checkARHomonym(vendas, SAFTLayerInvoice, "SalesInvoices", "vendas")...)
+	}
+	if okP {
+		out = append(out, checkARHomonym(pag, SAFTLayerPayment, "Payments", "pagamentos")...)
+	}
+
+	// Guard: any other FE=AR row must still bind L2↔L3 consistently.
+	for _, e := range r.All() {
+		if e.CodigoCanonico == canonicalVendasAR || e.CodigoCanonico == canonicalPagamentosAR {
+			continue
+		}
+		if strings.TrimSpace(e.ChannelAdapters.FECode) != "AR" {
+			continue
+		}
+		layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		switch {
+		case layer == SAFTLayerInvoice && code == "AR" && structL3 != "SalesInvoices":
+			out = append(out, CDOC004Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         "AR",
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "InvoiceType=AR exige L3 SalesInvoices (C-DOC-004)",
+			})
+		case layer == SAFTLayerPayment && code == "AR" && structL3 != "Payments":
+			out = append(out, CDOC004Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         "AR",
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "PaymentType=AR exige L3 Payments (C-DOC-004)",
+			})
+		case layer != SAFTLayerInvoice && layer != SAFTLayerPayment:
+			out = append(out, CDOC004Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         "AR",
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "FE=AR sem adaptador InvoiceType/PaymentType explícito (C-DOC-004)",
+			})
+		}
+	}
+	return out
+}
+
+func checkARHomonym(e Entry, wantLayer SAFTLayer, wantL3, wantGrupo string) []CDOC004Violation {
+	out := make([]CDOC004Violation, 0)
+	fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+	layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+	structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+	grupo := strings.TrimSpace(e.Grupo)
+
+	if fe != "AR" {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         "homónimo AR exige FECode=AR",
+		})
+	}
+	if layer != wantLayer || code != "AR" {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige adaptador %s=AR (C-DOC-004)", wantLayer),
+		})
+	}
+	if structL3 != wantL3 {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige L3 %s (C-DOC-004)", wantL3),
+		})
+	}
+	if grupo != wantGrupo {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige grupo=%s (C-DOC-004)", wantGrupo),
+		})
+	}
+	if e.Activo != ActiveOff {
+		out = append(out, CDOC004Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         "AR dual-L3 permanece off até fecho residual (C-DOC-004)",
+		})
 	}
 	return out
 }
