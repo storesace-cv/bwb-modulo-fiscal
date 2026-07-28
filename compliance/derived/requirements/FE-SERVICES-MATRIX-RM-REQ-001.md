@@ -156,6 +156,8 @@ Fonte: `AO-FE-SNAP-HML-2026-07-25-QRCODE` · `ccade20b…` · `pending_validatio
 
 Parâmetros extractados: Model 2; versão 4 (33×33); correção M (15%); modo Byte; UTF-8; PNG 350×350; URL `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=nifEmissor&document=documentNo` (espaços em `documentNo` → `%20`); logotipo AGT &lt;20% da imagem se incluído.
 
+**Conflito:** DE 683 Anexo III @**19194–19195** cita host/params distintos (OCR) — ver [C-FE-QR-001](../conflicts/C-FE-QR-001-qr-url-de683-vs-fe-hml.md) + `internal/feqr`.
+
 Limite: **não** implementa `RM-ENG-007` nem confirma FE-RNG QR; snapshot ≠ aceite AGT.
 
 ## D. Implicações fail-closed
@@ -164,6 +166,7 @@ Limite: **não** implementa `RM-ENG-007` nem confirma FE-RNG QR; snapshot ≠ ac
 2. **Não** inventar `FE-RNG-*` em falta (incl. descrição isolada de `FE-RNG-001`, nem E-codes para 082/083).
 3. Snapshots HML **não** substituem validação AGT nem fecham GAP-006 (credenciais).
 4. JWS FE (ESTRUTURA/RS256) ≠ Hash SAF-T ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)).
+5. **Não** gerar QR impresso sem fechar [C-FE-QR-001](../conflicts/C-FE-QR-001-qr-url-de683-vs-fe-hml.md) (`internal/feqr`).
 
 ## Referências
 

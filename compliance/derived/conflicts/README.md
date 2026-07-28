@@ -9,3 +9,4 @@ Registar aqui conflitos legais/técnicos explícitos. Não resolver por omissão
 | [C-DOC-003](C-DOC-003-fe-vs-saft-invoice-type.md) | L4 `FA`/`RC`/`RG` ≠ L2 `InvoiceType` ≠ L3 `Payments` | aberto (mitigação fail-closed; residual DEC-REG-003) |
 | [C-SIGN-001](C-SIGN-001-saft-rsa-vs-fe-jws.md) | Assinatura SAF-T RSA/SHA-1 (74/19) ≠ JWS FE RS256 | aberto (mitigação fail-closed `signsep`; residual AO-CRYPTO) |
 | [C-FE-001](C-FE-001-fe-endpoint-path-inconsistency.md) | Paths HML `/ws/` vs `/v1` | aberto (mitigação fail-closed `fepath`; residual AGT/GAP-006) |
+| [C-FE-QR-001](C-FE-QR-001-qr-url-de683-vs-fe-hml.md) | URL QR impresso DE 683 vs FE HML | aberto (mitigação fail-closed `feqr`) |

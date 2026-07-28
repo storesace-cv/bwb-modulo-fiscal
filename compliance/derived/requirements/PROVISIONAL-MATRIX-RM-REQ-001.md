@@ -201,6 +201,19 @@ Distinção extractada (auxiliar):
 
 Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTODY` / `AO-KEY-001` permanecem abertos; **não** confirmado.
 
+### Citação K — QR Code impresso (DE 683 Anexo III + FE HML)
+
+Fontes:
+
+| source_id | SHA/ref | Uso |
+|---|---|---|
+| `AO-LEG-DE-683-25-2025` | `b01e4581…` OCR v2 | Anexo III QR @**19194–19195** (ECC 15%; 33×33; URL portal OCR; `%20`; logo &lt;20%) |
+| `AO-FE-SNAP-HML-2026-07-25-QRCODE` | `ccade20b…` | Model 2 / v4; URL Quiosque AGT + `emissor`/`document`; PNG 350×350 |
+
+**Conflito de URL/params:** [C-FE-QR-001](../conflicts/C-FE-QR-001-qr-url-de683-vs-fe-hml.md). Mitigação `internal/feqr` (≠ fecho).
+
+Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML ≠ aceite AGT; **não** confirmado.
+
 ## Linhas (rascunho)
 
 | ID | Estado | Fonte candidata | Nota |
@@ -228,15 +241,16 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 ## Próximos passos (este item)
 
 1. C-FE-001: mitigação fail-closed (`internal/fepath`) 2026-07-28 — **residual** confirmação AGT dos paths + GAP-006; manter `AO-AGT-001` `pending_validation` (VALIDAR/CONSULTAR-FATURA alinhados **não** fecham o conflito).
-2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
-3. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
-4. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
-5. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
-6. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
-7. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
-8. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-9. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-10. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` sem fecho C-FE-001.
+2. C-FE-QR-001: URL QR DE 683 vs FE HML — mitigação `internal/feqr` 2026-07-28; **não** fechar; **não** `RM-ENG-007`.
+3. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
+4. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
+5. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
+6. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
+7. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
+8. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
+9. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+10. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+11. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
 
 ## Referências
 
