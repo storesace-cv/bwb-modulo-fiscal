@@ -54,7 +54,6 @@ func TestCDOC004ARDualL3Seed(t *testing.T) {
 	}
 }
 
-
 func TestCDOC003FAIsFEOnly(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {
