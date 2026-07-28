@@ -35,8 +35,10 @@
 ## Segurança (extracto)
 
 - Credenciais na query string do `/api/auth` (doc vendor) — preferir canal seguro e nunca logar `passwd`/`token`.
+- Cliente maduro (`my-bwb-app` @ `629edde`): doc pede header `token:`; implementação usa sobretudo Bearer / query para `api_token` — ver [AUD-VENDOR-NETBO](../audits/AUD-VENDOR-NETBO-REUSE-MY-BWB-APP.md).
 - Exemplos do PDF podem conter dados ilustrativos — **não** versionar credenciais reais.
 - Redistribuição do PDF: `uncertain` → só privado.
+- Money `float` na app de origem — **não** portar para o módulo fiscal.
 
 ## Relação com `AO-*`
 
