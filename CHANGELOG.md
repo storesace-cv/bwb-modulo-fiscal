@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.86-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / C-DOC-005** — homónimos segurador `RP`/`RE`/`CS`/`LD`/`RA` em `InvoiceType` **e** `WorkType`; `doctype.CheckCDOC005Invariants` + testes; seed FE só `InvoiceType`/`off`; **sem** inventar FE→WorkType; **sem** AO-* confirmados.
+
 ## 0.2.85-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / C-DOC-004** — homónimo FE `AR` em `InvoiceType` **e** `PaymentType` (L3 distintos); `doctype.CheckCDOC004Invariants` + testes; dual canónicos `off`; **sem** AO-* confirmados; ≠ fecho «grupo único por emissão».

@@ -265,7 +265,7 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 |---|---|---|---|
 | FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1) | GF: C-DOC-001 (divergência DE 683 vs HTML/XSD) |
 | AR | sim | `InvoiceType` (1) e/ou `PaymentType` (4) | dual canónicos seed; grupo único por emissão — aberto ([C-DOC-004](../conflicts/C-DOC-004-ar-dual-l3.md)) |
-| RE, RP, RA, CS, LD | sim | `InvoiceType` (1); também `WorkType` (3) p/ alguns | segurador |
+| RE, RP, RA, CS, LD | sim | `InvoiceType` (1); também `WorkType` (3) | segurador; dual L3 — [C-DOC-005](../conflicts/C-DOC-005-insurer-invoice-vs-worktype.md); seed só `InvoiceType`/`off` |
 | RC | sim | `PaymentType` (4); também `PurchaseType` (5) regime caixa | **≠** `InvoiceType` (C-DOC-003) |
 | RG | sim | `PaymentType` (4) | C-DOC-002/003 |
 
