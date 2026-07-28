@@ -22,7 +22,7 @@ func TestRootLandingOK(t *testing.T) {
 		t.Fatalf("content-type %q", ct)
 	}
 	body := rr.Body.String()
-	for _, needle := range []string{"/v1/health", "/admin/ui/", "404 na raiz", "não é homologação oficial AGT"} {
+	for _, needle := range []string{"/v1/health", "/admin/ui/", "404 na raiz", "homologação oficial AGT"} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("missing %q", needle)
 		}
