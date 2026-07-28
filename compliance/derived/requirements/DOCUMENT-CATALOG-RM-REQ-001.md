@@ -47,7 +47,7 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | vendas | `bwb.ao.vendas.cs` | Imputação Co-seguradoras | FE:`CS`; SAFT:`InvoiceType=CS` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.ld` | Imputação Co-seguradora Líder | FE:`LD`; SAFT:`InvoiceType=LD` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.ra` | Resseguro Aceite | FE:`RA`; SAFT:`InvoiceType=RA` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 | pending | hipotese | off |
-| pagamentos | `bwb.ao.pagamentos.rc` | Recibo Emitido | FE:`RC`; SAFT:`PaymentType=RC` | `Payments` | ambos | Art.3 o) @11904 | nenhuma | pending | FE: lines vazio + paymentReceipt @19169–19170; ≠ InvoiceType | pending | conflito | off |
+| pagamentos | `bwb.ao.pagamentos.rc` | Recibo Emitido | FE:`RC`; SAFT:`PaymentType=RC` | `Payments` | ambos | Art.3 o) @11904 | nenhuma | pending | C-DOC-003/006; ≠ InvoiceType; ≠ `compras.rc` | pending | conflito | off |
 | pagamentos | `bwb.ao.pagamentos.rg` | Outros Recibos Emitidos | FE:`RG`; SAFT:`PaymentType=RG` | `Payments` | ambos | Art.3 o) (rótulo FE C-DOC-002) | nenhuma | pending | C-DOC-002/003 | pending | conflito | off |
 | pagamentos | `bwb.ao.pagamentos.ar` | Aviso Cobrança/Recibo (pagamentos) | FE:`AR`; SAFT:`PaymentType=AR` | `Payments` | ambos | Art.3 d)+Art.6 n.º2 b) | nenhuma | pending | C-DOC-004 dual L3; ≠ `vendas.ar` | pending | hipotese | off |
 | movimentacao | `bwb.ao.movimentacao.gr` | Guia de Remessa | FE:`∅`; SAFT:`MovementType=GR` | `MovementOfGoods` | SAF-T | Art.4 n.º9 (≠ factura) | nenhuma | pending | pending | pending | pending_validation | off |
@@ -60,7 +60,7 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | conferencia | `bwb.ao.conferencia.dc` | Documento de Conferência | FE:`∅`; SAFT:`WorkType=DC` | `WorkingDocuments` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
 | compras | `bwb.ao.compras.ft` | Factura (compras) | FE:`∅`; SAFT:`PurchaseType=FT` | `PurchaseInvoices` | SAF-T | pending | nenhuma | pending | ≠ `InvoiceType` vendas | pending | pending_validation | off |
 | compras | `bwb.ao.compras.nl` | Nota de Liquidação | FE:`∅`; SAFT:`PurchaseType=NL` | `PurchaseInvoices` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
-| compras | `bwb.ao.compras.rc` | Recibo (regime caixa compras) | FE:`∅`; SAFT:`PurchaseType=RC` | `PurchaseInvoices` | SAF-T | pending | regime caixa | pending | anotação XSD; ≠ PaymentType FE | pending | pending_validation | off |
+| compras | `bwb.ao.compras.rc` | Recibo (regime caixa compras) | FE:`∅`; SAFT:`PurchaseType=RC` | `PurchaseInvoices` | SAF-T | pending | regime caixa | pending | C-DOC-006; ≠ PaymentType FE / `pagamentos.rc` | pending | pending_validation | off |
 
 ### WorkType / PurchaseType restantes
 

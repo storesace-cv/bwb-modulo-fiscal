@@ -12,11 +12,12 @@ import (
 type SAFTLayer string
 
 const (
-	SAFTLayerNone    SAFTLayer = ""
-	SAFTLayerInvoice SAFTLayer = "InvoiceType"
-	SAFTLayerPayment SAFTLayer = "PaymentType"
-	SAFTLayerWork    SAFTLayer = "WorkType"
-	SAFTLayerOther   SAFTLayer = "other"
+	SAFTLayerNone     SAFTLayer = ""
+	SAFTLayerInvoice  SAFTLayer = "InvoiceType"
+	SAFTLayerPayment  SAFTLayer = "PaymentType"
+	SAFTLayerWork     SAFTLayer = "WorkType"
+	SAFTLayerPurchase SAFTLayer = "PurchaseType"
+	SAFTLayerOther    SAFTLayer = "other"
 )
 
 // ParseSAFTTypeAdapter parses catalog values like "InvoiceType=FT" or "PaymentType=RC".
@@ -39,6 +40,8 @@ func ParseSAFTTypeAdapter(saftType string) (layer SAFTLayer, code string) {
 		return SAFTLayerPayment, val
 	case "WorkType":
 		return SAFTLayerWork, val
+	case "PurchaseType":
+		return SAFTLayerPurchase, val
 	default:
 		return SAFTLayerOther, val
 	}
@@ -411,6 +414,194 @@ func (r *Registry) CheckCDOC005Invariants() []CDOC005Violation {
 					Reason:         "InvoiceType=" + code + " exige L3 SalesInvoices (C-DOC-005)",
 				})
 			}
+		}
+	}
+	return out
+}
+
+// CDOC006Violation is a catalog row that breaks C-DOC-006 RC PaymentType vs PurchaseType invariants.
+type CDOC006Violation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v CDOC006Violation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+const (
+	canonicalPagamentosRC = "bwb.ao.pagamentos.rc"
+	canonicalComprasRC    = "bwb.ao.compras.rc"
+)
+
+// CheckCDOC006Invariants validates RC dual-homonym fail-closed bindings:
+// PaymentType=RC under Payments (FE RC) ≠ PurchaseType=RC under PurchaseInvoices (FE empty).
+// Does not invent bijection L4↔L2 and does not confirm AO-DOC-*.
+func (r *Registry) CheckCDOC006Invariants() []CDOC006Violation {
+	if r == nil {
+		return nil
+	}
+	out := make([]CDOC006Violation, 0)
+
+	pag, okP := r.Lookup(canonicalPagamentosRC)
+	com, okC := r.Lookup(canonicalComprasRC)
+	if !okP {
+		out = append(out, CDOC006Violation{CodigoCanonico: canonicalPagamentosRC, Reason: "seed pagamentos.rc obrigatório (C-DOC-006)"})
+	}
+	if !okC {
+		out = append(out, CDOC006Violation{CodigoCanonico: canonicalComprasRC, Reason: "seed compras.rc obrigatório (C-DOC-006)"})
+	}
+	if okP && okC && pag.CodigoCanonico == com.CodigoCanonico {
+		out = append(out, CDOC006Violation{
+			CodigoCanonico: pag.CodigoCanonico,
+			FECode:         "RC",
+			Reason:         "proibido colapsar pagamentos.rc e compras.rc no mesmo canónico (C-DOC-006)",
+		})
+	}
+
+	if okP {
+		fe := strings.TrimSpace(pag.ChannelAdapters.FECode)
+		layer, code := ParseSAFTTypeAdapter(pag.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(pag.ChannelAdapters.SAFTStructure)
+		grupo := strings.TrimSpace(pag.Grupo)
+		if fe != "RC" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: pag.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       pag.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "pagamentos.rc exige FECode=RC (C-DOC-006)",
+			})
+		}
+		if layer != SAFTLayerPayment || code != "RC" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: pag.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       pag.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "pagamentos.rc exige PaymentType=RC (C-DOC-006); ≠ PurchaseType",
+			})
+		}
+		if structL3 != "Payments" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: pag.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       pag.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "pagamentos.rc exige L3 Payments (C-DOC-006)",
+			})
+		}
+		if grupo != "pagamentos" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: pag.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       pag.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "pagamentos.rc exige grupo=pagamentos (C-DOC-006)",
+			})
+		}
+		if pag.Activo != ActiveOff {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: pag.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       pag.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "pagamentos.rc permanece off até fecho residual (C-DOC-006)",
+			})
+		}
+	}
+
+	if okC {
+		fe := strings.TrimSpace(com.ChannelAdapters.FECode)
+		layer, code := ParseSAFTTypeAdapter(com.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(com.ChannelAdapters.SAFTStructure)
+		grupo := strings.TrimSpace(com.Grupo)
+		if fe != "" && fe != "∅" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: com.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       com.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "compras.rc é SAF-T-only (FE vazio); proibido FE=RC no lado compras (C-DOC-006)",
+			})
+		}
+		if layer != SAFTLayerPurchase || code != "RC" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: com.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       com.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "compras.rc exige PurchaseType=RC (C-DOC-006); ≠ PaymentType",
+			})
+		}
+		if structL3 != "PurchaseInvoices" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: com.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       com.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "compras.rc exige L3 PurchaseInvoices (C-DOC-006)",
+			})
+		}
+		if grupo != "compras" {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: com.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       com.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "compras.rc exige grupo=compras (C-DOC-006)",
+			})
+		}
+		if com.Activo != ActiveOff {
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: com.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       com.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "compras.rc permanece off até fecho residual (C-DOC-006)",
+			})
+		}
+	}
+
+	// Guard: never claim InvoiceType=RC (also C-DOC-003) or mix L3 for RC adapters.
+	for _, e := range r.All() {
+		layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		if code != "RC" {
+			continue
+		}
+		switch layer {
+		case SAFTLayerPayment:
+			if structL3 != "Payments" {
+				out = append(out, CDOC006Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         e.ChannelAdapters.FECode,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "PaymentType=RC exige L3 Payments (C-DOC-006)",
+				})
+			}
+		case SAFTLayerPurchase:
+			if structL3 != "PurchaseInvoices" {
+				out = append(out, CDOC006Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         e.ChannelAdapters.FECode,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "PurchaseType=RC exige L3 PurchaseInvoices (C-DOC-006)",
+				})
+			}
+		case SAFTLayerInvoice:
+			out = append(out, CDOC006Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         e.ChannelAdapters.FECode,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "InvoiceType=RC proibido (C-DOC-003/006)",
+			})
 		}
 	}
 	return out
