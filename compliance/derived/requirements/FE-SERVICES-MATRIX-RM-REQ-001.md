@@ -160,7 +160,7 @@ Limite: **não** implementa `RM-ENG-007` nem confirma FE-RNG QR; snapshot ≠ ac
 
 ## D. Implicações fail-closed
 
-1. **Não** implementar paths `/fe/ws/v1` vs `/fe/v1` sem fechar [C-FE-001](../conflicts/C-FE-001-fe-endpoint-path-inconsistency.md).
+1. **Não** implementar paths `/fe/ws/v1` vs `/fe/v1` sem fechar [C-FE-001](../conflicts/C-FE-001-fe-endpoint-path-inconsistency.md). Mitigação engenharia: `internal/fepath` (`ConflictOpen`; recusa `solicitarSerie`/`listarFacturas`; alinhados só `/v1`) — **≠** fecho do conflito.
 2. **Não** inventar `FE-RNG-*` em falta (incl. descrição isolada de `FE-RNG-001`, nem E-codes para 082/083).
 3. Snapshots HML **não** substituem validação AGT nem fecham GAP-006 (credenciais).
 4. JWS FE (ESTRUTURA/RS256) ≠ Hash SAF-T ([C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md)).
