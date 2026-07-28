@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.80-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / C-SIGN-001** — pacote `internal/signsep` separa Hash SAF-T (pending) de JWS FE RS256; testes de conflação + `PendingHashAlgorithm` no export; **sem** AO-CRYPTO confirmado; ≠ n.º34 / FE oficial.
+
 ## 0.2.79-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / RM-REQ-001 / C-DOC-001** — confronto visual DE 683/25 p.7 confirma `GF` ausente no diploma (HTML/XSD mantêm `GF`); estado `documentado_divergencia`; seed `gf` permanece `conflito`/`off` + teste; **sem** AO-* confirmados.
