@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**
 
-**Estado revisto em:** 2026-07-27
+**Estado revisto em:** 2026-07-28
 
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
@@ -41,7 +41,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 |---|---|
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
-| OpenAPI | POS `0.1.6-draft` · Admin `0.1.26-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
+| OpenAPI | POS `0.1.6-draft` · Admin `0.1.28-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
 | Schema | `ExpectedVersion=12` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
@@ -174,6 +174,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | [x] | RM-OPS-006 | Promote sandbox `main` → ExpectedVersion=12 + grants schema12 | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/120 · [docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md](docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md) · [deploy/postgres/grants-schema12-runtime-admin.sql](deploy/postgres/grants-schema12-runtime-admin.sql) · 2026-07-27 | RM-OPS-002 + main@schema12 | current-sha=health.revision; dirty=false; API 401 sem token; admin fail_closed |
 | [x] | RM-OPS-007 | Nginx open sandbox: proxy `/admin/v1/` + `/admin/ui` (fail-closed app; deny-all sem admin) | CONCLUÍDO | [docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md](docs/07-operations/rm-ops-006-sandbox-schema12-promotion-report.md) · [deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf](deploy/nginx/open/bwb-fiscal-sandbox-tls.open.conf) · 2026-07-27 | RM-OPS-006 + S3C2 confirmed | HTTPS `/admin/ui/login` HTML; ready público; documents 401; timer confirmado |
 | [x] | RM-OPS-008 | Fundação SMTP segura (implicit TLS 465; smtp.env 0600; teste owner-only; fake TLS nos testes) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/122 · [docs/07-operations/rm-ops-008-smtp-sandbox-report.md](docs/07-operations/rm-ops-008-smtp-sandbox-report.md) · INC-OPS-008-2 RESOLVIDO (465 `sent`) · 2026-07-27 | RM-OPS-007 + RM-BO-004 | Port 465; sem passwords no email; DeliveryStatus sanitizado; helper smtp-send-test |
+| [x] | RM-OPS-009 | Digest SMTP de alertas ops sanitizados (owner-only; códigos allowlist; fake TLS) | CONCLUÍDO | [internal/notify/smtp/smtp.go](internal/notify/smtp/smtp.go) · [internal/adminapi/notification_handlers.go](internal/adminapi/notification_handlers.go) · [specs/admin/openapi.yaml](specs/admin/openapi.yaml) · [docs/07-operations/smtp-notifications.md](docs/07-operations/smtp-notifications.md) · 2026-07-27 | RM-OPS-008 + RM-BO-017 | POST alerts-digest; alert_count/codes; sem passwords/NIF; ≠ AGT |
 
 ---
 

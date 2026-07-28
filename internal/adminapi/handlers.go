@@ -42,7 +42,9 @@ type Handler struct {
 	FiscalEnv        string      // FISCAL_ENV
 	OIDCReady        string      // ok|not_configured|incomplete — sanitized
 	InteractiveLogin string      // unavailable|ready
-	Mailer           smtp.Mailer // optional; RM-OPS-008
+	Mailer           smtp.Mailer // optional; RM-OPS-008 / RM-OPS-009
+	// OpsDashboardFn optional test override; production uses Ops.LoadOpsDashboard (RM-OPS-009).
+	OpsDashboardFn func(ctx context.Context) (adminops.OpsDashboard, error)
 }
 
 type problem struct {
@@ -183,6 +185,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/ops/dashboard", wrap(readOps(http.HandlerFunc(h.getOpsDashboard))))
 	mux.Handle("POST /admin/v1/ops/submissions/{submission_id}/actions", wrap(writeOps(http.HandlerFunc(h.applyOpsSubmissionAction))))
 	mux.Handle("POST /admin/v1/ops/notifications/test", wrap(writeNotify(http.HandlerFunc(h.postNotificationTest))))
+	mux.Handle("POST /admin/v1/ops/notifications/alerts-digest", wrap(writeNotify(http.HandlerFunc(h.postNotificationAlertsDigest))))
 	mux.Handle("GET /admin/v1/secret-refs/metadata", wrap(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 
 	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)

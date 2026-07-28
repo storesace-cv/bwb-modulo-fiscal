@@ -52,10 +52,19 @@ type DeliveryStatus struct {
 	RequestID string `json:"request_id,omitempty"`
 }
 
+// AlertLine is a sanitized alert row for admin digest emails (RM-OPS-009).
+// Code/Severity/Message must already be allowlisted; never include NIF/secrets/payloads.
+type AlertLine struct {
+	Code     string
+	Severity string
+	Message  string
+}
+
 // Mailer sends notification messages.
 type Mailer interface {
 	Configured() bool
 	SendAdminTest(ctx context.Context, requestID string) (DeliveryStatus, error)
+	SendAdminAlertDigest(ctx context.Context, requestID string, lines []AlertLine) (DeliveryStatus, error)
 }
 
 type clientMailer struct {
@@ -186,6 +195,75 @@ func (m *clientMailer) SendAdminTest(ctx context.Context, requestID string) (Del
 	}
 	base.Status = "sent"
 	return base, nil
+}
+
+// SendAdminAlertDigest emails allowlisted ops/readiness alert codes to the configured admin address only.
+func (m *clientMailer) SendAdminAlertDigest(ctx context.Context, requestID string, lines []AlertLine) (DeliveryStatus, error) {
+	if !m.Configured() {
+		return DeliveryStatus{Status: "not_configured", Reason: "smtp_not_configured", RequestID: requestID}, nil
+	}
+	toDomain := domainOf(m.cfg.AdminNotifyAddress)
+	base := DeliveryStatus{
+		TLSMode: tlsModeImplicit, Port: requiredPort, ToDomain: toDomain, RequestID: requestID,
+	}
+	subject := "BWB Fiscal — digest de alertas ops"
+	body := formatAlertDigestBody(requestID, lines)
+	if err := m.send(ctx, m.cfg.AdminNotifyAddress, subject, body); err != nil {
+		base.Status = "failed"
+		base.Reason = sanitizeErr(err)
+		return base, err
+	}
+	base.Status = "sent"
+	return base, nil
+}
+
+func formatAlertDigestBody(requestID string, lines []AlertLine) string {
+	var b strings.Builder
+	b.WriteString("Digest sanitizado de alertas operacionais BWB Fiscal.\n")
+	b.WriteString("Sem passwords, tokens, NIF, DSN, PEM nem credenciais AGT.\n")
+	b.WriteString("request_id=" + sanitizeToken(requestID) + "\n")
+	b.WriteString("tls_mode=implicit\n")
+	b.WriteString("port=465\n")
+	b.WriteString("alert_count=" + strconv.Itoa(len(lines)) + "\n")
+	if len(lines) == 0 {
+		b.WriteString("alerts=none\n")
+		return b.String()
+	}
+	b.WriteString("alerts:\n")
+	for _, ln := range lines {
+		code := sanitizeToken(ln.Code)
+		sev := sanitizeToken(ln.Severity)
+		msg := sanitizeDigestMessage(ln.Message)
+		b.WriteString("- code=" + code + " severity=" + sev + " message=" + msg + "\n")
+	}
+	return b.String()
+}
+
+func sanitizeDigestMessage(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "empty"
+	}
+	s = sanitizeHeader(s)
+	var out strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			out.WriteRune(r)
+		case r == ' ' || r == '_' || r == '-' || r == '=' || r == '.' || r == ',' || r == ':' || r == '/':
+			out.WriteRune(r)
+		default:
+			// drop other runes (accents/punctuation) to avoid leaking free-form PII
+		}
+	}
+	res := strings.TrimSpace(out.String())
+	if res == "" {
+		return "sanitized"
+	}
+	if len(res) > 200 {
+		return res[:200]
+	}
+	return res
 }
 
 func (m *clientMailer) send(ctx context.Context, to, subject, body string) error {

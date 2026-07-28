@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.76-draft — 2026-07-27
+
+- Ops: **RM-OPS-009** — `POST /admin/v1/ops/notifications/alerts-digest` owner-only; digest SMTP de alertas da fila ops (códigos allowlist); OpenAPI admin `0.1.28-draft`; testes fake TLS; sem passwords/NIF; ≠ AGT/IdP.
+
 ## 0.2.75-draft — 2026-07-27
 
 - Ops: **INC-OPS-008-2 RESOLVIDO** — revalidação TLS estrita (465 implicit / 587 STARTTLS); teste owner-only `status=sent` port=465; sem alteração de segredos; relatório [rm-ops-008-smtp-sandbox-report.md](docs/07-operations/rm-ops-008-smtp-sandbox-report.md).

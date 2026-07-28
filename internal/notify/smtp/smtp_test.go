@@ -76,6 +76,47 @@ func TestSendAdminTestOverFakeImplicitTLS(t *testing.T) {
 	}
 }
 
+func TestSendAdminAlertDigestOverFakeImplicitTLS(t *testing.T) {
+	t.Parallel()
+	srv := startFakeImplicitSMTP(t, "user", "secret")
+	defer srv.Close()
+
+	cfg := smtp.Config{
+		Host: "127.0.0.1", Port: 465, Username: "user", Password: "secret",
+		TLSMode: "implicit", FromAddress: "noreply@example.com", FromName: "BWB Fiscal",
+		AdminNotifyAddress: "admin@example.com",
+	}
+	mailer, err := smtp.NewMailerWithDialer(cfg, func(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
+		d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, NetDialer: &net.Dialer{Timeout: 5 * time.Second}}
+		return d.DialContext(ctx, "tcp", srv.Addr())
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := mailer.SendAdminAlertDigest(context.Background(), "req_digest_1", []smtp.AlertLine{{
+		Code: "ops_retry_backlog", Severity: "warning", Message: "fila retry=5 — monitorizar tentativas",
+	}})
+	if err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if st.Status != "sent" {
+		t.Fatalf("status=%s reason=%s", st.Status, st.Reason)
+	}
+	msg := srv.LastMessage()
+	if !strings.Contains(msg, "digest de alertas") {
+		t.Fatalf("missing digest subject/body: %q", msg)
+	}
+	if !strings.Contains(msg, "ops_retry_backlog") || !strings.Contains(msg, "alert_count=1") {
+		t.Fatalf("missing alert code: %q", msg)
+	}
+	low := strings.ToLower(msg)
+	for _, banned := range []string{"secret", "password=", "nif=", "dsn="} {
+		if strings.Contains(low, banned) {
+			t.Fatalf("message leaked %q: %q", banned, msg)
+		}
+	}
+}
+
 func TestSanitizeFailureDoesNotEchoPassword(t *testing.T) {
 	t.Parallel()
 	cfg := smtp.Config{
