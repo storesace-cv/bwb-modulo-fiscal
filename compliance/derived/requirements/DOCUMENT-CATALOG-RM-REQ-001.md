@@ -34,7 +34,7 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | vendas | `bwb.ao.vendas.ft` | Factura | FE:`FT`; SAFT:`InvoiceType=FT` | `SalesInvoices` | ambos | DP71 Art.3 f) @11903 | nenhuma | pending | Art.10 @11908–11909; FE lines @19169–19170 | pending (NC/rectif. Art.8) | hipotese | on |
 | vendas | `bwb.ao.vendas.fr` | Factura-Recibo | FE:`FR`; SAFT:`InvoiceType=FR` | `SalesInvoices` | ambos | Art.3 k) @11903 | nenhuma | pending | pending | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.fg` | Factura Global | FE:`FG`; SAFT:`InvoiceType=FG` | `SalesInvoices` | ambos | Art.3 j) @11903 | nenhuma | pending | pending | pending | hipotese | off |
-| vendas | `bwb.ao.vendas.gf` | Factura Genérica | FE:`GF` (HTML; OCR gap); SAFT:`InvoiceType=GF` | `SalesInvoices` | ambos | Art.3 i) @11903 | nenhuma | pending | C-DOC-001 | pending | conflito | off |
+| vendas | `bwb.ao.vendas.gf` | Factura Genérica | FE:`GF` (HTML/XSD; ausente DE683 p.7 visual); SAFT:`InvoiceType=GF` | `SalesInvoices` | ambos | Art.3 i) @11903 | nenhuma | pending | C-DOC-001 documentado_divergencia | pending | conflito | off |
 | vendas | `bwb.ao.vendas.fa` | Factura Adiantamento | FE:`FA`; SAFT:`∅` | `∅` | FE | Art.3 g) @11903 | nenhuma | pending | C-DOC-003; FE-only | Art.8 n.º10 via NC @11908 | conflito | off |
 | vendas | `bwb.ao.vendas.ac` | Aviso de Cobrança | FE:`AC`; SAFT:`InvoiceType=AC` | `SalesInvoices` | ambos | Art.3 d) @11903 | nenhuma | pending | pending | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.ar` | Aviso Cobrança/Recibo (vendas) | FE:`AR`; SAFT:`InvoiceType=AR` | `SalesInvoices` | ambos | Art.3 d)+Art.6 n.º2 b) | nenhuma | pending | grupo único vs pagamentos = aberto | pending | hipotese | off |

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.79-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / RM-REQ-001 / C-DOC-001** — confronto visual DE 683/25 p.7 confirma `GF` ausente no diploma (HTML/XSD mantêm `GF`); estado `documentado_divergencia`; seed `gf` permanece `conflito`/`off` + teste; **sem** AO-* confirmados.
+
 ## 0.2.78-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / RM-REQ-001** — mitigação fail-closed C-DOC-003 (`doctype.CheckCDOC003Invariants` + testes FA/RC/RG); C-DOC-001 confronto texto searchable.pdf (GF omitido); C-DOC-002 rótulos `RG` documentados; **sem** AO-* confirmados; ≠ fecho jurídico DEC-REG-003.
