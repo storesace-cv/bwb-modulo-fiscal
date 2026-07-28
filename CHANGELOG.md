@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.83-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / C-FE-QR-001** — Citação K (DE 683 QR @19194–19195 vs FE HML Quiosque); pacote `internal/feqr` fail-closed; ENG-007 → `BLOQUEADO` até fecho URL; **sem** geração QR; **sem** AO-* confirmados.
+
 ## 0.2.82-draft — 2026-07-28
 
 - Compliance: **RM-VENDOR-001** — catálogo `vendor-integrations.yaml` (NET-BO V2 + PT-CERT REST); originais privados `vendor-integrations/` @ `a889ef6…`; matrizes/notas sanitizadas; AUD NET-BO read-only (`my-bwb-app` @ `629edde`); `DEC-VENDOR-001`; **sem** conector live; **sem** AO-*; ≠ fontes AGT.
