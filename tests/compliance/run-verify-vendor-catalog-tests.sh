@@ -47,7 +47,7 @@ sources:
   status: pending_validation
   license_redistribution: uncertain
   storage: private_sync
-  local_path: local/docs/x.pdf
+  local_path: consulta/docs/x.pdf
   private_repository: storesace-cv/bwb-fiscal-sources-ao
   private_commit: a889ef623c367e96cb7246ab42a274e54cbb2dc3
   private_repository_path: originals/vendor-integrations/VENDOR-NETBO-API-V2/original/NETBO_API_V2.pdf
