@@ -18,6 +18,43 @@ func TestCDOC003SeedInvariants(t *testing.T) {
 	}
 }
 
+func TestCDOC004ARDualL3Seed(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC004Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-004 seed violations: %v", v)
+	}
+	vendas, ok1 := reg.Lookup("bwb.ao.vendas.ar")
+	pag, ok2 := reg.Lookup("bwb.ao.pagamentos.ar")
+	if !ok1 || !ok2 {
+		t.Fatal("AR dual seeds missing")
+	}
+	if vendas.CodigoCanonico == pag.CodigoCanonico {
+		t.Fatal("AR canonicals must remain distinct")
+	}
+	vLayer, vCode := doctype.ParseSAFTTypeAdapter(vendas.ChannelAdapters.SAFTType)
+	pLayer, pCode := doctype.ParseSAFTTypeAdapter(pag.ChannelAdapters.SAFTType)
+	if vLayer != doctype.SAFTLayerInvoice || vCode != "AR" || vendas.ChannelAdapters.SAFTStructure != "SalesInvoices" {
+		t.Fatalf("vendas.ar: layer=%q code=%q l3=%q", vLayer, vCode, vendas.ChannelAdapters.SAFTStructure)
+	}
+	if pLayer != doctype.SAFTLayerPayment || pCode != "AR" || pag.ChannelAdapters.SAFTStructure != "Payments" {
+		t.Fatalf("pagamentos.ar: layer=%q code=%q l3=%q", pLayer, pCode, pag.ChannelAdapters.SAFTStructure)
+	}
+	if !saftao.ValidInvoiceType(saftao.InvoiceTypeAR) {
+		t.Fatal("XSD InvoiceType must accept AR")
+	}
+	if !saftao.ValidPaymentType(saftao.PaymentTypeAR) {
+		t.Fatal("XSD PaymentType must accept AR")
+	}
+	// Dual membership in XSD must not collapse product routing.
+	if vendas.Activo != doctype.ActiveOff || pag.Activo != doctype.ActiveOff {
+		t.Fatalf("AR seeds must stay off: vendas=%q pag=%q", vendas.Activo, pag.Activo)
+	}
+}
+
+
 func TestCDOC003FAIsFEOnly(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {

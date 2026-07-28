@@ -14,7 +14,7 @@
 4. **L2** `SAFTAOPaymentType` (**L2740–2754**) sob L3 `Payments` enumera **`RC`**, **`RG`**, **`AR`** — **outro** enum e **outra** estrutura que `InvoiceType`.
 5. **L1** DP 71/25 reconhece Factura Adiantamento e Recibo (Art.3 g)/o)) — rótulos legais, **não** códigos.
 6. `FA` ausente de `InvoiceType` e de `SAFTAOPaymentType`.
-7. `AR` aparece em **ambos** os enums L2 (`InvoiceType` e `PaymentType`) sob L3 distintos — **não** prova bijecção L4↔L2.
+7. `AR` aparece em **ambos** os enums L2 (`InvoiceType` e `PaymentType`) sob L3 distintos — **não** prova bijecção L4↔L2; detalhe e mitigação em [C-DOC-004](C-DOC-004-ar-dual-l3.md).
 
 ## Matriz de routing fail-closed (produto; ≠ AO-* confirmado)
 

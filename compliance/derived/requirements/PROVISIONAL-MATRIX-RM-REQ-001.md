@@ -220,7 +220,7 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 |---|---|---|---|
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 + FE HML | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + DE74 @**1577** + FE `establishmentNumber` / **FE-RNG-080** (Citação H). Terminal: OCR DE74 @**1577** menciona «terminal informático» na identificação da série (Citação I) — **não** é campo FE de documento; lacuna estabelecimento/terminal no critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | L1 Art.10 + L4 `documentType` @**19169–19170** + L2/L3 SAF-T + classes 74/19 @**1576–1577**; **não** confundir camadas; falta DEC-REG-003 + C-DOC-*; critério **não** fica satisfeito; **não** confirmado |
+| AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | L1 Art.10 + L4 `documentType` @**19169–19170** + L2/L3 SAF-T + classes 74/19 @**1576–1577**; **não** confundir camadas; falta DEC-REG-003 + C-DOC-* (incl. C-DOC-004 `AR`); critério **não** fica satisfeito; **não** confirmado |
 | AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) + DE 683 | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**) + FE `documentStatus` A/C @**19168**. Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-002 | `partial` | DE 683 + DP 71 + FE HML | Ligação preliminar: ART.4 @**19164** + `solicitarSerie` @**19183–19184** + FE `solicitarSerie`/`listarSeries` + FE-RNG-051/053/055–060 (Citação H); C-FE-001 paths abertos. Critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
@@ -244,13 +244,14 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 2. C-FE-QR-001: URL QR DE 683 vs FE HML — mitigação `internal/feqr` 2026-07-28; **não** fechar; **não** `RM-ENG-007`.
 3. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
 4. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
-5. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
-6. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
-7. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
-8. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
-9. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-10. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-11. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
+5. C-DOC-004: homónimo `AR` em `InvoiceType` **e** `PaymentType` — mitigação `CheckCDOC004Invariants` 2026-07-28; dual canónicos `off`; **residual** «grupo único por emissão»; **não** marcar resolvido.
+6. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
+7. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
+8. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
+9. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
+10. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+11. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+12. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
 
 ## Referências
 
