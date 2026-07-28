@@ -44,6 +44,14 @@ Mudança do SHA-256 do PDF original invalida todos os derivados anteriores.
 - XSD SAF-T AO ASSOFT pode ser versionado no Git público sob MIT (`storage=git_public`, `pending_validation`); o ZIP completo permanece `local_only`.
 - Se a redistribuição pública do Diário da República não for autorizada, originais e derivados OCR futuros permanecem em armazenamento privado sincronizado; o Git público mantém catálogo, hashes, proveniência, referências e artefactos redistribuíveis autorizados.
 
+## Vendor integrations (não normativo)
+
+- Documentação técnica de fornecedores (NET-BO, PT-CERT, …) cataloga-se em [`catalog/vendor-integrations.yaml`](catalog/vendor-integrations.yaml) — **separado** de `sources.yaml`.
+- Originais: `storesace-cv/bwb-fiscal-sources-ao` → `originals/vendor-integrations/` (`storage=private_sync`).
+- IDs `VENDOR-*`; `authority=vendor_technical`; `normative=false`.
+- **Nunca** geram requisitos `AO-*` nem substituem AGT/DR/FE.
+- Ver [`docs/01-compliance/vendor-integrations/`](../docs/01-compliance/vendor-integrations/) e `DEC-VENDOR-001`.
+
 ## Experiência cross-project
 
 Conhecimento técnico proveniente de outras aplicações internas (ex. inventário B0) pode informar testes e desenho, mas **não** constitui fonte normativa. Hipóteses operacionais (incluindo compatibilidade de namespaces com validadores AGT) não geram requisitos `AO-*` nem autofix até evidência oficial. Ver [AUD-B0](../docs/01-compliance/audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).

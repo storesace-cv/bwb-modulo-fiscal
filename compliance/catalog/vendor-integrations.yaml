@@ -1,0 +1,69 @@
+catalog_version: 1
+collection_id: vendor-integrations-2026-07-28
+retrieved_at: '2026-07-28'
+description: >-
+  Catálogo técnico de fornecedores (NET-BO, PT-CERT). Separado de
+  compliance/catalog/sources.yaml (fontes AGT/legislação/FE). normative=false.
+  Originais só em storesace-cv/bwb-fiscal-sources-ao originals/vendor-integrations/.
+  Não gera requisitos AO-*. Não autoriza conector live.
+normative: false
+sources:
+- id: VENDOR-NETBO-API-V2
+  official_name: NET-BO API Documentation V2
+  vendor: NET-BO
+  authority: vendor_technical
+  type: vendor_api_doc
+  version: V2
+  published_at: null
+  retrieved_at: '2026-07-28'
+  source_url: null
+  url_status: not_applicable
+  sha256: 09bb09f8064ad49d98bf9cffc0a80eb7a2dbded5f4221c54e5ca19da82cb7c86
+  status: pending_validation
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/NET-BO NETBO API - V2.pdf
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: a889ef623c367e96cb7246ab42a274e54cbb2dc3
+  private_repository_path: originals/vendor-integrations/VENDOR-NETBO-API-V2/original/NETBO_API_V2.pdf
+  page_count: 52
+  text_extractable: true
+  affects:
+  - vendor_connector_design
+  - edge_sync
+  - double_issuance_risk
+  notes: >-
+    Documentação API cloud HTTPS NET-BO (companies.api / *.api.net-bo.com).
+    ≠ AGT/FE oficial. Auth via token header; doc cita login/passwd em query.
+    Endpoints de documentos (create_invoice, etc.) implicam risco de dupla emissão
+    se usados como autoridade fiscal. Ver matriz e AUD-VENDOR-NETBO.
+
+- id: VENDOR-PTCERT-REST-API
+  official_name: PT-CERT REST API (POS_API) V0.1
+  vendor: Opala Consult / PT-CERT
+  authority: vendor_technical
+  type: vendor_api_doc
+  version: V0.1
+  published_at: '2021-12-01'
+  retrieved_at: '2026-07-28'
+  source_url: https://www.opalaconsult.com
+  url_status: pending_validation
+  sha256: 52e3408058cf4ca707b00daaa2cdacafac94d9874a89e2268517f41370590465
+  status: pending_validation
+  license_redistribution: uncertain
+  storage: private_sync
+  local_path: local/docs/PTCERT PT-CERT REST API.pdf
+  private_repository: storesace-cv/bwb-fiscal-sources-ao
+  private_commit: a889ef623c367e96cb7246ab42a274e54cbb2dc3
+  private_repository_path: originals/vendor-integrations/VENDOR-PTCERT-REST-API/original/PTCERT_REST_API.pdf
+  page_count: 19
+  text_extractable: true
+  affects:
+  - edge_connector
+  - pos_lan_http
+  - double_issuance_risk
+  - endpoint_allowlist
+  notes: >-
+    API local HTTP :3041 com módulo de licença POS_API. ≠ AGT Angola.
+    Sem autenticação documentada; payloads posicionais; db_table/file_*;
+    check_create emite no POS. Ver PTCERT-POS-API-NOTES.

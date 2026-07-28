@@ -13,6 +13,15 @@ Este documento mantém o contexto narrativo das fontes; o catálogo é a fonte d
 Auditoria de capacidades SAF-T AO noutro projecto privado (pista técnica, não normativa):
 [audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md](audits/AUD-B0-SAFTAO-CROSS-PROJECT-REUSE.md).
 
+## Integrações de fornecedor (não normativo)
+
+Catálogo separado: [`compliance/catalog/vendor-integrations.yaml`](../../compliance/catalog/vendor-integrations.yaml).
+
+- NET-BO API V2 + PT-CERT REST POS_API — originais só no privado `originals/vendor-integrations/` ([`a889ef6…`](https://github.com/storesace-cv/bwb-fiscal-sources-ao/commit/a889ef623c367e96cb7246ab42a274e54cbb2dc3)).
+- Resumos / matrizes: [`vendor-integrations/`](vendor-integrations/).
+- Auditoria NET-BO (`my-bwb-app` @ `629edde`): [audits/AUD-VENDOR-NETBO-REUSE-MY-BWB-APP.md](audits/AUD-VENDOR-NETBO-REUSE-MY-BWB-APP.md).
+- Decisão: `DEC-VENDOR-001` em [`open-decisions.md`](../06-delivery/open-decisions.md).
+
 ## Fonte oficial prioritária
 
 ### Portal do Contribuinte — Ministério das Finanças de Angola / AGT

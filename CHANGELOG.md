@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.82-draft — 2026-07-28
+
+- Compliance: **RM-VENDOR-001** — catálogo `vendor-integrations.yaml` (NET-BO V2 + PT-CERT REST); originais privados `vendor-integrations/` @ `a889ef6…`; matrizes/notas sanitizadas; AUD NET-BO read-only (`my-bwb-app` @ `629edde`); `DEC-VENDOR-001`; **sem** conector live; **sem** AO-*; ≠ fontes AGT.
+
 ## 0.2.81-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / C-FE-001** — pacote `internal/fepath` fail-closed (`ConflictOpen`; recusa URLs para `solicitarSerie`/`listarFacturas`; alinhados só `/sigt/fe/v1`); **sem** AO-AGT confirmado; ≠ path «correcto» AGT; ≠ fecho GAP-006.

@@ -55,6 +55,8 @@ jobs:
           compliance/scripts/.venv/bin/pip install -q -r compliance/scripts/requirements.txt
           compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
           bash tests/compliance/run-verify-catalog-tests.sh
+          compliance/scripts/.venv/bin/python compliance/scripts/verify_vendor_catalog.py
+          bash tests/compliance/run-verify-vendor-catalog-tests.sh
           python3 compliance/scripts/verify_provisional_matrix.py
           bash tests/compliance/run-verify-provisional-matrix-tests.sh
           python3 compliance/scripts/verify_document_types_matrix.py
@@ -86,6 +88,7 @@ jobs:
           shellcheck -e SC2016 compliance/scripts/verify_no_local_deps.sh
           shellcheck -e SC2015,SC2016 tests/docs/run-verify-roadmap-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-catalog-tests.sh
+          shellcheck -e SC2015,SC2016 tests/compliance/run-verify-vendor-catalog-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-provisional-matrix-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-document-types-matrix-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-document-catalog-tests.sh

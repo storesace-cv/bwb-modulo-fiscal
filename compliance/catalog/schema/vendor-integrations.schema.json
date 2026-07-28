@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/storesace-cv/bwb-modulo-fiscal/compliance/catalog/schema/vendor-integrations.schema.json",
+  "title": "Vendor technical integrations catalog (non-normative)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "catalog_version",
+    "collection_id",
+    "retrieved_at",
+    "description",
+    "normative",
+    "sources"
+  ],
+  "properties": {
+    "catalog_version": { "type": "integer", "minimum": 1 },
+    "collection_id": { "type": "string", "minLength": 1 },
+    "retrieved_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "description": { "type": "string", "minLength": 1 },
+    "normative": { "type": "boolean", "const": false },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^VENDOR-[A-Z0-9]+([._-][A-Z0-9]+)+$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "official_name",
+        "vendor",
+        "authority",
+        "type",
+        "sha256",
+        "status",
+        "license_redistribution",
+        "storage",
+        "local_path",
+        "private_repository",
+        "private_commit",
+        "private_repository_path",
+        "page_count",
+        "text_extractable",
+        "affects",
+        "notes"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/sourceId" },
+        "official_name": { "type": "string", "minLength": 1 },
+        "vendor": { "type": "string", "minLength": 1 },
+        "authority": { "type": "string", "const": "vendor_technical" },
+        "type": {
+          "type": "string",
+          "enum": ["vendor_api_doc"]
+        },
+        "version": { "type": ["string", "null"] },
+        "published_at": { "type": ["string", "null"] },
+        "retrieved_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "source_url": { "type": ["string", "null"] },
+        "url_status": {
+          "type": "string",
+          "enum": ["ok", "pending_validation", "unavailable", "not_applicable"]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "superseded", "withdrawn", "pending_validation"]
+        },
+        "license_redistribution": {
+          "type": "string",
+          "enum": ["permitted", "uncertain", "forbidden", "local_only"]
+        },
+        "storage": { "type": "string", "const": "private_sync" },
+        "local_path": { "type": "string", "minLength": 1 },
+        "private_repository": { "type": "string", "minLength": 1 },
+        "private_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "private_repository_path": {
+          "type": "string",
+          "pattern": "^originals/vendor-integrations/"
+        },
+        "page_count": { "type": "integer", "minimum": 1 },
+        "text_extractable": { "type": "boolean" },
+        "affects": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
