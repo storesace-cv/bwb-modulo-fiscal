@@ -106,3 +106,57 @@ func TestParseSAFTTypeAdapter(t *testing.T) {
 		}
 	}
 }
+
+func TestGFRemainsConflictOffCDOC001(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gf, ok := reg.Lookup("bwb.ao.vendas.gf")
+	if !ok {
+		t.Fatal("GF missing from catalog")
+	}
+	if gf.Activo != doctype.ActiveOff {
+		t.Fatalf("GF must stay off until C-DOC-001 compliance close: %q", gf.Activo)
+	}
+	if gf.EstadoNormativo != "conflito" {
+		t.Fatalf("GF estado_normativo: %q", gf.EstadoNormativo)
+	}
+	if gf.ChannelAdapters.FECode != "GF" {
+		t.Fatalf("FE GF: %q", gf.ChannelAdapters.FECode)
+	}
+	layer, code := doctype.ParseSAFTTypeAdapter(gf.ChannelAdapters.SAFTType)
+	if layer != doctype.SAFTLayerInvoice || code != "GF" {
+		t.Fatalf("SAFT GF adapter: layer=%q code=%q raw=%q", layer, code, gf.ChannelAdapters.SAFTType)
+	}
+	// Availability must stay blocked by normative conflict even if forcefully activated.
+	rep := reg.ComputeAvailability(doctype.AvailabilityInput{
+		FEEnrollmentStatus: "active",
+		Config: doctype.AvailabilityConfig{
+			TypeActiveOverride: map[string]bool{"bwb.ao.vendas.gf": true},
+		},
+	})
+	var row *doctype.TypeAvailability
+	for i := range rep.Types {
+		if rep.Types[i].CodigoCanonico == "bwb.ao.vendas.gf" {
+			row = &rep.Types[i]
+			break
+		}
+	}
+	if row == nil {
+		t.Fatal("GF availability row missing")
+	}
+	if row.Available {
+		t.Fatal("GF must not be available while estado_normativo=conflito")
+	}
+	found := false
+	for _, r := range row.Reasons {
+		if r == doctype.ReasonAGTPending {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected ReasonAGTPending, got %v", row.Reasons)
+	}
+}

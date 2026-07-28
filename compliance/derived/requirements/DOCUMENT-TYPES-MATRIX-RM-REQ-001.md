@@ -104,7 +104,7 @@ Isto é a **API FE**, não o XSD SAF-T e não o rótulo legal do DP 71.
 | FT | Factura | p.7 · 19169 | idem | Art.3 f) |
 | FR | Factura/Recibo | p.7 · 19169 | idem | Art.3 k) |
 | FG | Factura Global | p.7 · 19169 | idem | Art.3 j) |
-| GF | Factura Genérica | **ausente no OCR p.7** (lacuna OCR) | **presente** em `servico_registar.html` | Art.3 i) — ver conflito C-DOC-001 |
+| GF | Factura Genérica | **ausente** no DE 683 p.7 (OCR + searchable + **visual 2026-07-28**) | **presente** em `servico_registar.html` + XSD `InvoiceType` | Art.3 i) — [C-DOC-001](../conflicts/C-DOC-001-fe-gf-ocr-gap.md) `documentado_divergencia` |
 | AC | Aviso de Cobrança | p.7 · 19169 | idem | Art.3 d) |
 | AR | Aviso de Cobrança/Recibo | p.7 · 19169 | idem | Art.3 d) + Art.6 n.º2 b) |
 | TV | Talão de Venda | p.7 · 19169 | idem | Art.3 p) |
@@ -263,7 +263,7 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 
 | Código | L4 FE | L2 (grupo) | Nota |
 |---|---|---|---|
-| FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1) | GF: C-DOC-001 (OCR) |
+| FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1) | GF: C-DOC-001 (divergência DE 683 vs HTML/XSD) |
 | AR | sim | `InvoiceType` (1) e/ou `PaymentType` (4) | grupo único por emissão — aberto |
 | RE, RP, RA, CS, LD | sim | `InvoiceType` (1); também `WorkType` (3) p/ alguns | segurador |
 | RC | sim | `PaymentType` (4); também `PurchaseType` (5) regime caixa | **≠** `InvoiceType` (C-DOC-003) |
@@ -337,7 +337,7 @@ Colunas **não** são bijecções. Grupo L3 = um dos **5** de DEC-PROD-001. Cél
 | Factura (Art.3 f) | FT | `InvoiceType=FT` | 1 Vendas | `invoice` (**hipótese**) | **não** confirmado |
 | Factura-Recibo (Art.3 k) | FR | `InvoiceType=FR` | 1 Vendas | — | hipótese |
 | Factura Global (Art.3 j) | FG | `InvoiceType=FG` | 1 Vendas | — | hipótese |
-| Factura Genérica (Art.3 i) | GF (HTML; OCR gap) | `InvoiceType=GF` | 1 Vendas | — | C-DOC-001 |
+| Factura Genérica (Art.3 i) | GF (HTML/XSD; **ausente** DE 683 p.7 visual) | `InvoiceType=GF` | 1 Vendas | — | C-DOC-001 |
 | Factura Adiantamento (Art.3 g) | FA | **∅** `InvoiceType` | **∅** | — | C-DOC-003 |
 | Aviso de Cobrança (Art.3 d) | AC | `InvoiceType=AC` | 1 Vendas | — | hipótese |
 | Aviso Cobrança/Recibo (Art.3 d)+Art.6 n.º2 b) | AR | `InvoiceType` e/ou `PaymentType` | **1 e/ou 4** | — | sem decisão de grupo único |
@@ -495,7 +495,7 @@ Art.10 n.º2: taxas diferentes → descrição separada · p.**9** · **11909**.
 13. Auditoria (`DEC-PROD-013`): append-only; retenção final só com norma consolidada.
 14. Modelo completo SAF-T∪FE (`DEC-PROD-014`); **não** truncar catálogo ao OpenAPI slice; faseamento = `DEC-REG-003`.
 15. **Não** alargar OpenAPI público sem revisão; slice actual `invoice`/`credit_note` ≠ perímetro do modelo.
-16. **Não** tratar OCR DE 683 p.7 como enum L4 completo enquanto `GF` existir no HTML e faltar no OCR (C-DOC-001).
+16. **Não** activar `GF` nem tratar DE 683 p.7 como enum L4 alinhado ao HTML enquanto C-DOC-001 (`documentado_divergencia`) permanecer sem fecho compliance.
 17. **Não** assumir bijecção L4↔L2↔L3 (`FA`/`RC`/`RG`; `PaymentType` ≠ `InvoiceType` ≠ `PurchaseType`).
 18. `AO-DOC-001` permanece **não** confirmado; esta matriz é inventário citado por camada/grupo/canal.
 19. Precedência: DP 71/25 (L1) + DE 683/25 (L4) + XSD (L2/L3) + 74/19+Rect (validação); conflitos → `compliance/derived/conflicts/`.

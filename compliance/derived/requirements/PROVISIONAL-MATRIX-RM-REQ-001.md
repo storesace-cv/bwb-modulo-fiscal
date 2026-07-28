@@ -2,7 +2,7 @@
 
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
 **Data:** 2026-07-28
-**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation` — **não** há AO-* confirmados.
+**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation` — **não** há AO-* confirmados. C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
 
 ## Fontes admitidas neste rascunho
 
@@ -230,7 +230,7 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 1. Fechar C-FE-001 (paths HML `/ws/` vs `/v1`; URL solicitarSerie) + GAP-006 credenciais — manter `AO-AGT-001` `pending_validation` (VALIDAR/CONSULTAR-FATURA alinhados **não** fecham o conflito).
 2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
 3. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
-4. C-DOC-001: confronto texto searchable.pdf omite `GF` (como OCR) — residual confronto visual PNG; manter `GF` `conflito`/`off`.
+4. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
 5. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
 6. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
 7. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
