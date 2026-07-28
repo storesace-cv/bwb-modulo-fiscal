@@ -17,8 +17,9 @@ Governação versionada de fontes fiscais (catálogo, política e estrutura). Co
 compliance/
   README.md                 # este ficheiro
   POLICY.md                 # regras jurídicas/técnicas
-  catalog/sources.yaml      # catálogo (PR A: só metadados)
-  catalog/schema/           # JSON Schema do catálogo
+  catalog/sources.yaml      # catálogo normativo/técnico AGT (metadados)
+  catalog/vendor-integrations.yaml  # fornecedores (≠ AGT; normative=false)
+  catalog/schema/           # JSON Schema dos catálogos
   scripts/                  # validação determinística (sem OCR no CI)
   legislation/ao/           # OCR futuro (se autorizado)
   saft-ao/                  # XSD + LICENSE/NOTICE (SRC-B2)
@@ -31,8 +32,9 @@ compliance/
 
 - Ficheiro: [`catalog/sources.yaml`](catalog/sources.yaml)
 - Schema: [`catalog/schema/sources.schema.json`](catalog/schema/sources.schema.json)
+- Vendor (separado): [`catalog/vendor-integrations.yaml`](catalog/vendor-integrations.yaml) · schema [`catalog/schema/vendor-integrations.schema.json`](catalog/schema/vendor-integrations.schema.json)
 - Recolha indexada: `arquivo_fiscal_ao-2026-07-25` (20 fontes)
-- Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; sem OCR)
+- Armazenamento privado B1: `storesace-cv/bwb-fiscal-sources-ao` (PDFs + HTML FE + proveniência; vendor em `originals/vendor-integrations/`)
 - XSD público B2: [`saft-ao/schemas/`](saft-ao/schemas/) (`AO-SAFT-XSD-1.01_01`, `pending_validation`); ZIP `local_only`
 
 Os três PDFs do Diário da República são **image-only**. OCR: 74/19 e 683/25 v2 `reviewed` no privado (KB auxiliar); Rect. 10/19 sem original integral — `rejected` **não** é KB. RM-SRC-004/RM-M2-C **BLOQUEADOS**. CI valida metadados **sem** regenerar OCR.
@@ -44,6 +46,8 @@ python3 -m venv compliance/scripts/.venv
 compliance/scripts/.venv/bin/pip install -r compliance/scripts/requirements.txt
 compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py
 bash tests/compliance/run-verify-catalog-tests.sh
+compliance/scripts/.venv/bin/python compliance/scripts/verify_vendor_catalog.py
+bash tests/compliance/run-verify-vendor-catalog-tests.sh
 # Desenvolvimento (opcional; exige local/):
 compliance/scripts/.venv/bin/python compliance/scripts/verify_catalog.py --with-local
 bash compliance/scripts/verify_no_local_deps.sh

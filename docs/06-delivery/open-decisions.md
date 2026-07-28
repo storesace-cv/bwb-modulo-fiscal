@@ -1075,6 +1075,24 @@ Fluxos SecAdm: importar / rotacionar / revogar através da interface `SecretStor
 
 ---
 
+## DEC-VENDOR-001 — Integrações vendor ≠ autoridade de emissão AGT
+
+**Estado:** decidida (2026-07-28)
+**Âmbito:** NET-BO, PT-CERT e futuros conectores técnicos de fornecedor
+**Evidência:** [`vendor-integrations/README.md`](../01-compliance/vendor-integrations/README.md) · [`PTCERT-POS-API-NOTES.md`](../01-compliance/vendor-integrations/PTCERT-POS-API-NOTES.md) · `RM-VENDOR-001`
+
+**Decisão:**
+
+1. Fontes `VENDOR-*` são **técnicas** (`authority=vendor_technical`) e vivem em catálogo **separado** de `sources.yaml`.
+2. O módulo fiscal BWB permanece a **única** autoridade de numeração/emissão no âmbito AGT Angola do produto.
+3. Proibido usar APIs vendor de criação de documento/conta (`create_invoice` NET-BO, `check_create` PT-CERT, etc.) para atribuir o número fiscal AO ou selar documentos AGT.
+4. PT-CERT `:3041` só como candidato a **edge sync** LAN; NET-BO como candidato a sync operacional cloud — ambos sem conector live até tarefa dedicada + allowlist de segurança.
+5. Esta decisão **não** confirma `AO-*` nem fecha GAP AGT.
+
+**Não autoriza:** PDFs vendor no Git público; mistura de IDs `VENDOR-*` com `AO-LEG-*`; exposição Internet de `:3041`.
+
+---
+
 ## Prioridade de decisão (abertas)
 
 Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-dependencies.md).
@@ -1086,7 +1104,7 @@ Inventário AGT: [`../01-compliance/agt-dependencies.md`](../01-compliance/agt-d
 5. **DEC-API-004** — momento jurídico da emissão/aceitação (**AGT** / norma).
 6. **DEC-REG-004** — contingência offline certificável (**AGT**; produto técnico = `DEC-PROD-010`).
 
-**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**, **DEC-BO-003**, **DEC-BO-004**.
+**Já decididas (fora da lista prioritária):** DEC-STACK-001, **DEC-DEL-001**, **DEC-DEL-002**, DEC-API-001, DEC-API-003, **DEC-TIME-001**, **DEC-OPS-001**, **DEC-PROD-001**–**015**, **DEC-REG-003**, **DEC-BO-001**, **DEC-BO-002**, **DEC-BO-003**, **DEC-BO-004**, **DEC-VENDOR-001**.
 
 ---
 
