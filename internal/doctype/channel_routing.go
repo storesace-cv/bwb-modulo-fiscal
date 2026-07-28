@@ -15,6 +15,7 @@ const (
 	SAFTLayerNone    SAFTLayer = ""
 	SAFTLayerInvoice SAFTLayer = "InvoiceType"
 	SAFTLayerPayment SAFTLayer = "PaymentType"
+	SAFTLayerWork    SAFTLayer = "WorkType"
 	SAFTLayerOther   SAFTLayer = "other"
 )
 
@@ -36,6 +37,8 @@ func ParseSAFTTypeAdapter(saftType string) (layer SAFTLayer, code string) {
 		return SAFTLayerInvoice, val
 	case "PaymentType":
 		return SAFTLayerPayment, val
+	case "WorkType":
+		return SAFTLayerWork, val
 	default:
 		return SAFTLayerOther, val
 	}
@@ -258,6 +261,157 @@ func checkARHomonym(e Entry, wantLayer SAFTLayer, wantL3, wantGrupo string) []CD
 			SAFTStructure:  structL3,
 			Reason:         "AR dual-L3 permanece off até fecho residual (C-DOC-004)",
 		})
+	}
+	return out
+}
+
+// CDOC005Violation is a catalog row that breaks C-DOC-005 insurer dual L3 invariants.
+type CDOC005Violation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v CDOC005Violation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+// Insurer FE codes that also exist as WorkType in the ASSOFT XSD (C-DOC-005).
+var cdoc005InsurerFECodes = []string{"RP", "RE", "CS", "LD", "RA"}
+
+func cdoc005CanonicalVendas(code string) string {
+	return "bwb.ao.vendas." + strings.ToLower(code)
+}
+
+// CheckCDOC005Invariants validates insurer dual-membership fail-closed bindings:
+// FE RP/RE/CS/LD/RA seeds under vendas must stay InvoiceType+SalesInvoices+off;
+// XSD also lists the same literals under WorkType — never collapse L3 or invent FE→WorkType.
+// Does not confirm AO-DOC-* and does not invent conferencia.* dual seeds.
+func (r *Registry) CheckCDOC005Invariants() []CDOC005Violation {
+	if r == nil {
+		return nil
+	}
+	out := make([]CDOC005Violation, 0)
+	for _, code := range cdoc005InsurerFECodes {
+		canon := cdoc005CanonicalVendas(code)
+		e, ok := r.Lookup(canon)
+		if !ok {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: canon,
+				FECode:         code,
+				Reason:         "seed vendas." + strings.ToLower(code) + " obrigatório (C-DOC-005)",
+			})
+			continue
+		}
+		fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+		layer, c := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		grupo := strings.TrimSpace(e.Grupo)
+		if fe != code {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "FECode deve coincidir com literal segurador " + code,
+			})
+		}
+		if layer != SAFTLayerInvoice || c != code {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige InvoiceType=" + code + " até DEC-REG-003 (C-DOC-005); proibido WorkType no seed FE",
+			})
+		}
+		if structL3 != "SalesInvoices" {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige L3 SalesInvoices (C-DOC-005)",
+			})
+		}
+		if grupo != "vendas" {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige grupo=vendas (C-DOC-005)",
+			})
+		}
+		if e.Activo != ActiveOff {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "segurador dual-L3 permanece off até fecho residual (C-DOC-005)",
+			})
+		}
+	}
+
+	// Guard: no FE=insurer row may bind WorkType (would invent FE→WorkType without DEC-REG-003).
+	// SAF-T-only WorkType rows (FE empty) for these codes would need distinct canonicals — none today.
+	for _, e := range r.All() {
+		fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+		layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		isInsurerFE := false
+		for _, c := range cdoc005InsurerFECodes {
+			if fe == c {
+				isInsurerFE = true
+				break
+			}
+		}
+		if isInsurerFE && layer == SAFTLayerWork {
+			out = append(out, CDOC005Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "proibido FE→WorkType para códigos segurador sem DEC-REG-003 (C-DOC-005)",
+			})
+		}
+		if layer == SAFTLayerWork && (code == "RP" || code == "RE" || code == "CS" || code == "LD" || code == "RA") {
+			if structL3 != "WorkingDocuments" {
+				out = append(out, CDOC005Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "WorkType=" + code + " exige L3 WorkingDocuments (C-DOC-005)",
+				})
+			}
+			if fe != "" && fe != "∅" {
+				// Already covered for insurer FE; keep generic clarity for non-empty FE.
+				if !isInsurerFE {
+					out = append(out, CDOC005Violation{
+						CodigoCanonico: e.CodigoCanonico,
+						FECode:         fe,
+						SAFTType:       e.ChannelAdapters.SAFTType,
+						SAFTStructure:  structL3,
+						Reason:         "WorkType segurador com FE não-vazio exige decisão DEC-REG-003 (C-DOC-005)",
+					})
+				}
+			}
+		}
+		if layer == SAFTLayerInvoice && (code == "RP" || code == "RE" || code == "CS" || code == "LD" || code == "RA") {
+			if structL3 != "SalesInvoices" {
+				out = append(out, CDOC005Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "InvoiceType=" + code + " exige L3 SalesInvoices (C-DOC-005)",
+				})
+			}
+		}
 	}
 	return out
 }

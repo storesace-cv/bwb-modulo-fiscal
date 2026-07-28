@@ -1,6 +1,7 @@
 package doctype_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/doctype"
@@ -51,6 +52,37 @@ func TestCDOC004ARDualL3Seed(t *testing.T) {
 	// Dual membership in XSD must not collapse product routing.
 	if vendas.Activo != doctype.ActiveOff || pag.Activo != doctype.ActiveOff {
 		t.Fatalf("AR seeds must stay off: vendas=%q pag=%q", vendas.Activo, pag.Activo)
+	}
+}
+
+func TestCDOC005InsurerDualL3Seed(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC005Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-005 seed violations: %v", v)
+	}
+	codes := []string{"RP", "RE", "CS", "LD", "RA"}
+	for _, code := range codes {
+		canon := "bwb.ao.vendas." + strings.ToLower(code)
+		e, ok := reg.Lookup(canon)
+		if !ok {
+			t.Fatalf("missing %s", canon)
+		}
+		layer, c := doctype.ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		if layer != doctype.SAFTLayerInvoice || c != code || e.ChannelAdapters.SAFTStructure != "SalesInvoices" {
+			t.Fatalf("%s: layer=%q code=%q l3=%q", canon, layer, c, e.ChannelAdapters.SAFTStructure)
+		}
+		if e.Activo != doctype.ActiveOff {
+			t.Fatalf("%s must stay off", canon)
+		}
+		if !saftao.ValidInvoiceType(saftao.InvoiceType(code)) {
+			t.Fatalf("InvoiceType must accept %s", code)
+		}
+		if !saftao.ValidWorkType(saftao.WorkType(code)) {
+			t.Fatalf("WorkType must accept %s (dual membership)", code)
+		}
 	}
 }
 
@@ -133,6 +165,7 @@ func TestParseSAFTTypeAdapter(t *testing.T) {
 		{"∅", doctype.SAFTLayerNone, ""},
 		{"InvoiceType=FT", doctype.SAFTLayerInvoice, "FT"},
 		{"PaymentType=RC", doctype.SAFTLayerPayment, "RC"},
+		{"WorkType=RP", doctype.SAFTLayerWork, "RP"},
 		{"PurchaseType=FT", doctype.SAFTLayerOther, "FT"},
 	}
 	for _, tc := range cases {
