@@ -65,7 +65,11 @@ SAFTAO1.01_01.xsd e9a938e1 AuditFile InvoiceType InvoiceNo InvoiceStatus Referen
 ### Citação G — DE 683 Anexos
 Anexo I registarFactura taxType 19166; Anexo II 19193; Anexo III 19194 solicitarSerie; Tabelas 19212–19223.
 ### Citação H — FE HML FE-RNG
-AO-FE-SNAP-HML-2026-07-25-REGISTAR eb430954 AO-FE-SNAP-HML-2026-07-25-SOLICITAR f8fb22e7 AO-FE-SNAP-HML-2026-07-25-LISTAR 5729f02c FE-RNG-051 registarFactura solicitarSerie listarSeries C-FE-001 pending_validation FE-SERVICES-MATRIX-RM-REQ-001
+AO-FE-SNAP-HML-2026-07-25-REGISTAR eb430954 AO-FE-SNAP-HML-2026-07-25-SOLICITAR f8fb22e7 AO-FE-SNAP-HML-2026-07-25-LISTAR 5729f02c AO-FE-SNAP-HML-2026-07-25-VALIDAR 7ab70629 FE-RNG-051 FE-RNG-033 registarFactura solicitarSerie listarSeries validarDocumento C-FE-001 pending_validation FE-SERVICES-MATRIX-RM-REQ-001
+### Citação I — terminal série DE74
+terminal informático 1577
+### Citação J — GESTAO chaves
+de423e66 GAP-013
 ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ID | Estado | Fonte candidata | Nota |
 |---|---|---|---|

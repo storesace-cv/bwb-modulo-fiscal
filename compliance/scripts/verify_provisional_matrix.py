@@ -407,12 +407,15 @@ def verify(root: Path) -> list[str]:
             "AO-FE-SNAP-HML-2026-07-25-REGISTAR",
             "AO-FE-SNAP-HML-2026-07-25-SOLICITAR",
             "AO-FE-SNAP-HML-2026-07-25-LISTAR",
+            "AO-FE-SNAP-HML-2026-07-25-VALIDAR",
             "eb430954",
             "f8fb22e7",
             "5729f02c",
+            "7ab70629",
             "registarFactura",
             "solicitarSerie",
             "listarSeries",
+            "validarDocumento",
             "C-FE-001",
             "pending_validation",
             "FE-SERVICES-MATRIX-RM-REQ-001",
@@ -421,6 +424,10 @@ def verify(root: Path) -> list[str]:
                 fail(f"Citação H deve incluir `{token}` na própria secção", errors)
         if not re.search(r"FE-RNG-\d+", citation_h):
             fail("Citação H deve incluir pelo menos um código FE-RNG-NNN concreto", errors)
+        if "Citação J" not in text or "de423e66" not in text:
+            fail("matriz deve incluir Citação J (GESTAO / chaves; de423e66…)", errors)
+        if "Citação I" not in text or "terminal informático" not in text:
+            fail("matriz deve incluir Citação I (terminal informático / série DE74)", errors)
 
     if "FE-SERVICES-MATRIX-RM-REQ-001" not in text:
         fail("matriz deve referir FE-SERVICES-MATRIX-RM-REQ-001", errors)
