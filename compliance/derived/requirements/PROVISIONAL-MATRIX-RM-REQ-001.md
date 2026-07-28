@@ -215,7 +215,7 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 | AO-TAX-001 | `partial` | DE 683 Anexo I + Tabelas 2–6 | Ligação preliminar: `taxType`/`taxCode`/`taxExemptionCode` @**19171–19173** + Tabelas 2–6 @**19212–19227** (Citação G). Arredondamento/cálculo MVP e DEC-REG-003 **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-CRYPTO-001 | `partial` | DE 683 + FE HML (+ DE 74/19 só como contraste) | Ligação preliminar FE: `jwsDocumentSignature` @**19168** + RS256 snapshot (`pending_validation`). Encadeamento Hash SAF-T n.º34 @**1582–1584** é **outro** mecanismo (C-SIGN-001 + `internal/signsep`); **não** misturar. Critério do catálogo **não** fica satisfeito só com estas fontes. **Não** confirmado |
 | AO-KEY-001 | `blocked` | GAP-013 + Citação J | Snapshot GESTAO distingue chaves software vs contribuinte; **não** autoriza custódia por módulo externo; GAP-013 aberto |
-| AO-AGT-001 | `pending_validation` | FE HML snapshots (Citação H) | Endpoints + FE-RNG + Basic Auth citados (`eb430954…`/`f8fb22e7…`/…); C-FE-001 + GAP-006 credenciais abertos; critério do catálogo **não** fica satisfeito só com snapshots; **não** confirmado |
+| AO-AGT-001 | `pending_validation` | FE HML snapshots (Citação H) | Endpoints + FE-RNG + Basic Auth citados (`eb430954…`/`f8fb22e7…`/…); C-FE-001 mitigação `internal/fepath` (≠ fecho) + GAP-006 credenciais abertos; critério do catálogo **não** fica satisfeito só com snapshots; **não** confirmado |
 | AO-AGT-002 | `partial` | FE MODELO + DE 683 | Ligação preliminar: assíncrono `requestID` + `obterEstado` (`f851f512…`, Citação H) + validação a posteriori Anexo II @**19193**. DEC-API-004 / estados completos **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-001 | `partial` | DP 71 + DE 683 | Ligação preliminar: Art.18 @**11911–11912** + FE `obterEstado`/`validationStatus` P (atraso >24h sem contingência) @**19179**/**19183**. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
@@ -227,7 +227,7 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 
 ## Próximos passos (este item)
 
-1. Fechar C-FE-001 (paths HML `/ws/` vs `/v1`; URL solicitarSerie) + GAP-006 credenciais — manter `AO-AGT-001` `pending_validation` (VALIDAR/CONSULTAR-FATURA alinhados **não** fecham o conflito).
+1. C-FE-001: mitigação fail-closed (`internal/fepath`) 2026-07-28 — **residual** confirmação AGT dos paths + GAP-006; manter `AO-AGT-001` `pending_validation` (VALIDAR/CONSULTAR-FATURA alinhados **não** fecham o conflito).
 2. AO-SAF-001/002: validação AGT do XSD + vetores dourados — manter `pending_validation`.
 3. C-DOC-003: mitigação fail-closed (seed + `doctype.CheckCDOC003Invariants`) documentada 2026-07-28 — **residual** `DEC-REG-003` / dual-stack; **não** marcar resolvido.
 4. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
@@ -236,7 +236,7 @@ Limites: snapshot HML ≠ escrito AGT de custódia; GAP-013 / `DEC-REG-KEY-CUSTO
 7. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
 8. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
 9. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-10. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003.
+10. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` sem fecho C-FE-001.
 
 ## Referências
 
