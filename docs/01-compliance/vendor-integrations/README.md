@@ -1,7 +1,7 @@
 # Vendor integrations (técnico; **não** normativo AGT)
 
-**Estado:** inventário 2026-07-28 · `RM-VENDOR-001`  
-**Catálogo:** [`../catalog/vendor-integrations.yaml`](../catalog/vendor-integrations.yaml)  
+**Estado:** inventário 2026-07-28 · `RM-VENDOR-001`
+**Catálogo:** [`../catalog/vendor-integrations.yaml`](../catalog/vendor-integrations.yaml)
 **Originais:** privado [`storesace-cv/bwb-fiscal-sources-ao`](https://github.com/storesace-cv/bwb-fiscal-sources-ao) · `originals/vendor-integrations/` · commit [`a889ef6…`](https://github.com/storesace-cv/bwb-fiscal-sources-ao/commit/a889ef623c367e96cb7246ab42a274e54cbb2dc3)
 
 ## Separação obrigatória

@@ -1077,8 +1077,8 @@ Fluxos SecAdm: importar / rotacionar / revogar através da interface `SecretStor
 
 ## DEC-VENDOR-001 — Integrações vendor ≠ autoridade de emissão AGT
 
-**Estado:** decidida (2026-07-28)  
-**Âmbito:** NET-BO, PT-CERT e futuros conectores técnicos de fornecedor  
+**Estado:** decidida (2026-07-28)
+**Âmbito:** NET-BO, PT-CERT e futuros conectores técnicos de fornecedor
 **Evidência:** [`vendor-integrations/README.md`](../01-compliance/vendor-integrations/README.md) · [`PTCERT-POS-API-NOTES.md`](../01-compliance/vendor-integrations/PTCERT-POS-API-NOTES.md) · `RM-VENDOR-001`
 
 **Decisão:**
