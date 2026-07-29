@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.92-draft — 2026-07-29
+
+- Compliance: **RM-M2-D** — inventário `WorkType` restantes (`CM`/`CC`/`NR`/`FO`/`OU`/`PP`/`GC`); `doctype.CheckWorkTypeInventoryInvariants` + testes; **sem** FE L4; **sem** seed WorkType segurador (C-DOC-005); **sem** AO-* confirmados.
+
 ## 0.2.91-draft — 2026-07-29
 
 - Compliance: **RM-M2-D / C-DOC-010** — homónimos restantes `FR`/`GF`/`FG`/`AC`/`AF`/`TV` em `InvoiceType` **e** `PurchaseType`; seeds `compras.*`; `doctype.CheckCDOC010Invariants` + testes; ambos `off`; **sem** AO-* confirmados.

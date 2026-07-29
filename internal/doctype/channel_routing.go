@@ -1247,3 +1247,108 @@ func (r *Registry) CheckCDOC010Invariants() []CDOC010Violation {
 	}
 	return out
 }
+
+// WorkTypeInventoryViolation is a catalog gap or binding error for WorkType-only inventory seeds
+// (RM-REQ-001 / DEC-PROD-001 grupo conferência). Not an AO-* confirmation.
+type WorkTypeInventoryViolation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v WorkTypeInventoryViolation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+// WorkType-only L2 codes from XSD (grupo conferência), excluding:
+// - GR (C-DOC-007 dual Movement/Work)
+// - insurer duals RP/RE/CS/LD/RA (C-DOC-005: seed FE só InvoiceType; sem inventar WorkType)
+var workTypeInventoryCodes = []string{"CM", "CC", "NR", "FO", "NE", "OU", "OR", "PF", "DC", "PP", "GC"}
+
+func workTypeInventoryCanonical(code string) string {
+	return "bwb.ao.conferencia." + strings.ToLower(code)
+}
+
+// CheckWorkTypeInventoryInvariants requires SAF-T-only, off seeds for WorkType-only inventory
+// codes under WorkingDocuments. Does not invent FE L4, does not seed insurer WorkType duals,
+// and does not confirm AO-DOC-*.
+func (r *Registry) CheckWorkTypeInventoryInvariants() []WorkTypeInventoryViolation {
+	if r == nil {
+		return nil
+	}
+	out := make([]WorkTypeInventoryViolation, 0)
+	for _, code := range workTypeInventoryCodes {
+		canon := workTypeInventoryCanonical(code)
+		e, ok := r.Lookup(canon)
+		if !ok {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: canon,
+				Reason:         "seed conferencia." + strings.ToLower(code) + " obrigatório (WorkType inventory; XSD)",
+			})
+			continue
+		}
+		fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+		layer, c := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		grupo := strings.TrimSpace(e.Grupo)
+		if fe != "" {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "WorkType inventory é SAF-T-only; proibido FE L4",
+			})
+		}
+		if layer != SAFTLayerWork || c != code {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige WorkType=" + code,
+			})
+		}
+		if structL3 != "WorkingDocuments" {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige L3 WorkingDocuments",
+			})
+		}
+		if grupo != "conferencia" {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "exige grupo=conferencia",
+			})
+		}
+		if e.Activo != ActiveOff {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "permanece off até DEC-REG-003",
+			})
+		}
+	}
+
+	// Fail-closed: do not invent insurer WorkType seeds (C-DOC-005 residual).
+	for _, code := range []string{"RP", "RE", "CS", "LD", "RA"} {
+		canon := workTypeInventoryCanonical(code)
+		if _, ok := r.Lookup(canon); ok {
+			out = append(out, WorkTypeInventoryViolation{
+				CodigoCanonico: canon,
+				Reason:         "proibido seed WorkType segurador (C-DOC-005; residual DEC-REG-003)",
+			})
+		}
+	}
+	return out
+}
