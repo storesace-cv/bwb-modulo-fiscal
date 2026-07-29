@@ -1,8 +1,8 @@
 # Matriz provisória RM-REQ-001
 
-**Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada.
-**Data:** 2026-07-28
-**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation` — **não** há AO-* confirmados. C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
+**Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada (promoções normativas vivem em [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md)).
+**Data:** 2026-07-29
+**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation`. **AO-DOC-002** promovido (`confirmed_normative`). C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
 
 ## Fontes admitidas neste rascunho
 
@@ -19,8 +19,8 @@
 ## Bloqueios explícitos (fail-closed)
 
 1. **RM-SRC-004 / RM-M2-C** — OCR do conjunto 74+Rect+683 `reviewed` (Rect. v2); DP 71/25 também `reviewed` — gate de fontes OCR fechado; **não** equivale a AO-* confirmados.
-2. Esta matriz **não** inventa regras fiscais e **não** promove linhas a «confirmado».
-3. `reviewed` OCR é KB auxiliar; só após citação página a página + revisão compliance pode sustentar AO-* confirmados (ainda não neste PR).
+2. Esta matriz **não** inventa regras fiscais; promoções `confirmed_normative` registam-se **só** em [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) (estado `promoted` aqui).
+3. `reviewed` OCR é KB auxiliar; **não** confirma AO-* por si; só citação página a página + revisão compliance (e promoção em CONFIRMED-MATRIX) sustenta `confirmed_normative`.
 4. `partial` ≠ confirmado: ligação preliminar sujeita a revisão; o critério de aceitação do catálogo pode ser mais amplo do que a citação.
 5. GAP-002 residual: URL oficial estável da Rect. / Imprensa Nacional ainda pode estar `pending_validation`; histórico rejected permanece excluído da KB.
 
@@ -30,10 +30,11 @@
 |---|---|
 | `scaffold` | ID do catálogo inicial; sem ligação normativa página a página; **não** confirmado |
 | `partial` | Ligação preliminar a fonte `reviewed` com página candidata; sujeita a revisão; **não** confirmado |
+| `promoted` | Norma em [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md); residual engenharia/AGT pode permanecer |
 | `blocked` | Dependente de fonte oficial ainda inacessível (ex.: GAP-013, credenciais AGT) |
 | `pending_validation` | Artefacto técnico presente sem validação AGT |
 
-Estados proibidos neste ficheiro: `confirmed`, `confirmado`, `validated_agt`.
+Estados proibidos neste ficheiro: `confirmed`, `confirmado`, `confirmed_normative`, `validated_agt`.
 
 ## Citações candidatas (OCR `reviewed`, não normativas)
 
@@ -221,7 +222,7 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 | ASM-REG-001 | `scaffold` | — | Premissa de produto; confirmação AGT em aberto (RM-FOUND-005) |
 | AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 + FE HML | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + DE74 @**1577** + FE `establishmentNumber` / **FE-RNG-080** (Citação H). Terminal: OCR DE74 @**1577** menciona «terminal informático» na identificação da série (Citação I) — **não** é campo FE de documento; lacuna estabelecimento/terminal no critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | L1 Art.10 + L4 `documentType` @**19169–19170** + L2/L3 SAF-T + classes 74/19 @**1576–1577**; **não** confundir camadas; falta DEC-REG-003 + C-DOC-* (incl. C-DOC-004…010); critério **não** fica satisfeito; **não** confirmado |
-| AO-DOC-002 | `partial` | DP 71 + DE 74/19 (+ Rect.) + DE 683 | Ligação preliminar: DP71 Art.3 n)/Art.8 @**11904**/**11907** + DE74 Anexo I n.º3 e n.º4 l) @**1577** (sem alterar doc assinado; ver também **1576**) + FE `documentStatus` A/C @**19168**. Critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-DOC-002 | `promoted` | DP 71 + DE 74/19 (+ Rect.) → [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) | **`confirmed_normative`** 2026-07-29 (Art.3 n) @**11904**; Art.8 n.º4–5/8–9 @**11907**; DE74 n.º3 @**1576** + n.º4 l) @**1577**). Residual: teste de imutabilidade engenharia. **≠** homologação AGT / JWS FE |
 | AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-SEQ-002 | `partial` | DE 683 + DP 71 + FE HML | Ligação preliminar: ART.4 @**19164** + `solicitarSerie` @**19183–19184** + FE `solicitarSerie`/`listarSeries` + FE-RNG-051/053/055–060 (Citação H); C-FE-001 paths abertos. Critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação (`submissionGUID` FE @**19166** é candidato, não fecho) |
@@ -256,9 +257,10 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 14. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
 15. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
 16. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
-17. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-18. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-19. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
+17. AO-DOC-002: **promovido** `confirmed_normative` (2026-07-29) — ver CONFIRMED-MATRIX; residual teste imutabilidade; **≠** AGT/JWS.
+18. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+19. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+20. Não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT; não promover AO-* sem evidência inequívoca.
 
 ## Referências
 
@@ -268,4 +270,5 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 - Aquisição Rect. (privado): `storesace-cv/bwb-fiscal-sources-ao` → `docs/ACQUISITION-RECT-10-19.md`
 - Tipos documentais: [`DOCUMENT-TYPES-MATRIX-RM-REQ-001.md`](DOCUMENT-TYPES-MATRIX-RM-REQ-001.md)
 - Serviços FE / FE-RNG: [`FE-SERVICES-MATRIX-RM-REQ-001.md`](FE-SERVICES-MATRIX-RM-REQ-001.md)
-- Verificador: [`compliance/scripts/verify_provisional_matrix.py`](../../scripts/verify_provisional_matrix.py)
+- Verificador provisório: [`compliance/scripts/verify_provisional_matrix.py`](../../scripts/verify_provisional_matrix.py)
+- Matriz confirmada: [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) · [`verify_confirmed_matrix.py`](../../scripts/verify_confirmed_matrix.py)

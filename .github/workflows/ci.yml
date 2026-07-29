@@ -59,6 +59,8 @@ jobs:
           bash tests/compliance/run-verify-vendor-catalog-tests.sh
           python3 compliance/scripts/verify_provisional_matrix.py
           bash tests/compliance/run-verify-provisional-matrix-tests.sh
+          python3 compliance/scripts/verify_confirmed_matrix.py
+          bash tests/compliance/run-verify-confirmed-matrix-tests.sh
           python3 compliance/scripts/verify_document_types_matrix.py
           bash tests/compliance/run-verify-document-types-matrix-tests.sh
           python3 compliance/scripts/verify_document_catalog.py
@@ -90,6 +92,7 @@ jobs:
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-catalog-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-vendor-catalog-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-provisional-matrix-tests.sh
+          shellcheck -e SC2015,SC2016 tests/compliance/run-verify-confirmed-matrix-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-document-types-matrix-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-document-catalog-tests.sh
           shellcheck -e SC2015,SC2016 tests/compliance/run-verify-fe-services-matrix-tests.sh

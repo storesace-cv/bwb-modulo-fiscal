@@ -40,10 +40,14 @@ CITATION_PENDING_SCAFFOLD = [
     "AO-DOC-001",
 ]
 
-ALLOWED_STATUSES = {"scaffold", "partial", "blocked", "pending_validation"}
+ALLOWED_STATUSES = {"scaffold", "partial", "blocked", "pending_validation", "promoted"}
 FORBIDDEN_STATUS_WORDS = re.compile(
-    r"(?i)\b(confirmed|confirmado|validated_agt|aprovado_agt)\b"
+    r"(?i)\b(confirmed|confirmado|validated_agt|aprovado_agt|confirmed_normative)\b"
 )
+CONFIRMED_MATRIX_REL = Path(
+    "compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md"
+)
+PROMOTED_REQUIRING_CONFIRMED = ("AO-DOC-002",)
 ROW_RE = re.compile(
     r"^\|\s*(ASM-REG-001|AO-[A-Z]+-\d+)\s*\|\s*`([^`]+)`\s*\|",
     re.M,
@@ -311,19 +315,41 @@ def verify(root: Path) -> list[str]:
         if "não" not in s1 or "satisfeito" not in s1:
             fail("AO-SEQ-001: a linha deve declarar que o critério não fica satisfeito", errors)
 
-    # AO-DOC-002: partial — no deletion after issue + NC rectification path.
-    if rows.get("AO-DOC-002") != "partial":
-        fail("AO-DOC-002: deve estar `partial` (DP 71/25 Art.3 n / Art.8)", errors)
-    if "11904" not in text or "11907" not in text:
-        fail("citação AO-DOC-002 deve incluir gazetas 11904 e 11907", errors)
-    if "elimina" not in text.lower():
-        fail("citação AO-DOC-002 deve mencionar eliminação pós-emissão", errors)
-    check_partial_row("AO-DOC-002")
+    # AO-DOC-002: promoted to CONFIRMED-MATRIX (normative); provisional keeps pointer.
+    if rows.get("AO-DOC-002") != "promoted":
+        fail(
+            "AO-DOC-002: deve estar `promoted` (norma em CONFIRMED-MATRIX-RM-REQ-001)",
+            errors,
+        )
     doc2_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-DOC-002\s*\|", ln)]
     if doc2_rows:
-        d2 = doc2_rows[0].lower()
-        if "não" not in d2 or "satisfeito" not in d2:
-            fail("AO-DOC-002: a linha deve declarar que o critério não fica satisfeito", errors)
+        d2 = doc2_rows[0]
+        if "CONFIRMED-MATRIX" not in d2 and "confirmed_normative" not in d2:
+            fail(
+                "AO-DOC-002: a linha `promoted` deve apontar CONFIRMED-MATRIX / confirmed_normative",
+                errors,
+            )
+        if re.search(r"(?i)\b(validated_agt|homologad)", d2):
+            fail("AO-DOC-002: promoção normativa ≠ homologação AGT", errors)
+    else:
+        fail("linha de tabela AO-DOC-002 ausente", errors)
+    if "11904" not in text or "11907" not in text:
+        fail("matriz provisória deve manter gazetas 11904/11907 (Citação E / histórico DOC-002)", errors)
+    if "elimina" not in text.lower():
+        fail("matriz provisória deve manter menção a eliminação pós-emissão (Citação E)", errors)
+
+    confirmed_path = root / CONFIRMED_MATRIX_REL
+    if not confirmed_path.is_file():
+        fail(f"ausente: {CONFIRMED_MATRIX_REL.as_posix()} (exigido por IDs promoted)", errors)
+    else:
+        confirmed_text = confirmed_path.read_text(encoding="utf-8")
+        for rid in PROMOTED_REQUIRING_CONFIRMED:
+            if rows.get(rid) != "promoted":
+                continue
+            if f"### {rid}" not in confirmed_text and f"###  {rid}" not in confirmed_text:
+                fail(f"{rid}: `promoted` exige secção ### {rid} em CONFIRMED-MATRIX", errors)
+            if "`confirmed_normative`" not in confirmed_text:
+                fail("CONFIRMED-MATRIX deve declarar `confirmed_normative`", errors)
 
     # AO-OFF-001: partial — DP 71 Art.18 contingency.
     if rows.get("AO-OFF-001") != "partial":
@@ -353,8 +379,9 @@ def verify(root: Path) -> list[str]:
     else:
         fail("linha de tabela AO-OFF-002 ausente", errors)
 
-    # DOC-002 / SEQ-001 rows must cite DE 74 gazeta 1577 (not only Citação F).
-    for rid in ("AO-DOC-002", "AO-SEQ-001"):
+    # SEQ-001 row must cite DE 74 gazeta 1577 (not only Citação F).
+    # AO-DOC-002 cites 1577 in CONFIRMED-MATRIX after promotion.
+    for rid in ("AO-SEQ-001",):
         row_ln = [ln for ln in text.splitlines() if re.match(rf"^\|\s*{rid}\s*\|", ln)]
         if not row_ln:
             fail(f"linha de tabela {rid} ausente", errors)
