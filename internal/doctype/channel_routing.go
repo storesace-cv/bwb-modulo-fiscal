@@ -755,3 +755,183 @@ func checkGRHomonym(e Entry, wantLayer SAFTLayer, wantL3, wantGrupo string) []CD
 	}
 	return out
 }
+
+// CDOC008Violation is a catalog row that breaks C-DOC-008 InvoiceType vs PurchaseType invariants.
+type CDOC008Violation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v CDOC008Violation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+// Shared L2 literals present in both InvoiceType and PurchaseType (XSD) with dual seeds.
+var cdoc008DualCodes = []string{"FT", "NC"}
+
+func cdoc008CanonicalVendas(code string) string {
+	return "bwb.ao.vendas." + strings.ToLower(code)
+}
+
+func cdoc008CanonicalCompras(code string) string {
+	return "bwb.ao.compras." + strings.ToLower(code)
+}
+
+// CheckCDOC008Invariants validates InvoiceType vs PurchaseType dual-homonym fail-closed bindings
+// for FT/NC: vendas (FE+InvoiceType+SalesInvoices; may be ActiveOn per DEC-REG-003) ≠
+// compras (FE empty+PurchaseType+PurchaseInvoices; must stay off).
+// Does not invent FE for compras and does not confirm AO-DOC-*.
+func (r *Registry) CheckCDOC008Invariants() []CDOC008Violation {
+	if r == nil {
+		return nil
+	}
+	out := make([]CDOC008Violation, 0)
+	for _, code := range cdoc008DualCodes {
+		vCanon := cdoc008CanonicalVendas(code)
+		cCanon := cdoc008CanonicalCompras(code)
+		vendas, okV := r.Lookup(vCanon)
+		compras, okC := r.Lookup(cCanon)
+		if !okV {
+			out = append(out, CDOC008Violation{CodigoCanonico: vCanon, FECode: code, Reason: "seed vendas." + strings.ToLower(code) + " obrigatório (C-DOC-008)"})
+		}
+		if !okC {
+			out = append(out, CDOC008Violation{CodigoCanonico: cCanon, Reason: "seed compras." + strings.ToLower(code) + " obrigatório (C-DOC-008; XSD PurchaseType)"})
+		}
+		if okV && okC && vendas.CodigoCanonico == compras.CodigoCanonico {
+			out = append(out, CDOC008Violation{
+				CodigoCanonico: vendas.CodigoCanonico,
+				FECode:         code,
+				Reason:         "proibido colapsar vendas e compras para " + code + " (C-DOC-008)",
+			})
+		}
+		if okV {
+			fe := strings.TrimSpace(vendas.ChannelAdapters.FECode)
+			layer, c := ParseSAFTTypeAdapter(vendas.ChannelAdapters.SAFTType)
+			structL3 := strings.TrimSpace(vendas.ChannelAdapters.SAFTStructure)
+			grupo := strings.TrimSpace(vendas.Grupo)
+			if fe != code {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: vendas.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       vendas.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "vendas." + strings.ToLower(code) + " exige FECode=" + code,
+				})
+			}
+			if layer != SAFTLayerInvoice || c != code {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: vendas.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       vendas.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "vendas exige InvoiceType=" + code + " (C-DOC-008); ≠ PurchaseType",
+				})
+			}
+			if structL3 != "SalesInvoices" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: vendas.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       vendas.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "vendas exige L3 SalesInvoices (C-DOC-008)",
+				})
+			}
+			if grupo != "vendas" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: vendas.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       vendas.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "exige grupo=vendas (C-DOC-008)",
+				})
+			}
+			// DEC-REG-003: FT/NC may be ActiveOn on vendas; no force-off here.
+		}
+		if okC {
+			fe := strings.TrimSpace(compras.ChannelAdapters.FECode)
+			layer, c := ParseSAFTTypeAdapter(compras.ChannelAdapters.SAFTType)
+			structL3 := strings.TrimSpace(compras.ChannelAdapters.SAFTStructure)
+			grupo := strings.TrimSpace(compras.Grupo)
+			if fe != "" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: compras.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       compras.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "compras." + strings.ToLower(code) + " é SAF-T-only; proibido FE L4 (C-DOC-008)",
+				})
+			}
+			if layer != SAFTLayerPurchase || c != code {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: compras.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       compras.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "compras exige PurchaseType=" + code + " (C-DOC-008); ≠ InvoiceType",
+				})
+			}
+			if structL3 != "PurchaseInvoices" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: compras.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       compras.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "compras exige L3 PurchaseInvoices (C-DOC-008)",
+				})
+			}
+			if grupo != "compras" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: compras.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       compras.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "exige grupo=compras (C-DOC-008)",
+				})
+			}
+			if compras.Activo != ActiveOff {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: compras.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       compras.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "compras." + strings.ToLower(code) + " permanece off até DEC-REG-003 (C-DOC-008)",
+				})
+			}
+		}
+	}
+
+	// Guard: L2 literal FT/NC must bind L3 correctly when present.
+	for _, e := range r.All() {
+		layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		if code != "FT" && code != "NC" {
+			continue
+		}
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		switch layer {
+		case SAFTLayerInvoice:
+			if structL3 != "SalesInvoices" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         e.ChannelAdapters.FECode,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "InvoiceType=" + code + " exige L3 SalesInvoices (C-DOC-008)",
+				})
+			}
+		case SAFTLayerPurchase:
+			if structL3 != "PurchaseInvoices" {
+				out = append(out, CDOC008Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         e.ChannelAdapters.FECode,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "PurchaseType=" + code + " exige L3 PurchaseInvoices (C-DOC-008)",
+				})
+			}
+		}
+	}
+	return out
+}
