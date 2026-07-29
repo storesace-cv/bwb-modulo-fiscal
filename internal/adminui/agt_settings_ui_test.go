@@ -3,10 +3,12 @@ package adminui_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminauth"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminui"
@@ -59,6 +61,12 @@ func TestAGTSettingsHubOwnerOnly(t *testing.T) {
 	if !strings.Contains(body, "Preparação AGT") {
 		t.Fatal("missing hub title")
 	}
+	if !strings.Contains(body, "Correr probe (simulador)") {
+		t.Fatal("missing probe form")
+	}
+	if !strings.Contains(body, "Bindings") {
+		t.Fatal("missing bindings column")
+	}
 
 	adminMux := http.NewServeMux()
 	adminui.Mount(adminMux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{
@@ -68,5 +76,87 @@ func TestAGTSettingsHubOwnerOnly(t *testing.T) {
 	adminMux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/agt-settings", nil))
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("non-owner want 403, got %d", rr.Code)
+	}
+}
+
+func TestAGTSettingsProbeCSRFAndFailClosed(t *testing.T) {
+	ctx := t.Context()
+	path := filepath.Join(t.TempDir(), "agt-probe.db")
+	if err := dbmigrate.Up(dbmigrate.DialectSQLite, path); err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.OpenSQLite(ctx, db.SQLiteConfig{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	reg := adminregistry.New(sqlDB, adminregistry.DialectSQLite, nil)
+	audit := adminaudit.New(sqlDB, adminaudit.DialectSQLite, nil)
+	h, err := adminui.New(reg, "development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Audit = audit
+	h.AuthorityMode = "simulator"
+	h.FiscalEnv = "homologation"
+
+	mux := http.NewServeMux()
+	adminui.Mount(mux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{
+		Subject: "owner-probe", Roles: []adminauth.Role{adminauth.RoleOwner},
+	}}, h)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/agt-settings?environment=homologation", nil))
+	csrf := csrfFromSetCookie(rr)
+	if csrf == "" {
+		t.Fatal("missing csrf")
+	}
+
+	// Bad CSRF
+	form := url.Values{"csrf_token": {"bad"}, "environment": {"homologation"}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/ui/agt-settings/probe", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "fiscal_admin_csrf", Value: csrf})
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("bad csrf want 403 got %d", rr.Code)
+	}
+
+	// Happy path simulator
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/agt-settings?environment=homologation", nil))
+	csrf = csrfFromSetCookie(rr)
+	form = url.Values{"csrf_token": {csrf}, "environment": {"homologation"}}
+	req = httptest.NewRequest(http.MethodPost, "/admin/ui/agt-settings/probe", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "fiscal_admin_csrf", Value: csrf})
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("probe want 303 got %d", rr.Code)
+	}
+	loc := rr.Header().Get("Location")
+	if !strings.Contains(loc, "probe_ok=") || strings.Contains(loc, "BEGIN ") {
+		t.Fatalf("redirect=%s", loc)
+	}
+
+	// Fail-closed: production + simulator
+	h.FiscalEnv = "production"
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/ui/agt-settings?environment=homologation", nil))
+	csrf = csrfFromSetCookie(rr)
+	form = url.Values{"csrf_token": {csrf}, "environment": {"homologation"}}
+	req = httptest.NewRequest(http.MethodPost, "/admin/ui/agt-settings/probe", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "fiscal_admin_csrf", Value: csrf})
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("fail-closed want 303 got %d", rr.Code)
+	}
+	loc = rr.Header().Get("Location")
+	if !strings.Contains(loc, "probe_err=") || !strings.Contains(loc, "fail-closed") {
+		t.Fatalf("fail-closed redirect=%s", loc)
 	}
 }

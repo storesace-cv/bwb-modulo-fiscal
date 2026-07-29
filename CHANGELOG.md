@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.102-draft — 2026-07-29
+
+- Backoffice: **RM-AGTPREP-020** — hub owner `/admin/ui/agt-settings`: form CSRF `POST …/probe` (simulador; fail-closed prod+simulator; audit `authority.probe_config`); coluna bindings_valid por perfil; **≠** AGT / plaintext / `external_verified`.
+
 ## 0.2.101-draft — 2026-07-29
 
 - Backoffice: **RM-AGTPREP-019** — UI readiness owner mostra `bindings_valid` + issues/ops path_status (RM-AGTPREP-018); checklist_complete exige bindings; hub AGT; **≠** AGT / plaintext.

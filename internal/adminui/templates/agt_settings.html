@@ -23,6 +23,8 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
 
 <section>
   <h2>Estado de conectividade</h2>
+  {{if .ProbeFlash}}<p class="flash" role="status">{{.ProbeFlash}}</p>{{end}}
+  {{if .ProbeError}}<p class="flash error" role="alert">{{.ProbeError}}</p>{{end}}
   <dl>
     <dt>Status</dt><dd class="mono">{{.Connectivity.Status}}</dd>
     <dt>Modo autoridade</dt><dd class="mono">{{.Connectivity.AuthorityMode}}</dd>
@@ -33,6 +35,14 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
     <dd class="mono">{{if .Connectivity.LastProbeAt}}{{.Connectivity.LastProbeAt.Format "2006-01-02T15:04:05Z07:00"}} · {{.Connectivity.LastProbeResult}}{{else}}ausente{{end}}</dd>
   </dl>
   <ul>{{range .Connectivity.Notes}}<li class="muted">{{.}}</li>{{end}}</ul>
+  <form method="post" action="/admin/ui/agt-settings/probe">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <input type="hidden" name="environment" value="{{.Environment}}">
+    <p>
+      <button type="submit">Correr probe (simulador)</button>
+      <span class="muted">só <code>FISCAL_AUTHORITY=simulator</code>; fail-closed em produção; <strong>≠</strong> AGT; <code>external_verified</code> permanece false</span>
+    </p>
+  </form>
   <p>API: <code>GET /admin/v1/authority/connectivity-status</code> · probe: <code>POST /admin/v1/authority/probe-config</code></p>
 </section>
 
@@ -103,7 +113,7 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
 <section>
   <h2>Perfis neste ambiente</h2>
   <table>
-    <thead><tr><th>Nome</th><th>Estado</th><th>Alg</th><th>Readiness</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Estado</th><th>Alg</th><th>Readiness</th><th>Bindings</th></tr></thead>
     <tbody>
       {{range .Profiles}}
       <tr>
@@ -111,9 +121,10 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
         <td>{{.Status}}</td>
         <td class="mono">{{.AlgorithmDeclared}}</td>
         <td class="mono">c={{.ConfigReady}} s={{.SecretsReady}} o={{.OfflineValidated}} e=false</td>
+        <td class="mono">{{if .BindingsValid}}valid{{else}}invalid ({{.IssueCount}}){{end}}</td>
       </tr>
       {{else}}
-      <tr><td colspan="4">Nenhum perfil em {{$.Environment}}</td></tr>
+      <tr><td colspan="5">Nenhum perfil em {{$.Environment}}</td></tr>
       {{end}}
     </tbody>
   </table>

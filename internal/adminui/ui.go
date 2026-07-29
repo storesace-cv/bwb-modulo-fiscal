@@ -116,6 +116,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 		return obsAuth(htmlRequireOwnerSecAdm(next))
 	}
 	mux.Handle("GET /admin/ui/agt-settings", wrapOwner(http.HandlerFunc(h.agtSettingsHub)))
+	mux.Handle("POST /admin/ui/agt-settings/probe", wrapOwner(http.HandlerFunc(h.agtSettingsProbe)))
 	mux.Handle("GET /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaForm)))
 	mux.Handle("POST /admin/ui/secadm/metadata", wrapOwner(http.HandlerFunc(h.secadmMetaLookup)))
 	mux.Handle("GET /admin/ui/secadm/material", wrapOwner(http.HandlerFunc(h.secadmMaterialForm)))
