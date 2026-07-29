@@ -126,6 +126,25 @@ func (h *Handler) createAuthorityProfile(w http.ResponseWriter, r *http.Request)
 		t = t.UTC()
 		exp = &t
 	}
+	preview := adminregistry.AuthorityProfile{
+		Environment:           req.Environment,
+		TaxpayerID:            req.TaxpayerID,
+		ScopeID:               req.ScopeID,
+		DisplayName:           req.DisplayName,
+		Status:                req.Status,
+		AllowedOperations:     req.AllowedOperations,
+		PendingExternal:       req.PendingExternal,
+		ProducerCredentialRef: req.ProducerCredentialRef,
+		ProducerKeyRef:        req.ProducerKeyRef,
+		CertificateRef:        req.CertificateRef,
+		AlgorithmDeclared:     req.AlgorithmDeclared,
+		ExternalVerified:      false,
+	}
+	if err := h.assertProfileBindings(r.Context(), preview); err != nil {
+		h.audit(r, claims, "authority_profile.create", "authority_profile", "-", adminaudit.ResultDenied)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
 	out, err := h.Registry.CreateAuthorityProfile(r.Context(), adminregistry.CreateAuthorityProfileInput{
 		Environment:           req.Environment,
 		TaxpayerID:            req.TaxpayerID,
@@ -236,6 +255,21 @@ func (h *Handler) patchAuthorityProfile(w http.ResponseWriter, r *http.Request) 
 	in.ConfigReady = req.ConfigReady
 	in.SecretsReady = req.SecretsReady
 	in.OfflineValidated = req.OfflineValidated
+
+	cur, err := h.Registry.GetAuthorityProfile(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, adminregistry.ErrNotFound) {
+			writeProblem(w, r, http.StatusNotFound, "ADMIN_NOT_FOUND", "Not Found")
+			return
+		}
+		h.writeRegistryErr(w, r, claims, "authority_profile.patch", "authority_profile", id, err)
+		return
+	}
+	if err := h.assertProfileBindings(r.Context(), previewAuthorityPatch(cur, in)); err != nil {
+		h.audit(r, claims, "authority_profile.patch", "authority_profile", id, adminaudit.ResultDenied)
+		writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+		return
+	}
 
 	out, err := h.Registry.UpdateAuthorityProfile(r.Context(), in)
 	if err != nil {

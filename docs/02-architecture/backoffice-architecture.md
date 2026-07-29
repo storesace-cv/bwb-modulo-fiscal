@@ -115,7 +115,7 @@ Opções E1 (assinatura só cloud), E2 (chave no keystore Edge), E3 (assinatura 
 | Material criptográfico | SecAdm owner-only → `SecretStore` (`/admin/v1/secadm/material` + UI `/admin/ui/secadm/material`) | Credencial produtor, chave, certificado/PKCS#12 | Write-only; password efémera não persistida; limites de tamanho |
 | Probe externa | Reservada | Ligação AGT real | Bloqueada até GAP-006 / `RM-FE-001` |
 
-Hub owner-only (`RM-AGTPREP-015`): consolida selecção HML/PRD, catálogo de endpoints (URLs só alinhadas; C-FE-001 sem URL), scaffold JWS (`claims_status=pending_external`), atalhos SecAdm e probe simulador — **fora** do nav operacional comum.
+Hub owner-only (`RM-AGTPREP-015`…`018`): consolida selecção HML/PRD, catálogo de endpoints (URLs só alinhadas; C-FE-001 sem URL), scaffold JWS (`claims_status=pending_external`), inventário SecretStore mascarado, conectividade, e validação de bindings (ops+refs) — **fora** do nav operacional comum.
 
 Readiness canónico (checklist): `config_ready` · `secrets_ready` · `offline_validated` · `external_verified` (**fix** até AGT real).
 

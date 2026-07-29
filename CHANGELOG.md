@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.100-draft — 2026-07-29
+
+- Backoffice: **RM-AGTPREP-018** — validação fail-closed de bindings AuthorityProfile (`binding-validation`): ops C-FE-001 recusadas; `secrets_ready` exige credential+key+certificate presentes; material change limpa `secrets_ready`; OpenAPI `0.1.32-draft`; **≠** AGT / plaintext.
+
 ## 0.2.99-draft — 2026-07-29
 
 - Backoffice: **RM-AGTPREP-017** — estado de conectividade sanitizado no hub AGT + `GET /admin/v1/authority/connectivity-status` (último `authority.probe_config` audit); fail-closed prod+simulator; `external_verified=false`; OpenAPI `0.1.31-draft`; **≠** AGT.

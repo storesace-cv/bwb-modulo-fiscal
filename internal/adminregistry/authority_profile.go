@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fepath"
 )
 
 // Authority profile lifecycle (DEC-BO-004) — metadata only; never secrets.
@@ -409,6 +411,9 @@ func validateAllowedOperations(ops []string) ([]string, error) {
 		}
 		if _, ok := KnownAuthorityOperations[o]; !ok {
 			return nil, fmt.Errorf("%w: operation %q não catalogada (use pending_external)", ErrValidation, o)
+		}
+		if fepath.ConflictOpen && fepath.ServiceHasPathConflict(o) {
+			return nil, fmt.Errorf("%w: operation %q conflict_open (C-FE-001)", ErrValidation, o)
 		}
 		if _, ok := seen[o]; ok {
 			continue

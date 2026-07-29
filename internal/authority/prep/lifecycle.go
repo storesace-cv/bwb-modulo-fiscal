@@ -144,7 +144,9 @@ func ProfilePatchAfterMaterialChange(
 		return in
 	}
 
-	sec := true
+	// Fail-closed: material change never auto-claims secrets_ready (RM-AGTPREP-018).
+	// Owner must re-assert after ValidateProfileBindings confirms credential+key+cert present.
+	sec := false
 	in.SecretsReady = &sec
 	if kind == secretstore.KindCertificate && refName != "" && (p.CertificateRef == "" || p.CertificateRef == refName) {
 		if meta.Fingerprint != "" {

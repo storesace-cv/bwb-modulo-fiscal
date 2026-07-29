@@ -53,8 +53,8 @@ func TestBuildMaterialLifecycleAndPatch(t *testing.T) {
 	if patch.OfflineValidated == nil || *patch.OfflineValidated {
 		t.Fatal("rotate must invalidate offline_validated")
 	}
-	if patch.SecretsReady == nil || !*patch.SecretsReady {
-		t.Fatal("present material should keep secrets_ready")
+	if patch.SecretsReady == nil || *patch.SecretsReady {
+		t.Fatal("material change must clear secrets_ready until re-validated")
 	}
 	if patch.FingerprintSanitized != "sha256:cafebabe" {
 		t.Fatalf("fp=%q", patch.FingerprintSanitized)
