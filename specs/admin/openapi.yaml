@@ -2524,3 +2524,9 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Problem"
+    ServiceUnavailable:
+      description: Dependência admin indisponível (ex. SecretStore)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
