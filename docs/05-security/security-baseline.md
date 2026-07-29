@@ -29,7 +29,8 @@ Matriz canónica em código: [`internal/adminauth/rbac.go`](../../internal/admin
 ## Segredos e chaves
 
 - Abstração `SecretStore` (Secret Manager / KMS / HSM conforme fornecedor ainda por decidir).
-- Em produção, provisionamento de segredos na **zona dedicada de administração de integração** (`DEC-BO-001` plano B): TLS autenticado, write-only, gravação direta no `SecretStore`, sem persistência intermédia, sem logs do segredo, sem retorno nem visualização posterior; acesso exclusivo do owner.
+- Scaffolding durável (`RM-AGTPREP-014`): ciphertext AES-256-GCM em `secret_store_entries`; master key só por env/referência externa; metadados sanitizados (fingerprint/status/validade); HML≠PRD; fail-closed sem chave fora de `development`.
+- Em produção, provisionamento de segredos na **zona dedicada de administração de integração** (`DEC-BO-001` plano B): TLS autenticado, write-only, gravação direta no `SecretStore`, sem persistência intermédia em claro, sem logs do segredo, sem retorno nem visualização posterior; acesso exclusivo do owner.
 - A UI do **backoffice funcional** (plano A) não recebe, armazena nem exibe material secreto; mostra apenas metadados sanitizados (ambiente, estado, fingerprint, validade, algoritmo, key-id, timestamps, última verificação) — `DEC-BO-004` / `AuthorityProfile` em `/admin/ui/authority-profiles` (owner-only).
 - Preparação para certificados/auth AGT: config pública no perfil; PEM/PKCS#12/credenciais **só** SecAdm → `SecretStore` (multipart `/admin/v1/secadm/material` + UI; password efémera nunca persistida); `external_verified` permanece `false` sem probe AGT real.
 - **Proibida** cópia automática de chaves privadas cloud→Edge ou Edge→cloud; qualquer provisionamento é explícito, individual, autenticado e auditado.

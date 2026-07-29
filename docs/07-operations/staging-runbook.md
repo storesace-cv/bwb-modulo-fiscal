@@ -18,7 +18,7 @@ Estado operacional confirmado do sandbox BWB:
 |---|---|
 | Auth runtime | `FISCAL_ENV=homologation` + `FISCAL_AUTH_MODE=credential_store` |
 | Significado de `homologation` | Designação **técnica** do ambiente sandbox BWB — **não** é homologação oficial AGT, nem certificação |
-| Schema | `ExpectedVersion=12` / `dirty=false` |
+| Schema | `ExpectedVersion=13` / `dirty=false` |
 | HTTPS `/v1/health` | 200 |
 | HTTPS `GET /` | **200** landing HTML (UX; ≠ health) — **RM-OPS-010**; [sandbox-root-landing.md](sandbox-root-landing.md) · [rm-ops-010-sandbox-landing-promotion-report.md](rm-ops-010-sandbox-landing-promotion-report.md) |
 | HTTPS `/v1/documents` sem token | **401** |
@@ -33,6 +33,7 @@ Estado operacional confirmado do sandbox BWB:
 | PostgreSQL | loopback apenas |
 | Admin auth | `fail_closed` até IdP real — [admin-idp-onboarding.md](admin-idp-onboarding.md) |
 | Grants pós-0012 | [grants-schema12-runtime-admin.sql](../../deploy/postgres/grants-schema12-runtime-admin.sql) (aplicar após migrate 3→12) |
+| Grants pós-0013 | [grants-schema13-runtime-admin.sql](../../deploy/postgres/grants-schema13-runtime-admin.sql) (`secret_store_entries`; ciphertext only) |
 | Kit POS | validação sandbox **9/9** — [s4-pos-kit-ops-validation-report.md](s4-pos-kit-ops-validation-report.md) |
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
 | Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
