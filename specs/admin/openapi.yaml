@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.31-draft
+  version: 0.1.32-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -39,6 +39,7 @@ info:
     0.1.29: Catálogo endpoints FE + scaffold JWS + hub UI owner-only (RM-AGTPREP-015); C-FE-001 fail-closed; ≠ AGT.
     0.1.30: Inventário SecretStore metadados por ambiente owner-only (RM-AGTPREP-016); sem plaintext; HML≠PRD.
     0.1.31: Estado conectividade preparação AGT owner-only (RM-AGTPREP-017); último probe audit; ≠ AGT.
+    0.1.32: Validação bindings AuthorityProfile (ops C-FE-001 + refs presentes) owner-only (RM-AGTPREP-018); ≠ AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -888,6 +889,59 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /authority-profiles/{profile_id}/binding-validation:
+    get:
+      operationId: getAuthorityProfileBindingValidation
+      summary: Validação fail-closed de bindings (ops + refs SecretStore)
+      description: >
+        RM-AGTPREP-018. Owner/secadm.write. Recusa ops C-FE-001 conflict_open;
+        secrets_ready exige credential+key+certificate presentes no mesmo ambiente.
+        Sem plaintext. external_verified=false. ≠ AGT.
+      tags: [Autoridade]
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultado sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [profile_id, environment, valid, external_verified, issues]
+                properties:
+                  profile_id: { type: string }
+                  environment: { type: string }
+                  status: { type: string }
+                  secrets_ready: { type: boolean }
+                  external_verified: { type: boolean, const: false }
+                  valid: { type: boolean }
+                  note: { type: string }
+                  ops_path_statuses:
+                    type: object
+                    additionalProperties: { type: string }
+                  issues:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [code, field, detail]
+                      properties:
+                        code: { type: string }
+                        field: { type: string }
+                        detail: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /authority-profiles/{profile_id}/material-lifecycle:
     get:
       operationId: getAuthorityProfileMaterialLifecycle

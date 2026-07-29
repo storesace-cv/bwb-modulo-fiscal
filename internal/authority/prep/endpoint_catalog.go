@@ -57,7 +57,8 @@ func EndpointCatalog(environment string) ([]EndpointCatalogEntry, error) {
 
 	out := make([]EndpointCatalogEntry, 0, len(knownMatrixOperations))
 	for _, op := range knownMatrixOperations {
-		_, bindable := adminregistry.KnownAuthorityOperations[op]
+		_, known := adminregistry.KnownAuthorityOperations[op]
+		bindable := known && !(fepath.ConflictOpen && fepath.ServiceHasPathConflict(op))
 		entry := EndpointCatalogEntry{
 			Operation:   op,
 			Environment: env,

@@ -110,8 +110,8 @@ func TestAuthorityMaterialLifecycle(t *testing.T) {
 	if got.OfflineValidated {
 		t.Fatal("offline_validated must be cleared after rotate")
 	}
-	if !got.SecretsReady || got.ExternalVerified {
-		t.Fatalf("%+v", got)
+	if got.SecretsReady || got.ExternalVerified {
+		t.Fatalf("secrets_ready must clear after rotate: %+v", got)
 	}
 	if got.FingerprintSanitized == "" || !strings.HasPrefix(got.FingerprintSanitized, "sha256:") {
 		t.Fatalf("fingerprint sync: %q", got.FingerprintSanitized)
