@@ -204,6 +204,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("POST /admin/v1/secadm/material/rotate", wrap(secadmWrite(http.HandlerFunc(h.secadmRotateMaterial))))
 	mux.Handle("POST /admin/v1/secadm/material/validate-offline", wrap(secadmWrite(http.HandlerFunc(h.secadmValidateOffline))))
 	mux.Handle("GET /admin/v1/authority-profiles/{profile_id}/material-lifecycle", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityMaterialLifecycle))))
+	mux.Handle("GET /admin/v1/authority/connectivity-status", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityConnectivityStatus))))
 	mux.Handle("GET /admin/v1/authority/endpoint-catalog", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityEndpointCatalog))))
 	mux.Handle("GET /admin/v1/authority/jws-profile-scaffold", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityJWSProfileScaffold))))
 	mux.Handle("POST /admin/v1/authority/probe-config", wrap(secadmWrite(http.HandlerFunc(h.probeAuthorityConfig))))

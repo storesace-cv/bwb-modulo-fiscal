@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.99-draft — 2026-07-29
+
+- Backoffice: **RM-AGTPREP-017** — estado de conectividade sanitizado no hub AGT + `GET /admin/v1/authority/connectivity-status` (último `authority.probe_config` audit); fail-closed prod+simulator; `external_verified=false`; OpenAPI `0.1.31-draft`; **≠** AGT.
+
 ## 0.2.98-draft — 2026-07-29
 
 - Backoffice / SecAdm: **RM-AGTPREP-016** — inventário mascarado `ListMetadata` (Memory+SQL) por ambiente; API owner `GET /admin/v1/secret-refs`; hub AGT mostra refs + `storage_mode`; OpenAPI `0.1.30-draft`; HML≠PRD; **≠** plaintext / AGT.
