@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.98-draft — 2026-07-29
+
+- Backoffice / SecAdm: **RM-AGTPREP-016** — inventário mascarado `ListMetadata` (Memory+SQL) por ambiente; API owner `GET /admin/v1/secret-refs`; hub AGT mostra refs + `storage_mode`; OpenAPI `0.1.30-draft`; HML≠PRD; **≠** plaintext / AGT.
+
 ## 0.2.97-draft — 2026-07-29
 
 - Backoffice: **RM-AGTPREP-015** — hub owner-only `/admin/ui/agt-settings` (endpoints FE catalogados via `fepath`/matriz, scaffold JWS sem claims inventados, atalhos SecAdm/perfis/probe); API `GET /admin/v1/authority/endpoint-catalog` + `jws-profile-scaffold`; OpenAPI admin `0.1.29-draft`; C-FE-001 fail-closed; **≠** AGT / plaintext.

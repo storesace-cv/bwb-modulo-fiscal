@@ -60,6 +60,31 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
 </section>
 
 <section>
+  <h2>Inventário SecretStore ({{.Environment}})</h2>
+  <p class="muted">Só metadados (status/fingerprint/versão). Modo cofre: <code>{{if .StorageMode}}{{.StorageMode}}{{else}}desconhecido{{end}}</code>. Sem plaintext.</p>
+  <table>
+    <thead>
+      <tr><th>Kind</th><th>Subject</th><th>Name</th><th>Status</th><th>Fingerprint</th><th>Ver</th></tr>
+    </thead>
+    <tbody>
+      {{range .SecretRefs}}
+      <tr>
+        <td class="mono">{{.Ref.Kind}}</td>
+        <td class="mono">{{.Ref.SubjectID}}</td>
+        <td class="mono">{{.Ref.Name}}</td>
+        <td>{{.Status}}</td>
+        <td class="mono">{{if .Fingerprint}}{{.Fingerprint}}{{else}}—{{end}}</td>
+        <td>{{.Version}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6">Nenhuma ref neste ambiente</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  <p>API: <code>GET /admin/v1/secret-refs?environment={{.Environment}}</code> (owner)</p>
+</section>
+
+<section>
   <h2>Perfis neste ambiente</h2>
   <table>
     <thead><tr><th>Nome</th><th>Estado</th><th>Alg</th><th>Readiness</th></tr></thead>
