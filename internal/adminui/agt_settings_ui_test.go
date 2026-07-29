@@ -67,6 +67,9 @@ func TestAGTSettingsHubOwnerOnly(t *testing.T) {
 	if !strings.Contains(body, "Bindings") {
 		t.Fatal("missing bindings column")
 	}
+	if !strings.Contains(body, "SecretStore (estado sanitizado)") || !strings.Contains(body, "ready_for_homologation") {
+		t.Fatal("missing vault status section")
+	}
 
 	adminMux := http.NewServeMux()
 	adminui.Mount(adminMux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{

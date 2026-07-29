@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.103-draft — 2026-07-29
+
+- Backoffice / SecAdm: **RM-AGTPREP-021** — estado sanitizado SecretStore no hub AGT + `GET /admin/v1/authority/secretstore-status` (backend, parse master key, fingerprint SHA-256, `ready_for_homologation` prep local); OpenAPI `0.1.33-draft`; **≠** plaintext / AGT / KMS.
+
 ## 0.2.102-draft — 2026-07-29
 
 - Backoffice: **RM-AGTPREP-020** — hub owner `/admin/ui/agt-settings`: form CSRF `POST …/probe` (simulador; fail-closed prod+simulator; audit `authority.probe_config`); coluna bindings_valid por perfil; **≠** AGT / plaintext / `external_verified`.
