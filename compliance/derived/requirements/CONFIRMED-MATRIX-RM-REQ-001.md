@@ -43,12 +43,12 @@ Estados proibidos aqui: `validated_agt`, `homologado`, `produção_autorizada`.
 | 4 | `AO-LEG-DE-74-19-2019` | idem | idem | 3 | **1577** | Anexo I n.º4 **l)** | A aplicação **não pode permitir** que num documento **já assinado** seja **alterada qualquer informação** |
 | 5 | `AO-LEG-RECT-10-19-2019` | `b3db14e2715541be00ac93032718e7a358b493796264e361d1f9d35a1a49e014` | v2 `reviewed` | 2–3 | **1948–1949** | Conjunto 74+Rect. | Rect. integra o conjunto normativo POLICY; **não** altera o sentido de n.º3 / n.º4 l) acima |
 
-Paths privados (consulta; **não** dependência de build):  
+Paths privados (consulta; **não** dependência de build):
 `derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md` · `…/AO-LEG-DE-74-19-2019/v1/text.md` · `…/AO-LEG-RECT-10-19-2019/v2/text.md`.
 
 #### Excepção normativa explícita (não é edição destrutiva livre)
 
-DP 71/25 Art.8 n.º**8–9** (@**11907**): em casos de rectificação dos requisitos da alínea a) do Art.10 n.º1 (e facturas não enviadas ao adquirente), a factura **pode ser anulada** pelas funcionalidades do software validado **sem** emissão de nota de crédito.  
+DP 71/25 Art.8 n.º**8–9** (@**11907**): em casos de rectificação dos requisitos da alínea a) do Art.10 n.º1 (e facturas não enviadas ao adquirente), a factura **pode ser anulada** pelas funcionalidades do software validado **sem** emissão de nota de crédito.
 **Fail-closed:** isto **não** autoriza edição livre do conteúdo após assinatura/emissão; permanece anulação/rectificação pelos meios legalmente previstos.
 
 #### Distinções obrigatórias
@@ -62,7 +62,7 @@ DP 71/25 Art.8 n.º**8–9** (@**11907**): em casos de rectificação dos requis
 
 #### Conclusão
 
-**Facto:** o critério «impedir alteração destrutiva após emissão» está normativamente sustentado: proibição de eliminação pós-emissão (DP 71 Art.3 n)), proibição de alteração de documento assinado / de informação fiscal sem evidência (DE 74 n.º3 e n.º4 l)), e via de correcção por NC (DP 71 Art.8 n.º4–5), com a excepção estreita Art.8 n.º8–9 documentada.  
+**Facto:** o critério «impedir alteração destrutiva após emissão» está normativamente sustentado: proibição de eliminação pós-emissão (DP 71 Art.3 n)), proibição de alteração de documento assinado / de informação fiscal sem evidência (DE 74 n.º3 e n.º4 l)), e via de correcção por NC (DP 71 Art.8 n.º4–5), com a excepção estreita Art.8 n.º8–9 documentada.
 **Não se afirma:** conformidade do produto implementado, aceitação AGT, nem fecho de outros `AO-*`.
 
 ## Ainda não confirmados
