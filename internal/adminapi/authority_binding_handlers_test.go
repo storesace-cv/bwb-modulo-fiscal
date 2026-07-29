@@ -45,7 +45,7 @@ func TestAuthorityBindingValidationOwner(t *testing.T) {
 
 	p, err := reg.CreateAuthorityProfile(ctx, adminregistry.CreateAuthorityProfileInput{
 		Environment: adminregistry.EnvHomologation, DisplayName: "bind",
-		AllowedOperations: []string{"registarFactura"},
+		AllowedOperations:     []string{"registarFactura"},
 		ProducerCredentialRef: "c", ProducerKeyRef: "k", CertificateRef: "cert",
 	})
 	if err != nil {
