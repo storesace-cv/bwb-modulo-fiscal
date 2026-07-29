@@ -32,16 +32,16 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | grupo | codigo_canonico | designacao | codigos_canal | estrutura_saft | elegibilidade | natureza_juridica | restricao_sectorial | serie_necessaria | requisitos | regras_rectificacao_anulacao | estado_normativo | activo |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | vendas | `bwb.ao.vendas.ft` | Factura | FE:`FT`; SAFT:`InvoiceType=FT` | `SalesInvoices` | ambos | DP71 Art.3 f) @11903 | nenhuma | pending | C-DOC-008 dual PurchaseType; Art.10 @11908–11909; FE lines @19169–19170 | pending (NC/rectif. Art.8) | hipotese | on |
-| vendas | `bwb.ao.vendas.fr` | Factura-Recibo | FE:`FR`; SAFT:`InvoiceType=FR` | `SalesInvoices` | ambos | Art.3 k) @11903 | nenhuma | pending | pending | pending | hipotese | off |
-| vendas | `bwb.ao.vendas.fg` | Factura Global | FE:`FG`; SAFT:`InvoiceType=FG` | `SalesInvoices` | ambos | Art.3 j) @11903 | nenhuma | pending | pending | pending | hipotese | off |
-| vendas | `bwb.ao.vendas.gf` | Factura Genérica | FE:`GF` (HTML/XSD; ausente DE683 p.7 visual); SAFT:`InvoiceType=GF` | `SalesInvoices` | ambos | Art.3 i) @11903 | nenhuma | pending | C-DOC-001 documentado_divergencia | pending | conflito | off |
+| vendas | `bwb.ao.vendas.fr` | Factura-Recibo | FE:`FR`; SAFT:`InvoiceType=FR` | `SalesInvoices` | ambos | Art.3 k) @11903 | nenhuma | pending | C-DOC-010 dual PurchaseType; ≠ `compras.fr` | pending | hipotese | off |
+| vendas | `bwb.ao.vendas.fg` | Factura Global | FE:`FG`; SAFT:`InvoiceType=FG` | `SalesInvoices` | ambos | Art.3 j) @11903 | nenhuma | pending | C-DOC-010 dual PurchaseType; ≠ `compras.fg` | pending | hipotese | off |
+| vendas | `bwb.ao.vendas.gf` | Factura Genérica | FE:`GF` (HTML/XSD; ausente DE683 p.7 visual); SAFT:`InvoiceType=GF` | `SalesInvoices` | ambos | Art.3 i) @11903 | nenhuma | pending | C-DOC-001 + C-DOC-010 dual PurchaseType; ≠ `compras.gf` | pending | conflito | off |
 | vendas | `bwb.ao.vendas.fa` | Factura Adiantamento | FE:`FA`; SAFT:`∅` | `∅` | FE | Art.3 g) @11903 | nenhuma | pending | C-DOC-003; FE-only | Art.8 n.º10 via NC @11908 | conflito | off |
-| vendas | `bwb.ao.vendas.ac` | Aviso de Cobrança | FE:`AC`; SAFT:`InvoiceType=AC` | `SalesInvoices` | ambos | Art.3 d) @11903 | nenhuma | pending | pending | pending | hipotese | off |
+| vendas | `bwb.ao.vendas.ac` | Aviso de Cobrança | FE:`AC`; SAFT:`InvoiceType=AC` | `SalesInvoices` | ambos | Art.3 d) @11903 | nenhuma | pending | C-DOC-010 dual PurchaseType; ≠ `compras.ac` | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.ar` | Aviso Cobrança/Recibo (vendas) | FE:`AR`; SAFT:`InvoiceType=AR` | `SalesInvoices` | ambos | Art.3 d)+Art.6 n.º2 b) | nenhuma | pending | C-DOC-004/009; ≠ `pagamentos.ar`/`compras.ar` | pending | hipotese | off |
-| vendas | `bwb.ao.vendas.tv` | Talão de Venda | FE:`TV`; SAFT:`InvoiceType=TV` | `SalesInvoices` | ambos | Art.3 p) @11904 | nenhuma | pending | pending | pending | hipotese | off |
+| vendas | `bwb.ao.vendas.tv` | Talão de Venda | FE:`TV`; SAFT:`InvoiceType=TV` | `SalesInvoices` | ambos | Art.3 p) @11904 | nenhuma | pending | C-DOC-010 dual PurchaseType; ≠ `compras.tv` | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.nc` | Nota de Crédito | FE:`NC`; SAFT:`InvoiceType=NC` | `SalesInvoices` | ambos | Art.3 l) @11904 | nenhuma | pending | C-DOC-008 dual PurchaseType; `referenceInfo` FE @19170; `References` XSD | Art.8 n.º4–5 @11907; Art.10 n.º5 | hipotese | on |
 | vendas | `bwb.ao.vendas.nd` | Nota de Débito | FE:`ND`; SAFT:`InvoiceType=ND` | `SalesInvoices` | ambos | Art.3 m); Art.4 n.º9 ≠ factura | nenhuma | pending | pending | pending | hipotese | off |
-| vendas | `bwb.ao.vendas.af` | Autofacturação | FE:`AF`; SAFT:`InvoiceType=AF` | `SalesInvoices` | ambos | Art.3 c)+k) | nenhuma | pending | Art.10 n.º3 série distinta | pending | hipotese | off |
+| vendas | `bwb.ao.vendas.af` | Autofacturação | FE:`AF`; SAFT:`InvoiceType=AF` | `SalesInvoices` | ambos | Art.3 c)+k) | nenhuma | pending | C-DOC-010 dual PurchaseType; Art.10 n.º3 série distinta; ≠ `compras.af` | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.rp` | Prémio / Recibo de Prémio | FE:`RP`; SAFT:`InvoiceType=RP` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 dual InvoiceType/WorkType; seed FE≠WorkType | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.re` | Estorno / Recibo de Estorno | FE:`RE`; SAFT:`InvoiceType=RE` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 | pending | hipotese | off |
 | vendas | `bwb.ao.vendas.cs` | Imputação Co-seguradoras | FE:`CS`; SAFT:`InvoiceType=CS` | `SalesInvoices` | ambos | n/a Art.3 | segurador | pending | C-DOC-005 | pending | hipotese | off |
@@ -60,6 +60,12 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | conferencia | `bwb.ao.conferencia.ne` | Nota de Encomenda | FE:`∅`; SAFT:`WorkType=NE` | `WorkingDocuments` | SAF-T | Art.4 n.º9 | nenhuma | pending | pending | n/a | pending_validation | off |
 | conferencia | `bwb.ao.conferencia.dc` | Documento de Conferência | FE:`∅`; SAFT:`WorkType=DC` | `WorkingDocuments` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
 | compras | `bwb.ao.compras.ft` | Factura (compras) | FE:`∅`; SAFT:`PurchaseType=FT` | `PurchaseInvoices` | SAF-T | pending | nenhuma | pending | C-DOC-008; ≠ `InvoiceType` / `vendas.ft` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.fr` | Factura-Recibo (compras) | FE:`∅`; SAFT:`PurchaseType=FR` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.fr` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.fg` | Factura Global (compras) | FE:`∅`; SAFT:`PurchaseType=FG` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.fg` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.gf` | Factura Genérica (compras) | FE:`∅`; SAFT:`PurchaseType=GF` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.gf` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.ac` | Aviso de Cobrança (compras) | FE:`∅`; SAFT:`PurchaseType=AC` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.ac` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.af` | Autofacturação (compras) | FE:`∅`; SAFT:`PurchaseType=AF` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.af` | pending | pending_validation | off |
+| compras | `bwb.ao.compras.tv` | Talão de Venda (compras) | FE:`∅`; SAFT:`PurchaseType=TV` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.tv` | pending | pending_validation | off |
 | compras | `bwb.ao.compras.nc` | Nota de Crédito (compras) | FE:`∅`; SAFT:`PurchaseType=NC` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-008; ≠ `InvoiceType` / `vendas.nc` | pending | pending_validation | off |
 | compras | `bwb.ao.compras.ar` | Aviso Cobrança/Recibo (compras) | FE:`∅`; SAFT:`PurchaseType=AR` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-009 3.º L3; ≠ `vendas.ar`/`pagamentos.ar` | pending | pending_validation | off |
 | compras | `bwb.ao.compras.nl` | Nota de Liquidação | FE:`∅`; SAFT:`PurchaseType=NL` | `PurchaseInvoices` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
@@ -67,7 +73,7 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 
 ### WorkType / PurchaseType restantes
 
-Códigos L2 ainda não listados acima (ex. `CM`, `CC`, `FO`, `OU`, `GC`, `PP`, demais `PurchaseType`) entram no mesmo esquema; seed incremental **sem** inventar designações além do XSD.
+Códigos L2 ainda não listados acima (ex. `CM`, `CC`, `FO`, `OU`, `GC`, `PP` em `WorkType`) entram no mesmo esquema; seed incremental **sem** inventar designações além do XSD. Homónimos Invoice∩Purchase cobertos por C-DOC-008/009/010 (`NL` é Purchase-only).
 
 ## Lacunas explícitas
 

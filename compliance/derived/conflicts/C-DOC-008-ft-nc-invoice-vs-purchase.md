@@ -31,7 +31,7 @@
 
 ## Residual (não fechado)
 
-- Activação / política de compras no MVP (`DEC-REG-003`); outros literais partilhados (FR, GF, …) quando seed existir.
+- Activação / política de compras no MVP (`DEC-REG-003`); literais restantes Invoice∩Purchase — ver [C-DOC-010](C-DOC-010-invoice-purchase-remaining.md).
 - **Não** promover `AO-DOC-*`.
 
 ## Não fazer
