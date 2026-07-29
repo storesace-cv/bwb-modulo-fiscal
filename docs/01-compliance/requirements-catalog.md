@@ -16,7 +16,7 @@
 | AO-KEY-001 | Proteger chaves, rotação e acesso com segregação de funções. | Crítica | Auditoria e teste de rotação | provisório (`blocked`) |
 | AO-AGT-001 | Transmitir no formato exigido e preservar requestID/resposta. | Crítica | Teste de integração AGT | provisório (`pending_validation`) |
 | AO-AGT-002 | Tratar receção e aceitação fiscal como estados distintos. | Crítica | Máquina de estados testada | provisório (`partial`) |
-| AO-OFF-001 | Emitir em contingência apenas nas condições autorizadas. | Crítica | Testes de falha e reconciliação | provisório (`partial`) |
+| AO-OFF-001 | Emitir em contingência apenas nas condições autorizadas. | Crítica | Testes de falha e reconciliação | **`confirmed_normative`** (DP 71 Art.18; residual Edge; ≠ AGT) |
 | AO-OFF-002 | Sincronizar sem renumerar ou duplicar documentos. | Crítica | Teste de recuperação | provisório (`partial`) |
 | AO-AUD-001 | Manter trilho append-only de ações e transições. | Alta | Consulta e prova de integridade | provisório (`scaffold`) |
 | AO-SAF-001 | Exportar SAF-T (AO) completo e conforme schema aplicável. | Crítica | Validação XSD e vetores dourados | provisório (`pending_validation`) |

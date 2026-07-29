@@ -85,7 +85,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-KEY-001 | `blocked` | — | x |
 | AO-AGT-001 | `pending_validation` | FE | FE-RNG eb430954 Citação H C-FE-001 GAP-006 critério **não** fica satisfeito; **não** confirmado |
 | AO-AGT-002 | `partial` | FE | requestID obterEstado f851f512 critério **não** fica satisfeito; **Não** confirmado |
-| AO-OFF-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.18 11911 11912 critério **não** fica satisfeito; **Não** confirmado |
+| AO-OFF-001 | `promoted` | AO-LEG-DP-71-25-2025 | CONFIRMED-MATRIX confirmed_normative Art.18 11911 11912 |
 | AO-OFF-002 | `partial` | AO-LEG-DE-74-19-2019 | @1580 critério **não** fica satisfeito; **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | x |
 | AO-SAF-001 | `pending_validation` | XSD | e9a938e1 InvoiceType L2023 critério **não** fica satisfeito; **não** confirmado |
@@ -189,11 +189,11 @@ t = t.replace("| AO-DOC-002 | `promoted`", "| AO-DOC-002 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 
-mutate_real "AO-OFF-001 blocked indevido" '
+mutate_real "AO-OFF-001 scaffold indevido" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-OFF-001 | `partial`", "| AO-OFF-001 | `blocked`")
+t = t.replace("| AO-OFF-001 | `promoted`", "| AO-OFF-001 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 

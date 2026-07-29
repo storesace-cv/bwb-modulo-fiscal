@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.95-draft — 2026-07-29
+
+- Compliance: **RM-M2-D / RM-REQ-001** — promove **`AO-OFF-001`** `confirmed_normative` (DP 71/25 Art.18 @11911–11912 + Art.7 n.º6 @11907); residual Edge/`DEC-REG-004`; **≠** AGT / `AO-OFF-002`.
+
 ## 0.2.94-draft — 2026-07-29
 
 - Compliance: **RM-M2-D / RM-REQ-001** — promove **`AO-SEQ-001`** `confirmed_normative` (DP 71 Art.3 n)+Art.10 b) @11904/11908; DE 74 sequência contínua/unívoca @1577); residual concorrência engenharia; **≠** `AO-SEQ-002` / AGT.
