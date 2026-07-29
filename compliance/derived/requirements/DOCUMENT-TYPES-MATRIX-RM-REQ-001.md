@@ -281,7 +281,7 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 |---|---|---|
 | 2 Movimentação | GR, GT, GA, GD | `MovementType` | GR dual `WorkType` — [C-DOC-007](../conflicts/C-DOC-007-gr-movement-vs-worktype.md) |
 | 3 Conferência | CM, CC, GR, NR, FO, NE, OU, OR, PF, DC, PP, GC (+ segurador se só em WorkType) | `WorkType`; PF/OR/NE ≠ «factura» L1; GR ≠ `MovementType` (C-DOC-007) |
-| 5 Compras | NL (+ demais `PurchaseType` já cobertos noutros canais como homónimos) | `NL` sem L4 FE |
+| 5 Compras | NL (+ demais `PurchaseType` já cobertos noutros canais como homónimos) | `NL` sem L4 FE; `FT`/`NC` dual vendas — [C-DOC-008](../conflicts/C-DOC-008-ft-nc-invoice-vs-purchase.md) |
 
 #### Excluídos — canal `nenhum` (não entram no catálogo de tipos)
 
