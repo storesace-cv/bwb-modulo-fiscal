@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.90-draft — 2026-07-29
+
+- Compliance: **RM-M2-D / C-DOC-009** — `AR` também em `PurchaseType` (3.º L3 além de C-DOC-004); seed `compras.ar`; `doctype.CheckCDOC009Invariants` + testes; **sem** AO-* confirmados.
+
 ## 0.2.89-draft — 2026-07-29
 
 - Compliance: **RM-M2-D / C-DOC-008** — homónimos `FT`/`NC` em `InvoiceType` **e** `PurchaseType`; seed `compras.nc`; `doctype.CheckCDOC008Invariants` + testes; vendas `on` (DEC-REG-003) ≠ compras `off`; **sem** AO-* confirmados.
