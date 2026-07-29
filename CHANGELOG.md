@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.104-draft — 2026-07-29
+
+- Ops: **RM-OPS-011 (readiness)** — `DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=13`; `deploy/env.allowlist` admite `FISCAL_SECRETSTORE_BACKEND`/`MASTER_KEY` (+ `FISCAL_AUTHORITY`); prepare promote schema13/grants; **≠** AGT / plaintext em Git.
+
 ## 0.2.103-draft — 2026-07-29
 
 - Backoffice / SecAdm: **RM-AGTPREP-021** — estado sanitizado SecretStore no hub AGT + `GET /admin/v1/authority/secretstore-status` (backend, parse master key, fingerprint SHA-256, `ready_for_homologation` prep local); OpenAPI `0.1.33-draft`; **≠** plaintext / AGT / KMS.
