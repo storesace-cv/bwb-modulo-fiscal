@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.106-draft — 2026-07-29
+
+- Backoffice / SecAdm: **RM-AGTPREP-022** — hub AGT + `GET /admin/v1/authority/secadm-gate-status` (`present`/`absent`); allowlist `FISCAL_ADMIN_OWNER_SUBJECT`; OpenAPI `0.1.34-draft`; **≠** subject/plaintext / AGT.
+
 ## 0.2.105-draft — 2026-07-29
 
 - Ops: **RM-OPS-011** — sandbox promovido `main@0fbac6a…` schema **12→13** `dirty=false`; grants `secret_store_entries`; master key em `fiscal.env` (fingerprint só no relatório); API 401 sem token; admin fail_closed; **≠** AGT / plaintext em Git.

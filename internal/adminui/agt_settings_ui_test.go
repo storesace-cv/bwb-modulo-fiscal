@@ -70,6 +70,9 @@ func TestAGTSettingsHubOwnerOnly(t *testing.T) {
 	if !strings.Contains(body, "SecretStore (estado sanitizado)") || !strings.Contains(body, "ready_for_homologation") {
 		t.Fatal("missing vault status section")
 	}
+	if !strings.Contains(body, "SecAdm gate") || !strings.Contains(body, "secadm-gate-status") {
+		t.Fatal("missing secadm gate section")
+	}
 
 	adminMux := http.NewServeMux()
 	adminui.Mount(adminMux, adminauth.StaticAuthenticator{Claims: adminauth.Claims{

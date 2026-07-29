@@ -29,6 +29,7 @@ type agtSettingsPage struct {
 	FiscalEnv     string
 	ProbeFlash    string
 	ProbeError    string
+	SecAdmGate    string // present|absent — never the subject
 }
 
 type agtProfileHubRow struct {
@@ -70,6 +71,10 @@ func (h *Handler) agtSettingsHub(w http.ResponseWriter, r *http.Request) {
 		FiscalEnv:     h.FiscalEnv,
 		ProbeFlash:    strings.TrimSpace(r.URL.Query().Get("probe_ok")),
 		ProbeError:    strings.TrimSpace(r.URL.Query().Get("probe_err")),
+		SecAdmGate:    "absent",
+	}
+	if h.SecAdm != nil {
+		page.SecAdmGate = "present"
 	}
 	runtimeMode := ""
 	if h.SecretsMeta != nil {
