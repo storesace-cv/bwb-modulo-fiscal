@@ -86,6 +86,24 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
 </section>
 
 <section>
+  <h2>SecretStore (estado sanitizado)</h2>
+  <p class="muted">Master key só por env/referência externa. Sem plaintext · ≠ KMS/AGT · <code>FISCAL_ENV=homologation</code> ≠ HML AGT.</p>
+  <dl>
+    <dt>Backend declarado</dt><dd class="mono">{{.VaultStatus.BackendDeclared}}</dd>
+    <dt>Modo runtime</dt><dd class="mono">{{if .VaultStatus.StorageModeRuntime}}{{.VaultStatus.StorageModeRuntime}}{{else}}{{if .StorageMode}}{{.StorageMode}}{{else}}—{{end}}{{end}}</dd>
+    <dt>Master key</dt>
+    <dd>configurada={{.VaultStatus.MasterKeyConfigured}} · parse_ok={{.VaultStatus.MasterKeyParseOK}} · durable_required={{.VaultStatus.DurableRequired}}</dd>
+    <dt>Fingerprint master</dt>
+    <dd class="mono">{{if .VaultStatus.MasterKeyFingerprint}}{{.VaultStatus.MasterKeyFingerprint}}{{else}}—{{end}}</dd>
+    <dt>Cipher</dt><dd class="mono">{{.VaultStatus.CipherAlgorithm}}</dd>
+    <dt>ready_for_homologation</dt><dd>{{.VaultStatus.ReadyForHomologation}} <span class="muted">(prep local)</span></dd>
+    <dt>external_verified</dt><dd><code>false</code></dd>
+  </dl>
+  <ul>{{range .VaultStatus.Notes}}<li class="muted">{{.}}</li>{{end}}</ul>
+  <p>API: <code>GET /admin/v1/authority/secretstore-status</code> (owner)</p>
+</section>
+
+<section>
   <h2>Inventário SecretStore ({{.Environment}})</h2>
   <p class="muted">Só metadados (status/fingerprint/versão). Modo cofre: <code>{{if .StorageMode}}{{.StorageMode}}{{else}}desconhecido{{end}}</code>. Sem plaintext.</p>
   <table>

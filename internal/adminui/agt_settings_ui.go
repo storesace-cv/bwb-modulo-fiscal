@@ -20,6 +20,7 @@ type agtSettingsPage struct {
 	Catalog       []prep.EndpointCatalogEntry
 	JWS           prep.JWSProfileScaffold
 	Connectivity  prep.ConnectivityStatus
+	VaultStatus   secretstore.VaultStatus
 	Profiles      []agtProfileHubRow
 	SecretRefs    []secretstore.Metadata
 	StorageMode   string
@@ -70,6 +71,14 @@ func (h *Handler) agtSettingsHub(w http.ResponseWriter, r *http.Request) {
 		ProbeFlash:    strings.TrimSpace(r.URL.Query().Get("probe_ok")),
 		ProbeError:    strings.TrimSpace(r.URL.Query().Get("probe_err")),
 	}
+	runtimeMode := ""
+	if h.SecretsMeta != nil {
+		if v, ok := h.SecretsMeta.(interface{ StorageMode() string }); ok {
+			runtimeMode = v.StorageMode()
+			page.StorageMode = runtimeMode
+		}
+	}
+	page.VaultStatus = secretstore.BuildVaultStatusFromEnv(h.FiscalEnv, runtimeMode)
 	rows, err := prep.EndpointCatalog(env)
 	if err != nil {
 		page.CatalogErr = "Ambiente inválido (use homologation|production)."
@@ -101,9 +110,6 @@ func (h *Handler) agtSettingsHub(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if h.SecretsMeta != nil {
-		if v, ok := h.SecretsMeta.(interface{ StorageMode() string }); ok {
-			page.StorageMode = v.StorageMode()
-		}
 		if refs, err := h.SecretsMeta.ListMetadata(r.Context(), env); err == nil {
 			page.SecretRefs = refs
 		}
