@@ -212,6 +212,9 @@ func TestAdminUIAuthorityReadinessPage(t *testing.T) {
 	if !strings.Contains(body, "config_ready") || !strings.Contains(body, "external_verified") || !strings.Contains(body, "checklist_complete") {
 		t.Fatalf("%s", body)
 	}
+	if !strings.Contains(body, "bindings_valid") {
+		t.Fatal("missing bindings_valid")
+	}
 	if strings.Contains(body, "BEGIN ") {
 		t.Fatal("pem leaked")
 	}

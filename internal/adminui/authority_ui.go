@@ -8,6 +8,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/prep"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
 type authorityProfilesPage struct {
@@ -317,9 +318,12 @@ const (
 
 type authorityReadinessPage struct {
 	pageBase
-	Profile  authorityProfileView
-	Complete bool
-	Alerts   []authorityAlertView
+	Profile       authorityProfileView
+	Complete      bool
+	Alerts        []authorityAlertView
+	BindingValid  bool
+	BindingIssues []prep.BindingIssue
+	OpsStatuses   map[string]string
 }
 
 type authorityAlertView struct {
@@ -336,7 +340,6 @@ func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v := viewAuthorityProfile(p)
-	complete := v.ConfigReady && v.SecretsReady && v.OfflineValidated && !v.ExternalVerified
 	rawAlerts := prep.BuildReadinessAlerts(p, time.Time{})
 	alerts := make([]authorityAlertView, 0, len(rawAlerts))
 	for _, a := range rawAlerts {
@@ -344,13 +347,31 @@ func (h *Handler) authorityReadiness(w http.ResponseWriter, r *http.Request) {
 			Code: a.Code, Severity: string(a.Severity), Message: a.Message,
 		})
 	}
+	page := authorityReadinessPage{
+		pageBase:     h.baseWithCSRF(w, r, "Readiness autoridade", "Checklist readiness", "agt"),
+		Profile:      v,
+		Alerts:       alerts,
+		BindingValid: true,
+		OpsStatuses:  map[string]string{},
+	}
+	if h.SecretsMeta != nil {
+		bv, err := prep.ValidateProfileBindings(r.Context(), p, func(ref secretstore.Ref) (secretstore.Metadata, error) {
+			return h.SecretsMeta.Metadata(r.Context(), ref)
+		})
+		if err == nil {
+			page.BindingValid = bv.Valid
+			page.BindingIssues = bv.Issues
+			page.OpsStatuses = bv.OpsPathStatuses
+		} else {
+			page.BindingValid = false
+			page.BindingIssues = []prep.BindingIssue{{
+				Code: "lookup_error", Field: "secretstore", Detail: "falha ao consultar metadados (sem plaintext)",
+			}}
+		}
+	}
+	page.Complete = v.ConfigReady && v.SecretsReady && v.OfflineValidated && !v.ExternalVerified && page.BindingValid
 	h.recordUIAccess(r, "ui.authority.readiness", "authority_profile", id, adminaudit.ResultSuccess)
-	h.render(w, "authority_readiness.html", authorityReadinessPage{
-		pageBase: h.baseWithCSRF(w, r, "Readiness autoridade", "Checklist readiness", "authority"),
-		Profile:  v,
-		Complete: complete,
-		Alerts:   alerts,
-	})
+	h.render(w, "authority_readiness.html", page)
 }
 
 type authorityHistoryPage struct {

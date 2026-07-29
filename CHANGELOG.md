@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.101-draft — 2026-07-29
+
+- Backoffice: **RM-AGTPREP-019** — UI readiness owner mostra `bindings_valid` + issues/ops path_status (RM-AGTPREP-018); checklist_complete exige bindings; hub AGT; **≠** AGT / plaintext.
+
 ## 0.2.100-draft — 2026-07-29
 
 - Backoffice: **RM-AGTPREP-018** — validação fail-closed de bindings AuthorityProfile (`binding-validation`): ops C-FE-001 recusadas; `secrets_ready` exige credential+key+certificate presentes; material change limpa `secrets_ready`; OpenAPI `0.1.32-draft`; **≠** AGT / plaintext.
