@@ -48,8 +48,9 @@ def verify(root: Path) -> list[str]:
             break
 
     ids = ROW_RE.findall(text)
-    if "AO-DOC-002" not in ids:
-        fail("AO-DOC-002 deve constar como secção ### confirmada", errors)
+    for required in ("AO-DOC-002", "AO-SEQ-001"):
+        if required not in ids:
+            fail(f"{required} deve constar como secção ### confirmada", errors)
 
     # AO-DOC-002 evidence package
     section = ""
@@ -92,10 +93,41 @@ def verify(root: Path) -> list[str]:
             if token not in section:
                 fail(f"AO-DOC-002 deve citar `{token}`", errors)
 
+    # AO-SEQ-001 evidence package
+    m1 = re.search(
+        r"###\s+AO-SEQ-001\b.*?(?=\n###\s|\n##\s+Ainda|\n##\s+Verificador|$)",
+        text,
+        flags=re.S,
+    )
+    if not m1:
+        fail("secção AO-SEQ-001 ausente ou mal delimitada", errors)
+    else:
+        s1 = m1.group(0)
+        if "`confirmed_normative`" not in s1:
+            fail("AO-SEQ-001: estado deve ser `confirmed_normative`", errors)
+        for token in (
+            "AO-LEG-DP-71-25-2025",
+            "11904",
+            "11908",
+            "Art.10",
+            "sequencial",
+            "AO-LEG-DE-74-19-2019",
+            "1577",
+            "contínua",
+            "univoc",
+            "AO-SEQ-002",
+            "concorrência",
+            "Fail-closed",
+            "Homologação",
+            "Regime jurídico",
+            "SAF-T",
+        ):
+            if token not in s1:
+                fail(f"AO-SEQ-001 deve citar `{token}`", errors)
+
     # Must not claim other IDs confirmed without sections
     for rid in ("AO-SEQ-002", "AO-CRYPTO-001", "AO-KEY-001", "AO-DOC-001", "AO-AGT-001"):
         if re.search(rf"(?i)###\s+{rid}\b", text):
-            # allowed only if present as confirmed with evidence — for now forbid until dedicated PR
             fail(f"{rid}: não promover nesta matriz sem PR dedicado de evidência", errors)
 
     return errors

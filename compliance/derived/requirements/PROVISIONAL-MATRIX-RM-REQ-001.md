@@ -2,7 +2,7 @@
 
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada (promoções normativas vivem em [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md)).
 **Data:** 2026-07-29
-**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation`. **AO-DOC-002** promovido (`confirmed_normative`). C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
+**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation`. **AO-DOC-002** + **AO-SEQ-001** promovidos (`confirmed_normative`). C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
 
 ## Fontes admitidas neste rascunho
 
@@ -223,7 +223,7 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 | AO-ID-001 | `partial` | DE 683 + DP 71 + DE 74/19 + FE HML | Ligação preliminar: NIF/software @**19166–19167**; estabelecimento Art.24 @**11914** + DE74 @**1577** + FE `establishmentNumber` / **FE-RNG-080** (Citação H). Terminal: OCR DE74 @**1577** menciona «terminal informático» na identificação da série (Citação I) — **não** é campo FE de documento; lacuna estabelecimento/terminal no critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-DOC-001 | `scaffold` | DP 71 + DE 683 + FE + SAF-T + DE 74/19 | L1 Art.10 + L4 `documentType` @**19169–19170** + L2/L3 SAF-T + classes 74/19 @**1576–1577**; **não** confundir camadas; falta DEC-REG-003 + C-DOC-* (incl. C-DOC-004…010); critério **não** fica satisfeito; **não** confirmado |
 | AO-DOC-002 | `promoted` | DP 71 + DE 74/19 (+ Rect.) → [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) | **`confirmed_normative`** 2026-07-29 (Art.3 n) @**11904**; Art.8 n.º4–5/8–9 @**11907**; DE74 n.º3 @**1576** + n.º4 l) @**1577**). Residual: teste de imutabilidade engenharia. **≠** homologação AGT / JWS FE |
-| AO-SEQ-001 | `partial` | DP 71 + DE 74/19 + DE 683 | Ligação preliminar: DP71 Art.10 b) @**11908** + DE74 n.º4 g)–i) @**1577** + `documentNo` FE alinhado SAF-T @**19167**. Unicidade concorrente **não** demonstrada; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-SEQ-001 | `promoted` | DP 71 + DE 74/19 (+ Rect.) → [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) | **`confirmed_normative`** 2026-07-29 (Art.3 n) @**11904**; Art.10 b) @**11908**; DE74 sequência contínua / unívoca @**1577**). Residual: unicidade concorrente engenharia. **≠** `AO-SEQ-002` / AGT |
 | AO-SEQ-002 | `partial` | DE 683 + DP 71 + FE HML | Ligação preliminar: ART.4 @**19164** + `solicitarSerie` @**19183–19184** + FE `solicitarSerie`/`listarSeries` + FE-RNG-051/053/055–060 (Citação H); C-FE-001 paths abertos. Critério («POS não atribui o número fiscal final») **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | Arquitectura de API / produto; não derivado só de legislação (`submissionGUID` FE @**19166** é candidato, não fecho) |
 | AO-TAX-001 | `partial` | DE 683 Anexo I + Tabelas 2–6 | Ligação preliminar: `taxType`/`taxCode`/`taxExemptionCode` @**19171–19173** + Tabelas 2–6 @**19212–19227** (Citação G). Arredondamento/cálculo MVP e DEC-REG-003 **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
@@ -258,9 +258,10 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 15. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
 16. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
 17. AO-DOC-002: **promovido** `confirmed_normative` (2026-07-29) — ver CONFIRMED-MATRIX; residual teste imutabilidade; **≠** AGT/JWS.
-18. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-19. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-20. Não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT; não promover AO-* sem evidência inequívoca.
+18. AO-SEQ-001: **promovido** `confirmed_normative` (2026-07-29) — sequência por série; residual concorrência; **≠** `AO-SEQ-002`.
+19. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+20. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+21. Não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT; não promover AO-* sem evidência inequívoca.
 
 ## Referências
 
