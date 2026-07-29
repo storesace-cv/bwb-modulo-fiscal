@@ -109,14 +109,24 @@ func TestRotateIncrementsVersion(t *testing.T) {
 	}
 }
 
-func TestInvalidEnvironmentRejected(t *testing.T) {
+func TestListMetadataEnvironmentIsolation(t *testing.T) {
 	store, err := secretstore.NewMemorySimulator(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref := secretstore.Ref{Kind: "k", Environment: "development", SubjectID: "p", Name: "n"}
-	_, err = store.Put(context.Background(), ref, []byte("x"), nil)
-	if !errors.Is(err, secretstore.ErrValidation) {
+	hml := secretstore.Ref{Kind: "producer_credential", Environment: secretstore.EnvHomologation, SubjectID: "platform", Name: "a"}
+	prd := secretstore.Ref{Kind: "producer_credential", Environment: secretstore.EnvProduction, SubjectID: "platform", Name: "a"}
+	if _, err := store.Put(context.Background(), hml, []byte("hml-only"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Put(context.Background(), prd, []byte("prd-only"), nil); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.ListMetadata(context.Background(), secretstore.EnvHomologation)
+	if err != nil || len(rows) != 1 || rows[0].Environment != secretstore.EnvHomologation {
+		t.Fatalf("%+v %v", rows, err)
+	}
+	if _, err := store.ListMetadata(context.Background(), "development"); !errors.Is(err, secretstore.ErrValidation) {
 		t.Fatalf("got %v", err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminaudit"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/prep"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 )
 
 type agtSettingsPage struct {
@@ -14,6 +15,8 @@ type agtSettingsPage struct {
 	Catalog       []prep.EndpointCatalogEntry
 	JWS           prep.JWSProfileScaffold
 	Profiles      []adminregistry.AuthorityProfile
+	SecretRefs    []secretstore.Metadata
+	StorageMode   string
 	CatalogErr    string
 	AuthorityMode string
 	FiscalEnv     string
@@ -45,6 +48,14 @@ func (h *Handler) agtSettingsHub(w http.ResponseWriter, r *http.Request) {
 					page.Profiles = append(page.Profiles, p)
 				}
 			}
+		}
+	}
+	if h.SecretsMeta != nil {
+		if v, ok := h.SecretsMeta.(interface{ StorageMode() string }); ok {
+			page.StorageMode = v.StorageMode()
+		}
+		if refs, err := h.SecretsMeta.ListMetadata(r.Context(), env); err == nil {
+			page.SecretRefs = refs
 		}
 	}
 	h.recordUIAccess(r, "ui.agt_settings.read", "authority", env, adminaudit.ResultSuccess)

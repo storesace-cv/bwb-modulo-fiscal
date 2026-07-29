@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -81,6 +82,8 @@ type AdminView interface {
 	Rotate(ctx context.Context, ref Ref, plaintext []byte, expiresAt *time.Time) (PutResult, error)
 	Revoke(ctx context.Context, ref Ref) (Metadata, error)
 	Metadata(ctx context.Context, ref Ref) (Metadata, error)
+	// ListMetadata returns sanitized rows for one environment (HML≠PRD). Never plaintext.
+	ListMetadata(ctx context.Context, environment string) ([]Metadata, error)
 	// Reveal is intentionally absent on AdminView.
 }
 
@@ -222,6 +225,29 @@ func (m *Memory) Metadata(ctx context.Context, ref Ref) (Metadata, error) {
 	return e.meta, nil
 }
 
+// ListMetadata returns sanitized metadata for one environment (never plaintext).
+func (m *Memory) ListMetadata(ctx context.Context, environment string) ([]Metadata, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	env := strings.TrimSpace(environment)
+	switch env {
+	case EnvHomologation, EnvProduction:
+	default:
+		return nil, fmt.Errorf("%w: environment deve ser homologation|production", ErrValidation)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]Metadata, 0)
+	for _, e := range m.entries {
+		if e.meta.Environment == env || e.meta.Ref.Environment == env {
+			out = append(out, e.meta)
+		}
+	}
+	sortMetadata(out)
+	return out, nil
+}
+
 // Reveal returns plaintext for runtime only. Admin UI must not call this.
 func (m *Memory) Reveal(ctx context.Context, ref Ref) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
@@ -307,6 +333,19 @@ func validateRef(ref Ref) error {
 		return fmt.Errorf("%w: environment deve ser homologation|production", ErrValidation)
 	}
 	return nil
+}
+
+func sortMetadata(out []Metadata) {
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Ref.Kind != b.Ref.Kind {
+			return a.Ref.Kind < b.Ref.Kind
+		}
+		if a.Ref.SubjectID != b.Ref.SubjectID {
+			return a.Ref.SubjectID < b.Ref.SubjectID
+		}
+		return a.Ref.Name < b.Ref.Name
+	})
 }
 
 // Ensure Memory implements both surfaces.

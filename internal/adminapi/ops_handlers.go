@@ -174,3 +174,34 @@ func (h *Handler) getSecretRefMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
+
+func (h *Handler) listSecretRefMetadata(w http.ResponseWriter, r *http.Request) {
+	if h.SecretsMeta == nil {
+		writeProblem(w, r, http.StatusServiceUnavailable, "ADMIN_SECRETS_META_UNAVAILABLE", "Secrets Metadata Unavailable")
+		return
+	}
+	env := r.URL.Query().Get("environment")
+	rows, err := h.SecretsMeta.ListMetadata(r.Context(), env)
+	if err != nil {
+		if errors.Is(err, secretstore.ErrValidation) {
+			writeProblem(w, r, http.StatusUnprocessableEntity, "ADMIN_VALIDATION", "Unprocessable Entity")
+			return
+		}
+		writeProblem(w, r, http.StatusInternalServerError, "ADMIN_ERROR", "Internal Server Error")
+		return
+	}
+	items := make([]secretMetadataResp, 0, len(rows))
+	for _, meta := range rows {
+		items = append(items, metadataResp(meta))
+	}
+	mode := ""
+	if v, ok := h.SecretsMeta.(interface{ StorageMode() string }); ok {
+		mode = v.StorageMode()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"environment":       env,
+		"storage_mode":      mode,
+		"external_verified": false,
+		"items":             items,
+	})
+}

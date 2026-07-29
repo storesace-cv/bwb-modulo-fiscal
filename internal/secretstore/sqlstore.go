@@ -174,6 +174,63 @@ func (s *SQL) Metadata(ctx context.Context, ref Ref) (Metadata, error) {
 	return cur.meta, nil
 }
 
+// ListMetadata returns sanitized metadata for one environment (never plaintext/ciphertext).
+func (s *SQL) ListMetadata(ctx context.Context, environment string) ([]Metadata, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	env := strings.TrimSpace(environment)
+	switch env {
+	case EnvHomologation, EnvProduction:
+	default:
+		return nil, fmt.Errorf("%w: environment deve ser homologation|production", ErrValidation)
+	}
+	q := fmt.Sprintf(
+		`SELECT kind, environment, subject_id, name, status, fingerprint, version, expires_at, last_verified_at
+		 FROM %s WHERE environment=%s`,
+		s.t("secret_store_entries"), s.p(1),
+	)
+	rows, err := s.db.QueryContext(ctx, q, env)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]Metadata, 0)
+	for rows.Next() {
+		var (
+			kind, e, subject, name, status, fp string
+			version                            int
+			expiresRaw, verifiedRaw            any
+		)
+		if err := rows.Scan(&kind, &e, &subject, &name, &status, &fp, &version, &expiresRaw, &verifiedRaw); err != nil {
+			return nil, err
+		}
+		meta := Metadata{
+			Ref:         Ref{Kind: kind, Environment: e, SubjectID: subject, Name: name},
+			Status:      status,
+			Fingerprint: fp,
+			Version:     version,
+			Environment: e,
+		}
+		if t, ok, err := parseNullableTime(expiresRaw); err != nil {
+			return nil, err
+		} else if ok {
+			meta.ExpiresAt = &t
+		}
+		if t, ok, err := parseNullableTime(verifiedRaw); err != nil {
+			return nil, err
+		} else if ok {
+			meta.LastVerifiedAt = &t
+		}
+		out = append(out, meta)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sortMetadata(out)
+	return out, nil
+}
+
 // Reveal returns plaintext for runtime only. Admin UI must not call this.
 func (s *SQL) Reveal(ctx context.Context, ref Ref) ([]byte, error) {
 	if err := ctx.Err(); err != nil {

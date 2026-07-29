@@ -189,6 +189,7 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/secret-refs/metadata", wrap(readSecretMeta(http.HandlerFunc(h.getSecretRefMetadata))))
 
 	secadmWrite := adminauth.RequirePermission(adminauth.PermSecAdmWrite)
+	mux.Handle("GET /admin/v1/secret-refs", wrap(secadmWrite(http.HandlerFunc(h.listSecretRefMetadata))))
 	mux.Handle("POST /admin/v1/authority-profiles", wrap(secadmWrite(http.HandlerFunc(h.createAuthorityProfile))))
 	mux.Handle("GET /admin/v1/authority-profiles", wrap(readOps(http.HandlerFunc(h.listAuthorityProfiles))))
 	mux.Handle("GET /admin/v1/authority-profiles/{profile_id}", wrap(readOps(http.HandlerFunc(h.getAuthorityProfile))))

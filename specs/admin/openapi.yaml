@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.29-draft
+  version: 0.1.30-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -37,6 +37,7 @@ info:
     0.1.27: Teste SMTP admin owner-only (RM-OPS-008); implicit TLS 465; sem passwords no email; status sanitizado.
     0.1.28: Digest SMTP alertas ops owner-only (RM-OPS-009); códigos allowlist; sem passwords/NIF; ≠ AGT/IdP.
     0.1.29: Catálogo endpoints FE + scaffold JWS + hub UI owner-only (RM-AGTPREP-015); C-FE-001 fail-closed; ≠ AGT.
+    0.1.30: Inventário SecretStore metadados por ambiente owner-only (RM-AGTPREP-016); sem plaintext; HML≠PRD.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -1248,6 +1249,46 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /secret-refs:
+    get:
+      operationId: listSecretRefMetadata
+      summary: Inventário de metadados SecretStore por ambiente (owner)
+      description: >
+        RM-AGTPREP-016. Só fingerprint/status/versão; HML≠PRD; storage_mode sanitizado;
+        sem plaintext/ciphertext. ≠ AGT.
+      tags: [SecAdm]
+      parameters:
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [homologation, production]
+      responses:
+        "200":
+          description: Inventário sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [environment, external_verified, items]
+                properties:
+                  environment: { type: string, enum: [homologation, production] }
+                  storage_mode: { type: string }
+                  external_verified: { type: boolean }
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SecretRefMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /secadm/secret-refs:
     put:
       operationId: secadmPutSecretRef
