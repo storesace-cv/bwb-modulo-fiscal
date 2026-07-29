@@ -86,6 +86,50 @@ func TestCDOC005InsurerDualL3Seed(t *testing.T) {
 	}
 }
 
+func TestCDOC006RCPaymentVsPurchase(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC006Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-006 seed violations: %v", v)
+	}
+	pag, ok1 := reg.Lookup("bwb.ao.pagamentos.rc")
+	com, ok2 := reg.Lookup("bwb.ao.compras.rc")
+	if !ok1 || !ok2 {
+		t.Fatal("RC dual seeds missing")
+	}
+	if pag.CodigoCanonico == com.CodigoCanonico {
+		t.Fatal("RC canonicals must remain distinct")
+	}
+	pLayer, pCode := doctype.ParseSAFTTypeAdapter(pag.ChannelAdapters.SAFTType)
+	cLayer, cCode := doctype.ParseSAFTTypeAdapter(com.ChannelAdapters.SAFTType)
+	if pLayer != doctype.SAFTLayerPayment || pCode != "RC" || pag.ChannelAdapters.SAFTStructure != "Payments" {
+		t.Fatalf("pagamentos.rc: layer=%q code=%q l3=%q", pLayer, pCode, pag.ChannelAdapters.SAFTStructure)
+	}
+	if cLayer != doctype.SAFTLayerPurchase || cCode != "RC" || com.ChannelAdapters.SAFTStructure != "PurchaseInvoices" {
+		t.Fatalf("compras.rc: layer=%q code=%q l3=%q", cLayer, cCode, com.ChannelAdapters.SAFTStructure)
+	}
+	if pag.ChannelAdapters.FECode != "RC" {
+		t.Fatalf("pagamentos.rc FE: %q", pag.ChannelAdapters.FECode)
+	}
+	if com.ChannelAdapters.FECode != "" {
+		t.Fatalf("compras.rc must be FE-empty, got %q", com.ChannelAdapters.FECode)
+	}
+	if !saftao.ValidPaymentType(saftao.PaymentTypeRC) {
+		t.Fatal("PaymentType must accept RC")
+	}
+	if !saftao.ValidPurchaseType(saftao.PurchaseTypeRC) {
+		t.Fatal("PurchaseType must accept RC (dual membership)")
+	}
+	if saftao.ValidInvoiceType(saftao.InvoiceType("RC")) {
+		t.Fatal("InvoiceType must not accept RC")
+	}
+	if pag.Activo != doctype.ActiveOff || com.Activo != doctype.ActiveOff {
+		t.Fatalf("RC seeds must stay off: pag=%q com=%q", pag.Activo, com.Activo)
+	}
+}
+
 func TestCDOC003FAIsFEOnly(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {
@@ -166,7 +210,9 @@ func TestParseSAFTTypeAdapter(t *testing.T) {
 		{"InvoiceType=FT", doctype.SAFTLayerInvoice, "FT"},
 		{"PaymentType=RC", doctype.SAFTLayerPayment, "RC"},
 		{"WorkType=RP", doctype.SAFTLayerWork, "RP"},
-		{"PurchaseType=FT", doctype.SAFTLayerOther, "FT"},
+		{"PurchaseType=RC", doctype.SAFTLayerPurchase, "RC"},
+		{"PurchaseType=FT", doctype.SAFTLayerPurchase, "FT"},
+		{"MovementType=GR", doctype.SAFTLayerOther, "GR"},
 	}
 	for _, tc := range cases {
 		layer, code := doctype.ParseSAFTTypeAdapter(tc.in)

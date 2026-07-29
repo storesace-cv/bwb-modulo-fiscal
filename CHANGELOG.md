@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.87-draft — 2026-07-28
+
+- Compliance: **RM-M2-D / C-DOC-006** — homónimo `RC` em `PaymentType` **e** `PurchaseType` (L3 `Payments` vs `PurchaseInvoices`); `doctype.CheckCDOC006Invariants` + testes; dual canónicos `off`; **sem** AO-* confirmados.
+
 ## 0.2.86-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / C-DOC-005** — homónimos segurador `RP`/`RE`/`CS`/`LD`/`RA` em `InvoiceType` **e** `WorkType`; `doctype.CheckCDOC005Invariants` + testes; seed FE só `InvoiceType`/`off`; **sem** inventar FE→WorkType; **sem** AO-* confirmados.
