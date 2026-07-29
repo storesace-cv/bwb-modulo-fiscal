@@ -40,8 +40,7 @@
 
 - Não colapsar `vendas.ar` e `pagamentos.ar` num único canónico.
 - Não colapsar com `compras.ar` (ver [C-DOC-009](C-DOC-009-ar-purchase-third-l3.md)).
-- Não marcar C-DOC-004 como resolvido só porque os invariantes de seed passam.
-- Não promover `AO-DOC-*` a partir desta mitigação.
 - Não inventar bijecção L4=`AR` → um só L2.
 - Não activar `AR` no OpenAPI slice sem fecho do residual.
 - Não marcar C-DOC-004 como resolvido só porque os invariantes de seed passam.
+- Não promover `AO-DOC-*` a partir desta mitigação.
