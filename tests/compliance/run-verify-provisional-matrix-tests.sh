@@ -76,7 +76,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | ASM-REG-001 | `scaffold` | — | x |
 | AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
 | AO-DOC-001 | `scaffold` | — | citação pendente |
-| AO-DOC-002 | `partial` | AO-LEG-DP-71-25-2025 | eliminação 11904 Art.8 11907 @1577 critério **não** fica satisfeito; **Não** confirmado |
+| AO-DOC-002 | `promoted` | AO-LEG-DP-71-25-2025 | CONFIRMED-MATRIX confirmed_normative 11904 11907 |
 | AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 @1577 critério **não** fica satisfeito; **Não** confirmado |
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 solicitarSerie @19183 FE-RNG-051 listarSeries b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
@@ -105,8 +105,11 @@ fi
 mutate_real() {
   local label="$1"
   local py="$2"
+  mkdir -p "${TMP}/compliance/derived/requirements"
   cp "${ROOT}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md" \
     "${TMP}/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md"
+  cp "${ROOT}/compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md" \
+    "${TMP}/compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md"
   python3 -c "$py"
   if python3 "${VERIFY}" --repo-root "${TMP}" >/dev/null 2>&1; then
     bad "${label} deveria falhar"
@@ -182,7 +185,7 @@ mutate_real "AO-DOC-002 scaffold indevido" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-DOC-002 | `partial`", "| AO-DOC-002 | `scaffold`")
+t = t.replace("| AO-DOC-002 | `promoted`", "| AO-DOC-002 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 

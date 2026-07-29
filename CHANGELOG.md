@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.93-draft — 2026-07-29
+
+- Compliance: **RM-M2-D / RM-REQ-001** — primeira promoção normativa **`AO-DOC-002`** (`confirmed_normative`): DP 71/25 Art.3 n)+Art.8 @11904/11907 + DE 74/19 n.º3/n.º4 l) @1576–1577 (+ Rect. 10/19); matriz [`CONFIRMED-MATRIX-RM-REQ-001.md`](compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md) + verificador; **≠** homologação AGT / JWS / DEC-REG-003 / C-DOC-001.
+
 ## 0.2.92-draft — 2026-07-29
 
 - Compliance: **RM-M2-D** — inventário `WorkType` restantes (`CM`/`CC`/`NR`/`FO`/`OU`/`PP`/`GC`); `doctype.CheckWorkTypeInventoryInvariants` + testes; **sem** FE L4; **sem** seed WorkType segurador (C-DOC-005); **sem** AO-* confirmados.
