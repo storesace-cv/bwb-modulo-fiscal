@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.33-draft
+  version: 0.1.34-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -41,6 +41,7 @@ info:
     0.1.31: Estado conectividade preparação AGT owner-only (RM-AGTPREP-017); último probe audit; ≠ AGT.
     0.1.32: Validação bindings AuthorityProfile (ops C-FE-001 + refs presentes) owner-only (RM-AGTPREP-018); ≠ AGT.
     0.1.33: Estado sanitizado SecretStore/master key (RM-AGTPREP-021); fingerprint só; ≠ plaintext/AGT.
+    0.1.34: Estado SecAdm gate present/absent owner-only (RM-AGTPREP-022); sem subject; ≠ AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -704,6 +705,36 @@ paths:
                   durable_required: { type: boolean }
                   ready_for_homologation: { type: boolean }
                   cipher_algorithm: { type: string }
+                  external_verified: { type: boolean }
+                  notes:
+                    type: array
+                    items: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /authority/secadm-gate-status:
+    get:
+      operationId: getAuthoritySecAdmGateStatus
+      summary: Estado do gate SecAdm (owner; sem subject)
+      description: >
+        RM-AGTPREP-022. present|absent conforme FISCAL_ADMIN_OWNER_SUBJECT no runtime.
+        Nunca devolve o subject. external_verified=false. ≠ AGT.
+      tags: [Autoridade]
+      responses:
+        "200":
+          description: Estado sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [secadm_gate, secadm_gate_ready, external_verified]
+                properties:
+                  secadm_gate:
+                    type: string
+                    enum: [present, absent]
+                  secadm_gate_ready: { type: boolean }
                   external_verified: { type: boolean }
                   notes:
                     type: array

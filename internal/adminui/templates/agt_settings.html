@@ -86,6 +86,20 @@ conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verif
 </section>
 
 <section>
+  <h2>SecAdm gate</h2>
+  <dl>
+    <dt>Estado</dt><dd class="mono">{{.SecAdmGate}}</dd>
+    <dt>external_verified</dt><dd><code>false</code></dd>
+  </dl>
+  <p class="muted">
+    <code>present</code> exige <code>FISCAL_ADMIN_OWNER_SUBJECT</code> no runtime (valor nunca mostrado).
+    Material write-only: <a href="/admin/ui/secadm/material">/admin/ui/secadm/material</a>.
+    Sandbox sem IdP continua <code>admin_auth_mode=fail_closed</code>.
+  </p>
+  <p>API: <code>GET /admin/v1/authority/secadm-gate-status</code> (owner)</p>
+</section>
+
+<section>
   <h2>SecretStore (estado sanitizado)</h2>
   <p class="muted">Master key só por env/referência externa. Sem plaintext · ≠ KMS/AGT · <code>FISCAL_ENV=homologation</code> ≠ HML AGT.</p>
   <dl>
