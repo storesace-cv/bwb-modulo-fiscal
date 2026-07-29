@@ -21,11 +21,13 @@ const (
 // KnownAuthorityOperations are FE operation keys cited in FE-SERVICES-MATRIX
 // (source_id AO-FE-SNAP-HML-2026-07-25-*, pending_validation). Do not invent paths.
 var KnownAuthorityOperations = map[string]struct{}{
-	"registarFactura": {},
-	"solicitarSerie":  {},
-	"listarSeries":    {},
-	"obterEstado":     {},
-	"listarFacturas":  {},
+	"registarFactura":  {},
+	"solicitarSerie":   {},
+	"listarSeries":     {},
+	"obterEstado":      {},
+	"listarFacturas":   {},
+	"consultarFactura": {},
+	"validarDocumento": {},
 }
 
 // AuthorityProfile is non-secret AGT preparation config (≠ AGT connection).

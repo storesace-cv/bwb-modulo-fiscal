@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.97-draft — 2026-07-29
+
+- Backoffice: **RM-AGTPREP-015** — hub owner-only `/admin/ui/agt-settings` (endpoints FE catalogados via `fepath`/matriz, scaffold JWS sem claims inventados, atalhos SecAdm/perfis/probe); API `GET /admin/v1/authority/endpoint-catalog` + `jws-profile-scaffold`; OpenAPI admin `0.1.29-draft`; C-FE-001 fail-closed; **≠** AGT / plaintext.
+
 ## 0.2.96-draft — 2026-07-29
 
 - Backoffice / SecAdm: **RM-AGTPREP-014** — `SecretStore` durável cifrado em repouso (`secret_store_entries`, AES-256-GCM, master key via `FISCAL_SECRETSTORE_MASTER_KEY`); HML/PRD fail-closed sem chave; `memory` só `development`; metadados write-only inalterados; grants `schema13`; `ExpectedVersion=13`; **≠** AGT / KMS / plaintext em BD/logs.

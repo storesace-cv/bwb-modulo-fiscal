@@ -1,0 +1,80 @@
+{{define "content"}}
+<p class="muted">Zona owner-only: endpoints catalogados, perfil JWS (scaffolding), credenciais/certs via SecAdm,
+conectividade (simulador). <strong>≠</strong> AGT real · <code>external_verified=false</code> · sem plaintext.</p>
+
+<p>
+  Ambiente:
+  <a href="/admin/ui/agt-settings?environment=homologation"{{if eq .Environment "homologation"}} aria-current="page"{{end}}>homologation</a>
+  ·
+  <a href="/admin/ui/agt-settings?environment=production"{{if eq .Environment "production"}} aria-current="page"{{end}}>production</a>
+  <span class="muted">(HML≠PRD; sem cópia automática)</span>
+</p>
+
+<section>
+  <h2>Atalhos</h2>
+  <ul>
+    <li><a href="/admin/ui/authority-profiles">Perfis AuthorityProfile</a> · <a href="/admin/ui/authority-profiles/wizard">Wizard</a></li>
+    <li><a href="/admin/ui/secadm/metadata">SecAdm metadados</a> · <a href="/admin/ui/secadm/material">Material (write-only)</a></li>
+    <li>API probe: <code>POST /admin/v1/authority/probe-config</code> (só simulator; modo actual: <code>{{.AuthorityMode}}</code>)</li>
+    <li>FISCAL_ENV técnico: <code>{{.FiscalEnv}}</code> ≠ homologação oficial AGT</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Catálogo de endpoints FE ({{.Environment}})</h2>
+  <p class="muted">Fonte: matriz FE + <code>fepath</code>. Conflito C-FE-001 → URL vazia (fail-closed). Sem inventar paths.</p>
+  {{if .CatalogErr}}<p class="flash" role="alert">{{.CatalogErr}}</p>{{end}}
+  <table>
+    <thead>
+      <tr><th>Operação</th><th>Estado</th><th>URL declarada</th><th>Bindable</th><th>Conflito</th></tr>
+    </thead>
+    <tbody>
+      {{range .Catalog}}
+      <tr>
+        <td class="mono">{{.Operation}}</td>
+        <td>{{.PathStatus}}</td>
+        <td class="mono">{{if .DeclaredURL}}{{.DeclaredURL}}{{else}}—{{end}}</td>
+        <td>{{if .Bindable}}sim{{else}}não{{end}}</td>
+        <td>{{if .ConflictID}}{{.ConflictID}}{{else}}—{{end}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="5">Sem entradas</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  <p>API: <code>GET /admin/v1/authority/endpoint-catalog?environment={{.Environment}}</code></p>
+</section>
+
+<section>
+  <h2>Perfil JWS (scaffolding)</h2>
+  <dl>
+    <dt>Algoritmo declarado</dt><dd class="mono">{{.JWS.AlgorithmDeclared}}</dd>
+    <dt>Claims</dt><dd class="mono">{{.JWS.ClaimsStatus}}</dd>
+    <dt>Mecanismo FE</dt><dd class="mono">{{.JWS.MechanismID}}</dd>
+    <dt>Separado de SAF-T</dt><dd class="mono">{{.JWS.SAFTMechanismSeparated}}</dd>
+    <dt>external_verified</dt><dd><code>false</code></dd>
+    <dt>Claims inventados</dt><dd>{{if .JWS.InventedClaimsForbidden}}proibidos{{end}}</dd>
+  </dl>
+  <p class="muted">{{.JWS.SourceNote}} — {{.JWS.ConflictSeparationNote}}</p>
+  <p>API: <code>GET /admin/v1/authority/jws-profile-scaffold</code></p>
+</section>
+
+<section>
+  <h2>Perfis neste ambiente</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Estado</th><th>Alg</th><th>Readiness</th></tr></thead>
+    <tbody>
+      {{range .Profiles}}
+      <tr>
+        <td><a href="/admin/ui/authority-profiles/{{.ID}}/readiness">{{.DisplayName}}</a></td>
+        <td>{{.Status}}</td>
+        <td class="mono">{{.AlgorithmDeclared}}</td>
+        <td class="mono">c={{.ConfigReady}} s={{.SecretsReady}} o={{.OfflineValidated}} e=false</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="4">Nenhum perfil em {{$.Environment}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
