@@ -1,6 +1,8 @@
 {{define "content"}}
 <p class="hint">Checklist local de preparação AGT (≠ ligação real). <code>external_verified</code> permanece false.</p>
-<p><a href="/admin/ui/authority-profiles">← Perfis</a> · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/edit">Editar</a>
+<p><a href="/admin/ui/agt-settings">← Hub preparação AGT</a>
+   · <a href="/admin/ui/authority-profiles">Perfis</a>
+   · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/edit">Editar</a>
    · <a href="/admin/ui/secadm/material">SecAdm material</a>
    · <a href="/admin/ui/authority-profiles/{{.Profile.ID}}/history">Histórico</a></p>
 <h2>{{.Profile.DisplayName}}</h2>
@@ -12,13 +14,39 @@
     <tr><td>secrets_ready</td><td>{{.Profile.SecretsReady}}</td></tr>
     <tr><td>offline_validated</td><td>{{.Profile.OfflineValidated}}</td></tr>
     <tr><td>external_verified</td><td>{{.Profile.ExternalVerified}}</td></tr>
+    <tr><td>bindings_valid</td><td>{{.BindingValid}}</td></tr>
   </tbody>
 </table>
 {{if .Complete}}
 <p class="flash" role="status">checklist_complete=true (ainda ≠ AGT / external_verified=false)</p>
 {{else}}
-<p class="flash error" role="status">checklist_complete=false — completar config/secrets/offline</p>
+<p class="flash error" role="status">checklist_complete=false — completar config/secrets/offline/bindings</p>
 {{end}}
+
+<h2>Bindings (ops + SecretStore)</h2>
+{{if .BindingValid}}
+<p class="flash" role="status">bindings_valid=true</p>
+{{else}}
+<p class="flash error" role="alert">bindings_valid=false</p>
+{{end}}
+{{if .OpsStatuses}}
+<table>
+  <thead><tr><th>Operação</th><th>path_status</th></tr></thead>
+  <tbody>
+  {{range $op, $st := .OpsStatuses}}
+    <tr><td class="mono">{{$op}}</td><td>{{$st}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+{{if .BindingIssues}}
+<ul>
+{{range .BindingIssues}}
+  <li><code>{{.Code}}</code> · <span class="mono">{{.Field}}</span> — {{.Detail}}</li>
+{{end}}
+</ul>
+{{end}}
+
 {{if .Alerts}}
 <h2>Alertas</h2>
 <ul>
