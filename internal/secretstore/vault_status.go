@@ -9,16 +9,16 @@ import (
 
 // VaultStatus is owner-visible SecretStore readiness. Never includes key material or env raw values.
 type VaultStatus struct {
-	FiscalEnv              string   `json:"fiscal_env"`
-	BackendDeclared        string   `json:"backend_declared"` // unset|auto|memory|sql|invalid
-	MasterKeyConfigured    bool     `json:"master_key_configured"`
-	MasterKeyParseOK       bool     `json:"master_key_parse_ok"`
-	MasterKeyFingerprint   string   `json:"master_key_fingerprint"` // sha256 hex of key bytes; empty if unset/invalid
-	StorageModeRuntime     string   `json:"storage_mode_runtime"`   // from open vault; may be empty
-	DurableRequired        bool     `json:"durable_required"`
-	ReadyForHomologation   bool     `json:"ready_for_homologation"` // local prep; ≠ AGT
-	CipherAlgorithm        string   `json:"cipher_algorithm"`
-	Notes                  []string `json:"notes"`
+	FiscalEnv            string   `json:"fiscal_env"`
+	BackendDeclared      string   `json:"backend_declared"` // unset|auto|memory|sql|invalid
+	MasterKeyConfigured  bool     `json:"master_key_configured"`
+	MasterKeyParseOK     bool     `json:"master_key_parse_ok"`
+	MasterKeyFingerprint string   `json:"master_key_fingerprint"` // sha256 hex of key bytes; empty if unset/invalid
+	StorageModeRuntime   string   `json:"storage_mode_runtime"`   // from open vault; may be empty
+	DurableRequired      bool     `json:"durable_required"`
+	ReadyForHomologation bool     `json:"ready_for_homologation"` // local prep; ≠ AGT
+	CipherAlgorithm      string   `json:"cipher_algorithm"`
+	Notes                []string `json:"notes"`
 }
 
 // BuildVaultStatusFromEnv inspects process env without logging secrets.
@@ -33,9 +33,9 @@ func BuildVaultStatus(fiscalEnv, backendRaw, masterKeyRaw, runtimeMode string) V
 	backend := strings.ToLower(strings.TrimSpace(backendRaw))
 	keyRaw := strings.TrimSpace(masterKeyRaw)
 	out := VaultStatus{
-		FiscalEnv:       env,
-		CipherAlgorithm: CipherAlgAES256GCM,
-		Notes:           []string{"metadados só; ≠ plaintext; ≠ AGT/KMS", "HML≠PRD; master key fora do Git"},
+		FiscalEnv:          env,
+		CipherAlgorithm:    CipherAlgAES256GCM,
+		Notes:              []string{"metadados só; ≠ plaintext; ≠ AGT/KMS", "HML≠PRD; master key fora do Git"},
 		StorageModeRuntime: strings.TrimSpace(runtimeMode),
 	}
 

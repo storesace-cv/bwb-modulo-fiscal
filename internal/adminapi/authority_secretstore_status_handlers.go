@@ -19,16 +19,16 @@ func (h *Handler) getAuthoritySecretStoreStatus(w http.ResponseWriter, r *http.R
 	st := secretstore.BuildVaultStatusFromEnv(h.FiscalEnv, runtimeMode)
 	_ = h.Audit.Record(r.Context(), claims, "authority.secretstore_status", "authority", "secretstore", adminaudit.ResultSuccess, requestID(r))
 	writeJSON(w, http.StatusOK, map[string]any{
-		"fiscal_env":               st.FiscalEnv,
-		"backend_declared":         st.BackendDeclared,
-		"master_key_configured":    st.MasterKeyConfigured,
-		"master_key_parse_ok":      st.MasterKeyParseOK,
-		"master_key_fingerprint":   st.MasterKeyFingerprint,
-		"storage_mode_runtime":     st.StorageModeRuntime,
-		"durable_required":         st.DurableRequired,
-		"ready_for_homologation":   st.ReadyForHomologation,
-		"cipher_algorithm":         st.CipherAlgorithm,
-		"external_verified":        false,
-		"notes":                    st.Notes,
+		"fiscal_env":             st.FiscalEnv,
+		"backend_declared":       st.BackendDeclared,
+		"master_key_configured":  st.MasterKeyConfigured,
+		"master_key_parse_ok":    st.MasterKeyParseOK,
+		"master_key_fingerprint": st.MasterKeyFingerprint,
+		"storage_mode_runtime":   st.StorageModeRuntime,
+		"durable_required":       st.DurableRequired,
+		"ready_for_homologation": st.ReadyForHomologation,
+		"cipher_algorithm":       st.CipherAlgorithm,
+		"external_verified":      false,
+		"notes":                  st.Notes,
 	})
 }
