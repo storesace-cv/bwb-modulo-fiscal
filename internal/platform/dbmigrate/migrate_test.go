@@ -33,10 +33,10 @@ func TestMigrationVersionParity(t *testing.T) {
 			t.Fatalf("version mismatch at %d: postgres=%s sqlite=%s", i, pgVers[i], sqVers[i])
 		}
 	}
-	if pgVers[len(pgVers)-1] != "0012" {
-		t.Fatalf("latest version = %s, want 0012", pgVers[len(pgVers)-1])
+	if pgVers[len(pgVers)-1] != "0013" {
+		t.Fatalf("latest version = %s, want 0013", pgVers[len(pgVers)-1])
 	}
-	if dbmigrate.ExpectedVersion != 12 {
+	if dbmigrate.ExpectedVersion != 13 {
 		t.Fatalf("ExpectedVersion = %d", dbmigrate.ExpectedVersion)
 	}
 }
@@ -68,7 +68,7 @@ func TestFiscalMigrateCLIOnlyUpVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "version=12") {
+	if !strings.Contains(string(out), "version=13") {
 		t.Fatalf("unexpected version output: %s", out)
 	}
 

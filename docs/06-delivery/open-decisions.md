@@ -1058,7 +1058,7 @@ Fontes admitidas para modelar (não confirmam AO-*): `docs/01-compliance/sources
 | Chave privada / certificado / PKCS#12 | `SecretStore` via SecAdm | Upload com limites; password efémera **nunca** persistida; sem plaintext em BD/resposta/log/HTML/audit |
 | Overrides privados (URL base secreta, headers) | `SecretStore` | Nunca no perfil público |
 
-Fluxos SecAdm: importar / rotacionar / revogar através da interface `SecretStore` existente (`RM-SECADM-002`/`003`). Validação **offline** (par chave-certificado, cadeia, validade, finalidade, fingerprint) é preparação interna — **≠** `external_verified`.
+Fluxos SecAdm: importar / rotacionar / revogar através da interface `SecretStore` existente (`RM-SECADM-002`/`003` + persistência cifrada `RM-AGTPREP-014`). Validação **offline** (par chave-certificado, cadeia, validade, finalidade, fingerprint) é preparação interna — **≠** `external_verified`.
 
 ### Fail-closed runtime
 

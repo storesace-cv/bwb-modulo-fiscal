@@ -118,16 +118,20 @@ func run() int {
 	regDialect := adminregistry.DialectSQLite
 	auditDialect := adminaudit.DialectSQLite
 	opsDialect := adminops.DialectSQLite
+	secDialect := secretstore.DialectSQLite
 	if dialect == persistence.DialectPostgres {
 		regDialect = adminregistry.DialectPostgres
 		auditDialect = adminaudit.DialectPostgres
 		opsDialect = adminops.DialectPostgres
+		secDialect = secretstore.DialectPostgres
 	}
-	secretsMeta, err := secretstore.NewMemorySimulator(nil)
+	secretsVault, err := secretstore.OpenFromEnv(sqlDB, secDialect, docsCfg.Env)
 	if err != nil {
 		logger.Error("secretstore_init_failed", "error", err.Error())
 		return 1
 	}
+	secretsMeta := secretstore.AdminView(secretsVault)
+	logger.Info("secretstore_ready", "storage_mode", secretsVault.StorageMode())
 	var secGate *secadm.Gate
 	if ownerID := strings.TrimSpace(os.Getenv("FISCAL_ADMIN_OWNER_SUBJECT")); ownerID != "" {
 		secGate, err = secadm.NewGate(ownerID, secretsMeta)

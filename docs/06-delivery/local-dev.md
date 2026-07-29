@@ -30,6 +30,8 @@
 | `FISCAL_ADMIN_OIDC_ROLE_MAP` | — | Mapa `valor:role` CSV (ex. `bwb-admins:admin,bwb-ops:operator`); sem elevação implícita |
 | `FISCAL_ADMIN_OIDC_OWNER_SUBJECTS` | — | Allowlist de `sub` para role `owner` (obrigatório se o mapa inclui owner) |
 | `FISCAL_ADMIN_OWNER_SUBJECT` | — | Subject autorizado para SecAdm write-only gate; se vazio, `/admin/v1/secadm/*` → 503 |
+| `FISCAL_SECRETSTORE_BACKEND` | auto | `sql` (durável) ou `memory` (**só** `development`); auto: chave presente → sql; senão memory em development; HML/PRD sem chave → fail-closed |
+| `FISCAL_SECRETSTORE_MASTER_KEY` | — | 32 bytes em base64 ou hex (AES-256). **Nunca** em Git/fixtures/logs/argv. Obrigatória em `homologation`/`production`. ≠ credencial AGT |
 | `FISCAL_ADMIN_UI_DEV_COOKIE` | — | Só `development`+`injected`: valor ≥32 bytes da cookie HttpOnly `fiscal_admin_ui_session` para browser local (sem formulário de login; ≠ IdP; sessão real = RM-UI-005) |
 
 ### Backoffice UI (M7 / RM-UI-001…005)

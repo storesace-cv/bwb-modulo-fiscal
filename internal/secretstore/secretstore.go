@@ -1,6 +1,8 @@
-// Package secretstore implements DEC-BO-001 plano B write-only secret refs (simulator).
+// Package secretstore implements DEC-BO-001 plano B write-only secret refs.
 //
-// NOT real AGT credentials. NOT production KMS. Admin Metadata never returns plaintext.
+// Supports ephemeral_memory (dev/tests) and durable_encrypted SQL ciphertext
+// (RM-AGTPREP-014). NOT real AGT credentials. NOT production KMS/HSM.
+// Admin Metadata never returns plaintext.
 package secretstore
 
 import (
@@ -100,6 +102,9 @@ type entry struct {
 	ciphertext []byte
 	meta       Metadata
 }
+
+// StorageMode reports ephemeral_memory (sanitized; never key material).
+func (m *Memory) StorageMode() string { return StorageModeEphemeralMemory }
 
 // NewMemorySimulator builds a fail-closed in-memory vault. Process key is ephemeral.
 func NewMemorySimulator(now func() time.Time) (*Memory, error) {

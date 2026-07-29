@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.96-draft — 2026-07-29
+
+- Backoffice / SecAdm: **RM-AGTPREP-014** — `SecretStore` durável cifrado em repouso (`secret_store_entries`, AES-256-GCM, master key via `FISCAL_SECRETSTORE_MASTER_KEY`); HML/PRD fail-closed sem chave; `memory` só `development`; metadados write-only inalterados; grants `schema13`; `ExpectedVersion=13`; **≠** AGT / KMS / plaintext em BD/logs.
+
 ## 0.2.95-draft — 2026-07-29
 
 - Compliance: **RM-M2-D / RM-REQ-001** — promove **`AO-OFF-001`** `confirmed_normative` (DP 71/25 Art.18 @11911–11912 + Art.7 n.º6 @11907); residual Edge/`DEC-REG-004`; **≠** AGT / `AO-OFF-002`.
