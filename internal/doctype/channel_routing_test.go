@@ -217,6 +217,43 @@ func TestCDOC008FTNCInvoiceVsPurchase(t *testing.T) {
 	}
 }
 
+func TestCDOC009ARPurchaseThirdL3(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC009Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-009 seed violations: %v", v)
+	}
+	// C-DOC-004 dual must still hold.
+	if v := reg.CheckCDOC004Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-004 regressions: %v", v)
+	}
+	vendas, ok1 := reg.Lookup("bwb.ao.vendas.ar")
+	pag, ok2 := reg.Lookup("bwb.ao.pagamentos.ar")
+	com, ok3 := reg.Lookup("bwb.ao.compras.ar")
+	if !ok1 || !ok2 || !ok3 {
+		t.Fatal("AR triple seeds missing")
+	}
+	ids := map[string]struct{}{vendas.CodigoCanonico: {}, pag.CodigoCanonico: {}, com.CodigoCanonico: {}}
+	if len(ids) != 3 {
+		t.Fatal("AR canonicals must be three distinct ids")
+	}
+	cLayer, cCode := doctype.ParseSAFTTypeAdapter(com.ChannelAdapters.SAFTType)
+	if cLayer != doctype.SAFTLayerPurchase || cCode != "AR" || com.ChannelAdapters.SAFTStructure != "PurchaseInvoices" {
+		t.Fatalf("compras.ar: layer=%q code=%q l3=%q", cLayer, cCode, com.ChannelAdapters.SAFTStructure)
+	}
+	if com.ChannelAdapters.FECode != "" {
+		t.Fatalf("compras.ar must be FE-empty, got %q", com.ChannelAdapters.FECode)
+	}
+	if !saftao.ValidPurchaseType(saftao.PurchaseTypeAR) {
+		t.Fatal("PurchaseType must accept AR (third L3)")
+	}
+	if com.Activo != doctype.ActiveOff {
+		t.Fatalf("compras.ar must stay off: %q", com.Activo)
+	}
+}
+
 func TestCDOC003FAIsFEOnly(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {

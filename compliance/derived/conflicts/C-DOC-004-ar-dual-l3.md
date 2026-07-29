@@ -16,6 +16,7 @@
 5. Seed produto mantém **dois** canónicos distintos (ambos `off` / `hipotese`):
    - `bwb.ao.vendas.ar` → `InvoiceType=AR` + `SalesInvoices`
    - `bwb.ao.pagamentos.ar` → `PaymentType=AR` + `Payments`
+6. **3.º L3:** `PurchaseType=AR` sob `PurchaseInvoices` — ver [C-DOC-009](C-DOC-009-ar-purchase-third-l3.md).
 
 ## Matriz de routing fail-closed (produto; ≠ AO-* confirmado)
 
@@ -38,6 +39,8 @@
 ## Não fazer
 
 - Não colapsar `vendas.ar` e `pagamentos.ar` num único canónico.
+- Não colapsar com `compras.ar` (ver [C-DOC-009](C-DOC-009-ar-purchase-third-l3.md)).
 - Não inventar bijecção L4=`AR` → um só L2.
 - Não activar `AR` no OpenAPI slice sem fecho do residual.
 - Não marcar C-DOC-004 como resolvido só porque os invariantes de seed passam.
+- Não promover `AO-DOC-*` a partir desta mitigação.
