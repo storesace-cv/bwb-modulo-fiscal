@@ -34,6 +34,7 @@ Estado operacional confirmado do sandbox BWB:
 | Admin auth | `fail_closed` até IdP real — [admin-idp-onboarding.md](admin-idp-onboarding.md) |
 | Grants pós-0012 | [grants-schema12-runtime-admin.sql](../../deploy/postgres/grants-schema12-runtime-admin.sql) (aplicar após migrate 3→12) |
 | Grants pós-0013 | [grants-schema13-runtime-admin.sql](../../deploy/postgres/grants-schema13-runtime-admin.sql) (`secret_store_entries`; ciphertext only) |
+| Promote schema13 | **RM-OPS-011 EM_CURSO** — allowlist `FISCAL_SECRETSTORE_*` + `DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=13`; promote/grants/report após merge |
 | Kit POS | validação sandbox **9/9** — [s4-pos-kit-ops-validation-report.md](s4-pos-kit-ops-validation-report.md) |
 | Gate pré-deploy `pg_dump` | validado (OPS-B2) — [b2-predeploy-pg-dump-gate-report.md](b2-predeploy-pg-dump-gate-report.md); INC-S4-003 **RESOLVIDO**; INC-B2-001 **aberto** |
 | Promote schema12 | **RM-OPS-006 CONCLUÍDO** — [rm-ops-006-sandbox-schema12-promotion-report.md](rm-ops-006-sandbox-schema12-promotion-report.md) |
