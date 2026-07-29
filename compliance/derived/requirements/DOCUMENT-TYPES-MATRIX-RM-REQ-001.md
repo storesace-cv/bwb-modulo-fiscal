@@ -263,7 +263,7 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 
 | Código | L4 FE | L2 (grupo) | Nota |
 |---|---|---|---|
-| FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1) | GF: C-DOC-001 (divergência DE 683 vs HTML/XSD) |
+| FT, FR, FG, GF, AC, ND, NC, AF, TV | sim | `InvoiceType` (1); `FR`/`GF`/`FG`/`AC`/`AF`/`TV`/`FT`/`NC` também `PurchaseType` (5) | GF: C-DOC-001; dual compras — [C-DOC-008](../conflicts/C-DOC-008-ft-nc-invoice-vs-purchase.md) · [C-DOC-010](../conflicts/C-DOC-010-invoice-purchase-remaining.md); `ND` sem PurchaseType |
 | AR | sim | `InvoiceType` (1) e/ou `PaymentType` (4); também `PurchaseType` (5) | dual/triple canónicos; grupo único — aberto ([C-DOC-004](../conflicts/C-DOC-004-ar-dual-l3.md) · [C-DOC-009](../conflicts/C-DOC-009-ar-purchase-third-l3.md)) |
 | RE, RP, RA, CS, LD | sim | `InvoiceType` (1); também `WorkType` (3) | segurador; dual L3 — [C-DOC-005](../conflicts/C-DOC-005-insurer-invoice-vs-worktype.md); seed só `InvoiceType`/`off` |
 | RC | sim | `PaymentType` (4); também `PurchaseType` (5) regime caixa | **≠** `InvoiceType` (C-DOC-003); dual L3 — [C-DOC-006](../conflicts/C-DOC-006-rc-payment-vs-purchase.md) |
@@ -281,7 +281,7 @@ Ficheiro: [`SAFTAO1.01_01.xsd`](../../saft-ao/schemas/SAFTAO1.01_01.xsd) · sha2
 |---|---|---|
 | 2 Movimentação | GR, GT, GA, GD | `MovementType` | GR dual `WorkType` — [C-DOC-007](../conflicts/C-DOC-007-gr-movement-vs-worktype.md) |
 | 3 Conferência | CM, CC, GR, NR, FO, NE, OU, OR, PF, DC, PP, GC (+ segurador se só em WorkType) | `WorkType`; PF/OR/NE ≠ «factura» L1; GR ≠ `MovementType` (C-DOC-007) |
-| 5 Compras | NL (+ demais `PurchaseType` já cobertos noutros canais como homónimos) | `NL` sem L4 FE; `FT`/`NC` dual vendas — [C-DOC-008](../conflicts/C-DOC-008-ft-nc-invoice-vs-purchase.md) |
+| 5 Compras | NL (+ demais `PurchaseType` já cobertos noutros canais como homónimos) | `NL` sem L4 FE; `FT`/`NC` — [C-DOC-008](../conflicts/C-DOC-008-ft-nc-invoice-vs-purchase.md); `FR`/`GF`/`FG`/`AC`/`AF`/`TV` — [C-DOC-010](../conflicts/C-DOC-010-invoice-purchase-remaining.md); `AR` — [C-DOC-009](../conflicts/C-DOC-009-ar-purchase-third-l3.md) |
 
 #### Excluídos — canal `nenhum` (não entram no catálogo de tipos)
 

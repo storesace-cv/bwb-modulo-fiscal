@@ -217,6 +217,51 @@ func TestCDOC008FTNCInvoiceVsPurchase(t *testing.T) {
 	}
 }
 
+func TestCDOC010InvoicePurchaseRemaining(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC010Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-010 seed violations: %v", v)
+	}
+	for _, code := range []string{"FR", "GF", "FG", "AC", "AF", "TV"} {
+		vCanon := "bwb.ao.vendas." + strings.ToLower(code)
+		cCanon := "bwb.ao.compras." + strings.ToLower(code)
+		vendas, okV := reg.Lookup(vCanon)
+		compras, okC := reg.Lookup(cCanon)
+		if !okV || !okC {
+			t.Fatalf("dual seeds missing for %s", code)
+		}
+		if vendas.CodigoCanonico == compras.CodigoCanonico {
+			t.Fatalf("canonicals must remain distinct for %s", code)
+		}
+		vLayer, vCode := doctype.ParseSAFTTypeAdapter(vendas.ChannelAdapters.SAFTType)
+		cLayer, cCode := doctype.ParseSAFTTypeAdapter(compras.ChannelAdapters.SAFTType)
+		if vLayer != doctype.SAFTLayerInvoice || vCode != code || vendas.ChannelAdapters.SAFTStructure != "SalesInvoices" {
+			t.Fatalf("%s: layer=%q code=%q l3=%q", vCanon, vLayer, vCode, vendas.ChannelAdapters.SAFTStructure)
+		}
+		if cLayer != doctype.SAFTLayerPurchase || cCode != code || compras.ChannelAdapters.SAFTStructure != "PurchaseInvoices" {
+			t.Fatalf("%s: layer=%q code=%q l3=%q", cCanon, cLayer, cCode, compras.ChannelAdapters.SAFTStructure)
+		}
+		if vendas.ChannelAdapters.FECode != code {
+			t.Fatalf("%s FE: %q", vCanon, vendas.ChannelAdapters.FECode)
+		}
+		if compras.ChannelAdapters.FECode != "" {
+			t.Fatalf("%s must be FE-empty, got %q", cCanon, compras.ChannelAdapters.FECode)
+		}
+		if !saftao.ValidInvoiceType(saftao.InvoiceType(code)) {
+			t.Fatalf("InvoiceType must accept %s", code)
+		}
+		if !saftao.ValidPurchaseType(saftao.PurchaseType(code)) {
+			t.Fatalf("PurchaseType must accept %s (dual membership)", code)
+		}
+		if vendas.Activo != doctype.ActiveOff || compras.Activo != doctype.ActiveOff {
+			t.Fatalf("%s dual must stay off: vendas=%q compras=%q", code, vendas.Activo, compras.Activo)
+		}
+	}
+}
+
 func TestCDOC009ARPurchaseThirdL3(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {
