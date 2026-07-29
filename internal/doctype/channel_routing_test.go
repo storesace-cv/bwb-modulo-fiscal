@@ -130,6 +130,44 @@ func TestCDOC006RCPaymentVsPurchase(t *testing.T) {
 	}
 }
 
+func TestCDOC007GRMovementVsWork(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckCDOC007Invariants(); len(v) != 0 {
+		t.Fatalf("C-DOC-007 seed violations: %v", v)
+	}
+	mov, ok1 := reg.Lookup("bwb.ao.movimentacao.gr")
+	conf, ok2 := reg.Lookup("bwb.ao.conferencia.gr")
+	if !ok1 || !ok2 {
+		t.Fatal("GR dual seeds missing")
+	}
+	if mov.CodigoCanonico == conf.CodigoCanonico {
+		t.Fatal("GR canonicals must remain distinct")
+	}
+	mLayer, mCode := doctype.ParseSAFTTypeAdapter(mov.ChannelAdapters.SAFTType)
+	cLayer, cCode := doctype.ParseSAFTTypeAdapter(conf.ChannelAdapters.SAFTType)
+	if mLayer != doctype.SAFTLayerMovement || mCode != "GR" || mov.ChannelAdapters.SAFTStructure != "MovementOfGoods" {
+		t.Fatalf("movimentacao.gr: layer=%q code=%q l3=%q", mLayer, mCode, mov.ChannelAdapters.SAFTStructure)
+	}
+	if cLayer != doctype.SAFTLayerWork || cCode != "GR" || conf.ChannelAdapters.SAFTStructure != "WorkingDocuments" {
+		t.Fatalf("conferencia.gr: layer=%q code=%q l3=%q", cLayer, cCode, conf.ChannelAdapters.SAFTStructure)
+	}
+	if mov.ChannelAdapters.FECode != "" || conf.ChannelAdapters.FECode != "" {
+		t.Fatalf("GR seeds must be FE-empty: mov=%q conf=%q", mov.ChannelAdapters.FECode, conf.ChannelAdapters.FECode)
+	}
+	if !saftao.ValidMovementType(saftao.MovementTypeGR) {
+		t.Fatal("MovementType must accept GR")
+	}
+	if !saftao.ValidWorkType(saftao.WorkTypeGR) {
+		t.Fatal("WorkType must accept GR (dual membership)")
+	}
+	if mov.Activo != doctype.ActiveOff || conf.Activo != doctype.ActiveOff {
+		t.Fatalf("GR seeds must stay off: mov=%q conf=%q", mov.Activo, conf.Activo)
+	}
+}
+
 func TestCDOC003FAIsFEOnly(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {
@@ -212,7 +250,8 @@ func TestParseSAFTTypeAdapter(t *testing.T) {
 		{"WorkType=RP", doctype.SAFTLayerWork, "RP"},
 		{"PurchaseType=RC", doctype.SAFTLayerPurchase, "RC"},
 		{"PurchaseType=FT", doctype.SAFTLayerPurchase, "FT"},
-		{"MovementType=GR", doctype.SAFTLayerOther, "GR"},
+		{"MovementType=GR", doctype.SAFTLayerMovement, "GR"},
+		{"UnknownType=X", doctype.SAFTLayerOther, "X"},
 	}
 	for _, tc := range cases {
 		layer, code := doctype.ParseSAFTTypeAdapter(tc.in)
