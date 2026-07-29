@@ -47,7 +47,7 @@ FORBIDDEN_STATUS_WORDS = re.compile(
 CONFIRMED_MATRIX_REL = Path(
     "compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md"
 )
-PROMOTED_REQUIRING_CONFIRMED = ("AO-DOC-002",)
+PROMOTED_REQUIRING_CONFIRMED = ("AO-DOC-002", "AO-SEQ-001")
 ROW_RE = re.compile(
     r"^\|\s*(ASM-REG-001|AO-[A-Z]+-\d+)\s*\|\s*`([^`]+)`\s*\|",
     re.M,
@@ -302,18 +302,24 @@ def verify(root: Path) -> list[str]:
         if "não" not in cl or "satisfeito" not in cl:
             fail("AO-CRYPTO-001: a linha deve declarar que o critério não fica satisfeito", errors)
 
-    # AO-SEQ-001: partial — DP 71 Art.10 b numbering by type/series.
-    if rows.get("AO-SEQ-001") != "partial":
-        fail("AO-SEQ-001: deve estar `partial` (DP 71/25 Art.10 n.º1 b)", errors)
+    # AO-SEQ-001: promoted to CONFIRMED-MATRIX (normative sequence by series).
+    if rows.get("AO-SEQ-001") != "promoted":
+        fail(
+            "AO-SEQ-001: deve estar `promoted` (norma em CONFIRMED-MATRIX-RM-REQ-001)",
+            errors,
+        )
     for token in ("Art.10", "11908"):
         if token not in text:
-            fail(f"citação AO-SEQ-001 deve incluir `{token}`", errors)
-    check_partial_row("AO-SEQ-001")
+            fail(f"matriz provisória deve manter citação SEQ `{token}` (Citação E)", errors)
     seq1_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-SEQ-001\s*\|", ln)]
     if seq1_rows:
-        s1 = seq1_rows[0].lower()
-        if "não" not in s1 or "satisfeito" not in s1:
-            fail("AO-SEQ-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "CONFIRMED-MATRIX" not in seq1_rows[0] and "confirmed_normative" not in seq1_rows[0]:
+            fail(
+                "AO-SEQ-001: a linha `promoted` deve apontar CONFIRMED-MATRIX / confirmed_normative",
+                errors,
+            )
+    else:
+        fail("linha de tabela AO-SEQ-001 ausente", errors)
 
     # AO-DOC-002: promoted to CONFIRMED-MATRIX (normative); provisional keeps pointer.
     if rows.get("AO-DOC-002") != "promoted":
@@ -379,15 +385,9 @@ def verify(root: Path) -> list[str]:
     else:
         fail("linha de tabela AO-OFF-002 ausente", errors)
 
-    # SEQ-001 row must cite DE 74 gazeta 1577 (not only Citação F).
-    # AO-DOC-002 cites 1577 in CONFIRMED-MATRIX after promotion.
-    for rid in ("AO-SEQ-001",):
-        row_ln = [ln for ln in text.splitlines() if re.match(rf"^\|\s*{rid}\s*\|", ln)]
-        if not row_ln:
-            fail(f"linha de tabela {rid} ausente", errors)
-            continue
-        if "1577" not in row_ln[0]:
-            fail(f"{rid}: a linha da tabela deve citar DE 74/19 @1577", errors)
+    # SEQ-001 cites 1577 in CONFIRMED-MATRIX after promotion; keep 1577 in provisional body via Citação F/I.
+    if "1577" not in text:
+        fail("matriz provisória deve manter gazeta 1577 (DE 74)", errors)
 
     # AO-TAX-001: partial — FE tax fields + Tabelas 2–6; never confirmed / no full calc.
     if rows.get("AO-TAX-001") != "partial":

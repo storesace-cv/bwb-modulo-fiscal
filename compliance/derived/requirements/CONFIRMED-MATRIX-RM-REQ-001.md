@@ -65,9 +65,46 @@ DP 71/25 Art.8 n.º**8–9** (@**11907**): em casos de rectificação dos requis
 **Facto:** o critério «impedir alteração destrutiva após emissão» está normativamente sustentado: proibição de eliminação pós-emissão (DP 71 Art.3 n)), proibição de alteração de documento assinado / de informação fiscal sem evidência (DE 74 n.º3 e n.º4 l)), e via de correcção por NC (DP 71 Art.8 n.º4–5), com a excepção estreita Art.8 n.º8–9 documentada.
 **Não se afirma:** conformidade do produto implementado, aceitação AGT, nem fecho de outros `AO-*`.
 
+### AO-SEQ-001 — Numeração sequencial (e identificação unívoca) por série
+
+| Campo | Valor |
+|---|---|
+| Estado | `confirmed_normative` |
+| Critério do catálogo | Garantir numeração única e sequencial por série |
+| Âmbito confirmado | Obrigação de **numeração sequencial e cronológica** por tipo de documento / série (DP 71) e de numeração **progressiva e contínua** dentro de cada série, com identificação **unívoca** do documento (DE 74) |
+| Canais | **Regime jurídico** (DP 71) + **validação software / SAF-T** (DE 74 + Rect.) |
+| Fora de âmbito | Homologação AGT; produção FE; atribuição de séries pela AGT (`AO-SEQ-002` / DE 683 Art.4 — **não** misturar); `DEC-REG-003` |
+| Residual engenharia | Unicidade sob **concorrência** / recuperação / testes de corrida (evidência esperada do catálogo) — **não** bloqueia a obrigação normativa de sequência contínua por série |
+
+#### Evidência inequívoca
+
+| # | source_id | Original sha256 | OCR | PDF p. | Gazeta | Norma | Trecho (OCR auxiliar; PDF prevalece) |
+|---|---|---|---|---:|---:|---|---|
+| 1 | `AO-LEG-DP-71-25-2025` | `4931fd3c…` | v1 `reviewed` | 4 | **11904** | Art.3 n) | Software certificado «garante a **numeração sequencial e cronológica** dos documentos…» |
+| 2 | `AO-LEG-DP-71-25-2025` | idem | idem | 8 | **11908** | Art.10 n.º1 **b)** | «**Numeração sequencial e cronológica** por tipo de documento e o respectivo ano económico, podendo ser utilizadas uma ou mais **séries** devidamente identificadas» |
+| 3 | `AO-LEG-DE-74-19-2019` | `5b63c80e…` | v1 `reviewed` | 3 | **1577** | Anexo I n.º4 (séries / sequência) | Documentos «**numerados de forma progressiva e contínua**, dentro de cada série»; identificação para «identificar **univocamente** cada documento emitido» |
+| 4 | `AO-LEG-RECT-10-19-2019` | `b3db14e2…` | v2 `reviewed` | 2–3 | **1948–1949** | Conjunto 74+Rect. | Rect. integra o conjunto; **não** derroga a sequência contínua por série |
+
+Paths privados: `derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md` · `…/AO-LEG-DE-74-19-2019/v1/text.md` · `…/AO-LEG-RECT-10-19-2019/v2/text.md`.
+
+#### Distinções obrigatórias
+
+| Tema | Relação com AO-SEQ-001 |
+|---|---|
+| Séries geradas pela AGT (DE 683 Art.4 @19164; `solicitarSerie`) | **`AO-SEQ-002`** / FE — **não** confirmado aqui |
+| Unicidade concorrente no módulo | Residual de **engenharia** (testes); a norma exige sequência contínua / identificação unívoca, não um algoritmo de locking |
+| Homologação / produção AGT | **Não** confirmados |
+| Facturação electrónica `documentNo` (@19167) | Alinhamento de formato FE/SAF-T — auxiliar; **não** necessário à confirmação DP71+DE74 |
+
+#### Conclusão
+
+**Facto:** a obrigação de numeração sequencial/cronológica por tipo e série (DP 71) e progressiva/contínua com identificação unívoca por série (DE 74) está normativamente sustentada.
+**Fail-closed:** **não** se afirma fecho de testes concorrentes, nem que o POS/AGT atribuam o número (`AO-SEQ-002` permanece provisório).
+**Não se afirma:** conformidade do produto implementado nem aceitação AGT.
+
 ## Ainda não confirmados
 
-Todos os restantes IDs do [catálogo](../../../docs/01-compliance/requirements-catalog.md) permanecem na [matriz provisória](PROVISIONAL-MATRIX-RM-REQ-001.md) (`scaffold` / `partial` / `blocked` / `pending_validation`).
+Todos os restantes IDs do [catálogo](../../../docs/01-compliance/requirements-catalog.md) permanecem na [matriz provisória](PROVISIONAL-MATRIX-RM-REQ-001.md) (`scaffold` / `partial` / `blocked` / `pending_validation` / `promoted` residual).
 
 ## Verificador
 

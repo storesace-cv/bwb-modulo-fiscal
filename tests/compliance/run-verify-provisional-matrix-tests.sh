@@ -77,7 +77,7 @@ ARTIGO 4.º — o critério do catálogo **não** fica satisfeito só com ART.4.
 | AO-ID-001 | `partial` | AO-LEG-DE-683-25-2025 | taxRegistrationNumber 19166 softwareValidationNumber 19167 estabelecimento terminal **Não** confirmado; critério **não** fica satisfeito |
 | AO-DOC-001 | `scaffold` | — | citação pendente |
 | AO-DOC-002 | `promoted` | AO-LEG-DP-71-25-2025 | CONFIRMED-MATRIX confirmed_normative 11904 11907 |
-| AO-SEQ-001 | `partial` | AO-LEG-DP-71-25-2025 | Art.10 11908 @1577 critério **não** fica satisfeito; **Não** confirmado |
+| AO-SEQ-001 | `promoted` | AO-LEG-DP-71-25-2025 | CONFIRMED-MATRIX confirmed_normative Art.10 11908 |
 | AO-SEQ-002 | `partial` | AO-LEG-DE-683-25-2025 | ART. 4 / 19164 solicitarSerie @19183 FE-RNG-051 listarSeries b01e4581 **Não** confirmado |
 | AO-IDEM-001 | `scaffold` | — | x |
 | AO-TAX-001 | `partial` | AO-LEG-DE-683-25-2025 | taxType 19171 Tabela 19212–19227 critério **não** fica satisfeito; **Não** confirmado |
@@ -177,7 +177,7 @@ mutate_real "AO-SEQ-001 scaffold indevido" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
 t = p.read_text(encoding="utf-8")
-t = t.replace("| AO-SEQ-001 | `partial`", "| AO-SEQ-001 | `scaffold`")
+t = t.replace("| AO-SEQ-001 | `promoted`", "| AO-SEQ-001 | `scaffold`")
 p.write_text(t, encoding="utf-8")
 '
 
@@ -372,15 +372,10 @@ for line in t.splitlines():
 p.write_text(t, encoding="utf-8")
 '
 
-mutate_real "AO-SEQ-001 sem 1577 na linha" '
+mutate_real "provisional sem gazeta 1577" '
 from pathlib import Path
 p = Path("'"${TMP}"'/compliance/derived/requirements/PROVISIONAL-MATRIX-RM-REQ-001.md")
-t = p.read_text(encoding="utf-8")
-for line in t.splitlines():
-    if line.startswith("| AO-SEQ-001 |"):
-        bad = line.replace("1577", "xxxx")
-        t = t.replace(line, bad)
-        break
+t = p.read_text(encoding="utf-8").replace("1577", "xxxx")
 p.write_text(t, encoding="utf-8")
 '
 

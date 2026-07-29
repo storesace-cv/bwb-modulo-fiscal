@@ -8,7 +8,7 @@
 | AO-ID-001 | Associar documento a contribuinte, estabelecimento, terminal, software e versão. | Alta | Teste e registo de auditoria | provisório (`partial`) |
 | AO-DOC-001 | Validar campos obrigatórios por tipo documental antes da emissão. | Alta | Vetores positivos/negativos | provisório (`scaffold`) |
 | AO-DOC-002 | Impedir alteração destrutiva após emissão. | Crítica | Teste de imutabilidade | **`confirmed_normative`** (DP 71 + DE 74; ≠ AGT) |
-| AO-SEQ-001 | Garantir numeração única e sequencial por série. | Crítica | Testes concorrentes e recuperação | provisório (`partial`) |
+| AO-SEQ-001 | Garantir numeração única e sequencial por série. | Crítica | Testes concorrentes e recuperação | **`confirmed_normative`** (DP 71 + DE 74; residual concorrência; ≠ AGT) |
 | AO-SEQ-002 | Impedir que o POS atribua o número fiscal final. | Crítica | Teste de API e autorização | provisório (`partial`) |
 | AO-IDEM-001 | Repetir pedido com a mesma chave sem nova emissão. | Crítica | Teste de timeout/reenvio | provisório (`scaffold`) |
 | AO-TAX-001 | Calcular e validar impostos com precisão decimal e regras versionadas. | Crítica | Vetores de cálculo e arredondamento | provisório (`partial`) |

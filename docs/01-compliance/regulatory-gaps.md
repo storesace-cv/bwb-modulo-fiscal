@@ -1,7 +1,7 @@
 # Lacunas regulatórias e artefactos oficiais — Angola
 
 **Data:** 2026-07-20 (actualização OCR Rect v2 + DP 71/25 2026-07-26; inventário FE HML + Citação J 2026-07-28)
-**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **CONCLUÍDOS** (OCR `reviewed` 74/19 + Rect. 10/19 v2 + 683/25 v2; DP 71/25 também `reviewed`). Extração AO-* : **AO-DOC-002** `confirmed_normative` (2026-07-29); restantes EM_CURSO (RM-REQ-001 / RM-SRC-006 / RM-M2-D).
+**Estado:** inventário Fase 0 + catálogo + XSD SRC-B2 (`pending_validation`); RM-SRC-004/RM-M2-C **CONCLUÍDOS** (OCR `reviewed` 74/19 + Rect. 10/19 v2 + 683/25 v2; DP 71/25 também `reviewed`). Extração AO-* : **AO-DOC-002** + **AO-SEQ-001** `confirmed_normative` (2026-07-29); restantes EM_CURSO (RM-REQ-001 / RM-SRC-006 / RM-M2-D).
 **Regras:** preferir fontes oficiais; não tratar fontes comunitárias como normativas; não inventar regras fiscais; não versionar credenciais; OCR `rejected` não é base de conhecimento.
 
 Documentos relacionados:
