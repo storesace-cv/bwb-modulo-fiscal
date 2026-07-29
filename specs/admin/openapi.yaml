@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BWB Fiscal Admin API
-  version: 0.1.28-draft
+  version: 0.1.29-draft
   description: >
     Contrato administrativo separado da API POS pública. Prefixo /admin/v1.
     Autenticação OIDC/JWT com RBAC (owner|admin|operator|auditor), distinta do
@@ -36,6 +36,7 @@ info:
     0.1.26: Dashboard ops + paginação/filtros/alertas (RM-BO-017); sem payload/JWS/NIF.
     0.1.27: Teste SMTP admin owner-only (RM-OPS-008); implicit TLS 465; sem passwords no email; status sanitizado.
     0.1.28: Digest SMTP alertas ops owner-only (RM-OPS-009); códigos allowlist; sem passwords/NIF; ≠ AGT/IdP.
+    0.1.29: Catálogo endpoints FE + scaffold JWS + hub UI owner-only (RM-AGTPREP-015); C-FE-001 fail-closed; ≠ AGT.
     Não pronto para produção. ≠ credenciais AGT. ≠ fornecedor IdP fixo.
   license:
     name: MIT
@@ -660,6 +661,91 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /authority/endpoint-catalog:
+    get:
+      operationId: getAuthorityEndpointCatalog
+      summary: Catálogo FE de endpoints por ambiente (owner; sem segredos)
+      description: >
+        RM-AGTPREP-015. URLs só de inventário fepath/matriz; C-FE-001 → declared_url vazia.
+        external_verified=false. ≠ AGT / ≠ inventar paths.
+      tags: [Autoridade]
+      parameters:
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [homologation, production]
+      responses:
+        "200":
+          description: Catálogo sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [environment, conflict_open, external_verified, items]
+                properties:
+                  environment: { type: string, enum: [homologation, production] }
+                  conflict_open: { type: boolean }
+                  external_verified: { type: boolean }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [operation, environment, path_status, host, bindable]
+                      properties:
+                        operation: { type: string }
+                        environment: { type: string }
+                        path_status:
+                          type: string
+                          enum: [aligned, conflict_open, pending_external]
+                        declared_url: { type: string }
+                        host: { type: string }
+                        conflict_id: { type: string }
+                        source_note: { type: string }
+                        bindable: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /authority/jws-profile-scaffold:
+    get:
+      operationId: getAuthorityJWSProfileScaffold
+      summary: Scaffold de perfil JWS FE (owner; sem claims inventados)
+      description: >
+        RM-AGTPREP-015. Algoritmo técnico RS256; claims_status=pending_external;
+        external_verified=false; C-SIGN-001 FE≠SAF-T. ≠ RM-FE-002 / AGT.
+      tags: [Autoridade]
+      responses:
+        "200":
+          description: Scaffold sanitizado
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - algorithm_declared
+                  - claims_status
+                  - external_verified
+                  - invented_claims_forbidden
+                properties:
+                  algorithm_declared: { type: string, enum: [RS256, pending_external] }
+                  claims_status: { type: string, enum: [pending_external] }
+                  mechanism_id: { type: string }
+                  saft_mechanism_separated: { type: string }
+                  external_verified: { type: boolean }
+                  invented_claims_forbidden: { type: boolean }
+                  source_note: { type: string }
+                  conflict_separation_note: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /authority-profiles:
     get:
       operationId: listAuthorityProfiles
