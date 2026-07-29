@@ -55,10 +55,17 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 | movimentacao | `bwb.ao.movimentacao.ga` | Guia Activos Fixos | FE:`∅`; SAFT:`MovementType=GA` | `MovementOfGoods` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
 | movimentacao | `bwb.ao.movimentacao.gd` | Guia/Nota Devolução | FE:`∅`; SAFT:`MovementType=GD` | `MovementOfGoods` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
 | conferencia | `bwb.ao.conferencia.gr` | Guia de Remessa (conferência) | FE:`∅`; SAFT:`WorkType=GR` | `WorkingDocuments` | SAF-T | XSD WorkType; ≠ MovementType | nenhuma | pending | C-DOC-007 dual L3; ≠ `movimentacao.gr` | pending | pending_validation | off |
-| conferencia | `bwb.ao.conferencia.pf` | Pró-forma | FE:`∅`; SAFT:`WorkType=PF` | `WorkingDocuments` | SAF-T | Art.4 n.º9 ≠ factura | nenhuma | pending | pending | n/a (não factura) | pending_validation | off |
-| conferencia | `bwb.ao.conferencia.or` | Orçamento | FE:`∅`; SAFT:`WorkType=OR` | `WorkingDocuments` | SAF-T | Art.4 n.º9 | nenhuma | pending | pending | n/a | pending_validation | off |
-| conferencia | `bwb.ao.conferencia.ne` | Nota de Encomenda | FE:`∅`; SAFT:`WorkType=NE` | `WorkingDocuments` | SAF-T | Art.4 n.º9 | nenhuma | pending | pending | n/a | pending_validation | off |
-| conferencia | `bwb.ao.conferencia.dc` | Documento de Conferência | FE:`∅`; SAFT:`WorkType=DC` | `WorkingDocuments` | SAF-T | pending | nenhuma | pending | pending | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.cm` | Consultas de Mesa | FE:`∅`; SAFT:`WorkType=CM` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.cc` | Crédito de Consignação | FE:`∅`; SAFT:`WorkType=CC` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.nr` | Nota de Remessa | FE:`∅`; SAFT:`WorkType=NR` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.fo` | Folhas de Obra | FE:`∅`; SAFT:`WorkType=FO` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.ne` | Nota de Encomenda | FE:`∅`; SAFT:`WorkType=NE` | `WorkingDocuments` | SAF-T | Art.4 n.º9 | nenhuma | pending | inventário WorkType; ≠ FE L4 | n/a | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.ou` | Outros (conferência) | FE:`∅`; SAFT:`WorkType=OU` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.or` | Orçamento | FE:`∅`; SAFT:`WorkType=OR` | `WorkingDocuments` | SAF-T | Art.4 n.º9 | nenhuma | pending | inventário WorkType; ≠ FE L4 | n/a | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.pf` | Pró-forma | FE:`∅`; SAFT:`WorkType=PF` | `WorkingDocuments` | SAF-T | Art.4 n.º9 ≠ factura | nenhuma | pending | inventário WorkType; ≠ FE L4 | n/a (não factura) | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.dc` | Documento de Conferência | FE:`∅`; SAFT:`WorkType=DC` | `WorkingDocuments` | SAF-T | pending | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.pp` | PP (WorkType XSD; rótulo OCR pendente) | FE:`∅`; SAFT:`WorkType=PP` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; rótulo OCR pendente; ≠ FE L4 | pending | pending_validation | off |
+| conferencia | `bwb.ao.conferencia.gc` | Guia de Consignação | FE:`∅`; SAFT:`WorkType=GC` | `WorkingDocuments` | SAF-T | XSD WorkType | nenhuma | pending | inventário WorkType; ≠ FE L4 | pending | pending_validation | off |
 | compras | `bwb.ao.compras.ft` | Factura (compras) | FE:`∅`; SAFT:`PurchaseType=FT` | `PurchaseInvoices` | SAF-T | pending | nenhuma | pending | C-DOC-008; ≠ `InvoiceType` / `vendas.ft` | pending | pending_validation | off |
 | compras | `bwb.ao.compras.fr` | Factura-Recibo (compras) | FE:`∅`; SAFT:`PurchaseType=FR` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.fr` | pending | pending_validation | off |
 | compras | `bwb.ao.compras.fg` | Factura Global (compras) | FE:`∅`; SAFT:`PurchaseType=FG` | `PurchaseInvoices` | SAF-T | XSD PurchaseType | nenhuma | pending | C-DOC-010; ≠ `InvoiceType` / `vendas.fg` | pending | pending_validation | off |
@@ -73,7 +80,7 @@ Homónimos entre grupos = **linhas distintas** (canónicos distintos).
 
 ### WorkType / PurchaseType restantes
 
-Códigos L2 ainda não listados acima (ex. `CM`, `CC`, `FO`, `OU`, `GC`, `PP` em `WorkType`) entram no mesmo esquema; seed incremental **sem** inventar designações além do XSD. Homónimos Invoice∩Purchase cobertos por C-DOC-008/009/010 (`NL` é Purchase-only).
+Inventário `WorkType` (não dual / não segurador) coberto por seeds `conferencia.*` + `CheckWorkTypeInventoryInvariants`. `GR` dual — C-DOC-007. Segurador `WorkType` **não** seedado (C-DOC-005). Homónimos Invoice∩Purchase — C-DOC-008/009/010 (`NL` Purchase-only).
 
 ## Lacunas explícitas
 

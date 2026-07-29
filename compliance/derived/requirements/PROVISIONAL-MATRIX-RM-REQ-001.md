@@ -251,13 +251,14 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 9. C-DOC-008: homónimos `FT`/`NC` em `InvoiceType` **e** `PurchaseType` — mitigação `CheckCDOC008Invariants` 2026-07-29; vendas `on` (DEC-REG-003) ≠ compras `off`; seed `compras.nc`; **não** marcar resolvido.
 10. C-DOC-009: `AR` também em `PurchaseType` (3.º L3) — mitigação `CheckCDOC009Invariants` 2026-07-29; seed `compras.ar`; **não** colapsar com C-DOC-004; **não** marcar resolvido.
 11. C-DOC-010: homónimos restantes `FR`/`GF`/`FG`/`AC`/`AF`/`TV` em `InvoiceType` **e** `PurchaseType` — mitigação `CheckCDOC010Invariants` 2026-07-29; seeds compras; ambos `off`; **não** marcar resolvido.
-12. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
-13. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
-14. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
-15. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
-16. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-17. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-18. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
+12. Inventário `WorkType` (não dual / não segurador): seeds `conferencia.{cm,cc,nr,fo,ou,pp,gc}` + `CheckWorkTypeInventoryInvariants` 2026-07-29; **sem** FE L4; **sem** seed WorkType segurador (C-DOC-005); **sem** AO-*.
+13. C-DOC-001: confronto visual p.7 (2026-07-28) confirma `GF` **ausente** no DE 683; presente HTML/XSD — `documentado_divergencia`; manter `GF` `conflito`/`off`.
+14. C-DOC-002: rótulos `RG` documentados (mesmo código) — sem terceiro código.
+15. C-SIGN-001: mitigação fail-closed (`internal/signsep`) 2026-07-28 — **residual** implementação n.º34 / JWS FE oficial + `AO-CRYPTO-001`; **não** marcar resolvido.
+16. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
+17. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+18. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+19. Não promover nenhuma linha a confirmado; não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT.
 
 ## Referências
 

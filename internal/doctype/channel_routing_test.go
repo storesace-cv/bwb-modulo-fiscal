@@ -217,6 +217,41 @@ func TestCDOC008FTNCInvoiceVsPurchase(t *testing.T) {
 	}
 }
 
+func TestWorkTypeInventorySeeds(t *testing.T) {
+	reg, err := doctype.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := reg.CheckWorkTypeInventoryInvariants(); len(v) != 0 {
+		t.Fatalf("WorkType inventory violations: %v", v)
+	}
+	for _, code := range []string{"CM", "CC", "NR", "FO", "NE", "OU", "OR", "PF", "DC", "PP", "GC"} {
+		canon := "bwb.ao.conferencia." + strings.ToLower(code)
+		e, ok := reg.Lookup(canon)
+		if !ok {
+			t.Fatalf("missing seed %s", canon)
+		}
+		layer, c := doctype.ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		if layer != doctype.SAFTLayerWork || c != code || e.ChannelAdapters.SAFTStructure != "WorkingDocuments" {
+			t.Fatalf("%s: layer=%q code=%q l3=%q", canon, layer, c, e.ChannelAdapters.SAFTStructure)
+		}
+		if e.ChannelAdapters.FECode != "" {
+			t.Fatalf("%s must be FE-empty", canon)
+		}
+		if !saftao.ValidWorkType(saftao.WorkType(code)) {
+			t.Fatalf("WorkType must accept %s", code)
+		}
+		if e.Activo != doctype.ActiveOff {
+			t.Fatalf("%s must stay off", canon)
+		}
+	}
+	for _, code := range []string{"RP", "RE", "CS", "LD", "RA"} {
+		if _, ok := reg.Lookup("bwb.ao.conferencia." + strings.ToLower(code)); ok {
+			t.Fatalf("insurer WorkType seed must not exist for %s (C-DOC-005)", code)
+		}
+	}
+}
+
 func TestCDOC010InvoicePurchaseRemaining(t *testing.T) {
 	reg, err := doctype.Default()
 	if err != nil {
