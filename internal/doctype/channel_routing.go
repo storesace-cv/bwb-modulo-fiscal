@@ -17,6 +17,7 @@ const (
 	SAFTLayerPayment  SAFTLayer = "PaymentType"
 	SAFTLayerWork     SAFTLayer = "WorkType"
 	SAFTLayerPurchase SAFTLayer = "PurchaseType"
+	SAFTLayerMovement SAFTLayer = "MovementType"
 	SAFTLayerOther    SAFTLayer = "other"
 )
 
@@ -42,6 +43,8 @@ func ParseSAFTTypeAdapter(saftType string) (layer SAFTLayer, code string) {
 		return SAFTLayerWork, val
 	case "PurchaseType":
 		return SAFTLayerPurchase, val
+	case "MovementType":
+		return SAFTLayerMovement, val
 	default:
 		return SAFTLayerOther, val
 	}
@@ -603,6 +606,152 @@ func (r *Registry) CheckCDOC006Invariants() []CDOC006Violation {
 				Reason:         "InvoiceType=RC proibido (C-DOC-003/006)",
 			})
 		}
+	}
+	return out
+}
+
+// CDOC007Violation is a catalog row that breaks C-DOC-007 GR MovementType vs WorkType invariants.
+type CDOC007Violation struct {
+	CodigoCanonico string
+	FECode         string
+	SAFTType       string
+	SAFTStructure  string
+	Reason         string
+}
+
+func (v CDOC007Violation) String() string {
+	return fmt.Sprintf("%s fe=%q saft=%q l3=%q: %s", v.CodigoCanonico, v.FECode, v.SAFTType, v.SAFTStructure, v.Reason)
+}
+
+const (
+	canonicalMovimentacaoGR = "bwb.ao.movimentacao.gr"
+	canonicalConferenciaGR  = "bwb.ao.conferencia.gr"
+)
+
+// CheckCDOC007Invariants validates GR dual-homonym fail-closed bindings:
+// MovementType=GR under MovementOfGoods ≠ WorkType=GR under WorkingDocuments.
+// Both are SAF-T-only (FE empty). Does not invent FE L4 for GR and does not confirm AO-DOC-*.
+func (r *Registry) CheckCDOC007Invariants() []CDOC007Violation {
+	if r == nil {
+		return nil
+	}
+	out := make([]CDOC007Violation, 0)
+
+	mov, okM := r.Lookup(canonicalMovimentacaoGR)
+	conf, okC := r.Lookup(canonicalConferenciaGR)
+	if !okM {
+		out = append(out, CDOC007Violation{CodigoCanonico: canonicalMovimentacaoGR, Reason: "seed movimentacao.gr obrigatório (C-DOC-007)"})
+	}
+	if !okC {
+		out = append(out, CDOC007Violation{CodigoCanonico: canonicalConferenciaGR, Reason: "seed conferencia.gr obrigatório (C-DOC-007; XSD WorkType=GR)"})
+	}
+	if okM && okC && mov.CodigoCanonico == conf.CodigoCanonico {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: mov.CodigoCanonico,
+			Reason:         "proibido colapsar movimentacao.gr e conferencia.gr (C-DOC-007)",
+		})
+	}
+
+	if okM {
+		out = append(out, checkGRHomonym(mov, SAFTLayerMovement, "MovementOfGoods", "movimentacao")...)
+	}
+	if okC {
+		out = append(out, checkGRHomonym(conf, SAFTLayerWork, "WorkingDocuments", "conferencia")...)
+	}
+
+	for _, e := range r.All() {
+		layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+		if code != "GR" {
+			continue
+		}
+		structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+		fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+		switch layer {
+		case SAFTLayerMovement:
+			if structL3 != "MovementOfGoods" {
+				out = append(out, CDOC007Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "MovementType=GR exige L3 MovementOfGoods (C-DOC-007)",
+				})
+			}
+		case SAFTLayerWork:
+			if structL3 != "WorkingDocuments" {
+				out = append(out, CDOC007Violation{
+					CodigoCanonico: e.CodigoCanonico,
+					FECode:         fe,
+					SAFTType:       e.ChannelAdapters.SAFTType,
+					SAFTStructure:  structL3,
+					Reason:         "WorkType=GR exige L3 WorkingDocuments (C-DOC-007)",
+				})
+			}
+		}
+		if fe != "" {
+			out = append(out, CDOC007Violation{
+				CodigoCanonico: e.CodigoCanonico,
+				FECode:         fe,
+				SAFTType:       e.ChannelAdapters.SAFTType,
+				SAFTStructure:  structL3,
+				Reason:         "GR seed é SAF-T-only; proibido inventar FE L4 para GR (C-DOC-007)",
+			})
+		}
+	}
+	return out
+}
+
+func checkGRHomonym(e Entry, wantLayer SAFTLayer, wantL3, wantGrupo string) []CDOC007Violation {
+	out := make([]CDOC007Violation, 0)
+	fe := strings.TrimSpace(e.ChannelAdapters.FECode)
+	layer, code := ParseSAFTTypeAdapter(e.ChannelAdapters.SAFTType)
+	structL3 := strings.TrimSpace(e.ChannelAdapters.SAFTStructure)
+	grupo := strings.TrimSpace(e.Grupo)
+
+	if fe != "" {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         "GR exige FE vazio (SAF-T-only; C-DOC-007)",
+		})
+	}
+	if layer != wantLayer || code != "GR" {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige adaptador %s=GR (C-DOC-007)", wantLayer),
+		})
+	}
+	if structL3 != wantL3 {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige L3 %s (C-DOC-007)", wantL3),
+		})
+	}
+	if grupo != wantGrupo {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         fmt.Sprintf("exige grupo=%s (C-DOC-007)", wantGrupo),
+		})
+	}
+	if e.Activo != ActiveOff {
+		out = append(out, CDOC007Violation{
+			CodigoCanonico: e.CodigoCanonico,
+			FECode:         fe,
+			SAFTType:       e.ChannelAdapters.SAFTType,
+			SAFTStructure:  structL3,
+			Reason:         "GR dual-L3 permanece off até fecho residual (C-DOC-007)",
+		})
 	}
 	return out
 }

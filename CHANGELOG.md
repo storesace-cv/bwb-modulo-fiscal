@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.88-draft — 2026-07-29
+
+- Compliance: **RM-M2-D / C-DOC-007** — homónimo `GR` em `MovementType` **e** `WorkType`; seed `conferencia.gr` (SAF-T-only); `doctype.CheckCDOC007Invariants` + testes; **sem** inventar FE L4; **sem** AO-* confirmados.
+
 ## 0.2.87-draft — 2026-07-28
 
 - Compliance: **RM-M2-D / C-DOC-006** — homónimo `RC` em `PaymentType` **e** `PurchaseType` (L3 `Payments` vs `PurchaseInvoices`); `doctype.CheckCDOC006Invariants` + testes; dual canónicos `off`; **sem** AO-* confirmados.
