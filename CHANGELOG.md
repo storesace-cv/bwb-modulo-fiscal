@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.105-draft — 2026-07-29
+
+- Ops: **RM-OPS-011** — sandbox promovido `main@0fbac6a…` schema **12→13** `dirty=false`; grants `secret_store_entries`; master key em `fiscal.env` (fingerprint só no relatório); API 401 sem token; admin fail_closed; **≠** AGT / plaintext em Git.
+
 ## 0.2.104-draft — 2026-07-29
 
 - Ops: **RM-OPS-011 (readiness)** — `DEPLOY_EXPECTED_SCHEMA_VERSION_DEFAULT=13`; `deploy/env.allowlist` admite `FISCAL_SECRETSTORE_BACKEND`/`MASTER_KEY` (+ `FISCAL_AUTHORITY`); prepare promote schema13/grants; **≠** AGT / plaintext em Git.
