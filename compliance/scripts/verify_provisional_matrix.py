@@ -47,7 +47,7 @@ FORBIDDEN_STATUS_WORDS = re.compile(
 CONFIRMED_MATRIX_REL = Path(
     "compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md"
 )
-PROMOTED_REQUIRING_CONFIRMED = ("AO-DOC-002", "AO-SEQ-001")
+PROMOTED_REQUIRING_CONFIRMED = ("AO-DOC-002", "AO-SEQ-001", "AO-OFF-001")
 ROW_RE = re.compile(
     r"^\|\s*(ASM-REG-001|AO-[A-Z]+-\d+)\s*\|\s*`([^`]+)`\s*\|",
     re.M,
@@ -357,18 +357,24 @@ def verify(root: Path) -> list[str]:
             if "`confirmed_normative`" not in confirmed_text:
                 fail("CONFIRMED-MATRIX deve declarar `confirmed_normative`", errors)
 
-    # AO-OFF-001: partial — DP 71 Art.18 contingency.
-    if rows.get("AO-OFF-001") != "partial":
-        fail("AO-OFF-001: deve estar `partial` (DP 71/25 Art.18)", errors)
+    # AO-OFF-001: promoted — DP 71 Art.18 contingency conditions.
+    if rows.get("AO-OFF-001") != "promoted":
+        fail(
+            "AO-OFF-001: deve estar `promoted` (norma em CONFIRMED-MATRIX-RM-REQ-001)",
+            errors,
+        )
     for token in ("Art.18", "11911", "11912"):
         if token not in text:
-            fail(f"citação AO-OFF-001 deve incluir `{token}`", errors)
-    check_partial_row("AO-OFF-001")
+            fail(f"matriz provisória deve manter citação OFF `{token}` (Citação E)", errors)
     off_rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*AO-OFF-001\s*\|", ln)]
     if off_rows:
-        ol = off_rows[0].lower()
-        if "não" not in ol or "satisfeito" not in ol:
-            fail("AO-OFF-001: a linha deve declarar que o critério não fica satisfeito", errors)
+        if "CONFIRMED-MATRIX" not in off_rows[0] and "confirmed_normative" not in off_rows[0]:
+            fail(
+                "AO-OFF-001: a linha `promoted` deve apontar CONFIRMED-MATRIX / confirmed_normative",
+                errors,
+            )
+    else:
+        fail("linha de tabela AO-OFF-001 ausente", errors)
 
     # AO-OFF-002: partial — DE 74 integration / recovery series.
     if rows.get("AO-OFF-002") != "partial":

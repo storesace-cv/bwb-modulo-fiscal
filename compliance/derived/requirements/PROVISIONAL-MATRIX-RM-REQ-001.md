@@ -2,7 +2,7 @@
 
 **Estado:** `EM_CURSO` — **não** é matriz AO-* confirmada (promoções normativas vivem em [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md)).
 **Data:** 2026-07-29
-**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation`. **AO-DOC-002** + **AO-SEQ-001** promovidos (`confirmed_normative`). C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
+**Âmbito:** OCR `reviewed` (KB auxiliar) + XSD ASSOFT / snapshots FE `pending_validation`. **AO-DOC-002** + **AO-SEQ-001** + **AO-OFF-001** promovidos (`confirmed_normative`). C-DOC-001: confronto visual DE 683 p.7 (`GF` ausente).
 
 ## Fontes admitidas neste rascunho
 
@@ -231,7 +231,7 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 | AO-KEY-001 | `blocked` | GAP-013 + Citação J | Snapshot GESTAO distingue chaves software vs contribuinte; **não** autoriza custódia por módulo externo; GAP-013 aberto |
 | AO-AGT-001 | `pending_validation` | FE HML snapshots (Citação H) | Endpoints + FE-RNG + Basic Auth citados (`eb430954…`/`f8fb22e7…`/…); C-FE-001 mitigação `internal/fepath` (≠ fecho) + GAP-006 credenciais abertos; critério do catálogo **não** fica satisfeito só com snapshots; **não** confirmado |
 | AO-AGT-002 | `partial` | FE MODELO + DE 683 | Ligação preliminar: assíncrono `requestID` + `obterEstado` (`f851f512…`, Citação H) + validação a posteriori Anexo II @**19193**. DEC-API-004 / estados completos **não** fechados; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
-| AO-OFF-001 | `partial` | DP 71 + DE 683 | Ligação preliminar: Art.18 @**11911–11912** + FE `obterEstado`/`validationStatus` P (atraso >24h sem contingência) @**19179**/**19183**. Regras Edge/produto e DEC-REG-004 **não** fechadas; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
+| AO-OFF-001 | `promoted` | DP 71 Art.18 (+ Art.7 n.º6) → [`CONFIRMED-MATRIX-RM-REQ-001.md`](CONFIRMED-MATRIX-RM-REQ-001.md) | **`confirmed_normative`** 2026-07-29 (@**11911–11912** / **11907**). Residual Edge/`DEC-REG-004`. **≠** AGT / `AO-OFF-002` |
 | AO-OFF-002 | `partial` | `AO-LEG-DE-74-19-2019` | Ligação preliminar: Anexo I n.º7–9 @**1580** (e **1579**; integração sem recalcular; séries de recuperação/contingência). Sync Edge/produto **não** fechado; critério do catálogo **não** fica satisfeito só com estas citações. **Não** confirmado |
 | AO-AUD-001 | `scaffold` | — | Produto: append-only + retenção `pending_norm` (`DEC-PROD-013`); **não** confirmado; critério do catálogo **não** fica satisfeito só com decisão de produto |
 | AO-SAF-001 | `pending_validation` | XSD + DE 74/19 n.º1 | Citação D: `AuditFile`/`SalesInvoices`/`InvoiceNo`/`InvoiceType`/`Hash` (`e9a938e1…`, L42–58 / L445+ / L1974–2001 / L2023–2065 / L1361–1367) + exportação Anexo I n.º1 @**1576**; AGT pendente; critério do catálogo **não** fica satisfeito só com schema+citação; **não** confirmado |
@@ -259,9 +259,10 @@ Limites: **não** implementa `RM-ENG-007`; OCR URL com ruído tipográfico; HTML
 16. AO-DOC-001: fechar C-DOC-* residual + DEC-REG-003 — manter `scaffold`.
 17. AO-DOC-002: **promovido** `confirmed_normative` (2026-07-29) — ver CONFIRMED-MATRIX; residual teste imutabilidade; **≠** AGT/JWS.
 18. AO-SEQ-001: **promovido** `confirmed_normative` (2026-07-29) — sequência por série; residual concorrência; **≠** `AO-SEQ-002`.
-19. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
-20. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
-21. Não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT; não promover AO-* sem evidência inequívoca.
+19. AO-OFF-001: **promovido** `confirmed_normative` (2026-07-29) — Art.18 contingência; residual Edge/`DEC-REG-004`; **≠** AGT.
+20. AO-ID-001: Citação I (terminal na série) **não** fecha o critério; manter `partial`.
+21. AO-KEY-001: Citação J (GESTAO) **não** fecha GAP-013 — manter `blocked`.
+22. Não inventar `FE-RNG-*`; não alargar OpenAPI sem DEC-REG-003; não pôr `ConflictOpen=false` (fepath/feqr) sem fecho AGT; não promover AO-* sem evidência inequívoca.
 
 ## Referências
 

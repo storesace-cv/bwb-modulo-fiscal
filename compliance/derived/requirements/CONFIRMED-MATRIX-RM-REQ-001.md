@@ -102,6 +102,40 @@ Paths privados: `derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md` · `�
 **Fail-closed:** **não** se afirma fecho de testes concorrentes, nem que o POS/AGT atribuam o número (`AO-SEQ-002` permanece provisório).
 **Não se afirma:** conformidade do produto implementado nem aceitação AGT.
 
+### AO-OFF-001 — Contingência apenas nas condições autorizadas
+
+| Campo | Valor |
+|---|---|
+| Estado | `confirmed_normative` |
+| Critério do catálogo | Emitir em contingência apenas nas condições autorizadas |
+| Âmbito confirmado | Contingência do **Regime Jurídico das Facturas** (DP 71/25 Art.18 + remissão Art.7 n.º6): só perante inoperacionalidade que impossibilite facturação electrónica, nos modos a)/b) e com deveres de menção, submissão posterior e comunicação à AGT |
+| Canais | **Regime jurídico** (DP 71) — facturação electrónica / contingência |
+| Fora de âmbito | Homologação AGT; produção; regras Edge/`DEC-REG-004`; inventário FE `validationStatus` P (DE 683) como fecho autónomo; SAF-T Hash |
+| Residual engenharia | Operacionalização Edge/cloud, reconciliação e testes de falha (evidência do catálogo) — **não** alarga as condições legais |
+
+#### Evidência inequívoca
+
+| # | source_id | Original sha256 | OCR | PDF p. | Gazeta | Norma | Trecho (OCR auxiliar; PDF prevalece) |
+|---|---|---|---|---:|---:|---|---|
+| 1 | `AO-LEG-DP-71-25-2025` | `4931fd3c…` | v1 `reviewed` | 11–12 | **11911–11912** | Art.18 n.º1–4 | Contingência **só** se inoperacionalidade impossibilitar FE: (a) offline por falta de comunicação com a Plataforma; (b) tipográfica nos termos do Art.7 n.º6 (energia/avaria/acesso). Deveres: menção «emitido em contingência…»; submissão posterior à AGT; informar AGT imediatamente |
+| 2 | `AO-LEG-DP-71-25-2025` | idem | idem | 7 | **11907** | Art.7 n.º6 (remissão) | Blocos tipográficos mediante **autorização** AGT, prazo ≤45 dias, requisitos do Regime — base da alínea b) do Art.18 |
+
+Path privado: `derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md`.
+
+#### Distinções obrigatórias
+
+| Tema | Relação com AO-OFF-001 |
+|---|---|
+| DE 683 `obterEstado` / `validationStatus` P (>24h) | Camada **FE** auxiliar (Citação G); **não** substitui Art.18; **não** usada como fundamento único desta promoção |
+| Séries de recuperação DE 74 n.º8–9 | Candidato **`AO-OFF-002`** — **não** confirmado aqui |
+| Homologação / produção AGT | **Não** confirmados |
+
+#### Conclusão
+
+**Facto:** a norma delimita **quando** e **como** a contingência é permitida (Art.18 + Art.7 n.º6); emissão fora desses casos **não** está autorizada por este artigo.
+**Fail-closed:** **não** inventar modos de contingência adicionais; **não** afirmar fecho Edge/`DEC-REG-004`.
+**Não se afirma:** conformidade do produto nem aceitação AGT.
+
 ## Ainda não confirmados
 
 Todos os restantes IDs do [catálogo](../../../docs/01-compliance/requirements-catalog.md) permanecem na [matriz provisória](PROVISIONAL-MATRIX-RM-REQ-001.md) (`scaffold` / `partial` / `blocked` / `pending_validation` / `promoted` residual).
