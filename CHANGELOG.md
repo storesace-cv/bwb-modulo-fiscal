@@ -2,7 +2,7 @@
 
 ## 0.2.109-draft — 2026-08-16
 
-- Compliance / FE prep: **RM-FEFIX-003** — motor JWS compact RS256 (`internal/fejws`) + matriz [`FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md`](compliance/derived/requirements/FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md); perfis eligible (`software_info`, `obter_estado_request`, `consultar_factura_request`); restantes `blocked_conflict` (C-FE-JWS-*); binding NIF via `ValidateTaxpayerBinding`; **≠** tip JWT/JOSE por defeito; **≠** mock HTTP/AGT; fontes `pending_validation`.
+- Compliance / FE prep: **RM-FEFIX-003** — motor JWS compact RS256 (`internal/fejws`) + matriz [`FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md`](compliance/derived/requirements/FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md); builders de payload confirmados no snapshot; **0** perfis wire AGT enquanto [C-FE-JWS-TYP-001](compliance/derived/conflicts/C-FE-JWS-TYP-001-typ-jwt-vs-jose.md) aberto (omitir `typ` ≠ resolução); restantes `blocked_conflict`; binding NIF via `ValidateTaxpayerBinding`; registo cumulativo [`agt-clarifications-register.md`](docs/01-compliance/agt-clarifications-register.md) (`AGT-Q-001`…`018`); **≠** mock HTTP/AGT; fontes `pending_validation`.
 
 ## 0.2.108-draft — 2026-08-16
 

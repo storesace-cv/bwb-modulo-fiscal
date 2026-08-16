@@ -4,7 +4,17 @@
 
 **Data (UTC):** 2026-08-16
 
-**Regra:** só `eligible` se campos, nomes, representação e tipo de assinatura forem inequívocos nas fontes. **Proibido** “intersecção mínima”. Fontes `pending_validation`.
+**Regra:** só perfil **wire AGT** `eligible` se campos, nomes, representação, tipo de assinatura **e** protected header (`typ` incluído) forem inequívocos. **Proibido** “intersecção mínima” ou omitir `typ` para contornar [C-FE-JWS-TYP-001](../conflicts/C-FE-JWS-TYP-001-typ-jwt-vs-jose.md). Fontes `pending_validation`.
+
+**Separação de estados:**
+
+| Camada | Significado |
+|---|---|
+| `payload_confirmed_from_snapshot` | Claims/campos coerentes no snapshot — builder tipado permitido |
+| `blocked_conflict` (wire) | Assinatura compacta operacional AGT **não** pode ser emitida até fecho do conflito indicado |
+| Motor `internal/fejws` | Primitiva técnica; sem `typ` por defeito; **≠** perfil wire AGT |
+
+**Contagem wire:** **zero** perfis wire AGT completos activos enquanto `C-FE-JWS-TYP-001` estiver aberto.
 
 ## Fontes citadas
 
@@ -21,24 +31,25 @@
 | `AO-FE-SNAP-HML-2026-07-25-LISTAR-FATURAS` | listarFacturas | `pending_validation` |
 
 Separação SAF-T ≠ FE: [C-SIGN-001](../conflicts/C-SIGN-001-saft-rsa-vs-fe-jws.md).
+Questões AGT: [`agt-clarifications-register.md`](../../../docs/01-compliance/agt-clarifications-register.md) (`AGT-Q-005`+).
 
 ## Motor genérico
 
-Pacote [`internal/fejws`](../../../internal/fejws/compact.go): compact JWS, `alg=RS256` apenas, payload = bytes exactos, sem `typ` por defeito, verificação com Base64URL canónico e rejeição de chaves duplicadas / `crit` desconhecido.
+Pacote [`internal/fejws`](../../../internal/fejws/compact.go): compact JWS, `alg=RS256` apenas, payload = bytes exactos, **sem** `typ` por defeito (caller pode passar `typ` só em testes genéricos), verificação com Base64URL canónico e rejeição de chaves duplicadas / `crit` desconhecido. **Não** afirma compatibilidade operacional AGT.
 
 ## Matriz
 
-| ProfileID | Operação | Tipo assinatura | Campos exactos (ordem JSON struct) | Protected header | Estado | Conflito / notas |
-|---|---|---|---|---|---|---|
-| `software_info` | transversal (softwareInfo) | `jwsSoftwareSignature` | `productId`, `productVersion`, `softwareValidationNumber` | `{"alg":"RS256"}` (**sem** `typ`) | **eligible** | `typ` JWT vs JOSE → [C-FE-JWS-TYP-001](../conflicts/C-FE-JWS-TYP-001-typ-jwt-vs-jose.md); placeholder `softwareValidationNumber` ≠ certificado |
-| `obter_estado_request` | `obterEstado` | `jwsSignature` | `taxRegistrationNumber`, `requestID` | `{"alg":"RS256"}` | **eligible** | Tabela = bloco Payload assinatura |
-| `consultar_factura_request` | `consultarFactura` | `jwsSignature` | `taxRegistrationNumber`, `documentNo` | `{"alg":"RS256"}` | **eligible** | Tabela = bloco Payload assinatura |
-| `registar_document` | `registarFactura` | `jwsDocumentSignature` | — | — | **blocked_conflict** | [C-FE-JWS-DOC-001](../conflicts/C-FE-JWS-DOC-001-document-totals-sample.md) |
-| `registar_request_jwsSignature` | `registarFactura` | `jwsSignature` | — | — | **blocked_conflict** | FE-RNG-031 menciona campo; schema/exemplo de entrada não fecham payload exacto + typ |
-| `solicitar_serie_request` | `solicitarSerie` | `jwsSignature` | — | — | **blocked_conflict** | [C-FE-JWS-REQ-001](../conflicts/C-FE-JWS-REQ-001-solicitar-serie-fields.md) |
-| `listar_series_request` | `listarSeries` | `jwsSignature` | — | — | **blocked_conflict** | [C-FE-JWS-REQ-002](../conflicts/C-FE-JWS-REQ-002-listar-series-fields.md) |
-| `validar_documento_request` | `validarDocumento` | `jwsSignature` | — | — | **blocked_conflict** | [C-FE-JWS-REQ-003](../conflicts/C-FE-JWS-REQ-003-validar-documento-fields.md) |
-| `listar_facturas_request` | `listarFacturas` | `jwsSignature` | — | — | **blocked_conflict** | [C-FE-JWS-REQ-004](../conflicts/C-FE-JWS-REQ-004-listar-facturas-payload-block.md) |
+| ProfileID | Operação | Tipo assinatura | Payload / claims | Protected header wire | Payload status | Wire status | Conflito / notas |
+|---|---|---|---|---|---|---|---|
+| `software_info` | transversal (softwareInfo) | `jwsSoftwareSignature` | `productId`, `productVersion`, `softwareValidationNumber` | `typ` JWT vs JOSE **aberto** | `payload_confirmed_from_snapshot` | **blocked_conflict** | [C-FE-JWS-TYP-001](../conflicts/C-FE-JWS-TYP-001-typ-jwt-vs-jose.md); omitir `typ` **não** é terceira variante aprovada; placeholder ≠ certificado |
+| `obter_estado_request` | `obterEstado` | `jwsSignature` | `taxRegistrationNumber`, `requestID` | `typ` JWT vs JOSE **aberto** | `payload_confirmed_from_snapshot` | **blocked_conflict** | Claims coerentes; wire bloqueado por typ |
+| `consultar_factura_request` | `consultarFactura` | `jwsSignature` | `taxRegistrationNumber`, `documentNo` | `typ` JWT vs JOSE **aberto** | `payload_confirmed_from_snapshot` | **blocked_conflict** | Claims coerentes; wire bloqueado por typ |
+| `registar_document` | `registarFactura` | `jwsDocumentSignature` | — | — | — | **blocked_conflict** | [C-FE-JWS-DOC-001](../conflicts/C-FE-JWS-DOC-001-document-totals-sample.md) |
+| `registar_request_jwsSignature` | `registarFactura` | `jwsSignature` | — | — | — | **blocked_conflict** | FE-RNG-031 menciona campo; schema/exemplo não fecham payload + typ |
+| `solicitar_serie_request` | `solicitarSerie` | `jwsSignature` | — | — | — | **blocked_conflict** | [C-FE-JWS-REQ-001](../conflicts/C-FE-JWS-REQ-001-solicitar-serie-fields.md) |
+| `listar_series_request` | `listarSeries` | `jwsSignature` | — | — | — | **blocked_conflict** | [C-FE-JWS-REQ-002](../conflicts/C-FE-JWS-REQ-002-listar-series-fields.md) |
+| `validar_documento_request` | `validarDocumento` | `jwsSignature` | — | — | — | **blocked_conflict** | [C-FE-JWS-REQ-003](../conflicts/C-FE-JWS-REQ-003-validar-documento-fields.md) |
+| `listar_facturas_request` | `listarFacturas` | `jwsSignature` | — | — | — | **blocked_conflict** | [C-FE-JWS-REQ-004](../conflicts/C-FE-JWS-REQ-004-listar-facturas-payload-block.md) |
 
 ## Binding
 
@@ -48,6 +59,7 @@ Pacote [`internal/fejws`](../../../internal/fejws/compact.go): compact JWS, `alg
 
 ## Implementação
 
-- Eligible: [`internal/feprofile`](../../../internal/feprofile/profiles.go)
-- Blocked: funções `*Blocked` devolvem `ErrProfileBlocked`
+- Payload builders: `Marshal*Payload` em [`internal/feprofile`](../../../internal/feprofile/profiles.go)
+- Wire sign (`SignSoftwareInfo`, `SignObterEstadoRequest`, `SignConsultarFacturaRequest` e `*Blocked`): `ErrProfileBlocked`
+- Motor genérico: [`internal/fejws`](../../../internal/fejws/compact.go) — só testes/primitiva
 - Custódia: [`internal/agttestkit`](../../../internal/agttestkit/provider.go)

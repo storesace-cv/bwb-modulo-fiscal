@@ -68,6 +68,7 @@ jobs:
           bash tests/compliance/run-verify-document-catalog-tests.sh
           python3 compliance/scripts/verify_fe_services_matrix.py
           bash tests/compliance/run-verify-fe-services-matrix-tests.sh
+          python3 compliance/scripts/verify_agt_clarifications_register.py
           bash compliance/scripts/verify_no_local_deps.sh
 
       - name: ROADMAP structural validation

@@ -3,7 +3,7 @@
 **Data:** 2026-07-26
 **Política:** credenciais e confirmação externa = **`BLOQUEADO_EXTERNO` / `ADIADO`** — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes.
 **Proibido:** inventar respostas da AGT; declarar conformidade / `AO-*` confirmados sem evidência.
-**Relaciona:** [`regulatory-gaps.md`](regulatory-gaps.md) · [`open-decisions.md`](../06-delivery/open-decisions.md) · [`official-access-plan.md`](official-access-plan.md) · `DEC-DEL-002`
+**Relaciona:** [`regulatory-gaps.md`](regulatory-gaps.md) · [`open-decisions.md`](../06-delivery/open-decisions.md) · [`official-access-plan.md`](official-access-plan.md) · [`agt-clarifications-register.md`](agt-clarifications-register.md) · `DEC-DEL-002`
 
 Legenda de classificação (semântica; ROADMAP usa só `BLOQUEADO` \| `ADIADO`):
 

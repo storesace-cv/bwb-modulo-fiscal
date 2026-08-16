@@ -1,6 +1,6 @@
 # Plano de acesso e preservação de fontes oficiais
 
-Dependências AGT: [`agt-dependencies.md`](agt-dependencies.md). Credenciais/confirmação externa = `BLOQUEADO_EXTERNO`/`ADIADO` (`DEC-DEL-002`) — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes. **Não** inventar respostas AGT nem declarar conformidade.
+Dependências AGT: [`agt-dependencies.md`](agt-dependencies.md). Registo cumulativo de esclarecimentos: [`agt-clarifications-register.md`](agt-clarifications-register.md). Credenciais/confirmação externa = `BLOQUEADO_EXTERNO`/`ADIADO` (`DEC-DEL-002`) — **não** travam catálogo, domínio, simulador, contratos, persistência nem testes. **Não** inventar respostas AGT nem declarar conformidade.
 
 ## Resultado da verificação
 

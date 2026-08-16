@@ -1,7 +1,8 @@
-// Package feprofile builds FE JWS payloads only for profiles marked eligible
-// in the RM-FEFIX-003 matrix. Blocked profiles return ErrProfileBlocked.
+// Package feprofile builds typed FE JWS payloads for snapshot-confirmed claim
+// sets and fail-closes full AGT wire signing while header/payload conflicts remain open.
 //
 // Sources: AO-FE-SNAP-HML-2026-07-25-* (pending_validation). ≠ SAF-T (C-SIGN-001).
+// payload_confirmed_from_snapshot ≠ wire AGT profile aceite (C-FE-JWS-TYP-001).
 package feprofile
 
 import (
@@ -19,6 +20,9 @@ const (
 	KindDocument = "jwsDocumentSignature"
 	KindRequest  = "jwsSignature"
 )
+
+// ConflictTyp is the open protected-header typ conflict (JWT vs JOSE).
+const ConflictTyp = "C-FE-JWS-TYP-001"
 
 var (
 	ErrProfileBlocked = errors.New("feprofile: profile blocked_conflict")
@@ -40,90 +44,76 @@ const (
 	ProfileListarFacturasRequest    ProfileID = "listar_facturas_request"
 )
 
-// SoftwareInfoClaims is the eligible jwsSoftwareSignature payload
-// (AO-FE-SNAP-HML-2026-07-25-ESTRUTURA / REGISTAR samples; pending_validation).
-// Protected header: alg=RS256 only — typ omitted (C-FE-JWS-TYP-001).
+// SoftwareInfoClaims — payload_confirmed_from_snapshot for jwsSoftwareSignature
+// (AO-FE-SNAP-HML-2026-07-25-ESTRUTURA / REGISTAR; pending_validation).
+// Wire signing remains blocked while C-FE-JWS-TYP-001 is open.
 type SoftwareInfoClaims struct {
 	ProductID                string `json:"productId"`
 	ProductVersion           string `json:"productVersion"`
 	SoftwareValidationNumber string `json:"softwareValidationNumber"`
 }
 
-// ObterEstadoRequestClaims — table and Payload assinatura agree
+// ObterEstadoRequestClaims — payload_confirmed_from_snapshot
 // (AO-FE-SNAP-HML-2026-07-25-CONSULTAR; pending_validation).
 type ObterEstadoRequestClaims struct {
 	TaxRegistrationNumber string `json:"taxRegistrationNumber"`
 	RequestID             string `json:"requestID"`
 }
 
-// ConsultarFacturaRequestClaims — table and Payload assinatura agree
+// ConsultarFacturaRequestClaims — payload_confirmed_from_snapshot
 // (AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA; pending_validation).
 type ConsultarFacturaRequestClaims struct {
 	TaxRegistrationNumber string `json:"taxRegistrationNumber"`
 	DocumentNo            string `json:"documentNo"`
 }
 
-// SignSoftwareInfo signs eligible software claims with a producer identity.
+// MarshalSoftwareInfoPayload returns deterministic JSON bytes for confirmed claims.
 // softwareValidationNumber must be a synthetic placeholder in tests — never a real certificate id.
-func SignSoftwareInfo(provider agttestkit.IdentityProvider, ref string, claims SoftwareInfoClaims) (string, error) {
-	if err := provider.RequireRole(ref, agttestkit.RoleProducerEphemeral); err != nil {
-		return "", err
-	}
+func MarshalSoftwareInfoPayload(claims SoftwareInfoClaims) ([]byte, error) {
 	if claims.ProductID == "" || claims.ProductVersion == "" || claims.SoftwareValidationNumber == "" {
-		return "", ErrValidation
+		return nil, ErrValidation
 	}
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
-	signer, err := provider.Signer(ref)
-	if err != nil {
-		return "", err
-	}
-	return fejws.SignCompact(signer, payload, fejws.ProtectedHeader{Alg: fejws.Algorithm})
+	return json.Marshal(claims)
 }
 
-// SignObterEstadoRequest signs eligible request claims with a taxpayer identity.
-func SignObterEstadoRequest(provider agttestkit.IdentityProvider, ref string, claims ObterEstadoRequestClaims) (string, error) {
-	if err := provider.RequireRole(ref, agttestkit.RoleTaxpayerTest); err != nil {
-		return "", err
+// MarshalObterEstadoRequestPayload returns deterministic JSON bytes for confirmed claims.
+func MarshalObterEstadoRequestPayload(claims ObterEstadoRequestClaims) ([]byte, error) {
+	if claims.TaxRegistrationNumber == "" || claims.RequestID == "" {
+		return nil, ErrValidation
 	}
-	if err := provider.ValidateTaxpayerBinding(ref, claims.TaxRegistrationNumber); err != nil {
-		return "", err
-	}
-	if claims.RequestID == "" {
-		return "", ErrValidation
-	}
-	return signTyped(provider, ref, claims)
+	return json.Marshal(claims)
 }
 
-// SignConsultarFacturaRequest signs eligible request claims with a taxpayer identity.
-func SignConsultarFacturaRequest(provider agttestkit.IdentityProvider, ref string, claims ConsultarFacturaRequestClaims) (string, error) {
-	if err := provider.RequireRole(ref, agttestkit.RoleTaxpayerTest); err != nil {
-		return "", err
+// MarshalConsultarFacturaRequestPayload returns deterministic JSON bytes for confirmed claims.
+func MarshalConsultarFacturaRequestPayload(claims ConsultarFacturaRequestClaims) ([]byte, error) {
+	if claims.TaxRegistrationNumber == "" || claims.DocumentNo == "" {
+		return nil, ErrValidation
 	}
-	if err := provider.ValidateTaxpayerBinding(ref, claims.TaxRegistrationNumber); err != nil {
-		return "", err
-	}
-	if claims.DocumentNo == "" {
-		return "", ErrValidation
-	}
-	return signTyped(provider, ref, claims)
+	return json.Marshal(claims)
 }
 
-func signTyped(provider agttestkit.IdentityProvider, ref string, claims any) (string, error) {
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
-	signer, err := provider.Signer(ref)
-	if err != nil {
-		return "", err
-	}
-	return fejws.SignCompact(signer, payload, fejws.ProtectedHeader{Alg: fejws.Algorithm})
+func blockedTyp(id ProfileID) error {
+	return fmt.Errorf("%w: %s (%s)", ErrProfileBlocked, id, ConflictTyp)
+}
+
+// SignSoftwareInfo is blocked while C-FE-JWS-TYP-001 is open.
+// Omitting typ is not an approved AGT wire profile.
+func SignSoftwareInfo(_ agttestkit.IdentityProvider, _ string, _ SoftwareInfoClaims) (string, error) {
+	return "", blockedTyp(ProfileSoftwareInfo)
+}
+
+// SignObterEstadoRequest is blocked while C-FE-JWS-TYP-001 is open.
+func SignObterEstadoRequest(_ agttestkit.IdentityProvider, _ string, _ ObterEstadoRequestClaims) (string, error) {
+	return "", blockedTyp(ProfileObterEstadoRequest)
+}
+
+// SignConsultarFacturaRequest is blocked while C-FE-JWS-TYP-001 is open.
+func SignConsultarFacturaRequest(_ agttestkit.IdentityProvider, _ string, _ ConsultarFacturaRequestClaims) (string, error) {
+	return "", blockedTyp(ProfileConsultarFacturaRequest)
 }
 
 // VerifyWithSignerPublic verifies compact JWS using the provider's signer public key.
+// Technical primitive only — does not assert AGT acceptance.
 func VerifyWithSignerPublic(provider agttestkit.IdentityProvider, ref, compact string) ([]byte, error) {
 	signer, err := provider.Signer(ref)
 	if err != nil {
@@ -143,7 +133,7 @@ func SignRegistarDocumentBlocked(_ agttestkit.IdentityProvider, _ string, _ json
 }
 
 func SignRegistarRequestSignatureBlocked(_ agttestkit.IdentityProvider, _ string, _ json.RawMessage) (string, error) {
-	return "", fmt.Errorf("%w: %s (FE-RNG-031 vs schema; typ conflict C-FE-JWS-TYP-001)", ErrProfileBlocked, ProfileRegistarRequestSignature)
+	return "", fmt.Errorf("%w: %s (FE-RNG-031 vs schema; typ conflict %s)", ErrProfileBlocked, ProfileRegistarRequestSignature, ConflictTyp)
 }
 
 func SignSolicitarSerieRequestBlocked(_ agttestkit.IdentityProvider, _ string, _ json.RawMessage) (string, error) {
