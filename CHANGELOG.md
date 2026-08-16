@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.107-draft — 2026-08-16
+
+- Compliance / FE prep: **RM-FEFIX-001** — inventário sanitizado e validação RSA dos pares de teste AGT via `internal/agttestkit` (path operador read-only; PEM só em memória; CI com XLSX sintético efémero); proveniência [`docs/01-compliance/agt-test-rsa-identities-provenance.md`](docs/01-compliance/agt-test-rsa-identities-provenance.md); cita `AO-FE-SNAP-HML-2026-07-25-{API,ESTRUTURA,GESTAO,REGISTAR}` (`pending_validation`); **≠** certificados X.509 / Basic Auth / `softwareValidationNo` / AGT real; sem PEM/NIF/nomes/workbook real no Git.
+
 ## 0.2.106-draft — 2026-07-29
 
 - Backoffice / SecAdm: **RM-AGTPREP-022** — hub AGT + `GET /admin/v1/authority/secadm-gate-status` (`present`/`absent`); allowlist `FISCAL_ADMIN_OWNER_SUBJECT`; OpenAPI `0.1.34-draft`; **≠** subject/plaintext / AGT.

@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**
 
-**Estado revisto em:** 2026-07-29
+**Estado revisto em:** 2026-08-16
 
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
@@ -288,6 +288,11 @@ SealInTx / `sealed_locally` **não** constituem emissão fiscal certificada.
 | [ ] | RM-FE-003 | Séries, registo, consulta, listagem, validação | PENDENTE | [docs/01-compliance/sources.md](docs/01-compliance/sources.md) | RM-FE-001 | Operações FE cobertas |
 | [ ] | RM-FE-004 | Processamento assíncrono, FE-RNG, retries, reconciliação | PENDENTE | [docs/01-compliance/requirements-catalog.md](docs/01-compliance/requirements-catalog.md) | RM-FE-001 | Outbox/reconciliação AGT |
 | [ ] | RM-FE-005 | Armazenamento de respostas + passagem a produção AGT | PENDENTE | [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md) | Homologação oficial AGT aceite | Produção FE autorizada |
+| [x] | RM-FEFIX-001 | Inventário sanitizado + validação RSA do workbook AGT de teste (consulta não versionada, read-only) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/157 · [internal/agttestkit/doc.go](internal/agttestkit/doc.go) · [docs/01-compliance/agt-test-rsa-identities-provenance.md](docs/01-compliance/agt-test-rsa-identities-provenance.md) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | — | 5 pares RSA; CI workbook sintético; sem PEM/NIF/nomes no Git; ≠ certificados/Basic Auth/`softwareValidationNo` |
+| [ ] | RM-FEFIX-002 | Custódia workbook/memória + interface Signer compatível SecretStore | PENDENTE | — | RM-FEFIX-001 | Fixtures AGT; sem PEM em HTTP/BD |
+| [ ] | RM-FEFIX-003 | JWS genérico + perfis só para ops com campos inequivocamente documentados | PENDENTE | — | RM-FEFIX-002 | Conflitos → perfil bloqueado; ≠ intersecção mínima |
+| [ ] | RM-FEFIX-004 | Mock FE AGT (Basic Auth fictício, verify JWS, FE-RNG) | PENDENTE | — | RM-FEFIX-003 | mock≠HML≠PRD; sem rede AGT |
+| [ ] | RM-FEFIX-005 | Outbox/estados até boundary + hub metadados fixture/HML/PRD | PENDENTE | — | RM-FEFIX-004 | Nunca rotular aceite AGT só com assinatura local |
 
 ---
 
