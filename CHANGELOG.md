@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.109-draft — 2026-08-16
+
+- Compliance / FE prep: **RM-FEFIX-003** — motor JWS compact RS256 (`internal/fejws`) + matriz [`FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md`](compliance/derived/requirements/FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md); perfis eligible (`software_info`, `obter_estado_request`, `consultar_factura_request`); restantes `blocked_conflict` (C-FE-JWS-*); binding NIF via `ValidateTaxpayerBinding`; **≠** tip JWT/JOSE por defeito; **≠** mock HTTP/AGT; fontes `pending_validation`.
+
 ## 0.2.108-draft — 2026-08-16
 
 - Compliance / FE prep: **RM-FEFIX-002** — custódia em memória de identidades AGT de teste (`IdentityProvider` / `crypto.Signer` opaco); workbook path explícito; NIF+`sourceLabel` (designação de origem NOME, ≠ regime fiscal) ligados à chave só em memória privada; refs opacas com separação de domínio; assinatura/verificação RSA-SHA256 genérica; adapter SecretStore PEM + producer efémero; sem PEM/NIF/label/fingerprint em listings/HTTP; **≠** JWS/claims AGT (RM-FEFIX-003); sem OpenAPI/migrations/UI.
