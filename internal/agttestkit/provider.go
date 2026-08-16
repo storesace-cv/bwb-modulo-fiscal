@@ -2,7 +2,6 @@ package agttestkit
 
 import (
 	"crypto"
-	"crypto/rsa"
 	"errors"
 )
 
@@ -32,8 +31,9 @@ type SanitizedRef struct {
 }
 
 // IdentityProvider resolves opaque refs to in-memory RSA crypto.Signer values.
-// Workbook, ephemeral producer, and future SecretStore adapters implement this
-// so consumers do not depend on custody source.
+// Signer returns an opaque proxy (never *rsa.PrivateKey). Workbook, ephemeral
+// producer, and SecretStore adapters implement this so consumers do not depend
+// on custody source.
 type IdentityProvider interface {
 	List() []SanitizedRef
 	Signer(ref string) (crypto.Signer, error)
@@ -41,6 +41,3 @@ type IdentityProvider interface {
 	Verify(ref string, message, signature []byte) error
 	Close() error
 }
-
-// rsaPrivateKey is satisfied by *rsa.PrivateKey (crypto.Signer).
-var _ crypto.Signer = (*rsa.PrivateKey)(nil)

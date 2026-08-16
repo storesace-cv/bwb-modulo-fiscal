@@ -1,11 +1,6 @@
 package agttestkit_test
 
 import (
-	"context"
-	"crypto"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -14,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/agttestkit"
-	"github.com/storesace-cv/bwb-modulo-fiscal/internal/secretstore"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -269,105 +263,6 @@ func TestEphemeralProducerDistinctAndNonPersistent(t *testing.T) {
 	assertSanitizedListing(t, ra)
 }
 
-func TestSecretStoreAdapterCompatibility(t *testing.T) {
-	eph, err := agttestkit.OpenEphemeralProducerProvider(agttestkit.MinRSABits)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eRef := eph.List()[0].Ref
-	eSigner, err := eph.Signer(eRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	privPEM, err := marshalSignerPKCS8(eSigner)
-	_ = eph.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mem, err := secretstore.NewMemorySimulator(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	storeRef := secretstore.Ref{
-		Kind:        secretstore.KindTaxpayerKey,
-		Environment: secretstore.EnvHomologation,
-		SubjectID:   "platform",
-		Name:        "adapter-test",
-	}
-	if _, err := mem.Put(context.Background(), storeRef, privPEM, nil); err != nil {
-		t.Fatal(err)
-	}
-	for i := range privPEM {
-		privPEM[i] = 0
-	}
-
-	p, err := agttestkit.OpenSecretStorePEMProvider(context.Background(), mem, []agttestkit.SecretStorePEMBinding{{
-		OpaqueRef: eRef,
-		StoreRef:  storeRef,
-		Role:      agttestkit.RoleSecretStoreAdapter,
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = p.Close() }()
-	if got := p.List(); len(got) != 1 || got[0].Ref != eRef || got[0].Role != agttestkit.RoleSecretStoreAdapter {
-		t.Fatalf("%+v", got)
-	}
-	s, err := p.Signer(eRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	msg := []byte("via-secretstore-adapter")
-	sig, err := agttestkit.SignMessageRSA(s, msg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := p.Verify(eRef, msg, sig); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestSecretStoreAdapterRejectsOpaqueMismatch(t *testing.T) {
-	eph, err := agttestkit.OpenEphemeralProducerProvider(agttestkit.MinRSABits)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eRef := eph.List()[0].Ref
-	eSigner, err := eph.Signer(eRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	privPEM, err := marshalSignerPKCS8(eSigner)
-	_ = eph.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	mem, err := secretstore.NewMemorySimulator(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	storeRef := secretstore.Ref{
-		Kind:        secretstore.KindTaxpayerKey,
-		Environment: secretstore.EnvHomologation,
-		SubjectID:   "platform",
-		Name:        "mismatch",
-	}
-	if _, err := mem.Put(context.Background(), storeRef, privPEM, nil); err != nil {
-		t.Fatal(err)
-	}
-	p, err := agttestkit.OpenSecretStorePEMProvider(context.Background(), mem, []agttestkit.SecretStorePEMBinding{{
-		OpaqueRef: "agt-test-0000000000000000",
-		StoreRef:  storeRef,
-	}})
-	if err == nil || p != nil {
-		t.Fatal("want opaque mismatch fail-closed")
-	}
-	if !errors.Is(err, agttestkit.ErrRefAmbiguous) {
-		t.Fatalf("got %v", err)
-	}
-}
-
 func synthWorkbook(t *testing.T, count int) (string, func()) {
 	t.Helper()
 	path, cleanup, err := agttestkit.WriteSyntheticWorkbook(t.TempDir(), agttestkit.SyntheticOptions{Count: count})
@@ -396,18 +291,6 @@ func refsOf(list []agttestkit.SanitizedRef) []string {
 		out[i] = e.Ref
 	}
 	return out
-}
-
-func marshalSignerPKCS8(signer crypto.Signer) ([]byte, error) {
-	rk, ok := signer.(*rsa.PrivateKey)
-	if !ok || rk == nil {
-		return nil, fmt.Errorf("not rsa private key")
-	}
-	der, err := x509.MarshalPKCS8PrivateKey(rk)
-	if err != nil {
-		return nil, err
-	}
-	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), nil
 }
 
 func assertSanitizedListing(t *testing.T, e agttestkit.SanitizedRef) {

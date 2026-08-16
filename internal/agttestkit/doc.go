@@ -5,8 +5,18 @@
 // bytes stay in memory for validation/custody and are wiped on Close. Sanitized
 // listings never include PEM, NIF, display names, or full public fingerprints.
 //
-// IdentityProvider is backed by workbook custody, ephemeral producer keys, or a
-// SecretStore PEM adapter so consumers can switch sources without API changes.
+// Inside private custody, each taxpayer workbook row keeps taxpayerNIF and
+// sourceLabel bound to the same key pair. sourceLabel is the origin designation
+// from the NOME column (entity/contribuinte test profile label) after structural
+// trimming only — it is not a confirmed tax-regime classification and is never
+// listed, logged, JSON-encoded, persisted, or exposed over HTTP.
+//
+// IdentityProvider.Signer returns an opaque crypto.Signer proxy that resolves
+// the private key under lock. It never returns the stored *rsa.PrivateKey, so
+// consumers cannot type-assert to extract D/Primes. Sign fails after Close.
+//
+// Providers: workbook custody, ephemeral producer keys, or a SecretStore PEM
+// adapter so consumers can switch sources without API changes.
 //
 // These are RSA PEM key pairs for development/tests — not X.509 certificates,
 // not Basic Auth, not softwareValidationNo, and not proof of BWB registration

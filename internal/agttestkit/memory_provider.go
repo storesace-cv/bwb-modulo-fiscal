@@ -6,15 +6,22 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"math/big"
 	"strings"
 	"sync"
 )
 
+// heldIdentity is private custody state. taxpayerNIF and sourceLabel bind the
+// workbook row's entity designation to the key pair. They are never exported,
+// listed, logged, JSON-tagged, or persisted.
 type heldIdentity struct {
-	ref  string
-	role string
-	bits int
-	priv *rsa.PrivateKey
+	ref         string
+	role        string
+	bits        int
+	taxpayerNIF string // unexported; no json tags
+	sourceLabel string // origin designation from NOME column (not a tax regime)
+	priv        *rsa.PrivateKey
 }
 
 // memoryProvider is the shared in-memory custody backend for workbook, ephemeral,
@@ -81,7 +88,8 @@ func (p *memoryProvider) Signer(ref string) (crypto.Signer, error) {
 	if !ok || h == nil || h.priv == nil {
 		return nil, ErrRefNotFound
 	}
-	return h.priv, nil
+	// Opaque proxy — never return the stored *rsa.PrivateKey.
+	return &opaqueSigner{p: p, ref: ref}, nil
 }
 
 func (p *memoryProvider) Verify(ref string, message, signature []byte) error {
@@ -109,12 +117,57 @@ func (p *memoryProvider) Close() error {
 	}
 	p.closed = true
 	for _, h := range p.byRef {
-		wipeRSAPrivate(h.priv)
-		h.priv = nil
+		wipeIdentity(h)
 	}
 	p.byRef = nil
 	p.order = nil
 	return nil
+}
+
+// opaqueSigner implements crypto.Signer without exposing the private key object.
+// Sign/Public resolve under the provider lock and fail after Close.
+type opaqueSigner struct {
+	p   *memoryProvider
+	ref string
+}
+
+var _ crypto.Signer = (*opaqueSigner)(nil)
+
+func (s *opaqueSigner) Public() crypto.PublicKey {
+	if s == nil || s.p == nil {
+		return nil
+	}
+	s.p.mu.RLock()
+	defer s.p.mu.RUnlock()
+	if s.p.closed {
+		return nil
+	}
+	h, ok := s.p.byRef[s.ref]
+	if !ok || h == nil || h.priv == nil || h.priv.N == nil {
+		return nil
+	}
+	// Independent public copy — never share the private key's PublicKey pointer graph
+	// in a way that could reach D/Primes (rsa.PublicKey has no private fields; still copy N).
+	return &rsa.PublicKey{
+		N: new(big.Int).Set(h.priv.N),
+		E: h.priv.E,
+	}
+}
+
+func (s *opaqueSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if s == nil || s.p == nil {
+		return nil, ErrSignerUnavailable
+	}
+	s.p.mu.RLock()
+	defer s.p.mu.RUnlock()
+	if s.p.closed {
+		return nil, ErrProviderClosed
+	}
+	h, ok := s.p.byRef[s.ref]
+	if !ok || h == nil || h.priv == nil {
+		return nil, ErrSignerUnavailable
+	}
+	return h.priv.Sign(rand, digest, opts)
 }
 
 func normalizeRef(ref string) string {
@@ -143,9 +196,21 @@ func verifyRSASHA256(pub *rsa.PublicKey, message, signature []byte) error {
 
 func wipeHeld(held []heldIdentity) {
 	for i := range held {
-		wipeRSAPrivate(held[i].priv)
-		held[i].priv = nil
+		wipeIdentity(&held[i])
 	}
+}
+
+func wipeIdentity(h *heldIdentity) {
+	if h == nil {
+		return
+	}
+	wipeRSAPrivate(h.priv)
+	h.priv = nil
+	h.taxpayerNIF = ""
+	h.sourceLabel = ""
+	h.ref = ""
+	h.role = ""
+	h.bits = 0
 }
 
 func wipeRSAPrivate(k *rsa.PrivateKey) {

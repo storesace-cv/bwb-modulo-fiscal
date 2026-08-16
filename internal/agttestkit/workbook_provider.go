@@ -10,8 +10,9 @@ import (
 
 // OpenWorkbookProvider loads a validated AGT test workbook into memory custody.
 // path must be explicit (no default). The workbook is closed before return.
-// Private keys remain only in the provider until Close. Never writes PEM files
-// or persists NIF/keys to a database.
+// Each row keeps taxpayerNIF + sourceLabel (NOME origin designation) bound to the
+// key pair in private memory only — never listed, logged, or persisted.
+// Signer returns an opaque crypto.Signer proxy (never *rsa.PrivateKey).
 func OpenWorkbookProvider(path string) (IdentityProvider, error) {
 	held, err := loadHeldFromWorkbook(path)
 	if err != nil {
@@ -102,7 +103,14 @@ func heldFromRows(rows []rawRow, role string) ([]heldIdentity, error) {
 		seenNIF[row.nif] = ref
 		seenNome[row.nome] = ref
 		seenRef[ref] = struct{}{}
-		held = append(held, heldIdentity{ref: ref, role: role, bits: bits, priv: priv})
+		held = append(held, heldIdentity{
+			ref:         ref,
+			role:        role,
+			bits:        bits,
+			taxpayerNIF: row.nif,
+			sourceLabel: row.nome, // structural trim only; not a tax-regime classification
+			priv:        priv,
+		})
 	}
 	if len(held) == 0 {
 		return nil, ErrNoIdentities

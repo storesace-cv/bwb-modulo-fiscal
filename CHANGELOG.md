@@ -2,7 +2,7 @@
 
 ## 0.2.108-draft — 2026-08-16
 
-- Compliance / FE prep: **RM-FEFIX-002** — custódia em memória de identidades AGT de teste (`IdentityProvider` / `crypto.Signer`); workbook path explícito; refs opacas com separação de domínio; assinatura/verificação RSA-SHA256 genérica; adapter SecretStore PEM + producer efémero; sem PEM/NIF/nome/fingerprint em listings; **≠** JWS/claims AGT (RM-FEFIX-003); sem HTTP/OpenAPI/migrations/UI.
+- Compliance / FE prep: **RM-FEFIX-002** — custódia em memória de identidades AGT de teste (`IdentityProvider` / `crypto.Signer` opaco); workbook path explícito; NIF+`sourceLabel` (designação de origem NOME, ≠ regime fiscal) ligados à chave só em memória privada; refs opacas com separação de domínio; assinatura/verificação RSA-SHA256 genérica; adapter SecretStore PEM + producer efémero; sem PEM/NIF/label/fingerprint em listings/HTTP; **≠** JWS/claims AGT (RM-FEFIX-003); sem OpenAPI/migrations/UI.
 
 ## 0.2.107-draft — 2026-08-16
 
