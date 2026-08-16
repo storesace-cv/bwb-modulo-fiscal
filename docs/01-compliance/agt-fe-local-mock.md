@@ -45,3 +45,7 @@ Códigos REGISTAR/SOLICITAR (ex. FE-RNG-031, 051, 080) ficam `reference_blocked`
 ## Segurança
 
 Basic Auth injectado no construtor (limpo em `Close`); sem credenciais versionadas; sem paths `/sigt/fe/...`; sem listener público; sem rede AGT.
+
+## Boundary / hub (RM-FEFIX-005)
+
+Ver [`agt-fe-boundary-hub.md`](agt-fe-boundary-hub.md): estados `fixture_boundary_*` + hub `fixture_agt`/`homologation_agt`/`production_agt`. Sucesso mock **≠** aceite AGT.
