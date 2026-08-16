@@ -1,7 +1,7 @@
 # Proveniência — identidades RSA de teste AGT (workbook não versionado)
 
-**Item:** `RM-FEFIX-001`  
-**Data (UTC):** 2026-08-16  
+**Item:** `RM-FEFIX-001`
+**Data (UTC):** 2026-08-16
 **Estado:** inventário/validação local apenas — **≠** certificados X.509, **≠** Basic Auth, **≠** `softwareValidationNo`, **≠** registo/autorização produtiva da BWB.
 
 ## Material
