@@ -35,7 +35,7 @@ func TestReservedDeniesTransport(t *testing.T) {
 func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 	h := fehub.NewFixture()
 	// Markers are synthetic (no high-entropy tokens) but must match reject heuristics.
-	cases := []fehub.MetadataSlots{
+	secretCases := []fehub.MetadataSlots{
 		{CredentialRef: "-----BEGIN PRIVATE KEY-----"},
 		{CredentialRef: "Bearer SYNTHETIC_NOT_A_JWT"},
 		{CredentialRef: "bearer abc.def.ghi"},
@@ -48,13 +48,20 @@ func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 		{CredentialRef: "eyJ_SYNTHETIC_NOT_A_REAL_TOKEN"},
 		{CredentialRef: "bwb_sbox_" + strings.Repeat("Z", 43)},
 		{CredentialRef: "secretstore:bwb_sbox_" + strings.Repeat("Y", 43)},
+	}
+	for i, slots := range secretCases {
+		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrSecretRejected) {
+			t.Fatalf("secret case %d: want ErrSecretRejected, got %v", i, err)
+		}
+	}
+	invalidCases := []fehub.MetadataSlots{
 		{CredentialRef: " secretstore:producer_cred_ref"},
 		{CredentialRef: "secretstore:producer_cred_ref "},
+		{CredentialRef: "bad ref!"},
 	}
-	for i, slots := range cases {
-		_, err := h.WithSlots(slots)
-		if !errors.Is(err, fehub.ErrSecretRejected) && !errors.Is(err, fehub.ErrInvalidSlot) {
-			t.Fatalf("case %d: want ErrSecretRejected|ErrInvalidSlot, got %v", i, err)
+	for i, slots := range invalidCases {
+		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrInvalidSlot) {
+			t.Fatalf("invalid case %d: want ErrInvalidSlot, got %v", i, err)
 		}
 	}
 	ok, err := h.WithSlots(fehub.MetadataSlots{CredentialRef: "secretstore:producer_cred_ref"})
