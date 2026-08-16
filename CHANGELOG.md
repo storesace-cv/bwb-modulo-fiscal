@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.108-draft — 2026-08-16
+
+- Compliance / FE prep: **RM-FEFIX-002** — custódia em memória de identidades AGT de teste (`IdentityProvider` / `crypto.Signer` opaco); workbook path explícito; NIF+`sourceLabel` (designação de origem NOME, ≠ regime fiscal) ligados à chave só em memória privada; refs opacas com separação de domínio; assinatura/verificação RSA-SHA256 genérica; adapter SecretStore PEM + producer efémero; sem PEM/NIF/label/fingerprint em listings/HTTP; **≠** JWS/claims AGT (RM-FEFIX-003); sem OpenAPI/migrations/UI.
+
 ## 0.2.107-draft — 2026-08-16
 
 - Compliance / FE prep: **RM-FEFIX-001** — inventário sanitizado e validação RSA dos pares de teste AGT via `internal/agttestkit` (path operador read-only; PEM só em memória; CI com XLSX sintético efémero); proveniência [`docs/01-compliance/agt-test-rsa-identities-provenance.md`](docs/01-compliance/agt-test-rsa-identities-provenance.md); cita `AO-FE-SNAP-HML-2026-07-25-{API,ESTRUTURA,GESTAO,REGISTAR}` (`pending_validation`); **≠** certificados X.509 / Basic Auth / `softwareValidationNo` / AGT real; sem PEM/NIF/nomes/workbook real no Git.

@@ -1,7 +1,9 @@
 package agttestkit
 
 import (
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -283,10 +285,21 @@ func truncatedHash(s string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-func opaqueRefFromPublicFP(fp string) string {
-	// Deterministic opaque id from public fingerprint only (no NIF/name).
-	if len(fp) < 16 {
-		return "agt-test-" + fp
+// opaqueRefDomain separates opaque identity refs from raw public fingerprints.
+const opaqueRefDomain = "bwb.agttestkit.identity.v1"
+
+func opaqueRefFromPublic(pub *rsa.PublicKey) string {
+	if pub == nil {
+		return "agt-test-invalid"
 	}
-	return "agt-test-" + fp[:16]
+	der, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		return "agt-test-invalid"
+	}
+	h := sha256.New()
+	_, _ = h.Write([]byte(opaqueRefDomain))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write(der)
+	sum := h.Sum(nil)
+	return "agt-test-" + hex.EncodeToString(sum[:8])
 }
