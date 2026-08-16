@@ -46,6 +46,7 @@
 | [AGT-Q-016](#agt-q-016) | Contingência / faturação offline | normative_or_process_doubt | OPEN | yes |
 | [AGT-Q-017](#agt-q-017) | Momento jurídico emissão vs aceitação | normative_or_process_doubt | OPEN | yes |
 | [AGT-Q-018](#agt-q-018) | Instabilidade portais (≠ API FE) | network_or_portal_incident | OPEN | yes |
+| [AGT-Q-019](#agt-q-019) | FE-RNG-031 vs FE-RNG-032 (E40 jwsSignature) | documentation_conflict | OPEN | yes |
 
 ---
 
@@ -535,6 +536,33 @@
 
 ---
 
+## AGT-Q-019
+
+| Campo | Valor |
+|---|---|
+| ID | AGT-Q-019 |
+| Data primeira observação (UTC) | 2026-08-16 |
+| Categoria | documentation_conflict |
+| Severidade | medium |
+| Ambiente/serviço | FE-RNG jwsSignature (E40) |
+| Estado | OPEN |
+| Fonte / secção | `AO-FE-SNAP-HML-2026-07-25-REGISTAR` (FE-RNG-031) vs `AO-FE-SNAP-HML-2026-07-25-CONSULTAR` / `CONSULTAR-FATURA` (FE-RNG-032); pending_validation |
+| Pronto para email | yes |
+
+**Facto observado:** Em `registarFactura`, o erro E40 «jwsSignature da chamada» aparece como **FE-RNG-031**. Em `obterEstado` e `consultarFactura`, o mesmo tema E40 aparece como **FE-RNG-032**. Descrições textuais são alinháveis; a numeração FE-RNG diverge entre serviços.
+
+**Impacto no projecto:** O mock FE emite FE-RNG só com catálogo contextual por operação; não cruza 031↔consultar nem 032↔registar.
+
+**Mitigação actual:** Catálogo `emit_active` por operação em `internal/authority/femock`; RM-FEFIX-004.
+
+**Pergunta exacta a enviar à AGT:** Para o erro E40 relativo a `jwsSignature` da chamada, o código canónico é FE-RNG-031, FE-RNG-032, ou ambos são válidos conforme o serviço? Existe tabela oficial unificada de FE-RNG por operação?
+
+**Resposta/evidência AGT:** _(vazio)_
+
+**Relacionados:** AGT-Q-011 · RM-FEFIX-004 · FE-SERVICES-MATRIX-RM-REQ-001
+
+---
+
 ## Perguntas abertas prontas para comunicação à AGT
 
 Compostas apenas a partir de itens `OPEN` com `Pronto para email = yes`, sanitizadas. **Não enviadas** automaticamente.
@@ -557,6 +585,7 @@ Compostas apenas a partir de itens `OPEN` com `Pronto para email = yes`, sanitiz
 16. **AGT-Q-016:** Regras oficiais de contingência/faturação offline certificável?
 17. **AGT-Q-017:** Momento jurídico de emissão vs aceitação AGT?
 18. **AGT-Q-018:** Canal de estado/manutenção de portais vs API FE?
+19. **AGT-Q-019:** FE-RNG-031 vs FE-RNG-032 para E40 `jwsSignature` — qual o código canónico por serviço?
 
 ---
 

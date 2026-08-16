@@ -2,7 +2,7 @@
 
 ## 0.2.110-draft — 2026-08-16
 
-- Compliance / FE prep: **RM-FEFIX-004** — mock FE AGT estritamente local (`internal/authority/femock`, `/mock/agt-fe/v1`); Basic Auth injectado; JWS `typ=BWB-MOCK` (≠ JWT/JOSE AGT); operações com payload builders; perfis bloqueados → `BWB-MOCK-PROFILE-BLOCKED`; FE-RNG allowlisted com `source_id`; [`agt-fe-local-mock.md`](docs/01-compliance/agt-fe-local-mock.md); **≠** HML/PRD/homologação; sem rede AGT.
+- Compliance / FE prep: **RM-FEFIX-004** — mock FE AGT estritamente local (`internal/authority/femock`, `/mock/agt-fe/v1`); Basic Auth injectado; JWS `typ=BWB-MOCK` (≠ JWT/JOSE AGT); operações com payload builders; perfis bloqueados → `BWB-MOCK-PROFILE-BLOCKED`; FE-RNG **contextual por operação** + `source_id`; replay após revalidação JWS/role/binding; requestID novo por chamada; Content-Type estrito; [`agt-fe-local-mock.md`](docs/01-compliance/agt-fe-local-mock.md); AGT-Q-019 (FE-RNG-031 vs 032); **≠** HML/PRD/homologação; sem rede AGT.
 
 ## 0.2.109-draft — 2026-08-16
 

@@ -24,10 +24,24 @@ Suportadas (payload builders + JWS BWB-MOCK): `softwareInfo`, `obterEstado`, `co
 
 Bloqueadas (`BWB-MOCK-PROFILE-BLOCKED` + conflito): `registarFactura`, `solicitarSerie`, `listarSeries`, `validarDocumento`, `listarFacturas`.
 
-## FE-RNG
+## FE-RNG (catálogo contextual)
 
-Códigos simuláveis só da allowlist no código (`AllowlistedFERNG`), com `source_id` do snapshot (`pending_validation`). Códigos desconhecidos são rejeitados no harness. Respostas marcam `simulated=true`.
+`ScriptFERNG(op, code)` só aceita entradas `emit_active` para essa operação exacta, com `source_id` da operação:
+
+| Operação | Códigos emitíveis | source_id |
+|---|---|---|
+| `softwareInfo` | FE-RNG-010, FE-RNG-011 | `AO-FE-SNAP-HML-2026-07-25-REGISTAR` |
+| `obterEstado` | FE-RNG-010, FE-RNG-011, FE-RNG-032 | `AO-FE-SNAP-HML-2026-07-25-CONSULTAR` |
+| `consultarFactura` | FE-RNG-010, FE-RNG-011, FE-RNG-032 | `AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA` |
+
+Códigos REGISTAR/SOLICITAR (ex. FE-RNG-031, 051, 080) ficam `reference_blocked` — catalogados, **nunca** emitidos pelas rotas HTTP activas. Ver [AGT-Q-019](agt-clarifications-register.md#agt-q-019) (031 vs 032).
+
+## Transporte / idempotência
+
+- Content-Type: `application/json` obrigatório (`mime.ParseMediaType`; charset utf-8 opcional).
+- Ordem: Basic Auth → parse → JWS/role/binding/payload → depois replay.
+- Replay: resultado funcional estável; **requestID novo** por chamada; `clientRequestID` ignorado.
 
 ## Segurança
 
-Basic Auth injectado no construtor; sem credenciais versionadas; sem paths `/sigt/fe/...`; sem listener público obrigatório; sem rede AGT.
+Basic Auth injectado no construtor (limpo em `Close`); sem credenciais versionadas; sem paths `/sigt/fe/...`; sem listener público; sem rede AGT.

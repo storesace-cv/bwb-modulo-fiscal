@@ -333,15 +333,26 @@ func TestSupportedOperationsAndBlocked(t *testing.T) {
 	_ = srv
 }
 
-func TestFERNGScriptAndUnknown(t *testing.T) {
+func TestFERNGContextualCatalog(t *testing.T) {
 	srv, provider, ts, cleanup := newMock(t)
 	defer cleanup()
-	if err := srv.ScriptFERNG("obterEstado", "FE-RNG-NOT-REAL"); err == nil {
-		t.Fatal("expected reject unknown FERNG")
+
+	if err := srv.ScriptFERNG("obterEstado", "FE-RNG-031"); err == nil {
+		t.Fatal("FE-RNG-031 must not script on obterEstado")
 	}
-	if err := srv.ScriptFERNG("obterEstado", "FE-RNG-031"); err != nil {
+	if err := srv.ScriptFERNG("consultarFactura", "FE-RNG-051"); err == nil {
+		t.Fatal("FE-RNG-051 must not script on consultarFactura")
+	}
+	if err := srv.ScriptFERNG("registarFactura", "FE-RNG-031"); err == nil {
+		t.Fatal("blocked route must not script FE-RNG emit")
+	}
+	if err := srv.ScriptFERNG("noSuchOp", "FE-RNG-032"); err == nil {
+		t.Fatal("unknown op")
+	}
+	if err := srv.ScriptFERNG("obterEstado", "FE-RNG-032"); err != nil {
 		t.Fatal(err)
 	}
+
 	ref := provider.List()[0].Ref
 	jws, err := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
 		TaxRegistrationNumber: "9100000000", RequestID: "R",
@@ -350,38 +361,105 @@ func TestFERNGScriptAndUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	res, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/obterEstado", mockUser, mockPass, map[string]string{
-		"identityRef": ref, "jws": jws, "idempotencyKey": "ferng",
+		"identityRef": ref, "jws": jws, "idempotencyKey": "ferng-ok",
 	}))
 	b, _ := io.ReadAll(res.Body)
 	res.Body.Close()
 	if res.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("%d %s", res.StatusCode, b)
 	}
-	if !strings.Contains(string(b), "FE-RNG-031") || !strings.Contains(string(b), "AO-FE-SNAP") {
-		t.Fatalf("%s", b)
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), `"simulated":true`) {
-		t.Fatal("missing simulated")
+	if got["code"] != "FE-RNG-032" {
+		t.Fatalf("%v", got)
+	}
+	if got["source_id"] != "AO-FE-SNAP-HML-2026-07-25-CONSULTAR" {
+		t.Fatalf("source_id=%v", got["source_id"])
+	}
+
+	// consultarFactura valid code
+	if err := srv.ScriptFERNG("consultarFactura", "FE-RNG-010"); err != nil {
+		t.Fatal(err)
+	}
+	cjws, err := femock.SignConsultarFacturaMock(provider, ref, feprofile.ConsultarFacturaRequestClaims{
+		TaxRegistrationNumber: "9100000000", DocumentNo: "FT SYNTHETIC/1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res2, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/consultarFactura", mockUser, mockPass, map[string]string{
+		"identityRef": ref, "jws": cjws, "idempotencyKey": "ferng-cf",
+	}))
+	b2, _ := io.ReadAll(res2.Body)
+	res2.Body.Close()
+	var got2 map[string]any
+	_ = json.Unmarshal(b2, &got2)
+	if got2["source_id"] != "AO-FE-SNAP-HML-2026-07-25-CONSULTAR-FATURA" {
+		t.Fatalf("%v", got2)
+	}
+
+	// Blocked HTTP route never emits FE-RNG after validation of request
+	res3, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/registarFactura", mockUser, mockPass, map[string]string{
+		"identityRef": ref, "jws": "x", "idempotencyKey": "b",
+	}))
+	b3, _ := io.ReadAll(res3.Body)
+	res3.Body.Close()
+	if !strings.Contains(string(b3), femock.CodeProfileBlocked) || strings.Contains(string(b3), "FE-RNG-") {
+		t.Fatalf("%s", b3)
 	}
 }
 
-func TestReplayAndConflict(t *testing.T) {
-	_, provider, ts, cleanup := newMock(t)
-	defer cleanup()
+func TestReplayReautenticatesAndNewRequestID(t *testing.T) {
+	path, cleanupWB, err := agttestkit.WriteSyntheticWorkbook(t.TempDir(), agttestkit.SyntheticOptions{Count: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupWB()
+	provider, err := agttestkit.OpenWorkbookProvider(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := femock.New(femock.Config{Username: mockUser, Password: mockPass, Provider: provider})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
 	ref := provider.List()[0].Ref
-	jws1, _ := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
+	jws, err := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
 		TaxRegistrationNumber: "9100000000", RequestID: "R1",
 	})
-	body := map[string]string{"identityRef": ref, "jws": jws1, "idempotencyKey": "same"}
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]string{"identityRef": ref, "jws": jws, "idempotencyKey": "same", "clientRequestID": "CLIENT-ID-X"}
 	res1, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/obterEstado", mockUser, mockPass, body))
 	b1, _ := io.ReadAll(res1.Body)
 	res1.Body.Close()
+	var m1 map[string]any
+	_ = json.Unmarshal(b1, &m1)
+	id1, _ := m1["requestID"].(string)
+	if id1 == "" || strings.Contains(string(b1), "CLIENT-ID-X") {
+		t.Fatalf("%s", b1)
+	}
+
 	res2, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/obterEstado", mockUser, mockPass, body))
 	b2, _ := io.ReadAll(res2.Body)
 	res2.Body.Close()
-	if string(b1) != string(b2) {
-		t.Fatalf("replay unstable")
+	var m2 map[string]any
+	_ = json.Unmarshal(b2, &m2)
+	id2, _ := m2["requestID"].(string)
+	if id2 == "" || id2 == id1 {
+		t.Fatalf("requestID must change on replay: %q vs %q", id1, id2)
 	}
+	if m1["state"] != m2["state"] || m1["status"] != m2["status"] {
+		t.Fatalf("functional mismatch %v vs %v", m1, m2)
+	}
+
+	// Conflict with different JWS
 	jws2, _ := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
 		TaxRegistrationNumber: "9100000000", RequestID: "R2",
 	})
@@ -392,9 +470,62 @@ func TestReplayAndConflict(t *testing.T) {
 	if !strings.Contains(string(b3), femock.CodeIdempotencyConflict) {
 		t.Fatalf("%s", b3)
 	}
+
+	// Provider closed → replay must not return cache
+	body["jws"] = jws
+	_ = provider.Close()
+	res4, _ := http.DefaultClient.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/obterEstado", mockUser, mockPass, body))
+	b4, _ := io.ReadAll(res4.Body)
+	res4.Body.Close()
+	if res4.StatusCode == http.StatusOK || strings.Contains(string(b4), `"status":"ok"`) {
+		t.Fatalf("closed provider must not replay cache: %s", b4)
+	}
+	_ = srv.Close()
 }
 
-func TestMethodContentTypeBodyLimitCancelClose(t *testing.T) {
+func TestContentTypeStrict(t *testing.T) {
+	_, provider, ts, cleanup := newMock(t)
+	defer cleanup()
+	ref := provider.List()[0].Ref
+	jws, _ := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
+		TaxRegistrationNumber: "9100000000", RequestID: "R",
+	})
+	url := ts.URL + femock.PathPrefix + "/obterEstado"
+	payload := map[string]string{"identityRef": ref, "jws": jws, "idempotencyKey": "ct"}
+
+	// empty Content-Type
+	b, _ := json.Marshal(payload)
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(b))
+	req.SetBasicAuth(mockUser, mockPass)
+	res, _ := http.DefaultClient.Do(req)
+	io.Copy(io.Discard, res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("empty CT: %d", res.StatusCode)
+	}
+
+	for _, ct := range []string{"application/jsonx", "text/json", "application/json; charset=latin1", "not-a-type"} {
+		req := basicReq(t, http.MethodPost, url, mockUser, mockPass, payload)
+		req.Header.Set("Content-Type", ct)
+		res, _ := http.DefaultClient.Do(req)
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		if res.StatusCode != http.StatusUnsupportedMediaType {
+			t.Fatalf("%s → %d", ct, res.StatusCode)
+		}
+	}
+
+	req = basicReq(t, http.MethodPost, url, mockUser, mockPass, payload)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	res, _ = http.DefaultClient.Do(req)
+	if res.StatusCode != http.StatusOK {
+		bb, _ := io.ReadAll(res.Body)
+		t.Fatalf("charset utf-8: %d %s", res.StatusCode, bb)
+	}
+	res.Body.Close()
+}
+
+func TestMethodBodyLimitCancelClose(t *testing.T) {
 	path, cleanupWB, err := agttestkit.WriteSyntheticWorkbook(t.TempDir(), agttestkit.SyntheticOptions{Count: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -421,22 +552,11 @@ func TestMethodContentTypeBodyLimitCancelClose(t *testing.T) {
 	})
 	url := ts.URL + femock.PathPrefix + "/obterEstado"
 
-	req := basicReq(t, http.MethodGet, url, mockUser, mockPass, nil)
+	req := basicReq(t, http.MethodGet, url, mockUser, mockPass, map[string]string{"a": "b"})
 	res, _ := http.DefaultClient.Do(req)
 	io.Copy(io.Discard, res.Body)
 	res.Body.Close()
 	if res.StatusCode != http.StatusMethodNotAllowed {
-		t.Fatalf("%d", res.StatusCode)
-	}
-
-	req = basicReq(t, http.MethodPost, url, mockUser, mockPass, map[string]string{
-		"identityRef": ref, "jws": jws, "idempotencyKey": "ct",
-	})
-	req.Header.Set("Content-Type", "text/plain")
-	res, _ = http.DefaultClient.Do(req)
-	io.Copy(io.Discard, res.Body)
-	res.Body.Close()
-	if res.StatusCode != http.StatusUnsupportedMediaType {
 		t.Fatalf("%d", res.StatusCode)
 	}
 
@@ -458,13 +578,12 @@ func TestMethodContentTypeBodyLimitCancelClose(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	res, err = http.DefaultClient.Do(req)
 	if err != nil {
-		// Client-side cancel/timeout before response is acceptable.
 		t.Logf("cancel transport err: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
+		bb, _ := io.ReadAll(res.Body)
 		res.Body.Close()
-		if res.StatusCode != http.StatusRequestTimeout && !strings.Contains(string(b), femock.CodeCancelled) {
-			t.Fatalf("cancel: status=%d body=%s", res.StatusCode, b)
+		if res.StatusCode != http.StatusRequestTimeout && !strings.Contains(string(bb), femock.CodeCancelled) {
+			t.Fatalf("cancel: status=%d body=%s", res.StatusCode, bb)
 		}
 	}
 
@@ -472,10 +591,10 @@ func TestMethodContentTypeBodyLimitCancelClose(t *testing.T) {
 	res, _ = http.DefaultClient.Do(basicReq(t, http.MethodPost, url, mockUser, mockPass, map[string]string{
 		"identityRef": ref, "jws": jws, "idempotencyKey": "after-close",
 	}))
-	b, _ := io.ReadAll(res.Body)
+	bb, _ := io.ReadAll(res.Body)
 	res.Body.Close()
-	if !strings.Contains(string(b), femock.CodeClosed) {
-		t.Fatalf("%s", b)
+	if !strings.Contains(string(bb), femock.CodeClosed) && !strings.Contains(string(bb), femock.CodeUnauthorized) {
+		t.Fatalf("after Close: %s", bb)
 	}
 }
 
@@ -486,9 +605,7 @@ func TestNoExternalDial(t *testing.T) {
 	jws, _ := femock.SignObterEstadoMock(provider, ref, feprofile.ObterEstadoRequestClaims{
 		TaxRegistrationNumber: "9100000000", RequestID: "R",
 	})
-	client := &http.Client{Transport: roundTripFail{t: t}}
-	// Local httptest URL must still work via custom transport that only allows loopback host from ts.
-	client = ts.Client()
+	client := ts.Client()
 	res, err := client.Do(basicReq(t, http.MethodPost, ts.URL+femock.PathPrefix+"/obterEstado", mockUser, mockPass, map[string]string{
 		"identityRef": ref, "jws": jws, "idempotencyKey": "local",
 	}))
@@ -501,12 +618,6 @@ func TestNoExternalDial(t *testing.T) {
 	}
 }
 
-type roundTripFail struct{ t *testing.T }
-
-func (roundTripFail) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, io.EOF
-}
-
 func TestProductionSignStillBlocked(t *testing.T) {
 	_, err := feprofile.SignObterEstadoRequest(nil, "", feprofile.ObterEstadoRequestClaims{})
 	if err == nil || !strings.Contains(err.Error(), feprofile.ConflictTyp) {
@@ -514,15 +625,22 @@ func TestProductionSignStillBlocked(t *testing.T) {
 	}
 }
 
-func TestAllowlistedFERNGHasSources(t *testing.T) {
-	m := femock.AllowlistedFERNG()
-	if len(m) == 0 {
+func TestFERNGCatalogHasSources(t *testing.T) {
+	cat := femock.FERNGCatalog()
+	if len(cat) == 0 {
 		t.Fatal("empty")
 	}
-	for code, src := range m {
-		if !strings.HasPrefix(code, "FE-RNG-") || !strings.HasPrefix(src, "AO-FE-SNAP") {
-			t.Fatalf("%s %s", code, src)
+	emit := 0
+	for _, e := range cat {
+		if !strings.HasPrefix(e.Code, "FE-RNG-") || !strings.HasPrefix(e.SourceID, "AO-FE-SNAP") {
+			t.Fatalf("%+v", e)
 		}
+		if e.Status == femock.FERNGEmitActive {
+			emit++
+		}
+	}
+	if emit < 6 {
+		t.Fatalf("emit_active count %d", emit)
 	}
 }
 

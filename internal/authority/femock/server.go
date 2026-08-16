@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 	"sync"
@@ -62,9 +63,9 @@ type configError struct{ msg string }
 func (e *configError) Error() string { return "femock: " + e.msg }
 
 // ScriptFERNG queues a simulated FE-RNG response for the next call to op.
-// code must be allowlisted; unknown codes are rejected (harness misconfig).
+// Rejects unknown ops, blocked routes, and code/operation pairs without emit_active source.
 func (s *Server) ScriptFERNG(op, code string) error {
-	if _, err := ferngSourceID(code); err != nil {
+	if _, err := lookupEmitFERNG(op, code); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -78,7 +79,7 @@ func (s *Server) ScriptFERNG(op, code string) error {
 
 func errClosed() error { return &configError{msg: CodeClosed} }
 
-// Close clears in-memory state. Safe for tests.
+// Close clears in-memory state and synthetic credentials (best-effort).
 func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -86,6 +87,9 @@ func (s *Server) Close() error {
 	s.replay.reset()
 	s.scripted = make(map[string]string)
 	s.logCodes = nil
+	s.cfg.Username = ""
+	s.cfg.Password = ""
+	s.cfg.InjectedDelay = 0
 	return nil
 }
 
@@ -104,13 +108,19 @@ func (s *Server) record(code string) {
 	s.logCodes = append(s.logCodes, code)
 }
 
+func (s *Server) credentials() (user, pass string, closed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.Username, s.cfg.Password, s.closed
+}
+
 // Handler returns http.Handler for PathPrefix routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc(PathPrefix+"/softwareInfo", s.wrap("softwareInfo", s.handleSoftwareInfo))
 	mux.HandleFunc(PathPrefix+"/obterEstado", s.wrap("obterEstado", s.handleObterEstado))
 	mux.HandleFunc(PathPrefix+"/consultarFactura", s.wrap("consultarFactura", s.handleConsultarFactura))
-	// Blocked wire operations — auth required, then profile blocked.
+	// Blocked wire operations — auth required, then profile blocked (never FE-RNG emit).
 	for _, op := range []struct {
 		path     string
 		conflict string
@@ -149,11 +159,31 @@ type wireRequest struct {
 	ClientRequestID string `json:"clientRequestID"` // ignored for canonical requestID
 }
 
+func acceptJSONContentType(ct string) bool {
+	if strings.TrimSpace(ct) == "" {
+		return false
+	}
+	mt, params, err := mime.ParseMediaType(ct)
+	if err != nil {
+		return false
+	}
+	if !strings.EqualFold(mt, "application/json") {
+		return false
+	}
+	if cs, ok := params["charset"]; ok {
+		cs = strings.ToLower(strings.TrimSpace(cs))
+		if cs != "utf-8" && cs != "utf8" {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) wrap(op string, h opHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := newMockID()
+		user, pass, closed := s.credentials()
 		s.mu.Lock()
-		closed := s.closed
 		delay := s.cfg.InjectedDelay
 		s.mu.Unlock()
 		if closed {
@@ -164,12 +194,11 @@ func (s *Server) wrap(op string, h opHandler) http.HandlerFunc {
 			s.writeErr(w, http.StatusMethodNotAllowed, reqID, CodeMethodNotAllowed)
 			return
 		}
-		ct := r.Header.Get("Content-Type")
-		if ct != "" && !strings.HasPrefix(strings.ToLower(ct), "application/json") {
+		if !acceptJSONContentType(r.Header.Get("Content-Type")) {
 			s.writeErr(w, http.StatusUnsupportedMediaType, reqID, CodeContentType)
 			return
 		}
-		if !checkBasicAuth(r, s.cfg.Username, s.cfg.Password) {
+		if user == "" || pass == "" || !checkBasicAuth(r, user, pass) {
 			s.writeErr(w, http.StatusUnauthorized, reqID, CodeUnauthorized)
 			return
 		}
@@ -217,7 +246,7 @@ func (s *Server) readWire(w http.ResponseWriter, r *http.Request, reqID string) 
 func (s *Server) handleReplay(w http.ResponseWriter, op, key, jws, reqID string) (done bool) {
 	hash := payloadHash(op, jws)
 	replayKey := op + ":" + key
-	if resp, status, conflict, ok := s.replay.lookup(replayKey, hash); ok {
+	if functional, status, conflict, ok := s.replay.lookup(replayKey, hash); ok {
 		if conflict {
 			s.writeJSON(w, http.StatusConflict, map[string]any{
 				"simulated": true,
@@ -228,16 +257,15 @@ func (s *Server) handleReplay(w http.ResponseWriter, op, key, jws, reqID string)
 			s.record(CodeIdempotencyConflict)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_, _ = w.Write(resp)
+		s.writeJSON(w, status, withRequestID(functional, reqID))
+		s.record("replay")
 		return true
 	}
 	return false
 }
 
-func (s *Server) storeReplay(op, key, jws string, status int, payload []byte) {
-	s.replay.store(op+":"+key, payloadHash(op, jws), status, payload)
+func (s *Server) storeReplay(op, key, jws string, status int, body map[string]any) {
+	s.replay.store(op+":"+key, payloadHash(op, jws), status, stripRequestID(body))
 }
 
 func (s *Server) takeScript(op string) (code, sourceID string, ok bool) {
@@ -248,16 +276,16 @@ func (s *Server) takeScript(op string) (code, sourceID string, ok bool) {
 		return "", "", false
 	}
 	delete(s.scripted, op)
-	sourceID, _ = ferngSourceID(code)
-	return code, sourceID, true
+	e, err := lookupEmitFERNG(op, code)
+	if err != nil {
+		return "", "", false
+	}
+	return e.Code, e.SourceID, true
 }
 
 func (s *Server) handleSoftwareInfo(w http.ResponseWriter, r *http.Request, reqID string) {
 	wr, ok := s.readWire(w, r, reqID)
 	if !ok {
-		return
-	}
-	if s.handleReplay(w, "softwareInfo", wr.IdempotencyKey, wr.JWS, reqID) {
 		return
 	}
 	payload, _, err := verifyMockJWS(s.cfg.Provider, wr.IdentityRef, wr.JWS)
@@ -274,10 +302,12 @@ func (s *Server) handleSoftwareInfo(w http.ResponseWriter, r *http.Request, reqI
 		s.writeErr(w, http.StatusBadRequest, reqID, CodeBadRequest)
 		return
 	}
-	// Ensure payload matches builder canonical form.
 	canon, err := feprofile.MarshalSoftwareInfoPayload(claims)
 	if err != nil || !bytesEqual(canon, payload) {
 		s.writeErr(w, http.StatusBadRequest, reqID, CodeBadRequest)
+		return
+	}
+	if s.handleReplay(w, "softwareInfo", wr.IdempotencyKey, wr.JWS, reqID) {
 		return
 	}
 	s.respondOKOrFERNG(w, r.Context(), "softwareInfo", wr, reqID, map[string]any{
@@ -289,9 +319,6 @@ func (s *Server) handleSoftwareInfo(w http.ResponseWriter, r *http.Request, reqI
 func (s *Server) handleObterEstado(w http.ResponseWriter, r *http.Request, reqID string) {
 	wr, ok := s.readWire(w, r, reqID)
 	if !ok {
-		return
-	}
-	if s.handleReplay(w, "obterEstado", wr.IdempotencyKey, wr.JWS, reqID) {
 		return
 	}
 	payload, _, err := verifyMockJWS(s.cfg.Provider, wr.IdentityRef, wr.JWS)
@@ -317,6 +344,9 @@ func (s *Server) handleObterEstado(w http.ResponseWriter, r *http.Request, reqID
 		s.writeErr(w, http.StatusBadRequest, reqID, CodeBadRequest)
 		return
 	}
+	if s.handleReplay(w, "obterEstado", wr.IdempotencyKey, wr.JWS, reqID) {
+		return
+	}
 	s.respondOKOrFERNG(w, r.Context(), "obterEstado", wr, reqID, map[string]any{
 		"operation": "obterEstado",
 		"state":     "SIMULATED_PENDING",
@@ -326,9 +356,6 @@ func (s *Server) handleObterEstado(w http.ResponseWriter, r *http.Request, reqID
 func (s *Server) handleConsultarFactura(w http.ResponseWriter, r *http.Request, reqID string) {
 	wr, ok := s.readWire(w, r, reqID)
 	if !ok {
-		return
-	}
-	if s.handleReplay(w, "consultarFactura", wr.IdempotencyKey, wr.JWS, reqID) {
 		return
 	}
 	payload, _, err := verifyMockJWS(s.cfg.Provider, wr.IdentityRef, wr.JWS)
@@ -354,6 +381,9 @@ func (s *Server) handleConsultarFactura(w http.ResponseWriter, r *http.Request, 
 		s.writeErr(w, http.StatusBadRequest, reqID, CodeBadRequest)
 		return
 	}
+	if s.handleReplay(w, "consultarFactura", wr.IdempotencyKey, wr.JWS, reqID) {
+		return
+	}
 	s.respondOKOrFERNG(w, r.Context(), "consultarFactura", wr, reqID, map[string]any{
 		"operation":  "consultarFactura",
 		"documentNo": "SIMULATED",
@@ -375,11 +405,8 @@ func (s *Server) respondOKOrFERNG(w http.ResponseWriter, ctx context.Context, op
 			"kind":      "FE-RNG-simulated",
 			"note":      "simulated FE-RNG ≠ AGT live response",
 		}
-		raw, _ := json.Marshal(body)
-		s.storeReplay(op, wr.IdempotencyKey, wr.JWS, http.StatusUnprocessableEntity, raw)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write(raw)
+		s.storeReplay(op, wr.IdempotencyKey, wr.JWS, http.StatusUnprocessableEntity, body)
+		s.writeJSON(w, http.StatusUnprocessableEntity, body)
 		s.record(code)
 		return
 	}
@@ -393,11 +420,8 @@ func (s *Server) respondOKOrFERNG(w http.ResponseWriter, ctx context.Context, op
 	for k, v := range extra {
 		body[k] = v
 	}
-	raw, _ := json.Marshal(body)
-	s.storeReplay(op, wr.IdempotencyKey, wr.JWS, http.StatusOK, raw)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(raw)
+	s.storeReplay(op, wr.IdempotencyKey, wr.JWS, http.StatusOK, body)
+	s.writeJSON(w, http.StatusOK, body)
 	s.record("ok")
 }
 

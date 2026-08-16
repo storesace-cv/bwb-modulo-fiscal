@@ -3,13 +3,15 @@ package femock
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"sync"
 )
 
 type replayEntry struct {
 	payloadHash string
-	response    []byte
 	status      int
+	// functional is the idempotent body without requestID.
+	functional map[string]any
 }
 
 type replayStore struct {
@@ -26,8 +28,7 @@ func payloadHash(op, jws string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// lookup returns cached response, conflict, or miss.
-func (s *replayStore) lookup(key, hash string) (resp []byte, status int, conflict, ok bool) {
+func (s *replayStore) lookup(key, hash string) (functional map[string]any, status int, conflict, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, found := s.byKey[key]
@@ -37,21 +38,47 @@ func (s *replayStore) lookup(key, hash string) (resp []byte, status int, conflic
 	if e.payloadHash != hash {
 		return nil, 0, true, true
 	}
-	out := make([]byte, len(e.response))
-	copy(out, e.response)
-	return out, e.status, false, true
+	return cloneMap(e.functional), e.status, false, true
 }
 
-func (s *replayStore) store(key, hash string, status int, resp []byte) {
+func (s *replayStore) store(key, hash string, status int, functional map[string]any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cp := make([]byte, len(resp))
-	copy(cp, resp)
-	s.byKey[key] = replayEntry{payloadHash: hash, response: cp, status: status}
+	s.byKey[key] = replayEntry{payloadHash: hash, status: status, functional: cloneMap(functional)}
 }
 
 func (s *replayStore) reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.byKey = make(map[string]replayEntry)
+}
+
+func cloneMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	// Round-trip via JSON to deep-copy JSON-safe values.
+	b, err := json.Marshal(in)
+	if err != nil {
+		out := make(map[string]any, len(in))
+		for k, v := range in {
+			out[k] = v
+		}
+		return out
+	}
+	var out map[string]any
+	_ = json.Unmarshal(b, &out)
+	return out
+}
+
+func stripRequestID(m map[string]any) map[string]any {
+	out := cloneMap(m)
+	delete(out, "requestID")
+	return out
+}
+
+func withRequestID(functional map[string]any, reqID string) map[string]any {
+	out := cloneMap(functional)
+	out["requestID"] = reqID
+	return out
 }
