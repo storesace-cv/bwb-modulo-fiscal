@@ -314,14 +314,7 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 				t.Fatalf("missing continuous fiscal_seq %d (AO-SEQ-001)", want)
 			}
 		}
-		var last int64
-		if err := sqlDB.QueryRowContext(ctx,
-			`SELECT last_seq FROM `+tbl(postgres, "series_counters")+` WHERE scope_id = ? AND series_code = ?`,
-			scope, series,
-		).Scan(&last); err != nil {
-			t.Fatalf("counter: %v", err)
-		}
-		if last != int64(n) {
+		if last := readSeriesLast(t, ctx, sqlDB, postgres, scope, series); last != int64(n) {
 			t.Fatalf("last_seq=%d want %d", last, n)
 		}
 	})
