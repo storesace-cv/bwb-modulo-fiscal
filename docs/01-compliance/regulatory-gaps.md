@@ -16,6 +16,7 @@ Documentos relacionados:
 ## Resumo executivo
 
 Inventário consolidado das dependências AGT: [`agt-dependencies.md`](agt-dependencies.md).
+Registo cumulativo de perguntas/esclarecimentos: [`agt-clarifications-register.md`](agt-clarifications-register.md).
 
 A documentação pública de Facturação Electrónica e os portais AGT/MINFIN estão parcialmente acessíveis. Existe catálogo versionado, originais B1 no privado, e XSD ASSOFT (`pending_validation`). OCR `reviewed` (KB auxiliar): DE 74/19, Rect. 10/19 **v2** (`b3db14e2…`, 3p; gazeta 1948–1949), DE 683/25 v2 (citar só 19164–19227), DP 71/25 (citar só 11902–11920; p.21 = DE 372/25 excluído). Histórico Rect. incorrecto `77b77f01…` + OCR v1 `rejected` só em diagnóstico privado (≠ KB). GAP-001/GAP-002 parcialmente mitigados (OCR); residual URL estável/Imprensa Nacional; GAP-014 parcialmente mitigado; GAP-005 parcialmente mitigado (inventário FE-RNG); GAP-004 parcialmente mitigado. Sem AO-* confirmados.
 

@@ -18,7 +18,7 @@
 | Mecanismo | Âmbito | Algoritmo no módulo | Pacote |
 |---|---|---|---|
 | `saft_hash_chain` | Encadeamento documental SAF-T | **não** implementado como confirmado; export marca `hash_algorithm_pending_ao` | `internal/saftao` |
-| `fe_jws_rs256` | Envelope técnico / preparação FE | `RS256` efémero (`fiscaljws`); ≠ FE-RNG certificado | `internal/fiscaljws` |
+| `fe_jws_rs256` | Envelope técnico / preparação FE | `RS256` (`internal/fejws` + slice `fiscaljws`); ≠ FE-RNG certificado | `internal/fejws`, `internal/fiscaljws` |
 | Integridade artefacto XML | SHA-256 dos bytes exportados | **≠** `Invoice.Hash` | `ExportResult.SHA256` |
 
 ## Mitigação de engenharia (2026-07-28)

@@ -93,3 +93,25 @@ Uma tarefa fiscal só está concluída quando:
 4. Implementar a alteração mínima.
 5. Executar testes, validação OpenAPI e verificações de segurança.
 6. Atualizar matriz de rastreabilidade e changelog.
+
+## Relatórios finais de execução (obrigatório)
+
+Todo relatório final de execução (Cursor/agente) deve incluir **sempre** estas duas secções, nesta ordem:
+
+### 1. Problemas/incidentes internos encontrados
+
+Para cada item: causa; impacto; resolução; estado; risco residual.
+
+Se nenhum: escrever exactamente `Nenhum`.
+
+Inclui falhas de CI locais/remotas, whitespace, ShellCheck, mocks, bugs de código, etc. **Não** misturar com questões AGT.
+
+### 2. Problemas/questões AGT encontrados ou actualizados
+
+Para cada item: IDs `AGT-Q-*` (ver [`docs/01-compliance/agt-clarifications-register.md`](docs/01-compliance/agt-clarifications-register.md)); observação; impacto; mitigação; estado; pergunta para a AGT.
+
+Se nenhum: escrever exactamente `Nenhum`.
+
+Se não houve comunicação real com a AGT nesta execução: escrever exactamente `Sem chamadas reais à AGT nesta execução`.
+
+**Proibido:** inventar erros de API HML/PRD sem observação; colocar NIF/PEM/credenciais no relatório; omitir estas secções.

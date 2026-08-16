@@ -21,6 +21,16 @@ Escolher **exactamente uma** opção global:
 
 Qualquer PR que conclua, introduza, bloqueie, adie ou altere um item `RM-*` deve actualizar [`ROADMAP.md`](../ROADMAP.md) no mesmo PR.
 
+## Problemas/incidentes internos encontrados
+
+<!-- causa · impacto · resolução · estado · risco residual — ou «Nenhum» -->
+
+## Problemas/questões AGT encontrados ou actualizados
+
+<!-- AGT-Q-* · observação · impacto · mitigação · estado · pergunta — ou «Nenhum» -->
+<!-- Se não houve comunicação real: «Sem chamadas reais à AGT nesta execução» -->
+<!-- Registo canónico: docs/01-compliance/agt-clarifications-register.md -->
+
 ## Test plan
 
 - [ ] Verificações locais relevantes

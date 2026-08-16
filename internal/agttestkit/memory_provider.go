@@ -124,6 +124,57 @@ func (p *memoryProvider) Close() error {
 	return nil
 }
 
+func (p *memoryProvider) ValidateTaxpayerBinding(ref, suppliedNIF string) error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.closed {
+		return ErrProviderClosed
+	}
+	ref = normalizeRef(ref)
+	if ref == "" {
+		return ErrRefRequired
+	}
+	h, ok := p.byRef[ref]
+	if !ok || h == nil || h.priv == nil {
+		return ErrRefNotFound
+	}
+	if h.role != RoleTaxpayerTest {
+		return ErrRoleMismatch
+	}
+	supplied := strings.TrimSpace(suppliedNIF)
+	if supplied == "" || h.taxpayerNIF == "" {
+		return ErrBindingMismatch
+	}
+	if supplied != h.taxpayerNIF {
+		return ErrBindingMismatch
+	}
+	return nil
+}
+
+func (p *memoryProvider) RequireRole(ref, expectedRole string) error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.closed {
+		return ErrProviderClosed
+	}
+	ref = normalizeRef(ref)
+	if ref == "" {
+		return ErrRefRequired
+	}
+	expectedRole = strings.TrimSpace(expectedRole)
+	if expectedRole == "" {
+		return ErrRoleMismatch
+	}
+	h, ok := p.byRef[ref]
+	if !ok || h == nil || h.priv == nil {
+		return ErrRefNotFound
+	}
+	if h.role != expectedRole {
+		return ErrRoleMismatch
+	}
+	return nil
+}
+
 // opaqueSigner implements crypto.Signer without exposing the private key object.
 // Sign/Public resolve under the provider lock and fail after Close.
 type opaqueSigner struct {
