@@ -30,6 +30,7 @@ func validateRows(sheet string, rows []rawRow) (IdentityInventory, error) {
 
 	seenNIF := map[string]string{}  // nif -> opaque (filled after fp)
 	seenNome := map[string]string{} // nome -> opaque
+	seenRef := map[string]struct{}{}
 
 	allOK := true
 	for _, row := range rows {
@@ -52,7 +53,10 @@ func validateRows(sheet string, rows []rawRow) (IdentityInventory, error) {
 			return IdentityInventory{}, fmt.Errorf("%w: excel_row=%d bits=%d min=%d", ErrRSATooSmall, row.excelRow, bits, MinRSABits)
 		}
 		fp := publicFingerprintSHA256(pub)
-		ref := opaqueRefFromPublicFP(fp)
+		ref := opaqueRefFromPublic(pub)
+		if _, ok := seenRef[ref]; ok {
+			return IdentityInventory{}, fmt.Errorf("%w", ErrDuplicateRef)
+		}
 
 		if prev, ok := seenNIF[row.nif]; ok {
 			return IdentityInventory{}, fmt.Errorf("%w: refs=%s,%s", ErrDuplicateNIF, prev, ref)
@@ -62,6 +66,7 @@ func validateRows(sheet string, rows []rawRow) (IdentityInventory, error) {
 		}
 		seenNIF[row.nif] = ref
 		seenNome[row.nome] = ref
+		seenRef[ref] = struct{}{}
 
 		inv.Identities = append(inv.Identities, SanitizedIdentity{
 			OpaqueRef:         ref,
