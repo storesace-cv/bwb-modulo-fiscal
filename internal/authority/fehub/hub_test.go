@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/fehub"
 )
@@ -33,9 +34,23 @@ func TestReservedDeniesTransport(t *testing.T) {
 
 func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 	h := fehub.NewFixture()
-	_, err := h.WithSlots(fehub.MetadataSlots{CredentialRef: "-----BEGIN PRIVATE KEY-----"})
-	if !errors.Is(err, fehub.ErrSecretRejected) {
-		t.Fatalf("%v", err)
+	// Markers are synthetic (no high-entropy tokens) but must match reject heuristics.
+	cases := []fehub.MetadataSlots{
+		{CredentialRef: "-----BEGIN PRIVATE KEY-----"},
+		{CredentialRef: "Bearer SYNTHETIC_NOT_A_JWT"},
+		{CredentialRef: "bearer abc.def.ghi"},
+		{CredentialRef: "Basic SYNTHETIC_USERPASS"},
+		{CredentialRef: "password=SYNTHETIC"},
+		{EndpointBaseRef: "postgres://user:pass@localhost/db"},
+		{CertificateRef: "api_key=SYNTHETIC_PLACEHOLDER"},
+		{ValidityNote: "authorization: Bearer x"},
+		{CredentialRef: "user:secret@host"},
+		{CredentialRef: "eyJ_SYNTHETIC_NOT_A_REAL_TOKEN"},
+	}
+	for i, slots := range cases {
+		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrSecretRejected) {
+			t.Fatalf("case %d: want ErrSecretRejected, got %v", i, err)
+		}
 	}
 	ok, err := h.WithSlots(fehub.MetadataSlots{CredentialRef: "secretstore:producer_cred_ref"})
 	if err != nil {
@@ -43,5 +58,24 @@ func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 	}
 	if strings.Contains(ok.View().Note, "BEGIN") {
 		t.Fatal("leak")
+	}
+}
+
+func TestViewScrubsBypassMutation(t *testing.T) {
+	// Simulate reflective/unsafe bypass of WithSlots (RM-FEFIX-006 #2).
+	h := fehub.NewFixture()
+	type rawHub struct {
+		kind  fehub.Kind
+		slots fehub.MetadataSlots
+		note  string
+	}
+	rp := (*rawHub)(unsafe.Pointer(&h))
+	rp.slots.CredentialRef = "Bearer SYNTHETIC_NOT_A_JWT"
+	v := h.View()
+	if v.Slots.CredentialRef != "" {
+		t.Fatalf("View must scrub bypassed secret, got %q", v.Slots.CredentialRef)
+	}
+	if v.ExternalVerified {
+		t.Fatal("external_verified")
 	}
 }

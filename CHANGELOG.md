@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.112-draft — 2026-08-16
+
+- Compliance / FE prep: **RM-FEFIX-006** — hardening boundary/hub pós-PR #161: slots privados + rejeição Bearer/DSN/JWT/`://`; BaseURL só loopback HTTP sem userinfo/path/redirects; `Process` serializado (sem POST duplicado); HTTP 200 exige envelope BWB-MOCK; `ErrInvalidInput` não engolido como transporte; testes de regressão; [`agt-fe-boundary-hub.md`](docs/01-compliance/agt-fe-boundary-hub.md); **≠** AGT real / outbox produção.
+
 ## 0.2.111-draft — 2026-08-16
 
 - Compliance / FE prep: **RM-FEFIX-005** — hub metadados `fixture_agt`/`homologation_agt`/`production_agt` (`internal/authority/fehub`) + estados até boundary BWB-MOCK (`internal/authority/feboundary` → `femock`); `fixture_boundary_ok` **≠** aceite/homologação AGT; HML/PRD transporte fail-closed; [`agt-fe-boundary-hub.md`](docs/01-compliance/agt-fe-boundary-hub.md); **≠** outbox slice `fiscaljws`/`authority_accepted`; sem rede AGT.
