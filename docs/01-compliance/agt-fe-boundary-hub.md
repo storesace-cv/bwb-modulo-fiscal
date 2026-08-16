@@ -1,11 +1,11 @@
 # FE boundary + hub metadados fixture/HML/PRD (RM-FEFIX-005)
 
-**Estado:** integração local até ao boundary BWB-MOCK.  
+**Estado:** integração local até ao boundary BWB-MOCK.
 **Não é** chamada real AGT; **não é** homologação; **não é** `accepted` fiscal (`DEC-PROD-009`).
 
 ## Definição canónica (ROADMAP)
 
-> Outbox/estados até boundary + hub metadados fixture/HML/PRD  
+> Outbox/estados até boundary + hub metadados fixture/HML/PRD
 > Done: *Nunca rotular aceite AGT só com assinatura local*
 
 ## Pacotes
@@ -28,7 +28,7 @@ Slots (`endpoint_base_ref`, `credential_ref`, …) aceitam só refs; rejeitam PE
 
 ## Estados até boundary
 
-`queued_for_fixture_boundary` → `fixture_boundary_in_flight` →  
+`queued_for_fixture_boundary` → `fixture_boundary_in_flight` →
 `fixture_boundary_ok` \| `fixture_boundary_reject` \| `fixture_boundary_profile_blocked` \| `fixture_boundary_transport_failed`
 
 - Assinatura local sozinha **não** avança para OK sem `Process` ao mock.
