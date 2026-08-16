@@ -69,6 +69,20 @@ func SignCompact(signer crypto.Signer, payload []byte, header ProtectedHeader) (
 	return signingInput + "." + b64url(sig), nil
 }
 
+// InspectCompactHeader parses the protected header of a compact JWS without
+// verifying the signature. Callers must still VerifyCompact for authenticity.
+func InspectCompactHeader(compact string) (ProtectedHeader, error) {
+	parts := strings.Split(compact, ".")
+	if len(parts) != 3 || parts[0] == "" {
+		return ProtectedHeader{}, ErrInvalidCompact
+	}
+	hb, err := b64urlDecodeCanonical(parts[0])
+	if err != nil {
+		return ProtectedHeader{}, ErrInvalidCompact
+	}
+	return parseProtectedHeader(hb)
+}
+
 // VerifyCompact verifies a compact JWS RS256 and returns the exact payload bytes.
 func VerifyCompact(pub crypto.PublicKey, compact string) ([]byte, error) {
 	parts := strings.Split(compact, ".")
