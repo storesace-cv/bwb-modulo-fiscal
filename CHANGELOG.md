@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.110-draft — 2026-08-16
+
+- Compliance / FE prep: **RM-FEFIX-004** — mock FE AGT estritamente local (`internal/authority/femock`, `/mock/agt-fe/v1`); Basic Auth injectado; JWS `typ=BWB-MOCK` (≠ JWT/JOSE AGT); operações com payload builders; perfis bloqueados → `BWB-MOCK-PROFILE-BLOCKED`; FE-RNG allowlisted com `source_id`; [`agt-fe-local-mock.md`](docs/01-compliance/agt-fe-local-mock.md); **≠** HML/PRD/homologação; sem rede AGT.
+
 ## 0.2.109-draft — 2026-08-16
 
 - Compliance / FE prep: **RM-FEFIX-003** — motor JWS compact RS256 (`internal/fejws`) + matriz [`FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md`](compliance/derived/requirements/FE-JWS-PROFILES-MATRIX-RM-FEFIX-003.md); builders de payload confirmados no snapshot; **0** perfis wire AGT enquanto [C-FE-JWS-TYP-001](compliance/derived/conflicts/C-FE-JWS-TYP-001-typ-jwt-vs-jose.md) aberto (omitir `typ` ≠ resolução); restantes `blocked_conflict`; binding NIF via `ValidateTaxpayerBinding`; registo cumulativo [`agt-clarifications-register.md`](docs/01-compliance/agt-clarifications-register.md) (`AGT-Q-001`…`018`); **≠** mock HTTP/AGT; fontes `pending_validation`.
