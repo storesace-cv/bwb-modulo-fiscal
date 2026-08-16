@@ -1,4 +1,4 @@
-// Package feboundary drives FE submissions to the local BWB-MOCK boundary (RM-FEFIX-005).
+// Package feboundary drives FE submissions to the local BWB-MOCK boundary (RM-FEFIX-005/006).
 //
 // States stop at fixture_boundary_*; never authority_accepted / homologação AGT.
 // Requires fehub.KindFixture + femock. Distinct from persistence outbox→simulator (fiscaljws).
@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -42,11 +44,16 @@ const (
 )
 
 var (
-	ErrHubRequired  = errors.New("feboundary: hub required")
-	ErrClosed       = errors.New("feboundary: closed")
-	ErrUnknownOp    = errors.New("feboundary: unknown operation")
-	ErrNotFound     = errors.New("feboundary: submission not found")
-	ErrInvalidInput = errors.New("feboundary: invalid input")
+	ErrHubRequired       = errors.New("feboundary: hub required")
+	ErrClosed            = errors.New("feboundary: closed")
+	ErrUnknownOp         = errors.New("feboundary: unknown operation")
+	ErrNotFound          = errors.New("feboundary: submission not found")
+	ErrInvalidInput      = errors.New("feboundary: invalid input")
+	ErrBaseURLRejected   = errors.New("feboundary: base URL rejected")
+	ErrRedirectDenied    = errors.New("feboundary: HTTP redirect denied")
+	ErrInFlight          = errors.New("feboundary: submission already in flight")
+	ErrInvalidTransition = errors.New("feboundary: invalid state transition")
+	ErrMockResponse      = errors.New("feboundary: mock response rejected")
 )
 
 // Submission is in-memory FE prep state (sanitized; no PEM/NIF/JWS full dump).
@@ -65,11 +72,18 @@ type Submission struct {
 // IsAGTAccepted is always false — fixture/mock success ≠ AGT acceptance.
 func (s Submission) IsAGTAccepted() bool { return false }
 
+type dialSnapshot struct {
+	baseURL string
+	user    string
+	pass    string
+	client  *http.Client
+}
+
 // Engine orchestrates queue→sign(BWB-MOCK)→femock until boundary.
 type Engine struct {
 	hub      fehub.Hub
 	provider agttestkit.IdentityProvider
-	baseURL  string // e.g. httptest.URL + no trailing slash issues
+	baseURL  string
 	user     string
 	pass     string
 	client   *http.Client
@@ -79,7 +93,7 @@ type Engine struct {
 	byID   map[string]*Submission
 }
 
-// Config wires fixture hub + identities + femock base URL (httptest only).
+// Config wires fixture hub + identities + femock base URL (loopback HTTP only).
 type Config struct {
 	Hub      fehub.Hub
 	Provider agttestkit.IdentityProvider
@@ -89,7 +103,7 @@ type Config struct {
 	Client   *http.Client
 }
 
-// New validates config (fixture transport only).
+// New validates config (fixture transport only; BaseURL loopback-only).
 func New(cfg Config) (*Engine, error) {
 	if cfg.Provider == nil {
 		return nil, ErrInvalidInput
@@ -97,22 +111,71 @@ func New(cfg Config) (*Engine, error) {
 	if err := cfg.Hub.AssertTransportAllowed(); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(cfg.BaseURL) == "" || cfg.Username == "" || cfg.Password == "" {
+	if strings.TrimSpace(cfg.Username) == "" || strings.TrimSpace(cfg.Password) == "" {
 		return nil, ErrInvalidInput
+	}
+	base, err := normalizeFixtureBaseURL(cfg.BaseURL)
+	if err != nil {
+		return nil, err
 	}
 	cli := cfg.Client
 	if cli == nil {
 		cli = &http.Client{Timeout: 5 * time.Second}
 	}
+	// Always deny redirects (SSRF / host pivot).
+	cli.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return ErrRedirectDenied
+	}
 	return &Engine{
 		hub:      cfg.Hub,
 		provider: cfg.Provider,
-		baseURL:  strings.TrimRight(cfg.BaseURL, "/"),
+		baseURL:  base,
 		user:     cfg.Username,
 		pass:     cfg.Password,
 		client:   cli,
 		byID:     make(map[string]*Submission),
 	}, nil
+}
+
+func normalizeFixtureBaseURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", ErrBaseURLRejected
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", ErrBaseURLRejected
+	}
+	if !strings.EqualFold(u.Scheme, "http") {
+		return "", fmt.Errorf("%w: scheme", ErrBaseURLRejected)
+	}
+	if u.User != nil {
+		return "", fmt.Errorf("%w: userinfo", ErrBaseURLRejected)
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("%w: query/fragment", ErrBaseURLRejected)
+	}
+	path := strings.TrimSuffix(u.EscapedPath(), "/")
+	if path != "" {
+		return "", fmt.Errorf("%w: path", ErrBaseURLRejected)
+	}
+	host := u.Hostname()
+	if !isAuthorizedLoopbackHost(host) {
+		return "", fmt.Errorf("%w: host", ErrBaseURLRejected)
+	}
+	// Rebuild without userinfo/query/fragment; keep port.
+	out := &url.URL{Scheme: "http", Host: u.Host}
+	return strings.TrimRight(out.String(), "/"), nil
+}
+
+func isAuthorizedLoopbackHost(host string) bool {
+	h := strings.ToLower(strings.TrimSpace(host))
+	switch h {
+	case "127.0.0.1", "localhost", "::1":
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // Close clears submissions and credentials (best-effort).
@@ -176,6 +239,10 @@ func (e *Engine) Process(ctx context.Context, in ProcessInput) (Submission, erro
 	if err := ctx.Err(); err != nil {
 		return Submission{}, err
 	}
+	if in.IdentityRef == "" || in.IdempotencyKey == "" {
+		return Submission{}, ErrInvalidInput
+	}
+
 	e.mu.Lock()
 	if e.closed {
 		e.mu.Unlock()
@@ -186,35 +253,60 @@ func (e *Engine) Process(ctx context.Context, in ProcessInput) (Submission, erro
 		e.mu.Unlock()
 		return Submission{}, ErrNotFound
 	}
-	if in.IdentityRef == "" || in.IdempotencyKey == "" {
+	switch s.State {
+	case StateQueued:
+		// ok
+	case StateInFlight:
 		e.mu.Unlock()
-		return Submission{}, ErrInvalidInput
+		return Submission{}, ErrInFlight
+	default:
+		e.mu.Unlock()
+		return Submission{}, ErrInvalidTransition
 	}
 	s.State = StateInFlight
 	s.Attempts++
 	s.UpdatedAt = time.Now().UTC()
 	op := s.Operation
+	snap := dialSnapshot{baseURL: e.baseURL, user: e.user, pass: e.pass, client: e.client}
 	e.mu.Unlock()
 
 	jws, err := e.sign(op, in)
 	if err != nil {
-		return e.fail(in.SubmissionID, StateFailed, "", "", "sign failed (sanitized)")
+		_, _ = e.fail(in.SubmissionID, StateFailed, "", "", "sign/validation failed (sanitized)")
+		return Submission{}, err
 	}
-	status, body, err := e.postMock(ctx, op, in.IdentityRef, jws, in.IdempotencyKey)
+	status, ct, body, err := e.postMock(ctx, snap, op, in.IdentityRef, jws, in.IdempotencyKey)
 	if err != nil {
 		return e.fail(in.SubmissionID, StateFailed, "", "", "transport failed (sanitized)")
 	}
-	code, reqID, src := extractMockFields(body)
+
+	code, reqID, src, mockOK := classifyMockBody(body)
 	switch {
 	case status == http.StatusOK:
-		return e.finish(in.SubmissionID, StateOK, reqID, code, src, "fixture_boundary_ok ≠ AGT homologation")
-	case strings.Contains(code, femock.CodeProfileBlocked) || code == femock.CodeProfileBlocked:
+		if err := assertMockSuccess(op, ct, body, mockOK, reqID); err != nil {
+			return e.fail(in.SubmissionID, StateFailed, reqID, code, "mock success body rejected (sanitized)")
+		}
+		return e.finish(in.SubmissionID, StateOK, reqID, "ok", src, "fixture_boundary_ok ≠ AGT homologation")
+	case code == femock.CodeProfileBlocked || strings.Contains(code, femock.CodeProfileBlocked):
+		// Defensive: Enqueue does not allow wire-blocked ops; still map if a stub returns it (RM-FEFIX-006 P3).
+		if !isMockEnvelope(body) || reqID == "" {
+			return e.fail(in.SubmissionID, StateFailed, reqID, code, "mock blocked body rejected (sanitized)")
+		}
 		return e.finish(in.SubmissionID, StateBlocked, reqID, code, src, "wire profile blocked")
 	case status == http.StatusUnprocessableEntity && strings.HasPrefix(code, "FE-RNG-"):
+		if !isMockEnvelope(body) || reqID == "" {
+			return e.fail(in.SubmissionID, StateFailed, reqID, code, "mock FE-RNG body rejected (sanitized)")
+		}
 		return e.finish(in.SubmissionID, StateReject, reqID, code, src, "simulated FE-RNG ≠ AGT live")
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+		if !isMockEnvelope(body) {
+			return e.fail(in.SubmissionID, StateFailed, reqID, code, "mock authz body rejected (sanitized)")
+		}
 		return e.finish(in.SubmissionID, StateReject, reqID, code, src, "mock authz reject ≠ AGT")
 	default:
+		if body == nil {
+			return e.fail(in.SubmissionID, StateFailed, "", "", "empty/malformed mock response")
+		}
 		return e.finish(in.SubmissionID, StateReject, reqID, code, src, "mock non-OK ≠ AGT")
 	}
 }
@@ -241,46 +333,87 @@ func (e *Engine) sign(op string, in ProcessInput) (string, error) {
 	}
 }
 
-func (e *Engine) postMock(ctx context.Context, op, ref, jws, idem string) (int, map[string]any, error) {
-	payload, _ := json.Marshal(map[string]string{
+func (e *Engine) postMock(ctx context.Context, snap dialSnapshot, op, ref, jws, idem string) (int, string, map[string]any, error) {
+	payload, err := json.Marshal(map[string]string{
 		"identityRef":    ref,
 		"jws":            jws,
 		"idempotencyKey": idem,
 	})
-	url := e.baseURL + femock.PathPrefix + "/" + op
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
+	}
+	urlStr := snap.baseURL + femock.PathPrefix + "/" + op
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		return 0, "", nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(e.user, e.pass)
-	res, err := e.client.Do(req)
+	req.SetBasicAuth(snap.user, snap.pass)
+	res, err := snap.client.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	defer res.Body.Close()
+	ct := res.Header.Get("Content-Type")
 	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if err != nil {
-		return res.StatusCode, nil, err
+		return res.StatusCode, ct, nil, err
+	}
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return res.StatusCode, ct, nil, nil
 	}
 	var body map[string]any
-	_ = json.Unmarshal(raw, &body)
-	return res.StatusCode, body, nil
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return res.StatusCode, ct, nil, nil
+	}
+	return res.StatusCode, ct, body, nil
 }
 
-func extractMockFields(body map[string]any) (code, reqID, src string) {
+func classifyMockBody(body map[string]any) (code, reqID, src string, mockOK bool) {
 	if body == nil {
-		return "", "", ""
+		return "", "", "", false
 	}
 	code, _ = body["code"].(string)
 	reqID, _ = body["requestID"].(string)
 	src, _ = body["source_id"].(string)
-	if code == "" {
-		if st, _ := body["status"].(string); st == "ok" {
-			code = "ok"
-		}
+	st, _ := body["status"].(string)
+	mockOK = strings.EqualFold(st, "ok")
+	if code == "" && mockOK {
+		code = "ok"
 	}
-	return code, reqID, src
+	return code, reqID, src, mockOK
+}
+
+func isMockEnvelope(body map[string]any) bool {
+	if body == nil {
+		return false
+	}
+	sim, _ := body["simulated"].(bool)
+	mock, _ := body["mock"].(string)
+	return sim && mock == femock.TypMock
+}
+
+func assertMockSuccess(op, contentType string, body map[string]any, mockOK bool, reqID string) error {
+	if body == nil {
+		return ErrMockResponse
+	}
+	ct := strings.ToLower(strings.TrimSpace(contentType))
+	if ct == "" || !strings.HasPrefix(ct, "application/json") {
+		return fmt.Errorf("%w: content-type", ErrMockResponse)
+	}
+	if !isMockEnvelope(body) {
+		return fmt.Errorf("%w: envelope", ErrMockResponse)
+	}
+	if !mockOK {
+		return fmt.Errorf("%w: status field", ErrMockResponse)
+	}
+	if strings.TrimSpace(reqID) == "" {
+		return fmt.Errorf("%w: requestID", ErrMockResponse)
+	}
+	if opName, ok := body["operation"].(string); ok && opName != "" && opName != op {
+		return fmt.Errorf("%w: operation mismatch", ErrMockResponse)
+	}
+	return nil
 }
 
 func (e *Engine) finish(id, state, reqID, code, src, note string) (Submission, error) {
