@@ -86,7 +86,10 @@ func validateSlots(s MetadataSlots) error {
 }
 
 func validateSlotValue(v string) error {
-	v = strings.TrimSpace(v)
+	// Reject surrounding whitespace (do not silently trim-store secrets/refs).
+	if strings.TrimSpace(v) != v {
+		return ErrSecretRejected
+	}
 	if v == "" {
 		return nil
 	}
@@ -98,6 +101,9 @@ func validateSlotValue(v string) error {
 
 func looksLikeSecret(v string) bool {
 	low := strings.ToLower(v)
+	if strings.HasPrefix(low, "bwb_sbox_") {
+		return true
+	}
 	if strings.Contains(v, "-----") || strings.Contains(low, "begin ") {
 		return true
 	}

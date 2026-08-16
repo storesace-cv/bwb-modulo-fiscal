@@ -2,7 +2,7 @@
 
 ## 0.2.112-draft — 2026-08-16
 
-- Compliance / FE prep: **RM-FEFIX-006** — hardening boundary/hub pós-PR #161: slots privados + rejeição Bearer/DSN/JWT/`://`; BaseURL só loopback HTTP sem userinfo/path/redirects; `Process` serializado (sem POST duplicado); HTTP 200 exige envelope BWB-MOCK; `ErrInvalidInput` não engolido como transporte; testes de regressão; [`agt-fe-boundary-hub.md`](docs/01-compliance/agt-fe-boundary-hub.md); **≠** AGT real / outbox produção.
+- Compliance / FE prep: **RM-FEFIX-006** — hardening boundary/hub pós-PR #161: slots privados + rejeição Bearer/DSN/JWT/`://`/`bwb_sbox_`; BaseURL só loopback HTTP sem userinfo/path/redirects (client clonado); `Process` serializado; HTTP 200 com `mime.ParseMediaType` == `application/json` + envelope BWB-MOCK; `ErrInvalidInput` não engolido; follow-up Cubic pré-merge (whitespace slots, redirect test vivo); [`agt-fe-boundary-hub.md`](docs/01-compliance/agt-fe-boundary-hub.md); **≠** AGT real / outbox produção.
 
 ## 0.2.111-draft — 2026-08-16
 

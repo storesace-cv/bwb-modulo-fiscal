@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -121,6 +122,10 @@ func New(cfg Config) (*Engine, error) {
 	cli := cfg.Client
 	if cli == nil {
 		cli = &http.Client{Timeout: 5 * time.Second}
+	} else {
+		// Clone so a shared caller client is not mutated (RM-FEFIX-006 Cubic).
+		cp := *cli
+		cli = &cp
 	}
 	// Always deny redirects (SSRF / host pivot).
 	cli.CheckRedirect = func(*http.Request, []*http.Request) error {
@@ -397,8 +402,8 @@ func assertMockSuccess(op, contentType string, body map[string]any, mockOK bool,
 	if body == nil {
 		return ErrMockResponse
 	}
-	ct := strings.ToLower(strings.TrimSpace(contentType))
-	if ct == "" || !strings.HasPrefix(ct, "application/json") {
+	media, _, err := mime.ParseMediaType(contentType)
+	if err != nil || !strings.EqualFold(media, "application/json") {
 		return fmt.Errorf("%w: content-type", ErrMockResponse)
 	}
 	if !isMockEnvelope(body) {

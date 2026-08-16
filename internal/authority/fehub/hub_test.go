@@ -46,6 +46,9 @@ func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 		{ValidityNote: "authorization: Bearer x"},
 		{CredentialRef: "user:secret@host"},
 		{CredentialRef: "eyJ_SYNTHETIC_NOT_A_REAL_TOKEN"},
+		{CredentialRef: "bwb_sbox_" + strings.Repeat("Z", 43)},
+		{CredentialRef: " secretstore:producer_cred_ref"},
+		{CredentialRef: "secretstore:producer_cred_ref "},
 	}
 	for i, slots := range cases {
 		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrSecretRejected) {
@@ -64,6 +67,7 @@ func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 func TestViewScrubsBypassMutation(t *testing.T) {
 	// Simulate reflective/unsafe bypass of WithSlots (RM-FEFIX-006 #2).
 	h := fehub.NewFixture()
+	// rawHub MUST mirror unexported fehub.Hub field order/types exactly (kind, slots, note).
 	type rawHub struct {
 		kind  fehub.Kind
 		slots fehub.MetadataSlots

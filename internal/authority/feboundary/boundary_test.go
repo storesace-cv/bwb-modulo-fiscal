@@ -57,6 +57,26 @@ func setup(t *testing.T) (*feboundary.Engine, agttestkit.IdentityProvider, *femo
 	return eng, provider, mock, cleanup
 }
 
+func TestClientCheckRedirectNotMutatingShared(t *testing.T) {
+	p, err := agttestkit.OpenEphemeralProducerProvider(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	shared := &http.Client{Timeout: 2 * time.Second}
+	orig := shared.CheckRedirect
+	_, err = feboundary.New(feboundary.Config{
+		Hub: fehub.NewFixture(), Provider: p,
+		BaseURL: "http://127.0.0.1:9", Username: "u", Password: "p", Client: shared,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shared.CheckRedirect != nil && orig == nil {
+		t.Fatal("New must not mutate shared http.Client.CheckRedirect")
+	}
+}
+
 func TestHMLHubDenied(t *testing.T) {
 	h, err := fehub.NewReserved(fehub.KindHML)
 	if err != nil {
@@ -111,8 +131,15 @@ func TestRedirectDenied(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer p.Close()
+	// Live success target: if redirects were followed, Process would reach StateOK.
+	okBody := `{"simulated":true,"mock":"BWB-MOCK","status":"ok","requestID":"mock-redir-ok","operation":"obterEstado"}`
+	okSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, okBody)
+	}))
+	defer okSrv.Close()
 	redir := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "http://127.0.0.1:9/elsewhere", http.StatusFound)
+		http.Redirect(w, r, okSrv.URL+femock.PathPrefix+"/obterEstado", http.StatusFound)
 	}))
 	defer redir.Close()
 	eng, err := feboundary.New(feboundary.Config{
@@ -134,7 +161,7 @@ func TestRedirectDenied(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.State != feboundary.StateFailed {
-		t.Fatalf("%+v", out)
+		t.Fatalf("want Failed when redirect denied (not OK via follow): %+v", out)
 	}
 }
 
@@ -159,6 +186,7 @@ func TestHTTP200RequiresBWBMockEnvelope(t *testing.T) {
 		{"wrong mock", "application/json", `{"simulated":true,"mock":"JWT","status":"ok","requestID":"r1"}`},
 		{"no status", "application/json", `{"simulated":true,"mock":"BWB-MOCK","requestID":"r1"}`},
 		{"bad ct", "text/plain", `{"simulated":true,"mock":"BWB-MOCK","status":"ok","requestID":"r1"}`},
+		{"jsonp ct", "application/jsonp", `{"simulated":true,"mock":"BWB-MOCK","status":"ok","requestID":"r1"}`},
 		{"op mismatch", "application/json", `{"simulated":true,"mock":"BWB-MOCK","status":"ok","requestID":"r1","operation":"consultarFactura"}`},
 	}
 	for _, tc := range cases {
@@ -207,8 +235,7 @@ func TestConcurrentProcessSameSubmission(t *testing.T) {
 			TaxRegistrationNumber: "9100000000", RequestID: "R",
 		},
 	}
-	// Hold first Process in flight via slow mock: replace by racing two Process after marking.
-	// First call succeeds; second must see terminal or in-flight.
+	// First Process wins; second must see ErrInFlight or ErrInvalidTransition.
 	var wg sync.WaitGroup
 	errs := make(chan error, 2)
 	states := make(chan string, 2)
