@@ -1,7 +1,9 @@
 # AO-SEQ-001 — motor de numeração (RM-ENG-002)
 
-**Estado:** residual de engenharia fechado por testes (RM-ENG-002).  
-**Norma:** [`CONFIRMED-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md) — `confirmed_normative` (DP 71 + DE 74).  
+**Estado:** residual de engenharia fechado por testes (RM-ENG-002).
+
+**Norma:** [`CONFIRMED-MATRIX-RM-REQ-001.md`](../../compliance/derived/requirements/CONFIRMED-MATRIX-RM-REQ-001.md) — `confirmed_normative` (DP 71 + DE 74).
+
 **Não é:** `AO-SEQ-002` (séries atribuídas pela AGT / `solicitarSerie`); homologação AGT; produção FE.
 
 ## Invariantes implementados
