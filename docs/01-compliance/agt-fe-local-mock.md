@@ -1,6 +1,7 @@
 # Mock FE AGT local (RM-FEFIX-004)
 
-**Estado:** harness de teste estritamente local.  
+**Estado:** harness de teste estritamente local.
+
 **Não é** HML AGT, **não é** PRD AGT, **não é** homologação nem aceitação oficial.
 
 ## Pacote
