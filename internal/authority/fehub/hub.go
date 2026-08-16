@@ -1,4 +1,4 @@
-// Package fehub holds sanitized FE authority environment metadata (RM-FEFIX-005).
+// Package fehub holds sanitized FE authority environment metadata (RM-FEFIX-005/006).
 //
 // Kinds: fixture_agt (BWB-MOCK active) | homologation_agt | production_agt (reserved).
 // Never stores secrets. external_verified is always false. mock≠HML≠PRD≠homologação AGT.
@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // Kind selects which authority metadata lane is configured.
@@ -23,6 +24,7 @@ var (
 	ErrUnknownKind     = errors.New("fehub: unknown kind")
 	ErrTransportDenied = errors.New("fehub: transport denied for kind")
 	ErrSecretRejected  = errors.New("fehub: plaintext secret rejected")
+	ErrInvalidSlot     = errors.New("fehub: invalid slot value")
 )
 
 // MetadataSlots are future-facing refs only (names/pointers — never secret values).
@@ -35,17 +37,21 @@ type MetadataSlots struct {
 }
 
 // Hub is the in-memory metadata hub for one FE authority lane.
+// Fields are unexported so callers must use constructors / WithSlots (RM-FEFIX-006).
 type Hub struct {
-	Kind  Kind
-	Slots MetadataSlots
-	Note  string
+	kind  Kind
+	slots MetadataSlots
+	note  string
 }
+
+// Kind returns the authority lane.
+func (h Hub) Kind() Kind { return h.kind }
 
 // NewFixture returns the only transport-enabled hub (BWB-MOCK / local fixture).
 func NewFixture() Hub {
 	return Hub{
-		Kind: KindFixture,
-		Note: "fixture_agt=BWB-MOCK local; ≠ HML; ≠ PRD; ≠ homologação AGT; external_verified=false",
+		kind: KindFixture,
+		note: "fixture_agt=BWB-MOCK local; ≠ HML; ≠ PRD; ≠ homologação AGT; external_verified=false",
 	}
 }
 
@@ -54,8 +60,8 @@ func NewReserved(kind Kind) (Hub, error) {
 	switch kind {
 	case KindHML, KindPRD:
 		return Hub{
-			Kind: kind,
-			Note: string(kind) + " reserved until official credentials/endpoints; transport denied; external_verified=false",
+			kind: kind,
+			note: string(kind) + " reserved until official credentials/endpoints; transport denied; external_verified=false",
 		}, nil
 	default:
 		return Hub{}, fmt.Errorf("%w: %s", ErrUnknownKind, kind)
@@ -64,33 +70,102 @@ func NewReserved(kind Kind) (Hub, error) {
 
 // WithSlots copies hub with validated slots (reject values that look like secrets).
 func (h Hub) WithSlots(slots MetadataSlots) (Hub, error) {
-	if err := rejectSecrets(slots); err != nil {
+	if err := validateSlots(slots); err != nil {
 		return Hub{}, err
 	}
-	h.Slots = slots
+	h.slots = slots
 	return h, nil
 }
 
-func rejectSecrets(s MetadataSlots) error {
+func validateSlots(s MetadataSlots) error {
 	for _, v := range []string{s.EndpointBaseRef, s.CredentialRef, s.CertificateRef, s.SoftwareValidationNoRef, s.ValidityNote} {
-		low := strings.ToLower(v)
-		if strings.Contains(low, "begin ") || strings.Contains(low, "password") ||
-			strings.Contains(low, "basic ") || strings.Contains(v, "-----") {
-			return ErrSecretRejected
+		if err := validateSlotValue(v); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
+func validateSlotValue(v string) error {
+	// Reject surrounding whitespace (do not silently trim-store secrets/refs).
+	if strings.TrimSpace(v) != v {
+		return ErrInvalidSlot
+	}
+	if v == "" {
+		return nil
+	}
+	if looksLikeSecret(v) {
+		return ErrSecretRejected
+	}
+	if !isSafeRefCharset(v) {
+		return ErrInvalidSlot
+	}
+	return nil
+}
+
+func looksLikeSecret(v string) bool {
+	low := strings.ToLower(v)
+	if strings.Contains(low, "bwb_sbox_") {
+		return true
+	}
+	if strings.Contains(v, "-----") || strings.Contains(low, "begin ") {
+		return true
+	}
+	needles := []string{
+		"password", "passwd", "private key", "privatekey",
+		"basic ", "bearer ", "authorization", "api_key", "apikey", "access_token",
+		"refresh_token", "client_secret", "dsn", "postgres://", "postgresql://",
+		"mysql://", "mongodb://", "redis://", "amqp://", "jdbc:",
+	}
+	for _, n := range needles {
+		if strings.Contains(low, n) {
+			return true
+		}
+	}
+	// "secret" alone, but allow opaque refs like secretstore:…
+	if strings.Contains(low, "secret") && !strings.Contains(low, "secretstore") {
+		return true
+	}
+	if strings.HasPrefix(low, "bearer") || strings.HasPrefix(low, "basic") {
+		return true
+	}
+	// JWT-ish / opaque token blobs
+	if strings.HasPrefix(v, "eyJ") || strings.HasPrefix(low, "eyj") {
+		return true
+	}
+	if strings.Contains(v, "@") && strings.Contains(v, ":") {
+		return true // user:pass@host style
+	}
+	if strings.Contains(low, "://") {
+		return true
+	}
+	return false
+}
+
+func isSafeRefCharset(v string) bool {
+	if len(v) > 128 {
+		return false
+	}
+	for _, r := range v {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+		case r == '_' || r == '-' || r == '.' || r == ':' || r == '/':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // AllowTransport is true only for fixture_agt (local BWB-MOCK).
 func (h Hub) AllowTransport() bool {
-	return h.Kind == KindFixture
+	return h.kind == KindFixture
 }
 
 // AssertTransportAllowed fails closed for HML/PRD/unknown.
 func (h Hub) AssertTransportAllowed() error {
 	if !h.AllowTransport() {
-		return fmt.Errorf("%w: %s (use fixture_agt for BWB-MOCK only)", ErrTransportDenied, h.Kind)
+		return fmt.Errorf("%w: %s (use fixture_agt for BWB-MOCK only)", ErrTransportDenied, h.kind)
 	}
 	return nil
 }
@@ -105,14 +180,18 @@ type PublicView struct {
 	Labels           []string      `json:"labels"`
 }
 
-// View returns a sanitized snapshot.
+// View returns a sanitized snapshot. Invalid/secret-like slots are scrubbed fail-closed.
 func (h Hub) View() PublicView {
+	slots := h.slots
+	if err := validateSlots(slots); err != nil {
+		slots = MetadataSlots{}
+	}
 	return PublicView{
-		Kind:             string(h.Kind),
+		Kind:             string(h.kind),
 		TransportAllowed: h.AllowTransport(),
 		ExternalVerified: false,
-		Slots:            h.Slots,
-		Note:             h.Note,
+		Slots:            slots,
+		Note:             h.note,
 		Labels: []string{
 			"mock≠HML≠PRD",
 			"fixture_ok≠AGT_accepted",
