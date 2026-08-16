@@ -1,7 +1,9 @@
 # Matriz FE JWS — perfis operacionais (RM-FEFIX-003)
 
-**Estado:** rascunho auditável — **não** confirma `AO-CRYPTO-001` / FE-RNG oficial / aceitação AGT.  
-**Data (UTC):** 2026-08-16  
+**Estado:** rascunho auditável — **não** confirma `AO-CRYPTO-001` / FE-RNG oficial / aceitação AGT.
+
+**Data (UTC):** 2026-08-16
+
 **Regra:** só `eligible` se campos, nomes, representação e tipo de assinatura forem inequívocos nas fontes. **Proibido** “intersecção mínima”. Fontes `pending_validation`.
 
 ## Fontes citadas
@@ -40,12 +42,12 @@ Pacote [`internal/fejws`](../../../internal/fejws/compact.go): compact JWS, `alg
 
 ## Binding
 
-- Contribuinte: `ValidateTaxpayerBinding(ref, nif)` — mismatch sem revelar NIFs.  
-- Produtor efémero ≠ contribuinte; chave contribuinte ≠ software.  
+- Contribuinte: `ValidateTaxpayerBinding(ref, nif)` — mismatch sem revelar NIFs.
+- Produtor efémero ≠ contribuinte; chave contribuinte ≠ software.
 - `sourceLabel` não entra no JWS.
 
 ## Implementação
 
-- Eligible: [`internal/feprofile`](../../../internal/feprofile/profiles.go)  
-- Blocked: funções `*Blocked` devolvem `ErrProfileBlocked`  
+- Eligible: [`internal/feprofile`](../../../internal/feprofile/profiles.go)
+- Blocked: funções `*Blocked` devolvem `ErrProfileBlocked`
 - Custódia: [`internal/agttestkit`](../../../internal/agttestkit/provider.go)
