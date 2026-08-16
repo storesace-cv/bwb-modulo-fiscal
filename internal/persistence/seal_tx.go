@@ -336,6 +336,8 @@ func (s *Store) loadCompletedResult(ctx context.Context, q querier, t func(strin
 }
 
 func (s *Store) nextFiscalSeq(ctx context.Context, q querier, t func(string) string, postgres bool, scopeID, seriesCode string) (int64, error) {
+	// AO-SEQ-001 (confirmed_normative): progressive continuous sequence per (scope, series).
+	// Gaps only via co-transactional rollback (never commit a hole). ≠ AO-SEQ-002 / AGT.
 	if postgres {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO `+t("series_counters")+` (scope_id, series_code, last_seq)

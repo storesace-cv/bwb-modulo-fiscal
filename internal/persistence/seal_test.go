@@ -269,6 +269,80 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		}
 	})
 
+	// RM-ENG-002 / AO-SEQ-001: continuous progressive sequence under concurrency (fresh series).
+	t.Run("AO-SEQ-001_concurrent_continuous_sequence", func(t *testing.T) {
+		const n = 12
+		series := "AOSEQ001"
+		results := make([]*persistence.SealResult, n)
+		errs := make([]error, n)
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			i := i
+			go func() {
+				defer wg.Done()
+				req := sampleSealReq(scope,
+					fmt.Sprintf("aaaaaaaa-aaaa-aaaa-aaaa-%012d", i+100),
+					fmt.Sprintf("ext-aoseq-%d", i),
+					series, "1.00")
+				results[i], errs[i] = store.SealInTx(ctx, req)
+			}()
+		}
+		wg.Wait()
+		seen := map[int64]struct{}{}
+		for i := 0; i < n; i++ {
+			if errs[i] != nil {
+				t.Fatalf("goroutine %d: %v", i, errs[i])
+			}
+			seq := results[i].FiscalSeq
+			if seq < 1 || seq > int64(n) {
+				t.Fatalf("fiscal_seq %d out of range 1..%d", seq, n)
+			}
+			if _, dup := seen[seq]; dup {
+				t.Fatalf("duplicate fiscal_seq %d", seq)
+			}
+			seen[seq] = struct{}{}
+			if results[i].SeriesCode != series {
+				t.Fatalf("series=%q want %q", results[i].SeriesCode, series)
+			}
+		}
+		if len(seen) != n {
+			t.Fatalf("unique=%d want %d (gaps under concurrency)", len(seen), n)
+		}
+		for want := int64(1); want <= int64(n); want++ {
+			if _, ok := seen[want]; !ok {
+				t.Fatalf("missing continuous fiscal_seq %d (AO-SEQ-001)", want)
+			}
+		}
+		var last int64
+		if err := sqlDB.QueryRowContext(ctx,
+			`SELECT last_seq FROM `+tbl(postgres, "series_counters")+` WHERE scope_id = ? AND series_code = ?`,
+			scope, series,
+		).Scan(&last); err != nil {
+			t.Fatalf("counter: %v", err)
+		}
+		if last != int64(n) {
+			t.Fatalf("last_seq=%d want %d", last, n)
+		}
+	})
+
+	t.Run("AO-SEQ-001_sequential_no_gaps", func(t *testing.T) {
+		series := "AOSEQ001S"
+		for i := 1; i <= 5; i++ {
+			req := sampleSealReq(scope,
+				fmt.Sprintf("dddddddd-dddd-dddd-dddd-%012d", i),
+				fmt.Sprintf("ext-aoseq-s-%d", i),
+				series, "1.00")
+			got, err := store.SealInTx(ctx, req)
+			if err != nil {
+				t.Fatalf("seal %d: %v", i, err)
+			}
+			if got.FiscalSeq != int64(i) {
+				t.Fatalf("fiscal_seq=%d want %d", got.FiscalSeq, i)
+			}
+		}
+	})
+
 	t.Run("VS-T02_concurrency_same_idempotency_key", func(t *testing.T) {
 		key := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"
 		const n = 6

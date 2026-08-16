@@ -74,7 +74,7 @@ DP 71/25 Art.8 n.º**8–9** (@**11907**): em casos de rectificação dos requis
 | Âmbito confirmado | Obrigação de **numeração sequencial e cronológica** por tipo de documento / série (DP 71) e de numeração **progressiva e contínua** dentro de cada série, com identificação **unívoca** do documento (DE 74) |
 | Canais | **Regime jurídico** (DP 71) + **validação software / SAF-T** (DE 74 + Rect.) |
 | Fora de âmbito | Homologação AGT; produção FE; atribuição de séries pela AGT (`AO-SEQ-002` / DE 683 Art.4 — **não** misturar); `DEC-REG-003` |
-| Residual engenharia | Unicidade sob **concorrência** / recuperação / testes de corrida (evidência esperada do catálogo) — **não** bloqueia a obrigação normativa de sequência contínua por série |
+| Residual engenharia | Unicidade sob **concorrência** / recuperação — **fechado** por testes RM-ENG-002 (`AO-SEQ-001_concurrent_continuous_sequence`, VS-T06/T07); ver [`docs/01-compliance/ao-seq-001-engine.md`](../../../docs/01-compliance/ao-seq-001-engine.md). **≠** conformidade AGT |
 
 #### Evidência inequívoca
 
@@ -99,8 +99,8 @@ Paths privados: `derivatives/legislation/AO-LEG-DP-71-25-2025/v1/text.md` · `�
 #### Conclusão
 
 **Facto:** a obrigação de numeração sequencial/cronológica por tipo e série (DP 71) e progressiva/contínua com identificação unívoca por série (DE 74) está normativamente sustentada.
-**Fail-closed:** **não** se afirma fecho de testes concorrentes, nem que o POS/AGT atribuam o número (`AO-SEQ-002` permanece provisório).
-**Não se afirma:** conformidade do produto implementado nem aceitação AGT.
+**Fail-closed:** **não** se afirma que o POS/AGT atribuam o número (`AO-SEQ-002` permanece provisório). Residual de concorrência: evidência em RM-ENG-002 / [`ao-seq-001-engine.md`](../../../docs/01-compliance/ao-seq-001-engine.md).
+**Não se afirma:** conformidade do produto perante a AGT nem aceitação/homologação.
 
 ### AO-OFF-001 — Contingência apenas nas condições autorizadas
 
