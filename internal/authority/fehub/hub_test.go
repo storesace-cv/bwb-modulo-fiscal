@@ -34,17 +34,18 @@ func TestReservedDeniesTransport(t *testing.T) {
 
 func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 	h := fehub.NewFixture()
+	// Markers are synthetic (no high-entropy tokens) but must match reject heuristics.
 	cases := []fehub.MetadataSlots{
 		{CredentialRef: "-----BEGIN PRIVATE KEY-----"},
-		{CredentialRef: "Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig"},
+		{CredentialRef: "Bearer SYNTHETIC_NOT_A_JWT"},
 		{CredentialRef: "bearer abc.def.ghi"},
-		{CredentialRef: "Basic dXNlcjpwYXNz"},
-		{CredentialRef: "password=hunter2"},
+		{CredentialRef: "Basic SYNTHETIC_USERPASS"},
+		{CredentialRef: "password=SYNTHETIC"},
 		{EndpointBaseRef: "postgres://user:pass@localhost/db"},
-		{CertificateRef: "api_key=sk-live-123"},
+		{CertificateRef: "api_key=SYNTHETIC_PLACEHOLDER"},
 		{ValidityNote: "authorization: Bearer x"},
 		{CredentialRef: "user:secret@host"},
-		{CredentialRef: "eyJhbGciOiJSUzI1NiJ9.aaa.bbb"},
+		{CredentialRef: "eyJ_SYNTHETIC_NOT_A_REAL_TOKEN"},
 	}
 	for i, slots := range cases {
 		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrSecretRejected) {
@@ -69,7 +70,7 @@ func TestViewScrubsBypassMutation(t *testing.T) {
 		note  string
 	}
 	rp := (*rawHub)(unsafe.Pointer(&h))
-	rp.slots.CredentialRef = "Bearer eyJhbGciOiJIUzI1NiJ9.x.y"
+	rp.slots.CredentialRef = "Bearer SYNTHETIC_NOT_A_JWT"
 	v := h.View()
 	if v.Slots.CredentialRef != "" {
 		t.Fatalf("View must scrub bypassed secret, got %q", v.Slots.CredentialRef)
