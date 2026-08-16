@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -213,7 +212,7 @@ func TestRejectRSATooSmall(t *testing.T) {
 
 func TestRejectAmbiguousSheets(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "multi.xlsx")
+	path := filepath.Join(dir, "custom.xlsx")
 	f := excelize.NewFile()
 	_ = f.SetSheetName(f.GetSheetName(0), "A")
 	_, _ = f.NewSheet("B")
@@ -272,32 +271,6 @@ func TestSkipEmptyRows(t *testing.T) {
 	if inv.IdentityCount != 1 {
 		t.Fatalf("count=%d", inv.IdentityCount)
 	}
-}
-
-func TestRealWorkbookOptional(t *testing.T) {
-	path := strings.TrimSpace(os.Getenv(EnvWorkbookPath))
-	if path == "" {
-		t.Skip("FISCAL_AGT_TEST_WORKBOOK unset")
-	}
-	inv, err := LoadAndValidate(path)
-	if err != nil {
-		t.Fatalf("real workbook: %v", err)
-	}
-	if inv.IdentityCount != 5 || !inv.AllPairsValid {
-		t.Fatalf("expected 5 valid identities, got count=%d valid=%v", inv.IdentityCount, inv.AllPairsValid)
-	}
-	for _, id := range inv.Identities {
-		if id.RSABits < MinRSABits || !id.PairMatch {
-			t.Fatalf("bad identity meta: bits=%d match=%v", id.RSABits, id.PairMatch)
-		}
-		assertNoSecretsInString(t, fmtIdentity(id))
-	}
-	t.Logf("sanitized inventory: identity_count=%d algorithm=%s all_pairs_valid=%v",
-		inv.IdentityCount, inv.Algorithm, inv.AllPairsValid)
-}
-
-func fmtIdentity(id SanitizedIdentity) string {
-	return id.OpaqueRef + " " + id.PublicFingerprint + " " + id.NIFHashTruncated + " " + id.NomeHashTruncated
 }
 
 func synthRow(t *testing.T, nif, nome string) []string {

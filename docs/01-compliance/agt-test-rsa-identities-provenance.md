@@ -1,4 +1,4 @@
-# Proveniência — identidades RSA de teste AGT (workbook local)
+# Proveniência — identidades RSA de teste AGT (workbook não versionado)
 
 **Item:** `RM-FEFIX-001`  
 **Data (UTC):** 2026-08-16  
@@ -8,12 +8,12 @@
 
 | Campo | Valor |
 |---|---|
-| Localização (não versionada) | `local/7cb4c654-0e77-4831-a826-7306aef08524.xlsx` (`local/` no `.gitignore`) |
+| Armazenamento | Workbook AGT recebido em 2026-08, guardado em área de consulta **não versionada** (fora do Git; ver `.gitignore`) |
 | SHA-256 do ficheiro | `9b49d5104dd284f374d6f5638fb4be9e7751b959e92024db64dffa4c6be7b179` |
 | Tamanho (bytes) | `17567` |
 | Classificação | Fixtures / identidades fiscais de **teste** fornecidas pela AGT para desenvolvimento e futura homologação |
 | Conteúdo (sanitizado) | 5 pares RSA PEM (`PRIVATE KEY` / `PUBLIC KEY`); cabeçalhos `NIF` / `NOME` / `CHAVE PRÍVADA` / `CHAVE PÚBLICA` |
-| Tratamento | Read-only; loader lê o workbook em memória; **sem** extracção para ficheiros PEM permanentes; **sem** cópia para Git (público ou privado de fontes) |
+| Tratamento | Read-only; loader lê o workbook em memória a partir de um path fornecido pelo operador; **sem** extracção para ficheiros PEM permanentes; **sem** cópia para Git (público ou privado de fontes) |
 
 ## O que este material **não** é
 
@@ -38,9 +38,9 @@ Catálogo: [`compliance/catalog/sources.yaml`](../../compliance/catalog/sources.
 
 ## Inventário público permitido
 
-Apenas: quantidade de identidades; algoritmo; tamanho RSA (bits); resultado pub↔priv; identificadores opacos (`agt-test-…`); fingerprints SHA-256 das chaves **públicas**; hashes truncados de NIF/nome com domínio explícito de inventário.  
-**Proibido** em Git, logs, PR e relatórios: PEM, NIF em claro, nomes do workbook, células, screenshots, workbook real, fixtures derivadas das linhas reais.
+Apenas: quantidade de identidades; algoritmo; tamanho RSA (bits); resultado pub↔priv; identificadores opacos (`agt-test-…`); fingerprints SHA-256 das chaves **públicas** (calculáveis localmente; **não** publicadas neste documento).
+**Proibido** em Git, logs, PR e relatórios: PEM, NIF em claro, nomes do workbook, células, screenshots, workbook real, fixtures derivadas das linhas reais, nome/UUID do ficheiro real.
 
 ## Ferramenta
 
-Pacote [`internal/agttestkit`](../../internal/agttestkit): `LoadAndValidate(path)`; CI usa workbook **sintético** efémero (`WriteSyntheticWorkbook`). Path real opcional via `FISCAL_AGT_TEST_WORKBOOK` (apenas path — nunca conteúdo de chaves).
+Pacote [`internal/agttestkit`](../../internal/agttestkit/doc.go): `LoadAndValidate(path)`; CI usa workbook **sintético** efémero (`WriteSyntheticWorkbook`). A autoridade contra dependências de árvores não versionadas permanece `compliance/scripts/verify_no_local_deps.sh`. Validação do workbook real AGT é operação manual do operador (fora da suite CI).

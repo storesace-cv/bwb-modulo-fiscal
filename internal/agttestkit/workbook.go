@@ -33,10 +33,6 @@ var (
 // MinRSABits is the FE-documented minimum for RS256 (AO-FE-SNAP-HML-2026-07-25-ESTRUTURA / GESTAO).
 const MinRSABits = 2048
 
-// EnvWorkbookPath is the optional local path to the real AGT test workbook.
-// Never put key material or NIF values in this variable — only a filesystem path.
-const EnvWorkbookPath = "FISCAL_AGT_TEST_WORKBOOK"
-
 // IdentityInventory is the only public-facing inventory shape (sanitized).
 type IdentityInventory struct {
 	IdentityCount   int                 `json:"identity_count"`
