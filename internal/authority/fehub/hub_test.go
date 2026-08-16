@@ -47,12 +47,14 @@ func TestRejectPlaintextSecretsInSlots(t *testing.T) {
 		{CredentialRef: "user:secret@host"},
 		{CredentialRef: "eyJ_SYNTHETIC_NOT_A_REAL_TOKEN"},
 		{CredentialRef: "bwb_sbox_" + strings.Repeat("Z", 43)},
+		{CredentialRef: "secretstore:bwb_sbox_" + strings.Repeat("Y", 43)},
 		{CredentialRef: " secretstore:producer_cred_ref"},
 		{CredentialRef: "secretstore:producer_cred_ref "},
 	}
 	for i, slots := range cases {
-		if _, err := h.WithSlots(slots); !errors.Is(err, fehub.ErrSecretRejected) {
-			t.Fatalf("case %d: want ErrSecretRejected, got %v", i, err)
+		_, err := h.WithSlots(slots)
+		if !errors.Is(err, fehub.ErrSecretRejected) && !errors.Is(err, fehub.ErrInvalidSlot) {
+			t.Fatalf("case %d: want ErrSecretRejected|ErrInvalidSlot, got %v", i, err)
 		}
 	}
 	ok, err := h.WithSlots(fehub.MetadataSlots{CredentialRef: "secretstore:producer_cred_ref"})

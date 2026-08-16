@@ -24,6 +24,7 @@ var (
 	ErrUnknownKind     = errors.New("fehub: unknown kind")
 	ErrTransportDenied = errors.New("fehub: transport denied for kind")
 	ErrSecretRejected  = errors.New("fehub: plaintext secret rejected")
+	ErrInvalidSlot     = errors.New("fehub: invalid slot value")
 )
 
 // MetadataSlots are future-facing refs only (names/pointers — never secret values).
@@ -88,20 +89,23 @@ func validateSlots(s MetadataSlots) error {
 func validateSlotValue(v string) error {
 	// Reject surrounding whitespace (do not silently trim-store secrets/refs).
 	if strings.TrimSpace(v) != v {
-		return ErrSecretRejected
+		return ErrInvalidSlot
 	}
 	if v == "" {
 		return nil
 	}
-	if looksLikeSecret(v) || !isSafeRefCharset(v) {
+	if looksLikeSecret(v) {
 		return ErrSecretRejected
+	}
+	if !isSafeRefCharset(v) {
+		return ErrInvalidSlot
 	}
 	return nil
 }
 
 func looksLikeSecret(v string) bool {
 	low := strings.ToLower(v)
-	if strings.HasPrefix(low, "bwb_sbox_") {
+	if strings.Contains(low, "bwb_sbox_") {
 		return true
 	}
 	if strings.Contains(v, "-----") || strings.Contains(low, "begin ") {
