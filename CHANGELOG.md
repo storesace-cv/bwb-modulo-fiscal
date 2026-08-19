@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.116-draft — 2026-08-20
+
+- Compliance / motor: **RM-ENG-003** — motor IVA integer-only (`internal/taxao`: NOR/RED/INT/ISE provisórios; arredondamento half-up; totais documento; fail-closed); validação em `prepareSealRequest`; testes `AO_TAX_001_*`; doc [`ao-tax-001-engine.md`](docs/01-compliance/ao-tax-001-engine.md); **≠** `AO-TAX-001` confirmado / IS/IEC / descontos / retenções / AGT.
+
 ## 0.2.115-draft — 2026-08-16
 
 - Compliance / motor: **RM-ENG-002** — fecho residual engenharia **AO-SEQ-001** (sequência progressiva contínua e unívoca por `(scope, series)` sob concorrência; testes `AO-SEQ-001_*` dual-engine); doc [`ao-seq-001-engine.md`](docs/01-compliance/ao-seq-001-engine.md); **≠** `AO-SEQ-002` / `solicitarSerie` / AGT.

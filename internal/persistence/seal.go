@@ -13,6 +13,7 @@ import (
 
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/canonical"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/fiscaltime"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/taxao"
 )
 
 // Dialect identifies the SQL dialect and locking strategy.
@@ -177,6 +178,18 @@ func prepareSealRequest(req SealRequest) (SealRequest, error) {
 		}
 		if !hasNonWhitespace(ln.TaxCode) {
 			return SealRequest{}, validationErr(prefix+".tax_code", "REQUIRED", "obrigatório e non-empty")
+		}
+		if _, err := taxao.CalculateLine(taxao.LineInput{
+			Quantity: ln.Quantity, UnitPrice: ln.UnitPrice, TaxCode: ln.TaxCode,
+		}); err != nil {
+			switch {
+			case errors.Is(err, taxao.ErrUnknownTaxCode):
+				return SealRequest{}, validationErr(prefix+".tax_code", "INVALID_ENUM", "código de imposto desconhecido")
+			case errors.Is(err, taxao.ErrInvalidInput), errors.Is(err, taxao.ErrOverflow):
+				return SealRequest{}, validationErr(prefix, "INVALID", "linha inválida para cálculo fiscal")
+			default:
+				return SealRequest{}, fmt.Errorf("prepare seal tax line %d: %w", i, err)
+			}
 		}
 	}
 	out := req
