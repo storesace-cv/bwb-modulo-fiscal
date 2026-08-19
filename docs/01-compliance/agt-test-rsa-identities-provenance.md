@@ -43,4 +43,4 @@ Apenas: quantidade de identidades; algoritmo; tamanho RSA (bits); resultado pub�
 
 ## Ferramenta
 
-Pacote [`internal/agttestkit`](../../internal/agttestkit/doc.go): `LoadAndValidate(path)`; CI usa workbook **sintético** efémero (`WriteSyntheticWorkbook`). A autoridade contra dependências de árvores não versionadas permanece `compliance/scripts/verify_no_local_deps.sh`. Validação do workbook real AGT é operação manual do operador (fora da suite CI).
+Pacote [`internal/agttestkit`](../../internal/agttestkit/doc.go): `LoadAndValidate(path)`; CI usa workbook **sintético** efémero (`WriteSyntheticWorkbook`). Fila persistente mock: [`agt-fe-fixture-queue.md`](agt-fe-fixture-queue.md) (`RM-FEFIX-007`). A autoridade contra dependências de árvores não versionadas permanece `compliance/scripts/verify_no_local_deps.sh`. Validação do workbook real AGT é operação manual do operador (fora da suite CI).

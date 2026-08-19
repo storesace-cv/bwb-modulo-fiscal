@@ -29,6 +29,7 @@ const (
 	envWriteTimeout          = "FISCAL_HTTP_WRITE_TIMEOUT"
 	envIdleTimeout           = "FISCAL_HTTP_IDLE_TIMEOUT"
 	envShutdownTimeout       = "FISCAL_HTTP_SHUTDOWN_TIMEOUT"
+	envAGTTestWorkbook       = "FISCAL_AGT_TEST_WORKBOOK"
 )
 
 // Authority modes for outbox→authority transport (slice).
@@ -54,6 +55,7 @@ func EnvKeys() []string {
 		envWriteTimeout,
 		envIdleTimeout,
 		envShutdownTimeout,
+		envAGTTestWorkbook,
 	}
 }
 
@@ -71,6 +73,8 @@ type Config struct {
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
 	ShutdownTimeout   time.Duration
+	// AGTTestWorkbook optional operator path to AGT RSA test identities (local/; never in Git/CI).
+	AGTTestWorkbook string
 }
 
 // Load lê variáveis de ambiente, aplica defaults e valida o resultado.
@@ -86,6 +90,7 @@ func Load() (Config, error) {
 		WriteTimeout:      defaultWriteTimeout,
 		IdleTimeout:       defaultIdleTimeout,
 		ShutdownTimeout:   defaultShutdownTimeout,
+		AGTTestWorkbook:   strings.TrimSpace(os.Getenv(envAGTTestWorkbook)),
 	}
 
 	var err error
