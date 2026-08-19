@@ -1,6 +1,6 @@
 # Fila persistente FE fixture (RM-FEFIX-007 / RM-FEFIX-008)
 
-**Estado:** fila SQL + runtime `fiscal-api` mock-only (RM-FEFIX-008). **≠** homologação AGT; **≠** `authority_accepted`.
+**Estado:** fila SQL + runtime `fiscal-api` mock-only (**RM-FEFIX-007/008 CONCLUÍDO** em `main`). Cadeia FEFIX-001…008 fecha o âmbito **executável** do plano Excel/chaves. **≠** homologação AGT; **≠** `authority_accepted`; wire HML/PRD bloqueado (**AGT-Q-003**, **RM-FE-001**).
 
 ## Objectivo
 
