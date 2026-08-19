@@ -432,6 +432,19 @@ func runSealSuite(t *testing.T, ctx context.Context, store *persistence.Store, s
 		}
 	})
 
+	t.Run("AO-TAX-001_unknown_tax_code_rejected", func(t *testing.T) {
+		req := sampleSealReq(scope, "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1", "ext-bad-tax", "T", "10.00")
+		req.Intent.Lines[0].TaxCode = "OUT"
+		_, err := store.SealInTx(ctx, req)
+		if err == nil {
+			t.Fatal("expected validation error for unknown tax_code")
+		}
+		var ve *persistence.ValidationError
+		if !errors.As(err, &ve) || ve.Field != "lines[0].tax_code" || ve.Code != "INVALID_ENUM" {
+			t.Fatalf("want tax_code INVALID_ENUM, got %v", err)
+		}
+	})
+
 	t.Run("immutability_after_seal", func(t *testing.T) {
 		r, err := store.SealInTx(ctx, sampleSealReq(scope, "ffffffff-ffff-ffff-ffff-fffffffffff1", "ext-imm", "G", "1.00"))
 		if err != nil {

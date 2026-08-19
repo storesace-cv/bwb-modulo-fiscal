@@ -11,7 +11,7 @@
 | AO-SEQ-001 | Garantir numeração única e sequencial por série. | Crítica | Testes concorrentes e recuperação | **`confirmed_normative`** (DP 71 + DE 74; residual concorrência; ≠ AGT) |
 | AO-SEQ-002 | Impedir que o POS atribua o número fiscal final. | Crítica | Teste de API e autorização | provisório (`partial`) |
 | AO-IDEM-001 | Repetir pedido com a mesma chave sem nova emissão. | Crítica | Teste de timeout/reenvio | provisório (`scaffold`) |
-| AO-TAX-001 | Calcular e validar impostos com precisão decimal e regras versionadas. | Crítica | Vetores de cálculo e arredondamento | provisório (`partial`) |
+| AO-TAX-001 | Calcular e validar impostos com precisão decimal e regras versionadas. | Crítica | Vetores `AO_TAX_001_*`; [`ao-tax-001-engine.md`](ao-tax-001-engine.md) (RM-ENG-003) | provisório (`partial`) |
 | AO-CRYPTO-001 | Assinar/encadear documentos conforme especificação vigente. | Crítica | Verificação criptográfica independente | provisório (`partial`) |
 | AO-KEY-001 | Proteger chaves, rotação e acesso com segregação de funções. | Crítica | Auditoria e teste de rotação | provisório (`blocked`) |
 | AO-AGT-001 | Transmitir no formato exigido e preservar requestID/resposta. | Crítica | Teste de integração AGT | provisório (`pending_validation`) |
