@@ -9,26 +9,26 @@ import (
 
 // LineInput is one line for tax calculation (post money/quantity parse).
 type LineInput struct {
-	Quantity quantity.Qty
+	Quantity  quantity.Qty
 	UnitPrice money.Amount
 	TaxCode   string
 }
 
 // LineResult holds computed amounts in cents (AOA scale 2).
 type LineResult struct {
-	TaxCode   string
-	TaxType   TaxType
-	RateBP    int64
-	NetCents  int64
-	TaxCents  int64
+	TaxCode    string
+	TaxType    TaxType
+	RateBP     int64
+	NetCents   int64
+	TaxCents   int64
 	GrossCents int64
 }
 
 // DocumentTotals aggregates line results.
 type DocumentTotals struct {
-	Lines          []LineResult
-	NetTotalCents  int64
-	TaxTotalCents  int64
+	Lines           []LineResult
+	NetTotalCents   int64
+	TaxTotalCents   int64
 	GrossTotalCents int64
 }
 

@@ -150,6 +150,18 @@ Exigir no slice:
 
 Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem análise de rollback, cache e falhas.
 
+## Impostos (AO-TAX-001 / AO-TAX-002)
+
+**AO-TAX-001** (`partial`): cálculo IVA integer-only (centavos + basis points), arredondamento half-up por linha e totais de documento — ver [`ao-tax-001-engine.md`](../01-compliance/ao-tax-001-engine.md) (RM-ENG-003).
+
+Exigir no slice (MVP):
+
+- catálogo provisório `NOR`/`RED`/`INT`/`ISE` (taxas **≠** norma confirmada; fonte DE 683 @19171–19227 `pending_validation`);
+- validação fail-closed de `tax_code` desconhecido antes de selar;
+- **sem** `float`/`double` para dinheiro ou impostos.
+
+Fora do MVP deste incremento: IS/IEC, `taxExemptionCode`, descontos comerciais, retenções na fonte (DEC-REG-003); persistência de totais calculados em BD.
+
 ## Criptografia
 
 - Implementação **real** de JWS RS256.

@@ -21,9 +21,9 @@ const (
 
 // entry describes a provisional IVA tax code (basis points: 1400 = 14.00%).
 type entry struct {
-	typ       TaxType
-	rateBP    int64 // 0..10000
-	exempt    bool
+	typ        TaxType
+	rateBP     int64 // 0..10000
+	exempt     bool
 	sourceNote string
 }
 
