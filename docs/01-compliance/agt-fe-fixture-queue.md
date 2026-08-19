@@ -1,7 +1,6 @@
-# Fila persistente FE fixture (RM-FEFIX-007)
+# Fila persistente FE fixture (RM-FEFIX-007 / RM-FEFIX-008)
 
-**Estado:** integração mock-only concluída no repositório.
-**Não é** homologação AGT; **não é** `authority_accepted`; **≠** outbox slice `fiscaljws`.
+**Estado:** fila SQL + runtime `fiscal-api` mock-only (**RM-FEFIX-007/008 CONCLUÍDO** em `main`). Cadeia FEFIX-001…008 fecha o âmbito **executável** do plano Excel/chaves. **≠** homologação AGT; **≠** `authority_accepted`; wire HML/PRD bloqueado (**AGT-Q-003**, **RM-FE-001**).
 
 ## Objectivo
 
@@ -15,15 +14,23 @@ Fechar o plano Excel/chaves (PR5–PR6) ligando identidades RSA de teste (`agtte
 | [`internal/authority/fefixqueue`](../../internal/authority/fefixqueue/doc.go) | Fila SQL + worker |
 | [`internal/authority/feboundary`](../../internal/authority/feboundary/boundary.go) | Assinatura BWB-MOCK + HTTP loopback |
 | [`internal/authority/femock`](../../internal/authority/femock/doc.go) | Mock FE local |
+| [`internal/authority/fixtruntime`](../../internal/authority/fixtruntime/doc.go) | Arranque loopback femock + worker no `fiscal-api` |
 | [`internal/authority/prep`](../../internal/authority/prep/fixture_identities.go) | Catálogo sanitizado admin |
 
 ## Configuração operador
 
 | Variável | Uso |
 |---|---|
-| `FISCAL_AGT_TEST_WORKBOOK` | Path absoluto ao workbook AGT em `local/` (fora Git). Opcional; default off em CI. |
-| Admin `GET /admin/v1/authority/fixture-identities` | Lista refs sanitizadas quando workbook configurado (owner-only) |
+| `FISCAL_AGT_TEST_WORKBOOK` | Path absoluto ao workbook AGT em `local/` (fora Git). **Obrigatório** para activar runtime fixture. |
+| `FISCAL_FE_FIXTURE_MOCK_USER` | Basic Auth sintético loopback (default `bwb-fixture-mock`) |
+| `FISCAL_FE_FIXTURE_MOCK_PASS` | Password sintética loopback (gerada se omitida) |
+| `FISCAL_FE_FIXTURE_WORKER_INTERVAL` | Poll da fila (default `2s`) |
+| Admin `GET /admin/v1/authority/fixture-identities` | Lista refs sanitizadas (owner-only) |
 | Admin `GET /admin/v1/authority/fixture-hub` | Metadados hub `fixture_agt` |
+| Admin `GET /admin/v1/authority/fixture-runtime` | Estado runtime (loopback, contagem identidades) |
+| Admin `GET/POST /admin/v1/authority/fixture-submissions` | Listar / enfileirar submissões mock |
+| Admin `GET /admin/v1/authority/fixture-submissions/{id}` | Detalhe submissão |
+| Admin `POST /admin/v1/authority/fixture-submissions/process-next` | Processar manualmente uma fila (worker também corre em background) |
 
 ## Estados persistidos
 

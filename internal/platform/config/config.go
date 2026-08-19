@@ -30,6 +30,9 @@ const (
 	envIdleTimeout           = "FISCAL_HTTP_IDLE_TIMEOUT"
 	envShutdownTimeout       = "FISCAL_HTTP_SHUTDOWN_TIMEOUT"
 	envAGTTestWorkbook       = "FISCAL_AGT_TEST_WORKBOOK"
+	envFEFixtureMockUser     = "FISCAL_FE_FIXTURE_MOCK_USER"
+	envFEFixtureMockPass     = "FISCAL_FE_FIXTURE_MOCK_PASS"
+	envFEFixtureWorkerPeriod = "FISCAL_FE_FIXTURE_WORKER_INTERVAL"
 )
 
 // Authority modes for outbox→authority transport (slice).
@@ -56,6 +59,9 @@ func EnvKeys() []string {
 		envIdleTimeout,
 		envShutdownTimeout,
 		envAGTTestWorkbook,
+		envFEFixtureMockUser,
+		envFEFixtureMockPass,
+		envFEFixtureWorkerPeriod,
 	}
 }
 
@@ -75,6 +81,12 @@ type Config struct {
 	ShutdownTimeout   time.Duration
 	// AGTTestWorkbook optional operator path to AGT RSA test identities (local/; never in Git/CI).
 	AGTTestWorkbook string
+	// FEFixtureMockUser synthetic Basic Auth user for loopback femock (≠ AGT credentials).
+	FEFixtureMockUser string
+	// FEFixtureMockPass synthetic Basic Auth password for loopback femock.
+	FEFixtureMockPass string
+	// FEFixtureWorkerInterval poll interval for SQL fixture queue worker.
+	FEFixtureWorkerInterval time.Duration
 }
 
 // Load lê variáveis de ambiente, aplica defaults e valida o resultado.
@@ -91,6 +103,8 @@ func Load() (Config, error) {
 		IdleTimeout:       defaultIdleTimeout,
 		ShutdownTimeout:   defaultShutdownTimeout,
 		AGTTestWorkbook:   strings.TrimSpace(os.Getenv(envAGTTestWorkbook)),
+		FEFixtureMockUser: strings.TrimSpace(os.Getenv(envFEFixtureMockUser)),
+		FEFixtureMockPass: strings.TrimSpace(os.Getenv(envFEFixtureMockPass)),
 	}
 
 	var err error
@@ -107,6 +121,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.ShutdownTimeout, err = durationFromEnv(envShutdownTimeout, defaultShutdownTimeout); err != nil {
+		return Config{}, err
+	}
+	if cfg.FEFixtureWorkerInterval, err = durationFromEnv(envFEFixtureWorkerPeriod, 2*time.Second); err != nil {
 		return Config{}, err
 	}
 
