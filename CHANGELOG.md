@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.115-draft — 2026-08-16
+
+- Compliance / motor: **RM-ENG-002** — fecho residual engenharia **AO-SEQ-001** (sequência progressiva contínua e unívoca por `(scope, series)` sob concorrência; testes `AO-SEQ-001_*` dual-engine); doc [`ao-seq-001-engine.md`](docs/01-compliance/ao-seq-001-engine.md); **≠** `AO-SEQ-002` / `solicitarSerie` / AGT.
+
 ## 0.2.114-draft — 2026-08-19
 
 - Compliance / FE prep: **RM-FEFIX-007** — fila SQL persistente `fe_fixture_submissions` + worker mock (`internal/authority/fefixqueue`) ligando workbook `agttestkit` → `feboundary` → `femock`; retries/backoff; idempotência; admin owner-only `fixture-identities`/`fixture-hub`; `FISCAL_AGT_TEST_WORKBOOK`; migration `0014` + grants schema14; E2E dual-engine; **RM-FE-003/004** avanço mock-only (`EM_CURSO`); [`agt-fe-fixture-queue.md`](docs/01-compliance/agt-fe-fixture-queue.md); **≠** wire JWS AGT / `authority_accepted` / HML/PRD.

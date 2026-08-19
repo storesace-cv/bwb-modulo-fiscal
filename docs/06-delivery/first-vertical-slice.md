@@ -136,13 +136,17 @@ sequenceDiagram
 
 ## Numeração (AO-SEQ-001 / AO-SEQ-002)
 
+**AO-SEQ-001** (`confirmed_normative`): numeração sequencial/cronológica e progressiva contínua por série, com identificação unívoca — ver [`ao-seq-001-engine.md`](../01-compliance/ao-seq-001-engine.md) (RM-ENG-002).
+
 Exigir no slice:
 
 - exclusão mútua / transação por série;
 - números **nunca duplicados**;
 - números emitidos/selados **nunca reutilizados**;
-- rastreabilidade de números reservados, falhados ou rejeitados pela autoridade;
-- **não** prometer «zero buracos» genericamente — política final depende da regra oficial (DEC-REG-002).
+- sequência **contínua** nas selagens commitadas (sem buracos; rollback co-transaccional);
+- rastreabilidade de números reservados, falhados ou rejeitados pela autoridade.
+
+**AO-SEQ-002** (séries pela AGT / POS não atribui número final FE) permanece **provisório** — **não** misturar com AO-SEQ-001.
 
 Não usar sequences PostgreSQL (nem equivalentes) como garantia fiscal sem análise de rollback, cache e falhas.
 
