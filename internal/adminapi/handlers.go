@@ -43,6 +43,8 @@ type Handler struct {
 	OIDCReady        string      // ok|not_configured|incomplete — sanitized
 	InteractiveLogin string      // unavailable|ready
 	Mailer           smtp.Mailer // optional; RM-OPS-008 / RM-OPS-009
+	// AGTTestWorkbookPath optional operator path to AGT RSA test workbook (local/; never in Git).
+	AGTTestWorkbookPath string
 	// OpsDashboardFn optional test override; production uses Ops.LoadOpsDashboard (RM-OPS-009).
 	OpsDashboardFn func(ctx context.Context) (adminops.OpsDashboard, error)
 }
@@ -210,6 +212,8 @@ func Mount(mux *http.ServeMux, authn adminauth.Authenticator, h *Handler) {
 	mux.Handle("GET /admin/v1/authority/secadm-gate-status", wrap(secadmWrite(http.HandlerFunc(h.getAuthoritySecAdmGateStatus))))
 	mux.Handle("GET /admin/v1/authority/endpoint-catalog", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityEndpointCatalog))))
 	mux.Handle("GET /admin/v1/authority/jws-profile-scaffold", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityJWSProfileScaffold))))
+	mux.Handle("GET /admin/v1/authority/fixture-identities", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityFixtureIdentities))))
+	mux.Handle("GET /admin/v1/authority/fixture-hub", wrap(secadmWrite(http.HandlerFunc(h.getAuthorityFixtureHub))))
 	mux.Handle("POST /admin/v1/authority/probe-config", wrap(secadmWrite(http.HandlerFunc(h.probeAuthorityConfig))))
 }
 

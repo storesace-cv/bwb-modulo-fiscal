@@ -49,6 +49,8 @@ Slots (`endpoint_base_ref`, `credential_ref`, …) aceitam só refs opacas (char
 
 As mesmas do mock activo: `obterEstado`, `consultarFactura`, e `softwareInfo` (**sintético BWB-MOCK**, ≠ endpoint AGT).
 
+Persistência/worker: [`agt-fe-fixture-queue.md`](agt-fe-fixture-queue.md) (RM-FEFIX-007).
+
 ## Labels obrigatórios
 
 `mock≠HML≠PRD` · `fixture_ok≠AGT_accepted` · fontes `pending_validation`.

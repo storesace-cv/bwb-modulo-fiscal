@@ -2,7 +2,7 @@
 
 **Fonte canónica de estado e progresso do projecto.**
 
-**Estado revisto em:** 2026-08-16
+**Estado revisto em:** 2026-08-19
 
 **Inicialmente consolidado no PR:** [#28](https://github.com/storesace-cv/bwb-modulo-fiscal/pull/28)
 
@@ -44,7 +44,7 @@ A pasta `local/` não é dependência do repositório: não copiar `local/` para
 | País activo | Angola |
 | País futuro | Cabo Verde (ADIADO) |
 | OpenAPI | POS `0.1.6-draft` · Admin `0.1.34-draft` ([specs/admin/openapi.yaml](specs/admin/openapi.yaml)) |
-| Schema | `ExpectedVersion=13` |
+| Schema | `ExpectedVersion=14` |
 | Sandbox | `https://sandbox.fiscalmod.bwb.pt` — S3C2 **CONFIRMED**, kit POS **9/9** |
 | Auth sandbox | `credential_store` + `FISCAL_ENV=homologation` (técnico BWB ≠ AGT) |
 
@@ -287,8 +287,8 @@ SealInTx / `sealed_locally` **não** constituem emissão fiscal certificada.
 |---|---|---|---|---|---|---|
 | [ ] | RM-FE-001 | Endpoints HML/PRD oficiais + autenticação documentada | ADIADO | [docs/01-compliance/agt-dependencies.md](docs/01-compliance/agt-dependencies.md) · [docs/01-compliance/regulatory-gaps.md](docs/01-compliance/regulatory-gaps.md) · [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md) | M6 + GAP-006 (`BLOQUEADO_EXTERNO` / DEC-DEL-002) | Credenciais AGT; não trava simulador/contratos/testes |
 | [ ] | RM-FE-002 | JWS RS256 + campos exactos por operação | BLOQUEADO | [compliance/POLICY.md](compliance/POLICY.md) · [docs/01-compliance/sources.md](docs/01-compliance/sources.md) | Snapshot FE oficial (≠ assinatura SAF-T) | Assinatura FE verificável |
-| [ ] | RM-FE-003 | Séries, registo, consulta, listagem, validação | PENDENTE | [docs/01-compliance/sources.md](docs/01-compliance/sources.md) | RM-FE-001 | Operações FE cobertas |
-| [ ] | RM-FE-004 | Processamento assíncrono, FE-RNG, retries, reconciliação | PENDENTE | [docs/01-compliance/requirements-catalog.md](docs/01-compliance/requirements-catalog.md) | RM-FE-001 | Outbox/reconciliação AGT |
+| [ ] | RM-FE-003 | Séries, registo, consulta, listagem, validação | EM_CURSO | [docs/01-compliance/agt-fe-fixture-queue.md](docs/01-compliance/agt-fe-fixture-queue.md) · [docs/01-compliance/sources.md](docs/01-compliance/sources.md) | RM-FE-001 (real AGT); mock parcial RM-FEFIX-007 | 3 ops mock + fila SQL; wire/registo/séries AGT bloqueados |
+| [ ] | RM-FE-004 | Processamento assíncrono, FE-RNG, retries, reconciliação | EM_CURSO | [docs/01-compliance/agt-fe-fixture-queue.md](docs/01-compliance/agt-fe-fixture-queue.md) · [docs/01-compliance/requirements-catalog.md](docs/01-compliance/requirements-catalog.md) | RM-FE-001 (real AGT); mock parcial RM-FEFIX-007 | Retries/reconcile mock-only; ≠ reconciliação AGT |
 | [ ] | RM-FE-005 | Armazenamento de respostas + passagem a produção AGT | PENDENTE | [docs/01-compliance/official-access-plan.md](docs/01-compliance/official-access-plan.md) | Homologação oficial AGT aceite | Produção FE autorizada |
 | [x] | RM-FEFIX-001 | Inventário sanitizado + validação RSA do workbook AGT de teste (consulta não versionada, read-only) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/157 · [internal/agttestkit/doc.go](internal/agttestkit/doc.go) · [docs/01-compliance/agt-test-rsa-identities-provenance.md](docs/01-compliance/agt-test-rsa-identities-provenance.md) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | — | 5 pares RSA; CI workbook sintético; sem PEM/NIF/nomes no Git; ≠ certificados/Basic Auth/`softwareValidationNo` |
 | [x] | RM-FEFIX-002 | Custódia workbook/memória + interface Signer compatível SecretStore | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/158 · [internal/agttestkit/provider.go](internal/agttestkit/provider.go) · [internal/agttestkit/workbook_provider.go](internal/agttestkit/workbook_provider.go) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | RM-FEFIX-001 | crypto.Signer; refs opacas domain-separated; sem PEM/NIF/fingerprint em listing; ≠ JWS AGT |
@@ -296,6 +296,7 @@ SealInTx / `sealed_locally` **não** constituem emissão fiscal certificada.
 | [x] | RM-FEFIX-004 | Mock FE AGT (Basic Auth fictício, verify JWS, FE-RNG) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/160 · [internal/authority/femock/doc.go](internal/authority/femock/doc.go) · [docs/01-compliance/agt-fe-local-mock.md](docs/01-compliance/agt-fe-local-mock.md) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | RM-FEFIX-003 | `/mock/agt-fe/v1`; typ=BWB-MOCK≠JWT/JOSE; mock≠HML≠PRD; 0 wire AGT |
 | [x] | RM-FEFIX-005 | Outbox/estados até boundary + hub metadados fixture/HML/PRD | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/161 · [internal/authority/fehub/hub.go](internal/authority/fehub/hub.go) · [internal/authority/feboundary/boundary.go](internal/authority/feboundary/boundary.go) · [docs/01-compliance/agt-fe-boundary-hub.md](docs/01-compliance/agt-fe-boundary-hub.md) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | RM-FEFIX-004 | fixture_boundary_* ≠ AGT accepted; HML/PRD fail-closed; mock≠HML≠PRD |
 | [x] | RM-FEFIX-006 | Hardening boundary/hub (slots, BaseURL loopback, concorrência, HTTP 200 semântico) | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/163 · [internal/authority/fehub/hub.go](internal/authority/fehub/hub.go) · [internal/authority/feboundary/boundary.go](internal/authority/feboundary/boundary.go) · [docs/01-compliance/agt-fe-boundary-hub.md](docs/01-compliance/agt-fe-boundary-hub.md) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-16 | RM-FEFIX-005 | P1/P2 PR #161; fail-closed; ≠ AGT real |
+| [x] | RM-FEFIX-007 | Fila SQL workbook→boundary mock + retries + admin metadados + E2E CI | CONCLUÍDO | https://github.com/storesace-cv/bwb-modulo-fiscal/pull/165 · [internal/authority/fefixqueue](internal/authority/fefixqueue/doc.go) · [docs/01-compliance/agt-fe-fixture-queue.md](docs/01-compliance/agt-fe-fixture-queue.md) · [migrations/postgres/0014_fe_fixture_submissions.up.sql](migrations/postgres/0014_fe_fixture_submissions.up.sql) · [CHANGELOG.md](CHANGELOG.md) · 2026-08-19 | RM-FEFIX-006 | Persistência + worker mock; FISCAL_AGT_TEST_WORKBOOK; fixture_boundary_* ≠ AGT; wire bloqueado |
 
 ---
 
