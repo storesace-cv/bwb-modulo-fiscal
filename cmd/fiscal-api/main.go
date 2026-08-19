@@ -22,6 +22,7 @@ import (
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminregistry"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/adminui"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/auth"
+	"github.com/storesace-cv/bwb-modulo-fiscal/internal/authority/fixtruntime"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/buildinfo"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/health"
 	"github.com/storesace-cv/bwb-modulo-fiscal/internal/httpapi"
@@ -103,6 +104,27 @@ func run() int {
 		AuthAuditor: auditor,
 	}
 
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+
+	var fixtureRT *fixtruntime.Runtime
+	if cfg.AGTTestWorkbook != "" {
+		fixtureRT, err = fixtruntime.Open(cfg.AGTTestWorkbook, sqlDB, dialect, fixtruntime.Config{
+			WorkbookPath:   cfg.AGTTestWorkbook,
+			MockUser:       cfg.FEFixtureMockUser,
+			MockPassword:   cfg.FEFixtureMockPass,
+			WorkerInterval: cfg.FEFixtureWorkerInterval,
+			Logger:         logger,
+		})
+		if err != nil {
+			logger.Error("fixture_runtime_failed", "error", err.Error())
+			return 1
+		}
+		defer func() { _ = fixtureRT.Close() }()
+		fixtureRT.StartWorker(workerCtx)
+		logger.Info("fixture_runtime_ready", "mock_loopback", fixtureRT.Status().MockLoopback, "identities", fixtureRT.Status().IdentityCount)
+	}
+
 	mux := http.NewServeMux()
 	// Exact root only — UX landing; availability remains /v1/health (≠ AGT).
 	mux.Handle("GET /{$}", landing.NewHandler())
@@ -171,21 +193,23 @@ func run() int {
 		return 1
 	}
 	adminapi.Mount(mux, adminAuthn, &adminapi.Handler{
-		Registry:         registry,
-		Audit:            auditStore,
-		Ops:              opsStore,
-		SecretsMeta:      secretsMeta,
-		SecAdm:           secGate,
-		Obs:              adminObs,
-		DB:               sqlDB,
-		AuthMode:         adminAuthMode,
-		Version:          cfg.Version,
-		Revision:         buildinfo.Revision,
-		AuthorityMode:    cfg.Authority,
-		FiscalEnv:        docsCfg.Env,
-		OIDCReady:        oidcReady,
-		InteractiveLogin: interactive,
-		Mailer:           mailer,
+		Registry:            registry,
+		Audit:               auditStore,
+		Ops:                 opsStore,
+		SecretsMeta:         secretsMeta,
+		SecAdm:              secGate,
+		Obs:                 adminObs,
+		DB:                  sqlDB,
+		AuthMode:            adminAuthMode,
+		Version:             cfg.Version,
+		Revision:            buildinfo.Revision,
+		AuthorityMode:       cfg.Authority,
+		FiscalEnv:           docsCfg.Env,
+		OIDCReady:           oidcReady,
+		InteractiveLogin:    interactive,
+		Mailer:              mailer,
+		AGTTestWorkbookPath: cfg.AGTTestWorkbook,
+		FixtureRuntime:      fixtureRT,
 	})
 
 	uiHandler, err := adminui.New(registry, docsCfg.Env)
@@ -239,6 +263,7 @@ func run() int {
 		return 0
 	case sig := <-sigCh:
 		logger.Info("shutdown_signal", "signal", sig.String())
+		workerCancel()
 		if err := srv.Shutdown(context.Background()); err != nil {
 			return 1
 		}

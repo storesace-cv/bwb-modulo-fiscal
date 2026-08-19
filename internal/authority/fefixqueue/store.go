@@ -143,6 +143,36 @@ func (s *Store) Get(ctx context.Context, id string) (Row, error) {
 	return s.scanOne(ctx, q, id)
 }
 
+// ListRecent returns newest rows up to limit (default 50, max 200).
+func (s *Store) ListRecent(ctx context.Context, limit int) ([]Row, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	q := `SELECT id, operation, state, identity_ref, idempotency_key, payload_json,
+		attempts, mock_request_id, mock_code, source_id, note
+		FROM ` + s.table() + ` ORDER BY created_at DESC LIMIT ?`
+	rows, err := s.db.QueryContext(ctx, s.rebind(q), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]Row, 0, limit)
+	for rows.Next() {
+		var r Row
+		if err := rows.Scan(
+			&r.ID, &r.Operation, &r.State, &r.IdentityRef, &r.IdempotencyKey, &r.PayloadJSON,
+			&r.Attempts, &r.MockRequestID, &r.MockCode, &r.SourceID, &r.Note,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) scanOne(ctx context.Context, q string, args ...any) (Row, error) {
 	var r Row
 	err := s.db.QueryRowContext(ctx, s.rebind(q), args...).Scan(

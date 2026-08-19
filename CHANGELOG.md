@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.116-draft — 2026-08-19
+
+- Compliance / FE prep: **RM-FEFIX-008** — runtime `fiscal-api` para plano Excel/chaves: `fixtruntime` (loopback femock + worker fila SQL); admin enqueue/list/process fixture; config `FISCAL_FE_FIXTURE_*`; corrige passagem `FISCAL_AGT_TEST_WORKBOOK` ao admin; [`agt-fe-fixture-queue.md`](docs/01-compliance/agt-fe-fixture-queue.md); **≠** wire AGT / AGT-Q-003 / `authority_accepted`.
+
 ## 0.2.115-draft — 2026-08-16
 
 - Compliance / motor: **RM-ENG-002** — fecho residual engenharia **AO-SEQ-001** (sequência progressiva contínua e unívoca por `(scope, series)` sob concorrência; testes `AO-SEQ-001_*` dual-engine); doc [`ao-seq-001-engine.md`](docs/01-compliance/ao-seq-001-engine.md); **≠** `AO-SEQ-002` / `solicitarSerie` / AGT.
