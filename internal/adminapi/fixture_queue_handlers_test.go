@@ -139,9 +139,9 @@ func TestFixtureQueueAdmin_unconfigured_returns_503(t *testing.T) {
 	}}
 	mux := http.NewServeMux()
 	adminapi.Mount(mux, authn, &adminapi.Handler{
-		Registry: adminregistry.New(sqlDB, adminregistry.DialectSQLite, nil),
-		Audit:    adminaudit.New(sqlDB, adminaudit.DialectSQLite, nil),
-		Ops:      adminops.New(sqlDB, adminops.DialectSQLite),
+		Registry:    adminregistry.New(sqlDB, adminregistry.DialectSQLite, nil),
+		Audit:       adminaudit.New(sqlDB, adminaudit.DialectSQLite, nil),
+		Ops:         adminops.New(sqlDB, adminops.DialectSQLite),
 		SecretsMeta: mem, AuthMode: "injected", FiscalEnv: "development",
 	})
 	rr := httptest.NewRecorder()
